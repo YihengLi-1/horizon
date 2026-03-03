@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 214 28% 96%;
+  --foreground: 218 42% 14%;
+  --card: 0 0% 100%;
+  --card-foreground: 218 42% 14%;
+  --primary: 216 68% 29%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 44 68% 90%;
+  --secondary-foreground: 215 72% 24%;
+  --muted: 214 22% 92%;
+  --muted-foreground: 216 19% 36%;
+  --border: 216 21% 82%;
+  --input: 216 21% 82%;
+  --ring: 216 68% 29%;
+}
+
+* {
+  @apply border-border;
+}
+
+body {
+  @apply bg-background text-foreground;
+  min-height: 100vh;
+  font-family: var(--font-body), "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  background-color: rgb(241 245 251);
+}
+
+a {
+  @apply transition-colors;
+}
+
+h1,
+h2,
+h3,
+.font-heading {
+  font-family: var(--font-heading), Georgia, serif;
+  letter-spacing: -0.015em;
+}
+
+h1 {
+  line-height: 1.12;
+}
+
+@layer components {
+  .campus-page {
+    @apply mx-auto max-w-[1320px] space-y-6 px-4 py-6 md:px-8 lg:px-10;
+  }
+
+  .campus-card {
+    @apply rounded-2xl border border-slate-200/95 bg-white shadow-[0_10px_24px_-18px_rgba(15,23,42,0.3)] backdrop-blur;
+  }
+
+  .campus-toolbar {
+    @apply campus-card p-5 md:p-6;
+  }
+
+  .campus-title {
+    @apply font-heading text-[2rem] font-bold text-slate-900 md:text-[2.35rem];
+  }
+
+  .campus-subtitle {
+    @apply mt-2 max-w-3xl text-[0.98rem] leading-6 text-slate-600;
+  }
+
+  .campus-kpi {
+    @apply rounded-xl border border-slate-200 bg-white px-4 py-3;
+  }
+
+  .campus-chip {
+    @apply inline-flex items-center rounded-full border border-slate-300/80 bg-white/90 px-3 py-1 text-xs font-semibold tracking-wide text-slate-700;
+  }
+
+  .campus-hero {
+    @apply relative overflow-hidden rounded-2xl border border-slate-800 bg-[#102a4d] px-5 py-6 shadow-[0_14px_34px_-20px_rgba(15,23,42,0.55)] md:px-7 md:py-7;
+    background-image:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0)),
+      radial-gradient(circle at 95% -10%, rgba(245, 200, 113, 0.24), transparent 34%);
+  }
+
+  .campus-eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.2em] text-blue-100/95;
+  }
+
+  .campus-input {
+    @apply h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-2 focus:ring-slate-200;
+  }
+
+  .campus-select {
+    @apply campus-input pr-9;
+  }
+}
+
+[data-area="student"] .campus-hero {
+  background-color: #102a4d;
+}
+
+[data-area="admin"] .campus-hero {
+  background-color: #16233f;
+}

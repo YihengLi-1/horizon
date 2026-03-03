@@ -1,0 +1,213 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+enum Modality {
+  ONLINE
+  ON_CAMPUS
+  HYBRID
+}
+
+enum EnrollmentStatus {
+  CART
+  ENROLLED
+  WAITLISTED
+  PENDING_APPROVAL
+  DROPPED
+  COMPLETED
+}
+
+model User {
+  id                      String                   @id @default(uuid())
+  email                   String                   @unique
+  studentId               String?                  @unique
+  passwordHash            String
+  role                    Role
+  emailVerifiedAt         DateTime?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  studentProfile          StudentProfile?
+  issuedInviteCodes       InviteCode[]             @relation("InviteIssuer")
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  enrollments             Enrollment[]             @relation("StudentEnrollments")
+  cartItems               CartItem[]               @relation("StudentCartItems")
+  auditLogs               AuditLog[]               @relation("AuditActor")
+}
+
+model StudentProfile {
+  id               String    @id @default(uuid())
+  userId           String    @unique
+  legalName        String
+  dob              DateTime?
+  address          String?
+  emergencyContact String?
+  programMajor     String?
+  enrollmentStatus String?
+  academicStatus   String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model InviteCode {
+  id             String    @id @default(uuid())
+  code           String    @unique
+  issuedByUserId String?
+  expiresAt      DateTime?
+  maxUses        Int?
+  usedCount      Int       @default(0)
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  issuedBy       User?     @relation("InviteIssuer", fields: [issuedByUserId], references: [id])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Term {
+  id                  String       @id @default(uuid())
+  name                String
+  startDate           DateTime
+  endDate             DateTime
+  registrationOpenAt  DateTime
+  registrationCloseAt DateTime
+  dropDeadline        DateTime
+  maxCredits          Int
+  timezone            String
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  sections            Section[]
+  enrollments         Enrollment[]
+  cartItems           CartItem[]
+}
+
+model Course {
+  id                    String               @id @default(uuid())
+  code                  String               @unique
+  title                 String
+  description           String?
+  credits               Int
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  sections              Section[]
+  prerequisiteLinks     CoursePrerequisite[] @relation("CoursePrerequisites")
+  requiredForLinks      CoursePrerequisite[] @relation("RequiredForCourses")
+}
+
+model CoursePrerequisite {
+  id                   String @id @default(uuid())
+  courseId             String
+  prerequisiteCourseId String
+  course               Course @relation("CoursePrerequisites", fields: [courseId], references: [id], onDelete: Cascade)
+  prerequisiteCourse   Course @relation("RequiredForCourses", fields: [prerequisiteCourseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, prerequisiteCourseId])
+}
+
+model Section {
+  id              String       @id @default(uuid())
+  termId          String
+  courseId        String
+  sectionCode     String
+  modality        Modality
+  capacity        Int
+  credits         Int
+  instructorName  String
+  location        String?
+  requireApproval Boolean      @default(false)
+  startDate       DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  term            Term         @relation(fields: [termId], references: [id], onDelete: Cascade)
+  course          Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  meetingTimes    MeetingTime[]
+  enrollments     Enrollment[]
+  cartItems       CartItem[]
+
+  @@unique([termId, sectionCode])
+}
+
+model MeetingTime {
+  id           String  @id @default(uuid())
+  sectionId    String
+  weekday      Int
+  startMinutes Int
+  endMinutes   Int
+  section      Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+}
+
+model Enrollment {
+  id              String           @id @default(uuid())
+  studentId       String
+  termId          String
+  sectionId       String
+  status          EnrollmentStatus
+  waitlistPosition Int?
+  finalGrade      String?
+  droppedAt       DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  student         User             @relation("StudentEnrollments", fields: [studentId], references: [id], onDelete: Cascade)
+  term            Term             @relation(fields: [termId], references: [id], onDelete: Cascade)
+  section         Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, termId])
+  @@index([sectionId, status])
+  @@unique([sectionId, waitlistPosition])
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  studentId String
+  termId    String
+  sectionId String
+  createdAt DateTime @default(now())
+  student   User     @relation("StudentCartItems", fields: [studentId], references: [id], onDelete: Cascade)
+  term      Term     @relation(fields: [termId], references: [id], onDelete: Cascade)
+  section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, termId, sectionId])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  action      String
+  entityType  String
+  entityId    String?
+  metadata    Json?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  actor       User?    @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([action, createdAt])
+}

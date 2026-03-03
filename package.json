@@ -1,0 +1,32 @@
+{
+  "name": "sis-monorepo",
+  "private": true,
+  "packageManager": "pnpm@10.8.0",
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter @sis/api dev\" \"pnpm --filter @sis/web dev\"",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "smoke:web": "bash scripts/smoke-web.sh",
+    "test:e2e:web": "pnpm --filter @sis/web test:e2e:critical",
+    "test:e2e:api": "node scripts/e2e-api-p0.mjs",
+    "db:migrate": "pnpm --filter @sis/api db:migrate",
+    "db:seed": "pnpm --filter @sis/api db:seed",
+    "db:generate": "pnpm --filter @sis/api db:generate"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.8.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "argon2",
+      "esbuild",
+      "prisma",
+      "sharp",
+      "unrs-resolver"
+    ]
+  }
+}
