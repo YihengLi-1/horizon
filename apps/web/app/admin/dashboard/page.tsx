@@ -67,9 +67,9 @@ function StatCard({
     <div
       className={`group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition ${href ? "hover:shadow-md hover:border-slate-300 cursor-pointer" : ""}`}
     >
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
       <p className={`mt-2 text-3xl font-bold ${accent ?? "text-slate-900"}`}>{value}</p>
-      {sub ? <p className="mt-1 text-xs text-slate-400">{sub}</p> : null}
+      {sub ? <p className="mt-1 text-sm text-slate-500">{sub}</p> : null}
     </div>
   );
   return href ? <Link href={href}>{content}</Link> : content;
@@ -83,7 +83,7 @@ function ActionButton({ href, label, desc }: { href: string; label: string; desc
     >
       <div className="min-w-0">
         <p className="text-sm font-semibold text-slate-800">{label}</p>
-        <p className="mt-0.5 text-xs text-slate-500">{desc}</p>
+        <p className="mt-0.5 text-sm text-slate-500">{desc}</p>
       </div>
       <span className="ml-auto text-slate-300 group-hover:text-slate-500">→</span>
     </Link>
@@ -128,15 +128,15 @@ export default async function AdminDashboardPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">Administrative Command Center</p>
-            <h1 className="font-heading text-4xl font-bold text-white md:text-5xl">Admin Dashboard</h1>
-            <p className="text-sm text-blue-100/90 md:text-base">
+            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">Admin Dashboard</h1>
+            <p className="text-base text-slate-600">
               System overview for student records, enrollment operations, and registration cycle health.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">Students {data.students}</span>
-            <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">Sections {data.sections}</span>
-            <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">Waitlist {data.waitlist}</span>
+            <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Students {data.students}</span>
+            <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Sections {data.sections}</span>
+            <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Waitlist {data.waitlist}</span>
           </div>
         </div>
       </section>
@@ -154,7 +154,7 @@ export default async function AdminDashboardPage() {
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Registration Open</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Registration Open</p>
               <p className="mt-1 text-xl font-bold text-emerald-900">{activeTerm.name}</p>
               <p className="mt-1 text-sm text-emerald-700">
                 Closes {new Date(activeTerm.registrationCloseAt).toLocaleDateString()} · Drop by{" "}
@@ -164,11 +164,11 @@ export default async function AdminDashboardPage() {
             <div className="flex gap-6 text-center">
               <div>
                 <p className="text-2xl font-bold text-emerald-900">{activeTerm.sectionCount}</p>
-                <p className="text-xs text-emerald-600">sections</p>
+                <p className="text-sm text-emerald-700">sections</p>
               </div>
               <div>
                 <p className="text-2xl font-bold text-emerald-900">{activeTerm.enrollmentCount}</p>
-                <p className="text-xs text-emerald-600">enrollments</p>
+                <p className="text-sm text-emerald-700">enrollments</p>
               </div>
             </div>
           </div>
@@ -213,7 +213,7 @@ export default async function AdminDashboardPage() {
           </div>
         ) : null}
         {enrollmentTotal > 0 ? (
-          <p className="mt-1.5 text-xs text-slate-400">
+          <p className="mt-1.5 text-sm text-slate-500">
             {enrolledPct}% of active enrollments confirmed · {breakdown.waitlisted} on waitlist ·{" "}
             {breakdown.pendingApproval} awaiting approval
           </p>
@@ -228,29 +228,29 @@ export default async function AdminDashboardPage() {
               <div className="space-y-4">
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Requests</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Requests</p>
                     <p className="mt-1 text-lg font-semibold text-slate-900">{opsMetrics.requestsTotal}</p>
                   </div>
                   <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-red-600">Error Rate</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-red-600">Error Rate</p>
                     <p className="mt-1 text-lg font-semibold text-red-700">{errorRatePct}%</p>
                   </div>
                   <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">Uptime</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Uptime</p>
                     <p className="mt-1 text-lg font-semibold text-blue-900">{Math.floor(opsMetrics.uptimeSeconds / 60)} min</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Top Audit Actions</p>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Top Audit Actions</p>
                   {topAuditActions.length === 0 ? (
                     <p className="text-sm text-slate-500">No audit actions captured yet.</p>
                   ) : (
                     <div className="space-y-2">
                       {topAuditActions.map(([action, count]) => (
                         <div key={action} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                          <span className="font-medium text-slate-700">{action}</span>
-                          <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-xs font-semibold text-slate-700">
+                          <span className="font-medium text-slate-700">{actionLabel(action)}</span>
+                          <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-sm font-semibold text-slate-700">
                             {count}
                           </span>
                         </div>
@@ -289,18 +289,18 @@ export default async function AdminDashboardPage() {
                 <div key={log.id} className="flex items-center justify-between px-4 py-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-slate-800">{actionLabel(log.action)}</p>
-                    <p className="truncate text-xs text-slate-400">
+                    <p className="truncate text-sm text-slate-500">
                       {log.actorEmail} · {log.entityType}
                     </p>
                   </div>
-                  <span className="ml-4 shrink-0 text-xs text-slate-400">
+                  <span className="ml-4 shrink-0 text-sm text-slate-500">
                     {new Date(log.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </div>
               ))}
             </div>
           )}
-          <Link href="/admin/audit-logs" className="mt-3 block text-xs font-medium text-slate-500 hover:text-slate-700">
+          <Link href="/admin/audit-logs" className="mt-3 block text-sm font-medium text-slate-500 hover:text-slate-700">
             View all audit logs →
           </Link>
         </div>

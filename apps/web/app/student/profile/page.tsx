@@ -131,17 +131,16 @@ export default function StudentProfilePage() {
   return (
     <div className="campus-page">
       <section className="campus-card overflow-hidden p-0">
-        <div className="relative border-b border-slate-200 bg-gradient-to-r from-[#12305f] via-[#214f8f] to-[#8da2bf] px-5 py-6 md:px-7">
-          <div className="pointer-events-none absolute inset-0 opacity-25 [background-image:radial-gradient(circle_at_15%_12%,rgba(255,255,255,0.35),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(252,211,77,0.35),transparent_30%)]" />
+        <div className="relative border-b border-slate-200 bg-slate-50 px-5 py-6 md:px-7">
           <div className="relative flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="flex size-16 items-center justify-center rounded-full border border-white/30 bg-white/10 text-xl font-bold text-white">
+              <div className="flex size-16 items-center justify-center rounded-full border border-slate-300 bg-white text-xl font-bold text-slate-900">
                 {initials}
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">Student Profile</p>
-                <h1 className="font-heading text-3xl font-bold text-white">{form.legalName || "Student"}</h1>
-                <p className="text-sm text-blue-100/90">{profile?.user.email || "—"}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Student Profile</p>
+                <h1 className="font-heading text-3xl font-bold text-slate-900">{form.legalName || "Student"}</h1>
+                <p className="text-sm text-slate-600">{profile?.user.email || "—"}</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">

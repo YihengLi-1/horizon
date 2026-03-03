@@ -71,6 +71,22 @@ function statusBadgeClass(status: string): string {
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
+function formatStatusLabel(status: string): string {
+  return status
+    .toLowerCase()
+    .split("_")
+    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
+    .join(" ");
+}
+
+function formatReasonLabel(reason: string): string {
+  return reason
+    .toLowerCase()
+    .split("_")
+    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
+    .join(" ");
+}
+
 function issueHint(reasonCode: string): string | null {
   if (reasonCode === "SECTION_ALREADY_STARTED") return "Section already started. Contact advisor/registrar for support.";
   if (reasonCode === "PREREQUISITE_NOT_MET") return "Complete prerequisite course(s) first or request departmental override.";
@@ -78,6 +94,13 @@ function issueHint(reasonCode: string): string | null {
   if (reasonCode === "CREDIT_LIMIT_EXCEEDED") return "Reduce planned credits or request an overload approval.";
   if (reasonCode === "ALREADY_REGISTERED") return "This section is already active in your enrollments.";
   return null;
+}
+
+function formatDateTime(value: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
 }
 
 function Alert({ type, message }: { type: "success" | "error" | "info"; message: string }) {
@@ -124,13 +147,13 @@ export default function StudentCartPage() {
     if (now < openAt) {
       return {
         isOpen: false,
-        message: `Registration opens on ${new Date(activeTerm.registrationOpenAt).toLocaleDateString()} at ${new Date(activeTerm.registrationOpenAt).toLocaleTimeString()}.`
+        message: `Registration opens on ${formatDateTime(activeTerm.registrationOpenAt)}.`
       };
     }
     if (now > closeAt) {
       return {
         isOpen: false,
-        message: `Registration closed on ${new Date(activeTerm.registrationCloseAt).toLocaleDateString()} at ${new Date(activeTerm.registrationCloseAt).toLocaleTimeString()}.`
+        message: `Registration closed on ${formatDateTime(activeTerm.registrationCloseAt)}.`
       };
     }
     return { isOpen: true, message: "" };
@@ -255,8 +278,24 @@ export default function StudentCartPage() {
   }, [activeIssues]);
 
   const hasBlockingIssues = precheckRan && (precheckIssues.length > 0 || Boolean(precheckError));
+  const precheckDisabled = !termId || items.length === 0 || prechecking || submitting || !registrationWindow.isOpen;
+  const precheckDisabledReason = useMemo(() => {
+    if (!termId) return "Select a term first.";
+    if (!registrationWindow.isOpen) return registrationWindow.message || "Registration window is currently closed.";
+    if (items.length === 0) return "Add at least one section before running precheck.";
+    if (submitting) return "Wait for the current submission to finish.";
+    return "";
+  }, [termId, registrationWindow.isOpen, registrationWindow.message, items.length, submitting]);
   const submitDisabled =
     !termId || items.length === 0 || submitting || !registrationWindow.isOpen || hasBlockingIssues;
+  const submitDisabledReason = useMemo(() => {
+    if (!termId) return "Select a term first.";
+    if (!registrationWindow.isOpen) return registrationWindow.message || "Registration window is currently closed.";
+    if (items.length === 0) return "Add at least one section before submitting.";
+    if (!precheckRan) return "Run precheck before submitting.";
+    if (hasBlockingIssues) return "Resolve precheck issues or remove invalid rows first.";
+    return "";
+  }, [termId, registrationWindow.isOpen, registrationWindow.message, items.length, precheckRan, hasBlockingIssues]);
 
   const readinessChecks = useMemo(
     () => [
@@ -275,7 +314,8 @@ export default function StudentCartPage() {
   const updateUrlTerm = (nextTermId: string) => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    url.searchParams.set("termId", nextTermId);
+    if (nextTermId) url.searchParams.set("termId", nextTermId);
+    else url.searchParams.delete("termId");
     window.history.replaceState({}, "", url.toString());
   };
 
@@ -439,28 +479,29 @@ export default function StudentCartPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">Registration Workflow</p>
-            <h1 className="font-heading text-4xl font-bold text-white md:text-5xl">Registration Cart</h1>
-            <p className="text-sm text-blue-100/90 md:text-base">
+            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">Registration Cart</h1>
+            <p className="text-sm text-slate-600 md:text-base">
               Review selections for {activeTerm ? activeTerm.name : "the selected term"}, run precheck, and submit safely.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">{items.length} item(s)</span>
-              <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">{cartMetrics.totalCredits} planned credits</span>
-              <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">{cartMetrics.approvalCount} approval required</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{items.length} item(s)</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{cartMetrics.totalCredits} planned credits</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{cartMetrics.approvalCount} approval required</span>
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
             <Link
               href={`/student/catalog${termId ? `?termId=${termId}` : ""}`}
-              className="inline-flex h-10 items-center rounded-xl border border-white/40 bg-white/95 px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
+              className="inline-flex h-10 w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:bg-slate-50 sm:w-auto"
             >
               Back to catalog
             </Link>
             <button
               type="button"
               onClick={runPrecheck}
-              disabled={!termId || items.length === 0 || prechecking || submitting || !registrationWindow.isOpen}
-              className="inline-flex h-10 min-w-28 items-center justify-center gap-2 rounded-xl border border-white/40 bg-white/95 px-4 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={precheckDisabled}
+              title={precheckDisabledReason || undefined}
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-28 sm:w-auto"
             >
               {prechecking ? (
                 <>
@@ -475,7 +516,7 @@ export default function StudentCartPage() {
               type="button"
               onClick={removeInvalidItems}
               disabled={invalidCartItemIds.length === 0 || removingInvalid || submitting}
-              className="inline-flex h-10 min-w-32 items-center justify-center gap-2 rounded-xl border border-red-200/80 bg-red-50 px-4 text-sm font-semibold text-red-700 transition hover:-translate-y-0.5 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-red-200/80 bg-red-50 px-4 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-32 sm:w-auto"
             >
               {removingInvalid ? (
                 <>
@@ -490,7 +531,8 @@ export default function StudentCartPage() {
               type="button"
               onClick={submit}
               disabled={submitDisabled}
-              className="inline-flex h-10 min-w-28 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              aria-disabled={submitDisabled}
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-28 sm:w-auto"
             >
               {submitting ? (
                 <>
@@ -501,6 +543,12 @@ export default function StudentCartPage() {
                 "Submit"
               )}
             </button>
+            {submitDisabledReason ? (
+              <p className="w-full text-xs text-slate-600 sm:text-right">{submitDisabledReason}</p>
+            ) : null}
+            {!prechecking && precheckDisabledReason ? (
+              <p className="w-full text-xs text-slate-600 sm:text-right">Precheck unavailable: {precheckDisabledReason}</p>
+            ) : null}
           </div>
         </div>
       </section>
@@ -540,7 +588,9 @@ export default function StudentCartPage() {
               className="campus-select"
               value={termId}
               onChange={(event) => void onTermChange(event.target.value)}
+              disabled={terms.length === 0}
             >
+              {terms.length === 0 ? <option value="">No active terms</option> : null}
               {terms.map((term) => (
                 <option key={term.id} value={term.id}>
                   {term.name}
@@ -562,10 +612,10 @@ export default function StudentCartPage() {
               <span className="font-semibold">ENROLLED:</span> Seat confirmed after submit.
             </p>
             <p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
-              <span className="font-semibold">PENDING_APPROVAL:</span> Awaiting department/admin action.
+              <span className="font-semibold">Pending Approval:</span> Awaiting department/admin action.
             </p>
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              <span className="font-semibold">WAITLISTED:</span> Added to queue when capacity is full.
+              <span className="font-semibold">Waitlisted:</span> Added to queue when capacity is full.
             </p>
           </div>
         </section>
@@ -600,9 +650,17 @@ export default function StudentCartPage() {
         </section>
       </section>
 
-      {message ? <Alert type="success" message={message} /> : null}
-      {error ? <Alert type="error" message={error} /> : null}
-      {precheckError ? <Alert type="error" message={precheckError} /> : null}
+      <div aria-live="polite" className="space-y-3">
+        {message ? <Alert type="success" message={message} /> : null}
+        {error ? <Alert type="error" message={error} /> : null}
+        {precheckError ? <Alert type="error" message={precheckError} /> : null}
+      </div>
+      {terms.length === 0 ? (
+        <Alert
+          type="info"
+          message="No active term is available yet. Registration cart is disabled until a term is published."
+        />
+      ) : null}
       {!registrationWindow.isOpen && registrationWindow.message ? <Alert type="info" message={registrationWindow.message} /> : null}
       {summaryIssues.length > 0 ? (
         <div
@@ -640,8 +698,9 @@ export default function StudentCartPage() {
               <span
                 key={reason}
                 className="inline-flex items-center rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-medium text-red-800"
+                title={reason}
               >
-                {reason} · {count}
+                {formatReasonLabel(reason)} · {count}
               </span>
             ))}
           </div>
@@ -653,7 +712,78 @@ export default function StudentCartPage() {
       {!loading && items.length === 0 ? <Alert type="info" message="Your cart is empty. Add sections from catalog." /> : null}
 
       <section className="campus-card overflow-hidden">
-        <div className="max-h-[460px] overflow-auto rounded-2xl">
+        <div className="space-y-3 p-3 md:hidden">
+          {loading ? (
+            [1, 2, 3].map((row) => (
+              <div key={row} className="rounded-xl border border-slate-200 bg-white p-3">
+                <div className="animate-pulse space-y-2">
+                  <div className="h-4 w-2/3 rounded bg-slate-200" />
+                  <div className="h-4 w-1/3 rounded bg-slate-100" />
+                </div>
+              </div>
+            ))
+          ) : null}
+
+          {!loading && items.length === 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-white p-5 text-center text-sm text-slate-500">
+              Cart is empty.
+            </div>
+          ) : null}
+
+          {!loading &&
+            items.map((item) => {
+              const rowIssues = issueMapBySectionId.get(item.section.id) ?? [];
+              return (
+                <article
+                  id={`cart-item-${item.id}`}
+                  key={item.id}
+                  className={`rounded-xl border p-3 ${
+                    rowIssues.length > 0 ? "border-red-200 bg-red-50/50" : "border-slate-200 bg-white"
+                  }`}
+                >
+                  <p className="text-sm font-semibold text-slate-900">
+                    {item.section.course.code} - {item.section.course.title}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Section {item.section.sectionCode} · {item.section.credits} credits
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${
+                        item.section.requireApproval
+                          ? "border-blue-200 bg-blue-50 text-blue-700"
+                          : "border-slate-200 bg-slate-50 text-slate-700"
+                      }`}
+                    >
+                      {item.section.requireApproval ? "Approval required" : "No approval needed"}
+                    </span>
+                  </div>
+                  {rowIssues.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {rowIssues.map((issue, idx) => (
+                        <span
+                          key={`${item.id}-${issue.reasonCode}-${idx}`}
+                          className="inline-flex rounded-full border border-red-200 bg-white px-2 py-0.5 text-[11px] font-medium text-red-700"
+                          title={`${issue.reasonCode}: ${issue.message}`}
+                        >
+                          {formatReasonLabel(issue.reasonCode)}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void removeItem(item.id)}
+                    className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-lg border border-red-200 bg-white px-3 text-sm font-medium text-red-700 transition hover:bg-red-50"
+                  >
+                    Remove
+                  </button>
+                </article>
+              );
+            })}
+        </div>
+
+        <div className="hidden max-h-[460px] overflow-auto rounded-2xl md:block">
           <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-slate-50">
               <tr className="border-b border-slate-200 text-left">
@@ -705,9 +835,9 @@ export default function StudentCartPage() {
                               <span
                                 key={`${item.id}-${issue.reasonCode}-${idx}`}
                                 className="inline-flex rounded-full border border-red-200 bg-white px-2 py-0.5 text-[11px] font-medium text-red-700"
-                                title={issue.message}
+                                title={`${issue.reasonCode}: ${issue.message}`}
                               >
-                                {issue.reasonCode}
+                                {formatReasonLabel(issue.reasonCode)}
                               </span>
                             ))}
                           </div>
@@ -789,7 +919,7 @@ export default function StudentCartPage() {
               <div key={group.status} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <div className="flex items-center gap-2">
                   <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadgeClass(group.status)}`}>
-                    {group.status}
+                    {formatStatusLabel(group.status)}
                   </span>
                   <span className="text-xs text-slate-500">{group.items.length} item(s)</span>
                 </div>
@@ -815,7 +945,7 @@ export default function StudentCartPage() {
               <div key={group.status} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <div className="flex items-center gap-2">
                   <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadgeClass(group.status)}`}>
-                    {group.status}
+                    {formatStatusLabel(group.status)}
                   </span>
                   <span className="text-xs text-slate-500">{group.items.length} item(s)</span>
                 </div>

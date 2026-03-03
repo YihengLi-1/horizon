@@ -50,6 +50,14 @@ function meetingSummary(mts: MeetingTime[]): string {
   return mts.map((mt) => `${WEEKDAY[mt.weekday] ?? mt.weekday} ${fmt(mt.startMinutes)}–${fmt(mt.endMinutes)}`).join(", ");
 }
 
+function formatCodeLabel(value: string): string {
+  return value
+    .toLowerCase()
+    .split("_")
+    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
+    .join(" ");
+}
+
 function statusBadge(status: string) {
   if (status === "ENROLLED") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (status === "WAITLISTED") return "border-amber-200 bg-amber-50 text-amber-700";
@@ -103,11 +111,16 @@ export default function SchedulePage() {
         .reduce((sum, enrollment) => sum + enrollment.section.credits, 0),
     [visibleEnrollments]
   );
+  const hasStatusFiltersApplied = useMemo(
+    () => !showEnrolled || !showPending || !showWaitlisted,
+    [showEnrolled, showPending, showWaitlisted]
+  );
 
   const updateUrlTerm = (tid: string) => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    url.searchParams.set("termId", tid);
+    if (tid) url.searchParams.set("termId", tid);
+    else url.searchParams.delete("termId");
     window.history.replaceState({}, "", url.toString());
   };
 
@@ -152,6 +165,11 @@ export default function SchedulePage() {
     setDropError({});
     await loadSchedule(tid);
   };
+  const resetStatusFilters = () => {
+    setShowEnrolled(true);
+    setShowPending(true);
+    setShowWaitlisted(true);
+  };
 
   const dropEnrollment = async (enrollmentId: string) => {
     try {
@@ -182,7 +200,7 @@ export default function SchedulePage() {
         const cs = Math.max(mt.startMinutes, DAY_START);
         const ce = Math.min(mt.endMinutes, DAY_END);
         const baseLabel = `${enrollment.section.course.code} §${enrollment.section.sectionCode}`;
-        const label = enrollment.status === "PENDING_APPROVAL" ? `[Pending] ${baseLabel}` : baseLabel;
+        const label = enrollment.status === "PENDING_APPROVAL" ? `[Pending Approval] ${baseLabel}` : baseLabel;
         map.get(mt.weekday)!.push({
           key: `${enrollment.id}-${i}`,
           code: enrollment.section.course.code,
@@ -204,6 +222,15 @@ export default function SchedulePage() {
     return marks;
   }, []);
 
+  const mobileAgenda = useMemo(
+    () =>
+      DAY_INDEXES.map((day) => {
+        const blocks = [...(blocksByDay.get(day) ?? [])].sort((a, b) => a.top - b.top);
+        return { day, blocks };
+      }).filter((group) => group.blocks.length > 0),
+    [blocksByDay]
+  );
+
   const blockColor = (status: string) =>
     status === "WAITLISTED"
       ? "border-amber-300 bg-amber-100 text-amber-900"
@@ -217,38 +244,39 @@ export default function SchedulePage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">Weekly Planning</p>
-            <h1 className="font-heading text-4xl font-bold text-white md:text-5xl">Class Schedule</h1>
-            <p className="text-sm text-blue-100/90 md:text-base">
+            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">Class Schedule</h1>
+            <p className="text-sm text-slate-600 md:text-base">
               Review enrollment statuses and manage drops with a timetable view.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">Enrolled {statusCounts.ENROLLED}</span>
-              <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">Pending {statusCounts.PENDING_APPROVAL}</span>
-              <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">Waitlisted {statusCounts.WAITLISTED}</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Enrolled {statusCounts.ENROLLED}</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Pending {statusCounts.PENDING_APPROVAL}</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Waitlisted {statusCounts.WAITLISTED}</span>
             </div>
           </div>
-          <div className="min-w-[260px] space-y-2">
+          <div className="w-full max-w-sm space-y-2">
             <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-blue-100">Term</label>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Term</label>
               <select
                 className="campus-select bg-white/95"
                 value={termId}
                 onChange={(e) => void onTermChange(e.target.value)}
-                disabled={loadingTerms}
+                disabled={loadingTerms || terms.length === 0}
               >
+                {terms.length === 0 ? <option value="">No active terms</option> : null}
                 {terms.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
             <div className="flex gap-2">
               <Link
                 href={termId ? `/student/catalog?termId=${termId}` : "/student/catalog"}
-                className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-white/40 bg-white/90 px-3 text-xs font-semibold text-slate-800 no-underline transition hover:bg-white"
+                className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 no-underline transition hover:bg-white"
               >
                 Browse catalog
               </Link>
               <Link
                 href={termId ? `/student/cart?termId=${termId}` : "/student/cart"}
-                className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-white/40 bg-white/90 px-3 text-xs font-semibold text-slate-800 no-underline transition hover:bg-white"
+                className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 no-underline transition hover:bg-white"
               >
                 Open cart
               </Link>
@@ -277,6 +305,11 @@ export default function SchedulePage() {
       </section>
 
       {/* Drop deadline banner */}
+      {terms.length === 0 ? (
+        <div className="rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          No active term is available yet. Schedule will appear after a term is published.
+        </div>
+      ) : null}
       {activeTerm ? (
         dropDeadlinePassed ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -303,37 +336,49 @@ export default function SchedulePage() {
           <button
             type="button"
             onClick={() => setShowEnrolled((prev) => !prev)}
+            aria-pressed={showEnrolled}
             className={`inline-flex h-8 items-center rounded-full border px-3 text-xs font-medium transition ${
               showEnrolled
                 ? "border-emerald-300 bg-emerald-50 text-emerald-800"
                 : "border-slate-300 bg-white text-slate-600"
             }`}
           >
-            ENROLLED ({statusCounts.ENROLLED})
+            {formatCodeLabel("ENROLLED")} ({statusCounts.ENROLLED})
           </button>
           <button
             type="button"
             onClick={() => setShowPending((prev) => !prev)}
+            aria-pressed={showPending}
             className={`inline-flex h-8 items-center rounded-full border px-3 text-xs font-medium transition ${
               showPending
                 ? "border-blue-300 bg-blue-50 text-blue-800"
                 : "border-slate-300 bg-white text-slate-600"
             }`}
           >
-            PENDING ({statusCounts.PENDING_APPROVAL})
+            {formatCodeLabel("PENDING_APPROVAL")} ({statusCounts.PENDING_APPROVAL})
           </button>
           <button
             type="button"
             onClick={() => setShowWaitlisted((prev) => !prev)}
+            aria-pressed={showWaitlisted}
             className={`inline-flex h-8 items-center rounded-full border px-3 text-xs font-medium transition ${
               showWaitlisted
                 ? "border-amber-300 bg-amber-50 text-amber-800"
                 : "border-slate-300 bg-white text-slate-600"
             }`}
           >
-            WAITLISTED ({statusCounts.WAITLISTED})
+            {formatCodeLabel("WAITLISTED")} ({statusCounts.WAITLISTED})
           </button>
           <span className="text-xs text-slate-500">{visibleEnrollments.length} visible</span>
+          {hasStatusFiltersApplied ? (
+            <button
+              type="button"
+              onClick={resetStatusFilters}
+              className="inline-flex h-8 items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              Reset filters
+            </button>
+          ) : null}
         </div>
       </section>
 
@@ -342,7 +387,63 @@ export default function SchedulePage() {
         <div className="border-b border-slate-100 px-4 py-3">
           <h2 className="text-sm font-semibold text-slate-900">Section List</h2>
         </div>
-        <div className="max-h-[460px] overflow-auto">
+        <div className="space-y-3 p-3 md:hidden">
+          {loadingSchedule ? (
+            <div role="status" aria-live="polite" className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-400">
+              Loading schedule…
+            </div>
+          ) : null}
+          {!loadingSchedule && visibleEnrollments.length === 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-400">
+              {enrollments.length === 0 ? "No courses in this term yet." : "No courses match current status filters."}
+              {hasStatusFiltersApplied ? (
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={resetStatusFilters}
+                    className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Show all statuses
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {!loadingSchedule &&
+            visibleEnrollments.map((enrollment) => (
+              <article key={enrollment.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                <p className="text-sm font-semibold text-slate-900">
+                  {enrollment.section.course.code} - {enrollment.section.course.title}
+                </p>
+                <p className="mt-1 text-xs text-slate-600">
+                  Section {enrollment.section.sectionCode}
+                  {enrollment.section.location ? ` @ ${enrollment.section.location}` : ""}
+                </p>
+                <p className="mt-1 text-xs text-slate-600">Instructor: {enrollment.section.instructorName}</p>
+                <p className="mt-1 text-xs text-slate-600">{meetingSummary(enrollment.section.meetingTimes)}</p>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadge(enrollment.status)}`}>
+                    {formatCodeLabel(enrollment.status)}
+                  </span>
+                  {dropDeadlinePassed && (enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL") ? (
+                    <span className="text-[11px] text-amber-700">Drop unavailable after deadline</span>
+                  ) : enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL" || enrollment.status === "WAITLISTED" ? (
+                    <button
+                      type="button"
+                      onClick={() => void dropEnrollment(enrollment.id)}
+                      disabled={dropping[enrollment.id]}
+                      className="inline-flex h-8 items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+                    >
+                      {dropping[enrollment.id] ? "Dropping…" : "Drop"}
+                    </button>
+                  ) : null}
+                </div>
+                {dropError[enrollment.id] ? <p className="mt-2 text-xs text-red-700">{dropError[enrollment.id]}</p> : null}
+              </article>
+            ))}
+        </div>
+
+        <div className="hidden max-h-[460px] overflow-auto md:block">
           <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-slate-100 bg-slate-50 text-left">
@@ -356,9 +457,24 @@ export default function SchedulePage() {
             </thead>
             <tbody>
               {loadingSchedule ? (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400">Loading…</td></tr>
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400">Loading schedule…</td></tr>
               ) : visibleEnrollments.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">No courses match current status filters.</td></tr>
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                    {enrollments.length === 0 ? "No courses in this term yet." : "No courses match current status filters."}
+                    {hasStatusFiltersApplied ? (
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          onClick={resetStatusFilters}
+                          className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Show all statuses
+                        </button>
+                      </div>
+                    ) : null}
+                  </td>
+                </tr>
               ) : (
                 visibleEnrollments.map((enrollment) => (
                   <Fragment key={enrollment.id}>
@@ -376,7 +492,7 @@ export default function SchedulePage() {
                       <td className="px-4 py-3 text-slate-600 text-xs">{meetingSummary(enrollment.section.meetingTimes)}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadge(enrollment.status)}`}>
-                          {enrollment.status}
+                          {formatCodeLabel(enrollment.status)}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -423,13 +539,54 @@ export default function SchedulePage() {
       <section className="campus-card p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-slate-900">Week View (Mon-Fri, 08:00-18:00)</h2>
-          <div className="flex flex-wrap gap-2 text-[11px]">
-            <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-emerald-700">ENROLLED</span>
-            <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-blue-700">PENDING</span>
-            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-amber-700">WAITLISTED</span>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-emerald-700">{formatCodeLabel("ENROLLED")}</span>
+            <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-blue-700">{formatCodeLabel("PENDING_APPROVAL")}</span>
+            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-amber-700">{formatCodeLabel("WAITLISTED")}</span>
           </div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="space-y-3 md:hidden">
+          {loadingSchedule ? (
+            <p role="status" aria-live="polite" className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+              Loading week view…
+            </p>
+          ) : mobileAgenda.length === 0 ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+              <p>
+                {visibleEnrollments.length === 0
+                  ? enrollments.length === 0
+                    ? "No schedule items available for this term."
+                    : "No meeting blocks for the selected statuses."
+                  : "No meeting blocks in Mon-Fri 08:00-18:00 for current filters."}
+              </p>
+              {hasStatusFiltersApplied ? (
+                <button
+                  type="button"
+                  onClick={resetStatusFilters}
+                  className="mt-2 inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                >
+                  Show all statuses
+                </button>
+              ) : null}
+            </div>
+          ) : (
+            mobileAgenda.map((group) => (
+              <div key={group.day} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">{WEEKDAY[group.day]}</p>
+                <ul className="mt-2 space-y-2">
+                  {group.blocks.map((block) => (
+                    <li key={`mobile-${block.key}`} className={`rounded-lg border px-2.5 py-2 text-xs ${blockColor(block.status)}`}>
+                      <p className="font-semibold">{block.code} §{block.section}</p>
+                      <p className="mt-0.5 opacity-85">{block.time}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
           <div className="grid min-w-[640px] grid-cols-[64px_repeat(5,minmax(0,1fr))]">
             {/* Header row */}
             <div className="border-b border-slate-200 bg-slate-50" />
@@ -444,7 +601,7 @@ export default function SchedulePage() {
               {hourMarks.slice(0, -1).map((mark) => (
                 <div
                   key={mark}
-                  className="absolute left-1 text-[10px] text-slate-400"
+                  className="absolute left-1 text-[11px] text-slate-500"
                   style={{ top: `${Math.max(0, ((mark - DAY_START) / 60) * HOUR_H - 6)}px` }}
                 >
                   {fmt(mark)}
@@ -465,11 +622,11 @@ export default function SchedulePage() {
                 {(blocksByDay.get(day) ?? []).map((block) => (
                   <div
                     key={block.key}
-                    className={`absolute left-1 right-1 overflow-hidden rounded border px-1 py-0.5 text-[10px] leading-tight ${blockColor(block.status)}`}
+                    className={`absolute left-1 right-1 overflow-hidden rounded border px-1.5 py-1 text-[11px] leading-tight ${blockColor(block.status)}`}
                     style={{ top: `${block.top}px`, height: `${block.height}px` }}
                     title={`${block.label} · ${block.time}`}
                   >
-                    <div className="font-semibold">{block.status === "PENDING_APPROVAL" ? `[Pending] ${block.code}` : block.code}</div>
+                    <div className="font-semibold">{block.status === "PENDING_APPROVAL" ? `[Pending Approval] ${block.code}` : block.code}</div>
                     <div className="opacity-80">§{block.section}</div>
                     <div className="opacity-70">{block.time}</div>
                   </div>

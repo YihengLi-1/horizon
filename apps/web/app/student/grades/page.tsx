@@ -80,14 +80,14 @@ export default async function GradesPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">Academic Record</p>
-            <h1 className="font-heading text-4xl font-bold text-white md:text-5xl">Grades</h1>
-            <p className="text-sm text-blue-100/90 md:text-base">
+            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">Grades</h1>
+            <p className="text-sm text-slate-600 md:text-base">
               Final grades and GPA trends across completed terms.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">{grades.length} graded classes</span>
-              <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">{terms.length} term(s)</span>
-              <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">{completedCredits} completed credits</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{grades.length} graded classes</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{terms.length} term(s)</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{completedCredits} completed credits</span>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">

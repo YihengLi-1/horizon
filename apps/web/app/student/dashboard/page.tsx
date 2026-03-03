@@ -157,7 +157,7 @@ export default async function StudentDashboardPage() {
 
   const dropDaysLeft = term ? Math.ceil((new Date(term.dropDeadline).getTime() - now) / (24 * 60 * 60 * 1000)) : null;
   const creditsRemaining = term ? Math.max(0, term.maxCredits - enrolledCredits) : 0;
-  const creditPct = term ? Math.min(100, Math.round((enrolledCredits / term.maxCredits) * 100)) : 0;
+  const creditPct = term && term.maxCredits > 0 ? Math.min(100, Math.round((enrolledCredits / term.maxCredits) * 100)) : 0;
 
   const actionItems: ActionItem[] = [];
 
@@ -298,39 +298,39 @@ export default async function StudentDashboardPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">Student Command Board</p>
-            <h1 className="font-heading text-4xl font-bold text-white md:text-5xl">
+            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">
               {me?.profile?.legalName ? `Welcome, ${me.profile.legalName}` : "Student Dashboard"}
             </h1>
-            <p className="text-sm text-blue-100/90 md:text-base">
+            <p className="text-base text-slate-600">
               {term ? `Priority actions and timeline for ${term.name}.` : "No active term is configured yet."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">Student ID: {me?.studentId ?? "—"}</span>
-            <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">Major: {me?.profile?.programMajor ?? "Undeclared"}</span>
-            {term ? <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">{term.name}</span> : null}
-            <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">{enrolledCredits} enrolled credits</span>
+            <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Student ID: {me?.studentId ?? "—"}</span>
+            <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Major: {me?.profile?.programMajor ?? "Undeclared"}</span>
+            {term ? <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{term.name}</span> : null}
+            <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{enrolledCredits} enrolled credits</span>
           </div>
         </div>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-slate-200 bg-white">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Registration State</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Registration State</p>
           <p className="mt-1 text-xl font-semibold text-slate-900">
             {registrationState === "PRE_OPEN" ? "Pre-Open" : registrationState === "OPEN" ? "Open" : registrationState === "CLOSED" ? "Closed" : "N/A"}
           </p>
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Credits Enrolled</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">Credits Enrolled</p>
           <p className="mt-1 text-2xl font-semibold text-blue-900">{enrolledCredits}</p>
         </div>
         <div className="campus-kpi border-amber-200 bg-amber-50">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Waitlisted</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Waitlisted</p>
           <p className="mt-1 text-2xl font-semibold text-amber-900">{waitlistedCount}</p>
         </div>
         <div className="campus-kpi border-emerald-200 bg-emerald-50">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Pending Approval</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Pending Approval</p>
           <p className="mt-1 text-2xl font-semibold text-emerald-900">{pendingApproval.length}</p>
         </div>
       </section>
@@ -339,9 +339,7 @@ export default async function StudentDashboardPage() {
         <section className="campus-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-semibold text-slate-800">Credit Utilization</p>
-            <p className="text-xs text-slate-500">
-              {enrolledCredits}/{term.maxCredits} credits
-            </p>
+            <p className="text-sm text-slate-500">{term.maxCredits > 0 ? `${enrolledCredits}/${term.maxCredits} credits` : "No credit cap configured"}</p>
           </div>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
             <div
@@ -364,13 +362,13 @@ export default async function StudentDashboardPage() {
                   <p className="text-sm font-semibold">{alert.title}</p>
                   <p className="mt-1 text-sm opacity-90">{alert.description}</p>
                 </div>
-                <span className="rounded-full border border-current/30 bg-white/40 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide">
+                <span className="rounded-full border border-current/30 bg-white/40 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide">
                   {alertBadge(alert.level)}
                 </span>
               </div>
               <Link
                 href={alert.href}
-                className="mt-2 inline-flex h-8 items-center rounded-lg border border-current/25 bg-white/50 px-3 text-xs font-semibold text-current no-underline transition hover:bg-white/70"
+                className="mt-2 inline-flex h-8 items-center rounded-lg border border-current/25 bg-white/50 px-3 text-sm font-semibold text-current no-underline transition hover:bg-white/70"
               >
                 {alert.cta}
               </Link>
@@ -389,14 +387,14 @@ export default async function StudentDashboardPage() {
               <div key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-slate-900">{item.title}</p>
-                  <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${chipTone(item.tone)}`}>
+                  <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${chipTone(item.tone)}`}>
                     {item.tone === "emerald" ? "Ready" : item.tone === "amber" ? "Attention" : "Info"}
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-slate-600">{item.description}</p>
                 <Link
                   href={item.href}
-                  className="mt-2 inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 no-underline transition hover:bg-slate-100"
+                  className="mt-2 inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-100"
                 >
                   {item.cta}
                 </Link>
@@ -413,19 +411,19 @@ export default async function StudentDashboardPage() {
             {term ? (
               <>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Registration Opens</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Registration Opens</p>
                   <p className="mt-1 text-slate-800">{fmtDateTime(term.registrationOpenAt)}</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Registration Closes</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Registration Closes</p>
                   <p className="mt-1 text-slate-800">{fmtDateTime(term.registrationCloseAt)}</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Drop Deadline</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Drop Deadline</p>
                   <p className="mt-1 text-slate-800">{fmtDateTime(term.dropDeadline)}</p>
                 </div>
                 {dropDaysLeft !== null ? (
-                  <p className={`rounded-xl border px-3 py-2 text-xs font-semibold ${dropDaysLeft < 0 ? "border-red-200 bg-red-50 text-red-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+                  <p className={`rounded-xl border px-3 py-2 text-sm font-semibold ${dropDaysLeft < 0 ? "border-red-200 bg-red-50 text-red-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
                     {dropDaysLeft < 0
                       ? `Drop deadline passed ${Math.abs(dropDaysLeft)} day(s) ago. Contact advisor/registrar for changes.`
                       : `${dropDaysLeft} day(s) remaining until drop deadline.`}
@@ -449,9 +447,9 @@ export default async function StudentDashboardPage() {
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Pending Approval</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">Pending Approval</p>
                 <p className="mt-1 text-2xl font-semibold text-blue-900">{pendingApproval.length}</p>
-                <ul className="mt-2 space-y-1 text-xs text-blue-900">
+                <ul className="mt-2 space-y-1 text-sm text-blue-900">
                   {pendingApproval.slice(0, 5).map((item) => (
                     <li key={item.id}>
                       {(item.section.course?.code ?? "Course")} {(item.section.sectionCode ?? "")}
@@ -460,9 +458,9 @@ export default async function StudentDashboardPage() {
                 </ul>
               </div>
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Waitlisted</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Waitlisted</p>
                 <p className="mt-1 text-2xl font-semibold text-amber-900">{waitlisted.length}</p>
-                <ul className="mt-2 space-y-1 text-xs text-amber-900">
+                <ul className="mt-2 space-y-1 text-sm text-amber-900">
                   {waitlisted.slice(0, 5).map((item) => (
                     <li key={item.id}>
                       {(item.section.course?.code ?? "Course")} {(item.section.sectionCode ?? "")}
@@ -476,19 +474,19 @@ export default async function StudentDashboardPage() {
           <div className="flex flex-wrap gap-2">
             <Link
               href={term ? `/student/catalog?termId=${term.id}` : "/student/catalog"}
-              className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
+              className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
             >
               Browse Catalog
             </Link>
             <Link
               href={term ? `/student/cart?termId=${term.id}` : "/student/cart"}
-              className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
+              className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
             >
               Open Cart
             </Link>
             <Link
               href={term ? `/student/schedule?termId=${term.id}` : "/student/schedule"}
-              className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
+              className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
             >
               View Schedule
             </Link>

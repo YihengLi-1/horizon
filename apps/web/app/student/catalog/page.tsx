@@ -111,7 +111,11 @@ function Alert({
           : "border-slate-200 bg-slate-50 text-slate-700";
 
   return (
-    <div className={`rounded-xl border px-4 py-3 text-sm ${cls}`}>
+    <div
+      role={type === "error" ? "alert" : "status"}
+      aria-live={type === "error" ? "assertive" : "polite"}
+      className={`rounded-xl border px-4 py-3 text-sm ${cls}`}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span>{message}</span>
         {action ? <div>{action}</div> : null}
@@ -192,7 +196,8 @@ export default function StudentCatalogPage() {
   const updateUrlTerm = (nextTermId: string) => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    url.searchParams.set("termId", nextTermId);
+    if (nextTermId) url.searchParams.set("termId", nextTermId);
+    else url.searchParams.delete("termId");
     window.history.replaceState({}, "", url.toString());
   };
 
@@ -470,24 +475,24 @@ export default function StudentCatalogPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">Academic Planning</p>
-            <h1 className="font-heading text-4xl font-bold text-white md:text-5xl">Course Catalog</h1>
-            <p className="text-sm text-blue-100/90 md:text-base">
+            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">Course Catalog</h1>
+            <p className="text-base text-slate-600">
               Plan registration with clear seat, prerequisite, and schedule signals before submitting your cart.
             </p>
             <div className="flex flex-wrap items-center gap-2 pt-1">
-              {activeTerm ? <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">{activeTerm.name}</span> : null}
-              {activeTerm ? <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">Max {activeTerm.maxCredits} credits</span> : null}
-              <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">{sections.length} sections</span>
+              {activeTerm ? <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{activeTerm.name}</span> : null}
+              {activeTerm ? <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Max {activeTerm.maxCredits} credits</span> : null}
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{sections.length} sections</span>
             </div>
           </div>
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex w-full flex-col items-start gap-2 sm:w-auto sm:items-end">
             <Link
               href={`/student/cart${termId ? `?termId=${termId}` : ""}`}
-              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-white/40 bg-white/95 px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
+              className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:bg-slate-50 sm:w-auto"
             >
               View cart {cartItems.length > 0 ? `(${cartItems.length})` : ""}
             </Link>
-            <p className="text-xs text-blue-100/85">Tip: run cart precheck before final submit.</p>
+            <p className="text-xs text-slate-500">Run cart precheck before final submit.</p>
           </div>
         </div>
       </section>
@@ -504,7 +509,9 @@ export default function StudentCatalogPage() {
               className="campus-select"
               value={termId}
               onChange={(e) => void onTermChange(e.target.value)}
+              disabled={terms.length === 0}
             >
+              {terms.length === 0 ? <option value="">No active terms</option> : null}
               {terms.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </label>
@@ -567,7 +574,7 @@ export default function StudentCatalogPage() {
         </div>
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
             <input
               type="checkbox"
               className="size-4 accent-slate-900"
@@ -576,7 +583,7 @@ export default function StudentCatalogPage() {
             />
             Only sections with available seats
           </label>
-          <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
             <input
               type="checkbox"
               className="size-4 accent-slate-900"
@@ -585,7 +592,7 @@ export default function StudentCatalogPage() {
             />
             Only sections with prerequisites met
           </label>
-          <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
             <input
               type="checkbox"
               className="size-4 accent-slate-900"
@@ -594,7 +601,7 @@ export default function StudentCatalogPage() {
             />
             Only approval-required sections
           </label>
-          <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
             <input
               type="checkbox"
               className="size-4 accent-slate-900"
@@ -610,7 +617,7 @@ export default function StudentCatalogPage() {
             {activeFilterLabels.map((label) => (
               <span
                 key={label}
-                className="inline-flex items-center rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700"
+                className="inline-flex items-center rounded-lg border border-slate-300 bg-slate-50 px-3 py-1 text-sm font-medium text-slate-700"
               >
                 {label}
               </span>
@@ -618,7 +625,7 @@ export default function StudentCatalogPage() {
             <button
               type="button"
               onClick={clearFilters}
-              className="inline-flex h-8 items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
               Clear all
             </button>
@@ -630,23 +637,31 @@ export default function StudentCatalogPage() {
       <RegistrationWindowBanner term={activeTerm} />
 
       {/* Notices */}
-      {notice ? (
-        <Alert
-          type="success"
-          message={notice}
-          action={
-            <Link className="font-medium underline underline-offset-2" href={`/student/cart?termId=${termId}`}>
-              Open cart
-            </Link>
-          }
-        />
-      ) : null}
-      {error ? <Alert type="error" message={error} /> : null}
-      {!termId ? <Alert type="info" message="Select a term to view available sections." /> : null}
+      <div className="space-y-3" aria-live="polite">
+        {notice ? (
+          <Alert
+            type="success"
+            message={notice}
+            action={
+              <Link className="font-medium underline underline-offset-2" href={`/student/cart?termId=${termId}`}>
+                Open cart
+              </Link>
+            }
+          />
+        ) : null}
+        {error ? <Alert type="error" message={error} /> : null}
+        {terms.length === 0 ? (
+          <Alert
+            type="warning"
+            message="No active term is available yet. Please contact registrar/admin to publish a term."
+          />
+        ) : null}
+        {!termId ? <Alert type="info" message="Select a term to view available sections." /> : null}
+      </div>
 
       {/* Results count */}
       {!loading && termId ? (
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-slate-600" role="status" aria-live="polite">
           {filteredSections.length} section{filteredSections.length !== 1 ? "s" : ""} found
           {sections.length !== filteredSections.length ? ` (${sections.length} total)` : ""}
         </p>
@@ -655,8 +670,8 @@ export default function StudentCatalogPage() {
       {!loading && termId ? (
         <section className="campus-card p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-700">Catalog Summary</h2>
-            <p className="text-xs text-slate-500">Approval-required sections submit as pending approval. Full sections may enter waitlist.</p>
+            <h2 className="text-base font-semibold text-slate-800">Catalog Summary</h2>
+            <p className="text-sm text-slate-600">Approval-required sections submit as pending approval. Full sections may enter waitlist.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <StatChip label="Available" value={catalogStats.openCount} tone="emerald" />
@@ -669,7 +684,7 @@ export default function StudentCatalogPage() {
       ) : null}
 
       {/* Section cards */}
-      <section className="space-y-4">
+      <section className="space-y-4" aria-busy={loading}>
         {loading
           ? [1, 2, 3].map((i) => (
               <div key={i} className="campus-card p-4">
@@ -711,7 +726,7 @@ export default function StudentCatalogPage() {
             return (
               <article
                 key={section.id}
-                className={`campus-card overflow-hidden p-0 transition hover:-translate-y-0.5 hover:shadow-md ${
+                className={`campus-card overflow-hidden p-0 transition hover:shadow-md ${
                   cartConflict ? "border-amber-300" : "border-slate-200"
                 }`}
               >
@@ -719,7 +734,7 @@ export default function StudentCatalogPage() {
                   <div className="space-y-4 p-4 md:p-5">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{section.course.code}</p>
+                        <p className="text-sm font-semibold tracking-wide text-slate-600">{section.course.code}</p>
                         <h3 className="font-heading text-2xl font-semibold text-slate-900">{section.course.title}</h3>
                       </div>
                       <div className="flex flex-wrap justify-end gap-2">
@@ -736,11 +751,11 @@ export default function StudentCatalogPage() {
 
                     <dl className="grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
                       <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2">
-                        <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Instructor</dt>
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Instructor</dt>
                         <dd className="mt-1 font-medium text-slate-800">{section.instructorName}</dd>
                       </div>
                       <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2">
-                        <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Location</dt>
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Location</dt>
                         <dd className="mt-1 font-medium text-slate-800">{section.location ?? "TBA"}</dd>
                       </div>
                     </dl>
@@ -750,16 +765,16 @@ export default function StudentCatalogPage() {
                         ? sectionMeetingTimes.map((mt, idx) => (
                             <span
                               key={idx}
-                              className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700"
+                              className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-medium text-slate-700"
                             >
                               {meetingChip(mt)}
                             </span>
                           ))
-                        : <span className="text-xs text-slate-400">No scheduled meeting time (asynchronous)</span>}
+                        : <span className="text-sm text-slate-400">No scheduled meeting time (asynchronous)</span>}
                     </div>
 
                     {prereqs.length > 0 ? (
-                      <p className={`text-xs ${prereqBlocked ? "text-red-700" : "text-slate-500"}`}>
+                      <p className={`text-sm ${prereqBlocked ? "text-red-700" : "text-slate-600"}`}>
                         <span className="font-semibold uppercase tracking-wide">Prerequisites:</span>{" "}
                         {prereqs.join(", ")}
                         {prereqBlocked ? (
@@ -773,7 +788,7 @@ export default function StudentCatalogPage() {
                     ) : null}
 
                     {cartConflict ? (
-                      <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+                      <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">
                         Time conflict with a section already in your cart.
                       </p>
                     ) : null}
@@ -781,11 +796,11 @@ export default function StudentCatalogPage() {
 
                   <aside className="flex w-full flex-col justify-between gap-4 border-t border-slate-200 bg-slate-50/40 p-4 lg:border-l lg:border-t-0">
                     <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Seat Status</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Seat Status</p>
                       <p className={`mt-1 text-lg font-semibold ${isFull ? "text-red-700" : "text-emerald-700"}`}>
                         {isFull ? "Full / Waitlist" : `${availableSeats} seat${availableSeats !== 1 ? "s" : ""} open`}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-sm text-slate-600">
                         Enrolled {enrolledCount}/{section.capacity}
                         {waitlistCount > 0 ? ` · Waitlist ${waitlistCount}` : ""}
                       </p>
@@ -837,7 +852,7 @@ export default function StudentCatalogPage() {
                           )}
                         </button>
                       )}
-                      {cartConflict ? <p className="text-[11px] text-amber-700">Conflict will be rechecked at submit.</p> : null}
+                      {cartConflict ? <p className="text-sm text-amber-700">Conflict will be rechecked at submit.</p> : null}
                     </div>
                   </aside>
                 </div>
@@ -864,7 +879,7 @@ function Badge({
   else if (modality === "HYBRID") cls = "bg-indigo-50 text-indigo-700";
 
   return (
-    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${cls}`}>
+    <span className={`inline-flex items-center rounded-lg px-3 py-1 text-sm font-medium ${cls}`}>
       {children}
     </span>
   );
@@ -889,9 +904,9 @@ function StatChip({
           : "border-amber-200 bg-amber-50 text-amber-800";
 
   return (
-    <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium ${cls}`}>
+    <span className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium ${cls}`}>
       <span>{label}</span>
-      <span className="rounded-full bg-white/90 px-2 py-0.5 font-semibold">{value}</span>
+      <span className="rounded-md bg-white/90 px-2 py-0.5 font-semibold">{value}</span>
     </span>
   );
 }

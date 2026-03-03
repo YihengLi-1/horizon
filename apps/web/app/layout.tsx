@@ -1,17 +1,6 @@
 import type { Metadata } from "next";
-import { Merriweather, Source_Sans_3 } from "next/font/google";
+import type { CSSProperties } from "react";
 import "./globals.css";
-
-const bodyFont = Source_Sans_3({
-  subsets: ["latin"],
-  variable: "--font-body"
-});
-
-const headingFont = Merriweather({
-  subsets: ["latin"],
-  variable: "--font-heading",
-  weight: ["400", "700", "900"]
-});
 
 export const metadata: Metadata = {
   title: "University SIS MVP",
@@ -20,7 +9,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${bodyFont.variable} ${headingFont.variable}`}>
+    <html
+      lang="en"
+      style={
+        {
+          "--font-body": '"Source Sans 3", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif',
+          "--font-heading": '"Merriweather", Georgia, "Times New Roman", serif'
+        } as CSSProperties
+      }
+    >
       <body className="min-h-screen antialiased">{children}</body>
     </html>
   );

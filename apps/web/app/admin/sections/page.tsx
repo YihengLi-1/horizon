@@ -374,20 +374,20 @@ export default function AdminSectionsPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">Enrollment Operations</p>
-            <h1 className="font-heading text-4xl font-bold text-white md:text-5xl">Sections Management</h1>
-            <p className="text-sm text-blue-100/90 md:text-base">
+            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">Sections Management</h1>
+            <p className="text-sm text-slate-600 md:text-base">
               Monitor seat utilization, track waitlist pressure, and promote students into open ENROLLED seats.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">{overview.sections} visible sections</span>
-              <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">{overview.waitlisted} waitlisted</span>
-              <span className="campus-chip border-blue-200/30 bg-white/10 text-blue-50">{actionableSections.length} actionable</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{overview.sections} visible sections</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{overview.waitlisted} waitlisted</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{actionableSections.length} actionable</span>
             </div>
           </div>
           <button
             type="button"
             onClick={() => void loadSections()}
-            className="inline-flex h-10 items-center rounded-xl border border-white/40 bg-white/95 px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
+            className="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:bg-slate-50"
           >
             Refresh
           </button>
@@ -496,71 +496,103 @@ export default function AdminSectionsPage() {
       <section className="campus-card p-4 md:p-5">
         <h2 className="mb-3 text-sm font-semibold text-slate-900">Create New Section</h2>
         <form className="grid gap-2 md:grid-cols-4" onSubmit={onCreateSection}>
-          <select
-            required
-            value={createForm.termId}
-            onChange={(e) => setCreateForm((p) => ({ ...p, termId: e.target.value }))}
-            className="campus-select"
-          >
-            <option value="">Select Term</option>
-            {terms.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-          <select
-            required
-            value={createForm.courseId}
-            onChange={(e) => setCreateForm((p) => ({ ...p, courseId: e.target.value }))}
-            className="campus-select"
-          >
-            <option value="">Select Course</option>
-            {courses.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.title}</option>)}
-          </select>
-          <input
-            required
-            placeholder="Section Code (e.g. A)"
-            value={createForm.sectionCode}
-            onChange={(e) => setCreateForm((p) => ({ ...p, sectionCode: e.target.value }))}
-            className="campus-input"
-          />
-          <select
-            value={createForm.modality}
-            onChange={(e) => setCreateForm((p) => ({ ...p, modality: e.target.value }))}
-            className="campus-select"
-          >
-            <option value="ON_CAMPUS">On Campus</option>
-            <option value="ONLINE">Online</option>
-            <option value="HYBRID">Hybrid</option>
-          </select>
-          <input
-            required
-            type="number"
-            min={1}
-            placeholder="Capacity"
-            value={createForm.capacity}
-            onChange={(e) => setCreateForm((p) => ({ ...p, capacity: Number(e.target.value) }))}
-            className="campus-input"
-          />
-          <input
-            required
-            type="number"
-            min={1}
-            placeholder="Credits"
-            value={createForm.credits}
-            onChange={(e) => setCreateForm((p) => ({ ...p, credits: Number(e.target.value) }))}
-            className="campus-input"
-          />
-          <input
-            required
-            placeholder="Instructor Name"
-            value={createForm.instructorName}
-            onChange={(e) => setCreateForm((p) => ({ ...p, instructorName: e.target.value }))}
-            className="campus-input"
-          />
-          <input
-            placeholder="Location (optional)"
-            value={createForm.location}
-            onChange={(e) => setCreateForm((p) => ({ ...p, location: e.target.value }))}
-            className="campus-input"
-          />
+          <label className="block">
+            <span className="sr-only">Term</span>
+            <select
+              required
+              aria-label="Term"
+              value={createForm.termId}
+              onChange={(e) => setCreateForm((p) => ({ ...p, termId: e.target.value }))}
+              className="campus-select"
+            >
+              <option value="">Select Term</option>
+              {terms.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="sr-only">Course</span>
+            <select
+              required
+              aria-label="Course"
+              value={createForm.courseId}
+              onChange={(e) => setCreateForm((p) => ({ ...p, courseId: e.target.value }))}
+              className="campus-select"
+            >
+              <option value="">Select Course</option>
+              {courses.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.title}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="sr-only">Section code</span>
+            <input
+              required
+              aria-label="Section code"
+              placeholder="Section Code (e.g. A)"
+              value={createForm.sectionCode}
+              onChange={(e) => setCreateForm((p) => ({ ...p, sectionCode: e.target.value }))}
+              className="campus-input"
+            />
+          </label>
+          <label className="block">
+            <span className="sr-only">Modality</span>
+            <select
+              aria-label="Modality"
+              value={createForm.modality}
+              onChange={(e) => setCreateForm((p) => ({ ...p, modality: e.target.value }))}
+              className="campus-select"
+            >
+              <option value="ON_CAMPUS">On Campus</option>
+              <option value="ONLINE">Online</option>
+              <option value="HYBRID">Hybrid</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="sr-only">Capacity</span>
+            <input
+              required
+              aria-label="Capacity"
+              type="number"
+              min={1}
+              placeholder="Capacity"
+              value={createForm.capacity}
+              onChange={(e) => setCreateForm((p) => ({ ...p, capacity: Number(e.target.value) }))}
+              className="campus-input"
+            />
+          </label>
+          <label className="block">
+            <span className="sr-only">Credits</span>
+            <input
+              required
+              aria-label="Credits"
+              type="number"
+              min={1}
+              placeholder="Credits"
+              value={createForm.credits}
+              onChange={(e) => setCreateForm((p) => ({ ...p, credits: Number(e.target.value) }))}
+              className="campus-input"
+            />
+          </label>
+          <label className="block">
+            <span className="sr-only">Instructor name</span>
+            <input
+              required
+              aria-label="Instructor name"
+              placeholder="Instructor Name"
+              value={createForm.instructorName}
+              onChange={(e) => setCreateForm((p) => ({ ...p, instructorName: e.target.value }))}
+              className="campus-input"
+            />
+          </label>
+          <label className="block">
+            <span className="sr-only">Location</span>
+            <input
+              aria-label="Location"
+              placeholder="Location (optional)"
+              value={createForm.location}
+              onChange={(e) => setCreateForm((p) => ({ ...p, location: e.target.value }))}
+              className="campus-input"
+            />
+          </label>
           <button
             type="submit"
             className="col-span-full inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-white transition hover:bg-primary/90 md:col-span-1"
@@ -712,7 +744,7 @@ export default function AdminSectionsPage() {
       </section>
 
       <section className="campus-card overflow-hidden">
-        <div className="max-h-[520px] overflow-auto rounded-2xl">
+        <div className="max-h-[520px] overflow-auto rounded-xl">
           <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-slate-50">
               <tr className="border-b border-slate-200 text-left">
@@ -801,6 +833,7 @@ export default function AdminSectionsPage() {
                               <input
                                 type="number"
                                 min={1}
+                                aria-label={`Promotion count for ${section.course.code} section ${section.sectionCode}`}
                                 value={countsBySection[section.id] ?? 1}
                                 onChange={(event) => setRowCount(section.id, event.target.value)}
                                 className="h-10 w-20 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
