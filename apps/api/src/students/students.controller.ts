@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
-import { createStudentSchema, updateProfileSchema } from "@sis/shared";
+import { changePasswordSchema, createStudentSchema, updateProfileSchema } from "@sis/shared";
 import { CurrentUser } from "../common/current-user.decorator";
 import { JwtAuthGuard } from "../common/jwt-auth.guard";
 import { Roles } from "../common/roles.decorator";
@@ -26,6 +26,15 @@ export class StudentsController {
     @Body(new ZodValidationPipe(updateProfileSchema)) body: unknown
   ) {
     return ok(await this.studentsService.updateMyProfile(user.userId, body as never));
+  }
+
+  @Roles("STUDENT", "ADMIN")
+  @Post("me/change-password")
+  async changePassword(
+    @CurrentUser() user: { userId: string },
+    @Body(new ZodValidationPipe(changePasswordSchema)) body: unknown
+  ) {
+    return ok(await this.studentsService.changePassword(user.userId, body as never));
   }
 
   @Roles("ADMIN")

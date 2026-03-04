@@ -1,10 +1,11 @@
 {
-  "/page": "app/page.js",
-  "/student/schedule/page": "app/student/schedule/page.js",
-  "/(auth)/login/page": "app/(auth)/login/page.js",
-  "/student/catalog/page": "app/student/catalog/page.js",
-  "/student/cart/page": "app/student/cart/page.js",
   "/student/dashboard/page": "app/student/dashboard/page.js",
-  "/student/grades/page": "app/student/grades/page.js",
-  "/student/profile/page": "app/student/profile/page.js"
+  "/student/catalog/page": "app/student/catalog/page.js",
+  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/student/cart/page": "app/student/cart/page.js",
+  "/student/schedule/page": "app/student/schedule/page.js",
+  "/admin/sections/page": "app/admin/sections/page.js",
+  "/admin/dashboard/page": "app/admin/dashboard/page.js",
+  "/admin/import/page": "app/admin/import/page.js",
+  "/student/grades/page": "app/student/grades/page.js"
 }

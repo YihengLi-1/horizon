@@ -59,21 +59,21 @@ async function openChecked(page, route, label, requiredTexts = []) {
 }
 
 async function fillCredentials(page, identifier, password, role) {
+  const inputs = page.locator("form input");
+  if ((await inputs.count()) >= 2) {
+    await inputs.nth(0).fill(identifier);
+    await inputs.nth(1).fill(password);
+    return;
+  }
+
   const demoButtonLabel = role === "student" ? "Fill Student" : "Fill Admin";
   const demoButton = page.getByRole("button", { name: demoButtonLabel, exact: true });
-
   if ((await demoButton.count()) > 0) {
     await demoButton.click();
     return;
   }
 
-  const inputs = page.locator("form input");
-  if ((await inputs.count()) < 2) {
-    throw new Error("Login form inputs not found.");
-  }
-
-  await inputs.nth(0).fill(identifier);
-  await inputs.nth(1).fill(password);
+  throw new Error("Login form inputs not found.");
 }
 
 async function login(page, role) {
@@ -123,6 +123,7 @@ async function runStudentSuite(browser) {
   await openChecked(page, "/student/cart", "student-cart", ["Registration Cart", "Submit Readiness"]);
   await openChecked(page, "/student/schedule", "student-schedule", ["Class Schedule", "Week View (Mon-Fri, 08:00-18:00)"]);
   await openChecked(page, "/student/grades", "student-grades", ["Grades"]);
+  await openChecked(page, "/student/profile", "student-profile", ["Student Profile", "Personal Information"]);
 
   if (pageErrors.length > 0 || consoleErrors.length > 0) {
     throw new Error(
@@ -154,6 +155,13 @@ async function runAdminSuite(browser) {
 
   await openChecked(page, "/admin/dashboard", "admin-dashboard", ["Dashboard"]);
   await openChecked(page, "/admin/sections", "admin-sections", ["Sections Management", "Promotion Control"]);
+  await openChecked(page, "/admin/students", "admin-students", ["Students", "Student Records"]);
+  await openChecked(page, "/admin/courses", "admin-courses", ["Courses"]);
+  await openChecked(page, "/admin/terms", "admin-terms", ["Terms", "Academic Calendar Control"]);
+  await openChecked(page, "/admin/enrollments", "admin-enrollments", ["Enrollments & Grades"]);
+  await openChecked(page, "/admin/waitlist", "admin-waitlist", ["Waitlist"]);
+  await openChecked(page, "/admin/invite-codes", "admin-invite-codes", ["Invite Codes"]);
+  await openChecked(page, "/admin/audit-logs", "admin-audit-logs", ["Audit Logs"]);
   await openChecked(page, "/admin/import", "admin-import", ["CSV Import", "Import target"]);
 
   if (pageErrors.length > 0 || consoleErrors.length > 0) {

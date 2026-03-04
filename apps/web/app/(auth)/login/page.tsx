@@ -21,8 +21,8 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [identifier, setIdentifier] = useState(SHOW_DEMO_ACCOUNTS ? DEMO_STUDENT_ID : "");
-  const [password, setPassword] = useState(SHOW_DEMO_ACCOUNTS ? DEMO_STUDENT_PASSWORD : "");
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [webOrigin, setWebOrigin] = useState("");
@@ -40,7 +40,7 @@ export default function LoginPage() {
         method: "POST",
         body: JSON.stringify({ identifier, password })
       });
-      router.push(data.role === "ADMIN" ? "/admin/sections" : "/student/catalog");
+      router.push(data.role === "ADMIN" ? "/admin/dashboard" : "/student/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

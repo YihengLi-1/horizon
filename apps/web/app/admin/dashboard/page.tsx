@@ -264,6 +264,54 @@ export default async function AdminDashboardPage() {
             )}
           </div>
         </div>
+
+        <div>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Response Status Codes</h2>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            {opsMetrics && Object.keys(opsMetrics.byStatusCode).length > 0 ? (
+              <div className="space-y-2">
+                {Object.entries(opsMetrics.byStatusCode)
+                  .sort((a, b) => Number(a[0]) - Number(b[0]))
+                  .map(([code, count]) => {
+                    const n = Number(code);
+                    const cls =
+                      n >= 500 ? "border-red-200 bg-red-50 text-red-700" :
+                      n >= 400 ? "border-amber-200 bg-amber-50 text-amber-700" :
+                      n >= 300 ? "border-blue-200 bg-blue-50 text-blue-700" :
+                      "border-emerald-200 bg-emerald-50 text-emerald-700";
+                    const pct = opsMetrics.requestsTotal > 0
+                      ? Math.round((count / opsMetrics.requestsTotal) * 100)
+                      : 0;
+                    return (
+                      <div key={code} className="flex items-center gap-3">
+                        <span className={`inline-flex w-14 shrink-0 justify-center rounded-full border px-2 py-0.5 text-xs font-semibold ${cls}`}>
+                          {code}
+                        </span>
+                        <div className="flex-1 overflow-hidden rounded-full bg-slate-100" style={{ height: 8 }}>
+                          <div className={`h-full rounded-full ${n >= 500 ? "bg-red-500" : n >= 400 ? "bg-amber-400" : n >= 300 ? "bg-blue-400" : "bg-emerald-500"}`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="w-8 shrink-0 text-right text-xs font-semibold text-slate-700">{count}</span>
+                      </div>
+                    );
+                  })}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">{opsMetrics ? "No response data yet." : "Metrics endpoint unavailable."}</p>
+            )}
+            {opsMetrics && Object.keys(opsMetrics.byMethod).length > 0 ? (
+              <div className="mt-4 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">HTTP Methods</p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(opsMetrics.byMethod).sort((a, b) => b[1] - a[1]).map(([method, count]) => (
+                    <span key={method} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+                      {method} <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-slate-700">{count}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       {/* Quick actions + recent activity */}

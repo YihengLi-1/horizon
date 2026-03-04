@@ -9,6 +9,7 @@
     "smoke:web": "bash scripts/smoke-web.sh",
     "test:e2e:web": "pnpm --filter @sis/web test:e2e:critical",
     "test:e2e:api": "node scripts/e2e-api-p0.mjs",
+    "autopilot:check": "bash scripts/autopilot-check.sh",
     "db:migrate": "pnpm --filter @sis/api db:migrate",
     "db:seed": "pnpm --filter @sis/api db:seed",
     "db:generate": "pnpm --filter @sis/api db:generate"

@@ -6,18 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { API_URL } from "@/lib/config";
 
 export default function VerifyPage() {
-  const [token, setToken] = useState<string | null>(null);
+  const [token] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("token");
+  });
   const [status, setStatus] = useState("Verifying...");
-
-  useEffect(() => {
-    setToken(new URLSearchParams(window.location.search).get("token"));
-  }, []);
 
   useEffect(() => {
     let mounted = true;
     async function run() {
       if (!token) {
-        setStatus("Missing token");
+        setStatus("Missing or invalid token.");
         return;
       }
       const res = await fetch(`${API_URL}/auth/verify-email?token=${encodeURIComponent(token)}`);

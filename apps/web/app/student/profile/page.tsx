@@ -69,6 +69,95 @@ function statusClass(value: string | null | undefined) {
   return "border-blue-200 bg-blue-50 text-blue-700";
 }
 
+function ChangePasswordCard() {
+  const [form, setForm] = useState({ currentPassword: "", newPassword: "", confirm: "" });
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setMsg("");
+    setErr("");
+    if (form.newPassword !== form.confirm) {
+      setErr("New passwords do not match.");
+      return;
+    }
+    if (form.newPassword.length < 8) {
+      setErr("New password must be at least 8 characters.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await apiFetch("/students/me/change-password", {
+        method: "POST",
+        body: JSON.stringify({ currentPassword: form.currentPassword, newPassword: form.newPassword })
+      });
+      setMsg("Password changed successfully.");
+      setForm({ currentPassword: "", newPassword: "", confirm: "" });
+    } catch (ex) {
+      setErr(ex instanceof Error ? ex.message : "Failed to change password");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="campus-card overflow-hidden">
+      <div className="border-b border-slate-200 px-4 py-3">
+        <h3 className="text-sm font-semibold text-slate-800">Change Password</h3>
+      </div>
+      <form onSubmit={onSubmit} className="space-y-3 p-4">
+        <div>
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Current password</label>
+          <input
+            type="password"
+            value={form.currentPassword}
+            required
+            onChange={(e) => setForm((p) => ({ ...p, currentPassword: e.target.value }))}
+            className="campus-input"
+            autoComplete="current-password"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">New password</label>
+          <input
+            type="password"
+            value={form.newPassword}
+            required
+            minLength={8}
+            onChange={(e) => setForm((p) => ({ ...p, newPassword: e.target.value }))}
+            className="campus-input"
+            autoComplete="new-password"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Confirm new password</label>
+          <input
+            type="password"
+            value={form.confirm}
+            required
+            onChange={(e) => setForm((p) => ({ ...p, confirm: e.target.value }))}
+            className="campus-input"
+            autoComplete="new-password"
+          />
+        </div>
+        {msg ? <p className="text-xs text-emerald-700">{msg}</p> : null}
+        {err ? <p className="text-xs text-red-700">{err}</p> : null}
+        <button
+          type="submit"
+          disabled={saving}
+          className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-slate-800 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-60"
+        >
+          {saving ? (
+            <><span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />Saving</>
+          ) : "Update password"}
+        </button>
+      </form>
+    </section>
+  );
+}
+
 export default function StudentProfilePage() {
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [form, setForm] = useState<FormState>({ legalName: "", dob: "", address: "", emergencyContact: "" });
@@ -224,14 +313,6 @@ export default function StudentProfilePage() {
 
           <aside className="space-y-4">
             <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Registrar Notes</h3>
-              <ul className="mt-2 space-y-2 text-sm text-slate-600">
-                <li>Major, student ID, and enrollment status are managed by registrar staff.</li>
-                <li>For legal identity changes, submit documentation to Student Services.</li>
-                <li>Emergency contact updates apply immediately.</li>
-              </ul>
-            </section>
-            <section className="campus-card p-4">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Profile Checklist</h3>
               <div className="mt-2 space-y-2 text-sm">
                 <p className={`rounded-lg border px-3 py-2 ${form.legalName ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
@@ -244,6 +325,17 @@ export default function StudentProfilePage() {
                   Emergency contact {form.emergencyContact ? "completed" : "recommended"}
                 </p>
               </div>
+            </section>
+
+            <ChangePasswordCard />
+
+            <section className="campus-card p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Registrar Notes</h3>
+              <ul className="mt-2 space-y-2 text-sm text-slate-600">
+                <li>Major, student ID, and enrollment status are managed by registrar staff.</li>
+                <li>For legal identity changes, submit documentation to Student Services.</li>
+                <li>Emergency contact updates apply immediately.</li>
+              </ul>
             </section>
           </aside>
         </div>

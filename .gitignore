@@ -1,6 +1,8 @@
 node_modules
 .pnpm-store
 .next
+apps/web/.next-dev
+reports/automation
 dist
 coverage
 .env

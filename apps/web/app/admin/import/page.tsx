@@ -53,9 +53,9 @@ dave@student.edu,S1004,Dave Evans,Student123!`,
   courses: `code,title,credits,description
 CS301,Algorithms,3,Algorithm design and analysis
 CS302,Operating Systems,3,OS concepts and design`,
-  sections: `courseCode,termName,sectionCode,modality,capacity,credits,instructorName,location
-CS101,Spring 2026,A,ON_CAMPUS,30,3,Dr. Smith,Room 101
-CS101,Spring 2026,B,ONLINE,25,3,Dr. Jones,`
+  sections: `courseCode,termName,sectionCode,modality,capacity,credits,instructorName,location,meetings
+CS101,Spring 2026,A,ON_CAMPUS,30,3,Dr. Smith,Room 101,1|540|630;3|540|630
+CS101,Spring 2026,B,ONLINE,25,3,Dr. Jones,,2|660|750`
 };
 
 function generateIdempotencyKey(): string {
@@ -359,6 +359,14 @@ export default function ImportPage() {
                 </li>
               ))}
             </ul>
+            {target === "sections" ? (
+              <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                <p className="font-semibold">Optional: <code>meetings</code></p>
+                <p className="mt-1">Semicolon-separated meeting times. Each entry: <code>weekday|startMin|endMin</code></p>
+                <p className="mt-0.5">Weekday: 0=Sun, 1=Mon … 6=Sat. Times in minutes from midnight.</p>
+                <p className="mt-0.5">Example: <code>1|540|630;3|540|630</code> = Mon &amp; Wed 9:00–10:30</p>
+              </div>
+            ) : null}
           </section>
           <section className="campus-card p-4">
             <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-700">Reliability Policy</h3>

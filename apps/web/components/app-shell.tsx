@@ -9,6 +9,7 @@ import {
   BookOpen,
   CalendarDays,
   CalendarRange,
+  Clock,
   GraduationCap,
   Home,
   KeyRound,
@@ -49,7 +50,7 @@ const adminItems: NavItem[] = [
   { href: "/admin/courses", label: "Courses", icon: <BookCopy className={iconClass} /> },
   { href: "/admin/students", label: "Students", icon: <Users className={iconClass} /> },
   { href: "/admin/enrollments", label: "Enrollments", icon: <GraduationCap className={iconClass} /> },
-  { href: "/admin/waitlist", label: "Waitlist", icon: <ListChecks className={iconClass} /> },
+  { href: "/admin/waitlist", label: "Waitlist", icon: <Clock className={iconClass} /> },
   { href: "/admin/invite-codes", label: "Invite Codes", icon: <KeyRound className={iconClass} /> },
   { href: "/admin/audit-logs", label: "Audit Logs", icon: <ScrollText className={iconClass} /> },
   { href: "/admin/import", label: "Import CSV", icon: <Upload className={iconClass} /> }
@@ -196,7 +197,8 @@ export function AppShell({
           </p>
           <nav className="space-y-1.5">{navMeta.items.map(renderNavItem)}</nav>
           <div className="mt-auto rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
-            Signed in area: {area === "student" ? "Student Services" : "Administrative Services"}
+            <p className="truncate font-semibold text-slate-800">{userLabel}</p>
+            <p className="mt-0.5">{area === "student" ? "Student Services" : "Administrative Services"}</p>
           </div>
         </div>
       </aside>

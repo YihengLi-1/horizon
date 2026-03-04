@@ -17,7 +17,7 @@ export default function RegisterPage() {
     email: "",
     studentId: "",
     legalName: "",
-    inviteCode: "INVITE-2026",
+    inviteCode: "",
     password: ""
   });
   const [result, setResult] = useState<RegisterResult | null>(null);

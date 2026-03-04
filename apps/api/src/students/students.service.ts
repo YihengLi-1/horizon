@@ -1,7 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import argon2 from "argon2";
 import { PrismaService } from "../common/prisma.service";
-import { UpdateProfileInput } from "@sis/shared";
+import { ChangePasswordInput, UpdateProfileInput } from "@sis/shared";
 import { toDateOrNull } from "../common/grade.utils";
 import { AuditService } from "../audit/audit.service";
 
@@ -155,6 +155,31 @@ export class StudentsService {
     });
 
     return updated;
+  }
+
+  async changePassword(userId: string, input: ChangePasswordInput) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException({ code: "USER_NOT_FOUND", message: "User not found" });
+    }
+
+    const valid = await argon2.verify(user.passwordHash, input.currentPassword);
+    if (!valid) {
+      throw new UnauthorizedException({ code: "INVALID_CURRENT_PASSWORD", message: "Current password is incorrect" });
+    }
+
+    const newHash = await argon2.hash(input.newPassword);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash: newHash } });
+
+    await this.auditService.log({
+      actorUserId: userId,
+      action: "password_change",
+      entityType: "user",
+      entityId: userId,
+      metadata: {}
+    });
+
+    return { success: true };
   }
 
   async adminDeleteStudent(id: string, actorUserId: string) {

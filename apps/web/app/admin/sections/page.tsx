@@ -8,14 +8,34 @@ type Enrollment = {
   status: string;
 };
 
+type MeetingTime = {
+  id: string;
+  weekday: number;
+  startMinutes: number;
+  endMinutes: number;
+};
+
 type Section = {
   id: string;
   sectionCode: string;
   capacity: number;
   requireApproval: boolean;
+  modality: string;
+  instructorName: string;
+  location: string | null;
+  credits: number;
   term: { id: string; name: string };
   course: { id: string; code: string };
   enrollments: Enrollment[];
+  meetingTimes: MeetingTime[];
+};
+
+type SectionEditForm = {
+  capacity: number;
+  instructorName: string;
+  location: string;
+  requireApproval: boolean;
+  modality: string;
 };
 
 type Term = { id: string; name: string };
@@ -52,6 +72,22 @@ function Alert({ type, message }: { type: "success" | "error" | "info"; message:
         : "border-slate-200 bg-slate-50 text-slate-700";
 
   return <div className={`rounded-xl border px-4 py-3 text-sm ${styles}`}>{message}</div>;
+}
+
+const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function minutesToTime(minutes: number): string {
+  const h = Math.floor(minutes / 60).toString().padStart(2, "0");
+  const m = (minutes % 60).toString().padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+function formatMeetingTimes(meetingTimes: MeetingTime[]): string {
+  if (!meetingTimes || meetingTimes.length === 0) return "—";
+  return meetingTimes
+    .sort((a, b) => a.weekday - b.weekday || a.startMinutes - b.startMinutes)
+    .map((mt) => `${WEEKDAY_SHORT[mt.weekday] ?? "?"} ${minutesToTime(mt.startMinutes)}–${minutesToTime(mt.endMinutes)}`)
+    .join(", ");
 }
 
 function enrolledCount(section: Section): number {
@@ -98,6 +134,13 @@ export default function AdminSectionsPage() {
     instructorName: "",
     location: ""
   });
+  const [createMeetingTimes, setCreateMeetingTimes] = useState<Array<{ weekday: number; startTime: string; endTime: string }>>([]);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<SectionEditForm>({ capacity: 30, instructorName: "", location: "", requireApproval: false, modality: "ON_CAMPUS" });
+  const [editMeetingTimes, setEditMeetingTimes] = useState<Array<{ weekday: number; startTime: string; endTime: string }>>([]);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const sectionIds = useMemo(() => sections.map((section) => section.id), [sections]);
   const termOptions = useMemo(
@@ -209,6 +252,11 @@ export default function AdminSectionsPage() {
     void apiFetch<Course[]>("/admin/courses").then(setCourses).catch(() => {});
   }, []);
 
+  const timeToMinutes = (hhmm: string): number => {
+    const [h, m] = hhmm.split(":").map(Number);
+    return (h ?? 0) * 60 + (m ?? 0);
+  };
+
   const onCreateSection = async (event: FormEvent) => {
     event.preventDefault();
     setCreateError("");
@@ -225,11 +273,16 @@ export default function AdminSectionsPage() {
           credits: Number(createForm.credits),
           instructorName: createForm.instructorName,
           location: createForm.location || null,
-          meetingTimes: []
+          meetingTimes: createMeetingTimes.map((mt) => ({
+            weekday: mt.weekday,
+            startMinutes: timeToMinutes(mt.startTime),
+            endMinutes: timeToMinutes(mt.endTime)
+          }))
         })
       });
       setCreateSuccess("Section created successfully.");
       setCreateForm({ termId: "", courseId: "", sectionCode: "", modality: "ON_CAMPUS", capacity: 30, credits: 3, instructorName: "", location: "" });
+      setCreateMeetingTimes([]);
       await loadSections();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : "Create failed");
@@ -368,6 +421,106 @@ export default function AdminSectionsPage() {
     }
   };
 
+  const startEdit = (section: Section) => {
+    setEditingId(section.id);
+    setEditForm({
+      capacity: section.capacity,
+      instructorName: section.instructorName,
+      location: section.location ?? "",
+      requireApproval: section.requireApproval,
+      modality: section.modality
+    });
+    setEditMeetingTimes(
+      (section.meetingTimes ?? []).map((mt) => ({
+        weekday: mt.weekday,
+        startTime: minutesToTime(mt.startMinutes),
+        endTime: minutesToTime(mt.endMinutes)
+      }))
+    );
+    setCreateError("");
+    setCreateSuccess("");
+    setBulkMessage(null);
+  };
+
+  const cancelEdit = () => setEditingId(null);
+
+  const onSaveEdit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!editingId) return;
+    setCreateError("");
+    setCreateSuccess("");
+    try {
+      setSavingEdit(true);
+      await apiFetch(`/admin/sections/${editingId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          capacity: Number(editForm.capacity),
+          instructorName: editForm.instructorName,
+          location: editForm.location || null,
+          requireApproval: editForm.requireApproval,
+          modality: editForm.modality,
+          meetingTimes: editMeetingTimes.map((mt) => ({
+            weekday: mt.weekday,
+            startMinutes: timeToMinutes(mt.startTime),
+            endMinutes: timeToMinutes(mt.endTime)
+          }))
+        })
+      });
+      setEditingId(null);
+      setCreateSuccess("Section updated successfully.");
+      await loadSections();
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Update failed");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const onDeleteSection = async (id: string, code: string) => {
+    if (!window.confirm(`Delete section "${code}"? This will remove all associated enrollments and cannot be undone.`)) return;
+    setCreateError("");
+    setCreateSuccess("");
+    try {
+      setDeletingId(id);
+      await apiFetch(`/admin/sections/${id}`, { method: "DELETE" });
+      setCreateSuccess(`Section "${code}" deleted.`);
+      if (editingId === id) setEditingId(null);
+      await loadSections();
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Delete failed");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const exportCsv = () => {
+    const rows = [
+      ["Term", "Course", "Section", "Modality", "Capacity", "Enrolled", "Waitlisted", "Available", "Instructor", "Location", "Req Approval", "Schedule"],
+      ...visibleSections.map((s) => [
+        s.term.name,
+        s.course.code,
+        s.sectionCode,
+        s.modality,
+        String(s.capacity),
+        String(enrolledCount(s)),
+        String(waitlistCount(s)),
+        String(availableSeats(s)),
+        s.instructorName,
+        s.location ?? "",
+        s.requireApproval ? "Yes" : "No",
+        formatMeetingTimes(s.meetingTimes)
+      ])
+    ];
+    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sections-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="campus-page">
       <section className="campus-hero">
@@ -384,13 +537,23 @@ export default function AdminSectionsPage() {
               <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{actionableSections.length} actionable</span>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => void loadSections()}
-            className="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:bg-slate-50"
-          >
-            Refresh
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={exportCsv}
+              disabled={visibleSections.length === 0}
+              className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => void loadSections()}
+              className="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:bg-slate-50"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
       </section>
 
@@ -593,6 +756,59 @@ export default function AdminSectionsPage() {
               className="campus-input"
             />
           </label>
+          <div className="col-span-full space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Meeting Times</span>
+              <button
+                type="button"
+                onClick={() => setCreateMeetingTimes((prev) => [...prev, { weekday: 1, startTime: "09:00", endTime: "10:00" }])}
+                className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                + Add time
+              </button>
+            </div>
+            {createMeetingTimes.map((mt, idx) => (
+              <div key={idx} className="flex flex-wrap items-center gap-2">
+                <select
+                  aria-label={`Weekday for meeting time ${idx + 1}`}
+                  value={mt.weekday}
+                  onChange={(e) => setCreateMeetingTimes((prev) => prev.map((item, i) => i === idx ? { ...item, weekday: Number(e.target.value) } : item))}
+                  className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  <option value={1}>Mon</option>
+                  <option value={2}>Tue</option>
+                  <option value={3}>Wed</option>
+                  <option value={4}>Thu</option>
+                  <option value={5}>Fri</option>
+                  <option value={6}>Sat</option>
+                  <option value={0}>Sun</option>
+                </select>
+                <input
+                  type="time"
+                  aria-label={`Start time for meeting time ${idx + 1}`}
+                  value={mt.startTime}
+                  onChange={(e) => setCreateMeetingTimes((prev) => prev.map((item, i) => i === idx ? { ...item, startTime: e.target.value } : item))}
+                  className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                <span className="text-xs text-slate-400">to</span>
+                <input
+                  type="time"
+                  aria-label={`End time for meeting time ${idx + 1}`}
+                  value={mt.endTime}
+                  onChange={(e) => setCreateMeetingTimes((prev) => prev.map((item, i) => i === idx ? { ...item, endTime: e.target.value } : item))}
+                  className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                <button
+                  type="button"
+                  aria-label={`Remove meeting time ${idx + 1}`}
+                  onClick={() => setCreateMeetingTimes((prev) => prev.filter((_, i) => i !== idx))}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-xs text-red-600 transition hover:bg-red-100"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
           <button
             type="submit"
             className="col-span-full inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-white transition hover:bg-primary/90 md:col-span-1"
@@ -603,6 +819,135 @@ export default function AdminSectionsPage() {
         {createError ? <p className="mt-2 text-sm text-red-600">{createError}</p> : null}
         {createSuccess ? <p className="mt-2 text-sm text-emerald-700">{createSuccess}</p> : null}
       </section>
+
+      {editingId ? (
+        <section className="campus-card border-blue-200 bg-blue-50/60 p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-blue-900">
+              Editing: {sections.find((s) => s.id === editingId)?.course.code} §{sections.find((s) => s.id === editingId)?.sectionCode}
+            </h2>
+            <button type="button" onClick={cancelEdit} className="text-sm font-medium text-blue-700 underline underline-offset-2">Cancel</button>
+          </div>
+          <form className="grid gap-3 md:grid-cols-4" onSubmit={(e) => void onSaveEdit(e)}>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Modality</label>
+              <select
+                className="campus-select"
+                value={editForm.modality}
+                onChange={(e) => setEditForm((p) => ({ ...p, modality: e.target.value }))}
+              >
+                <option value="ON_CAMPUS">On Campus</option>
+                <option value="ONLINE">Online</option>
+                <option value="HYBRID">Hybrid</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Capacity</label>
+              <input
+                type="number"
+                min={1}
+                required
+                className="campus-input"
+                value={editForm.capacity}
+                onChange={(e) => setEditForm((p) => ({ ...p, capacity: Number(e.target.value) }))}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Instructor</label>
+              <input
+                required
+                className="campus-input"
+                value={editForm.instructorName}
+                onChange={(e) => setEditForm((p) => ({ ...p, instructorName: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Location</label>
+              <input
+                className="campus-input"
+                placeholder="Optional"
+                value={editForm.location}
+                onChange={(e) => setEditForm((p) => ({ ...p, location: e.target.value }))}
+              />
+            </div>
+            <div className="flex items-center gap-2 md:col-span-2">
+              <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="size-4 accent-slate-900"
+                  checked={editForm.requireApproval}
+                  onChange={(e) => setEditForm((p) => ({ ...p, requireApproval: e.target.checked }))}
+                />
+                Requires instructor approval
+              </label>
+            </div>
+            <div className="col-span-full space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Meeting Times</span>
+                <button
+                  type="button"
+                  onClick={() => setEditMeetingTimes((prev) => [...prev, { weekday: 1, startTime: "09:00", endTime: "10:00" }])}
+                  className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                >
+                  + Add time
+                </button>
+              </div>
+              {editMeetingTimes.map((mt, idx) => (
+                <div key={idx} className="flex flex-wrap items-center gap-2">
+                  <select
+                    aria-label={`Weekday for edit meeting time ${idx + 1}`}
+                    value={mt.weekday}
+                    onChange={(e) => setEditMeetingTimes((prev) => prev.map((item, i) => i === idx ? { ...item, weekday: Number(e.target.value) } : item))}
+                    className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    <option value={1}>Mon</option>
+                    <option value={2}>Tue</option>
+                    <option value={3}>Wed</option>
+                    <option value={4}>Thu</option>
+                    <option value={5}>Fri</option>
+                    <option value={6}>Sat</option>
+                    <option value={0}>Sun</option>
+                  </select>
+                  <input
+                    type="time"
+                    aria-label={`Start time for edit meeting time ${idx + 1}`}
+                    value={mt.startTime}
+                    onChange={(e) => setEditMeetingTimes((prev) => prev.map((item, i) => i === idx ? { ...item, startTime: e.target.value } : item))}
+                    className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  <span className="text-xs text-slate-400">to</span>
+                  <input
+                    type="time"
+                    aria-label={`End time for edit meeting time ${idx + 1}`}
+                    value={mt.endTime}
+                    onChange={(e) => setEditMeetingTimes((prev) => prev.map((item, i) => i === idx ? { ...item, endTime: e.target.value } : item))}
+                    className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  <button
+                    type="button"
+                    aria-label={`Remove edit meeting time ${idx + 1}`}
+                    onClick={() => setEditMeetingTimes((prev) => prev.filter((_, i) => i !== idx))}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-xs text-red-600 transition hover:bg-red-100"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="md:col-span-2 md:flex md:items-end">
+              <button
+                type="submit"
+                disabled={savingEdit}
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
+              >
+                {savingEdit ? (
+                  <><span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />Saving…</>
+                ) : "Save changes"}
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
 
       {pageError ? <Alert type="error" message={pageError} /> : null}
 
@@ -751,19 +1096,21 @@ export default function AdminSectionsPage() {
                 <th className="px-4 py-3 font-semibold text-slate-700">Term</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Course</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Section</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">Schedule</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Flags</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Capacity</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Enrolled</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Waitlist</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Available</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Promote</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading
                 ? [1, 2, 3, 4].map((row) => (
                     <tr key={row} className="border-b border-slate-100">
-                      <td colSpan={9} className="px-4 py-4">
+                      <td colSpan={11} className="px-4 py-4">
                         <div className="animate-pulse space-y-2">
                           <div className="h-4 w-1/4 rounded bg-slate-200" />
                           <div className="h-4 w-1/2 rounded bg-slate-100" />
@@ -786,12 +1133,20 @@ export default function AdminSectionsPage() {
                       <tr
                         id={`section-row-${section.id}`}
                         className={`border-b border-slate-100 align-top hover:bg-slate-100/60 ${
+                          editingId === section.id ? "bg-blue-50/40 outline outline-1 outline-blue-200" :
                           actionable ? "bg-emerald-50/50" : "odd:bg-white even:bg-slate-50/40"
                         }`}
                       >
                         <td className="px-4 py-3 text-slate-700">{section.term.name}</td>
-                        <td className="px-4 py-3 text-slate-900">{section.course.code}</td>
-                        <td className="px-4 py-3 text-slate-700">{section.sectionCode}</td>
+                        <td className="px-4 py-3">
+                          <p className="text-slate-900">{section.course.code}</p>
+                          <p className="text-xs text-slate-400">{section.instructorName}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="text-slate-700">{section.sectionCode}</p>
+                          {section.location ? <p className="text-xs text-slate-400">{section.location}</p> : null}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-600">{formatMeetingTimes(section.meetingTimes)}</td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap gap-1.5">
                             {section.requireApproval ? (
@@ -859,10 +1214,29 @@ export default function AdminSectionsPage() {
                             </p>
                           </div>
                         </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => editingId === section.id ? cancelEdit() : startEdit(section)}
+                              className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                            >
+                              {editingId === section.id ? "Cancel" : "Edit"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={deletingId === section.id}
+                              onClick={() => void onDeleteSection(section.id, `${section.course.code} §${section.sectionCode}`)}
+                              className="inline-flex h-8 items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+                            >
+                              {deletingId === section.id ? "…" : "Delete"}
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                       {rowMessage ? (
                         <tr className="border-b border-slate-100 bg-white">
-                          <td colSpan={9} className="px-4 pb-4">
+                          <td colSpan={11} className="px-4 pb-4">
                             <div
                               className={`rounded-lg border px-3 py-2 text-sm ${
                                 rowMessage.type === "success"
@@ -881,7 +1255,7 @@ export default function AdminSectionsPage() {
 
               {!loading && visibleSections.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-slate-500">
+                  <td colSpan={11} className="px-4 py-10 text-center text-slate-500">
                     No sections found.
                   </td>
                 </tr>

@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
-import { API_URL } from "./config";
+
+const SERVER_API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 type ServerApiOptions = {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
@@ -30,7 +31,7 @@ export async function serverApi<T>(path: string, options: ServerApiOptions = {})
     body = typeof options.body === "string" ? options.body : JSON.stringify(options.body);
   }
 
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(`${SERVER_API_URL}${path}`, {
     method: options.method ?? "GET",
     headers: Object.keys(headers).length > 0 ? headers : undefined,
     body,
