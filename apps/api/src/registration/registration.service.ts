@@ -6,6 +6,7 @@ import { z } from "zod";
 import { AuditService } from "../audit/audit.service";
 import { isPassingGrade } from "../common/grade.utils";
 import { PrismaService } from "../common/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 type AddCartInput = z.infer<typeof addCartItemSchema>;
 type SubmitCartInput = z.infer<typeof submitCartSchema>;
@@ -87,7 +88,8 @@ function hasMeetingConflict(a: Meeting[], b: Meeting[]): boolean {
 export class RegistrationService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService: AuditService
+    private readonly auditService: AuditService,
+    private readonly notificationsService: NotificationsService
   ) {}
 
   private isSerializationFailure(error: unknown): boolean {
@@ -737,6 +739,31 @@ export class RegistrationService {
       },
       req
     });
+
+    const [studentUser, submitTerm] = await Promise.all([
+      this.prisma.user.findFirst({
+        where: { id: studentId, deletedAt: null },
+        include: { studentProfile: { select: { legalName: true } } }
+      }),
+      this.prisma.term.findUnique({
+        where: { id: input.termId },
+        select: { name: true }
+      })
+    ]);
+
+    if (studentUser?.email) {
+      await this.notificationsService.sendEnrollmentSubmissionEmail({
+        to: studentUser.email,
+        legalName: studentUser.studentProfile?.legalName ?? null,
+        termName: submitTerm?.name ?? term.name,
+        items: created.map((item) => ({
+          courseCode: item.section.course.code,
+          sectionCode: item.section.sectionCode,
+          status: item.status,
+          waitlistPosition: item.waitlistPosition ?? null
+        }))
+      });
+    }
 
     return created;
   }

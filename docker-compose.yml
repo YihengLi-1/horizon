@@ -1,5 +1,3 @@
-version: "3.9"
-
 # ─────────────────────────────────────────────────────────────────────────────
 # 地平线 SIS — 完整服务编排
 #
@@ -48,6 +46,13 @@ services:
       LOGIN_RATE_LIMIT_WINDOW_MS:   600000
       LOGIN_RATE_LIMIT_MAX_ATTEMPTS: 8
       LOGIN_RATE_LIMIT_LOCK_MS:     900000
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@horizon-sis.local}
     ports:
       - "${API_PORT:-4000}:4000"
     healthcheck:
@@ -75,5 +80,27 @@ services:
     ports:
       - "${WEB_PORT:-3000}:3000"
 
+  # ── PostgreSQL 自动备份（每日 pg_dump） ───────────────────────────────────
+  postgres-backup:
+    image: prodrigestivill/postgres-backup-local:16
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-sis_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SCHEDULE: ${BACKUP_SCHEDULE:-@daily}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
+      BACKUP_KEEP_WEEKS: ${BACKUP_KEEP_WEEKS:-4}
+      BACKUP_KEEP_MONTHS: ${BACKUP_KEEP_MONTHS:-6}
+      HEALTHCHECK_PORT: 8080
+      POSTGRES_EXTRA_OPTS: "--clean --if-exists"
+    volumes:
+      - pgbackups:/backups
+
 volumes:
   pgdata:
+  pgbackups:

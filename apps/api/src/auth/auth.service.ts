@@ -13,6 +13,7 @@ import {
 } from "./auth.types";
 import { PrismaService } from "../common/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 const ACCESS_COOKIE = "access_token";
 const ACCESS_EXPIRES_SECONDS = 60 * 60 * 2;
@@ -36,7 +37,8 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-    private readonly auditService: AuditService
+    private readonly auditService: AuditService,
+    private readonly notificationsService: NotificationsService
   ) {}
 
   private getClientIp(req: Request): string {
@@ -203,6 +205,12 @@ export class AuthService {
 
     const activationLink = `${process.env.WEB_URL || "http://localhost:3000"}/verify?token=${token}`;
 
+    await this.notificationsService.sendVerificationEmail({
+      to: user.email,
+      legalName: input.legalName,
+      activationLink
+    });
+
     await this.auditService.log({
       actorUserId: user.id,
       action: "register",
@@ -347,6 +355,12 @@ export class AuthService {
     ]);
 
     const resetLink = `${process.env.WEB_URL || "http://localhost:3000"}/reset?token=${token}`;
+    await this.notificationsService.sendPasswordResetEmail({
+      to: user.email,
+      resetLink,
+      expiresMinutes: Math.max(1, Math.ceil(PASSWORD_RESET_TOKEN_TTL_MS / 60_000))
+    });
+
     return {
       message: "If the account exists, a reset link has been generated",
       resetLink

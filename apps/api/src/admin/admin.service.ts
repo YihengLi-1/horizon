@@ -14,6 +14,7 @@ import {
 import { z } from "zod";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../common/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 
 type CreateTermInput = z.infer<typeof createTermSchema>;
 type CreateCourseInput = z.infer<typeof createCourseSchema>;
@@ -213,7 +214,8 @@ export class AdminService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService: AuditService
+    private readonly auditService: AuditService,
+    private readonly notificationsService: NotificationsService
   ) {}
 
   private getImportCacheKey(scope: string, actorUserId: string, idempotencyKey: string): string {
@@ -826,8 +828,7 @@ export class AdminService {
 
   async promoteWaitlist(input: PromoteWaitlistInput, actorUserId: string) {
     const requestedCount = input.count ?? 1;
-
-    return this.runAdminTransactionWithRetry(async (tx) => {
+    const result = await this.runAdminTransactionWithRetry(async (tx) => {
       const section = await tx.section.findUnique({
         where: { id: input.sectionId },
         select: { id: true, capacity: true }
@@ -926,6 +927,46 @@ export class AdminService {
         availableSeatsAfter
       };
     });
+
+    if (result.promotedCount > 0) {
+      const promotedRecords = await this.prisma.enrollment.findMany({
+        where: {
+          deletedAt: null,
+          id: { in: result.promoted.map((item) => item.enrollmentId) }
+        },
+        include: {
+          student: {
+            include: {
+              studentProfile: {
+                select: { legalName: true }
+              }
+            }
+          },
+          section: {
+            include: {
+              course: { select: { code: true } },
+              term: { select: { name: true } }
+            }
+          }
+        }
+      });
+
+      await Promise.all(
+        promotedRecords
+          .filter((record) => Boolean(record.student.email))
+          .map((record) =>
+            this.notificationsService.sendWaitlistPromotionEmail({
+              to: record.student.email,
+              legalName: record.student.studentProfile?.legalName ?? null,
+              termName: record.section.term.name,
+              courseCode: record.section.course.code,
+              sectionCode: record.section.sectionCode
+            })
+          )
+      );
+    }
+
+    return result;
   }
 
   async updateGrade(input: UpdateGradeInput, actorUserId: string) {
@@ -958,6 +999,36 @@ export class AdminService {
       entityId: input.enrollmentId,
       metadata: { finalGrade: input.finalGrade }
     });
+
+    const enrollmentWithStudent = await this.prisma.enrollment.findFirst({
+      where: { id: input.enrollmentId, deletedAt: null },
+      include: {
+        student: {
+          include: {
+            studentProfile: {
+              select: { legalName: true }
+            }
+          }
+        },
+        section: {
+          include: {
+            course: { select: { code: true } },
+            term: { select: { name: true } }
+          }
+        }
+      }
+    });
+
+    if (enrollmentWithStudent?.student.email && updated.finalGrade) {
+      await this.notificationsService.sendGradePostedEmail({
+        to: enrollmentWithStudent.student.email,
+        legalName: enrollmentWithStudent.student.studentProfile?.legalName ?? null,
+        termName: enrollmentWithStudent.section.term.name,
+        courseCode: enrollmentWithStudent.section.course.code,
+        sectionCode: enrollmentWithStudent.section.sectionCode,
+        finalGrade: updated.finalGrade
+      });
+    }
 
     return updated;
   }
