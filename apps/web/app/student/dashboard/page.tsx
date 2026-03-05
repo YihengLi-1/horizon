@@ -92,6 +92,26 @@ function gpaTier(gpa: number): { text: string; kpi: string; label: string } {
   return { text: "text-amber-700", kpi: "border-amber-200 bg-amber-50", label: "Academic Warning" };
 }
 
+function gpaChipTone(gpa: number): string {
+  if (gpa >= 3.7) return "border-emerald-300 bg-emerald-50 text-emerald-700";
+  if (gpa >= 3.0) return "border-blue-300 bg-blue-50 text-blue-700";
+  if (gpa >= 2.0) return "border-amber-300 bg-amber-50 text-amber-700";
+  return "border-red-300 bg-red-50 text-red-700";
+}
+
+function enrollmentStatusChip(status: string): string {
+  if (status === "ENROLLED") {
+    return "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700";
+  }
+  if (status === "WAITLISTED") {
+    return "inline-flex rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700";
+  }
+  if (status === "PENDING_APPROVAL") {
+    return "inline-flex rounded-full border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700";
+  }
+  return "inline-flex rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700";
+}
+
 type ActionItem = {
   title: string;
   description: string;
@@ -359,12 +379,21 @@ export default async function StudentDashboardPage() {
             <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Student ID: {me?.studentId ?? "—"}</span>
             <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Major: {me?.profile?.programMajor ?? "Undeclared"}</span>
             {term ? <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{term.name}</span> : null}
-            <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{enrolledCredits} enrolled credits</span>
+            {enrolledCount > 0 ? (
+              <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-700">
+                Enrolled {enrolledCount}
+              </span>
+            ) : null}
+            {waitlistedCount > 0 ? (
+              <span className="campus-chip border-amber-300 bg-amber-50 text-amber-700">
+                Waitlisted {waitlistedCount}
+              </span>
+            ) : null}
             {cartItems.length > 0 ? (
               <span className="campus-chip border-blue-300 bg-blue-50 text-blue-700">{cartItems.length} in cart</span>
             ) : null}
             {grades.length > 0 && cumulativeGpa !== null ? (
-              <span className={`campus-chip border-slate-300 bg-slate-50 ${gpaTier(cumulativeGpa).text}`}>
+              <span className={`campus-chip ${gpaChipTone(cumulativeGpa)}`}>
                 GPA {cumulativeGpa.toFixed(2)}
               </span>
             ) : null}
@@ -392,20 +421,22 @@ export default async function StudentDashboardPage() {
           );
         })()}
 
-        <div className="campus-kpi border-blue-200 bg-blue-50">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">Credits Enrolled</p>
-          <p className="mt-1 text-2xl font-semibold text-blue-900">{enrolledCredits}</p>
+        <div className="campus-kpi border-emerald-200 bg-emerald-50/60">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Enrolled Sections</p>
+          <p className="mt-1 text-2xl font-semibold text-emerald-900">{enrolledCount}</p>
           {term?.maxCredits ? (
-            <p className="text-[10px] text-blue-500">of {term.maxCredits} max</p>
+            <p className="text-[10px] text-emerald-600">{enrolledCredits}/{term.maxCredits} credits</p>
+          ) : enrolledCredits > 0 ? (
+            <p className="text-[10px] text-emerald-600">{enrolledCredits} credits</p>
           ) : null}
         </div>
 
-        <div className="campus-kpi border-amber-200 bg-amber-50">
+        <div className="campus-kpi border-amber-200 bg-amber-50/60">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Waitlisted</p>
           <p className="mt-1 text-2xl font-semibold text-amber-900">{waitlistedCount}</p>
         </div>
 
-        <div className="campus-kpi border-violet-200 bg-violet-50">
+        <div className="campus-kpi border-violet-200 bg-violet-50/60">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Pending Approval</p>
           <p className="mt-1 text-2xl font-semibold text-violet-900">{pendingApproval.length}</p>
         </div>
@@ -549,8 +580,15 @@ export default async function StudentDashboardPage() {
                   <tbody>
                     {enrolled.slice(0, 6).map((item) => (
                       <tr key={item.id} className="border-b border-emerald-100 last:border-0 odd:bg-emerald-50/40 even:bg-white">
-                        <td className="px-3 py-2 font-medium text-slate-900">
-                          {item.section.course?.code ?? "—"}
+                        <td className="px-3 py-2">
+                          <div className="space-y-1">
+                            <span className="font-mono text-xs font-semibold text-slate-700">
+                              {item.section.course?.code ?? "—"}
+                            </span>
+                            <span className={enrollmentStatusChip(item.status)}>
+                              {item.status}
+                            </span>
+                          </div>
                         </td>
                         <td className="px-3 py-2 text-slate-600 truncate max-w-[200px]">
                           {item.section.course?.title ?? item.section.sectionCode ?? "—"}
@@ -575,7 +613,17 @@ export default async function StudentDashboardPage() {
 
           {/* Pending + waitlisted */}
           {pendingApproval.length === 0 && waitlisted.length === 0 && enrolled.length === 0 ? (
-            <p className="text-sm text-slate-600">No active enrollments, pending approvals, or waitlisted sections.</p>
+            <div className="py-8 text-center">
+              <p className="text-2xl">📚</p>
+              <p className="mt-2 text-sm font-medium text-slate-600">No enrollments yet</p>
+              <p className="mt-1 text-xs text-slate-400">Browse the course catalog to get started.</p>
+              <Link
+                href="/student/catalog"
+                className="mt-3 inline-flex h-8 items-center rounded-lg bg-primary px-4 text-xs font-semibold text-white no-underline transition hover:bg-primary/90"
+              >
+                Browse Catalog →
+              </Link>
+            </div>
           ) : pendingApproval.length > 0 || waitlisted.length > 0 ? (
             <div className="grid gap-3 md:grid-cols-2">
               <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">

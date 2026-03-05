@@ -1,7 +1,8 @@
 {
-  "/admin/audit-logs/page": "app/admin/audit-logs/page.js",
-  "/admin/dashboard/page": "app/admin/dashboard/page.js",
+  "/(auth)/login/page": "app/(auth)/login/page.js",
   "/student/dashboard/page": "app/student/dashboard/page.js",
   "/student/profile/page": "app/student/profile/page.js",
-  "/(auth)/login/page": "app/(auth)/login/page.js"
+  "/admin/dashboard/page": "app/admin/dashboard/page.js",
+  "/admin/audit-logs/page": "app/admin/audit-logs/page.js",
+  "/student/schedule/page": "app/student/schedule/page.js"
 }
