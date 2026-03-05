@@ -1,8 +1,9 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
-  "/admin/students/page": "app/admin/students/page.js",
-  "/student/catalog/page": "app/student/catalog/page.js",
-  "/admin/invite-codes/page": "app/admin/invite-codes/page.js",
-  "/student/calendar/page": "app/student/calendar/page.js",
-  "/admin/dashboard/page": "app/admin/dashboard/page.js"
+  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/student/dashboard/page": "app/student/dashboard/page.js",
+  "/admin/waitlist/page": "app/admin/waitlist/page.js",
+  "/student/schedule/page": "app/student/schedule/page.js",
+  "/admin/dashboard/page": "app/admin/dashboard/page.js",
+  "/student/grades/page": "app/student/grades/page.js"
 }
