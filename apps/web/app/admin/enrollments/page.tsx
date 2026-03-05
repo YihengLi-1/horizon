@@ -44,10 +44,12 @@ const STATUS_OPTIONS = ["ENROLLED", "WAITLISTED", "PENDING_APPROVAL", "DROPPED",
 const PAGE_SIZE = 50;
 
 const STATUS_COLORS: Record<string, string> = {
-  ENROLLED: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  WAITLISTED: "border-amber-200 bg-amber-50 text-amber-800",
-  PENDING_APPROVAL: "border-blue-200 bg-blue-50 text-blue-800",
-  DROPPED: "border-red-200 bg-red-50 text-red-800",
+  ENROLLED: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  WAITLISTED: "border-amber-200 bg-amber-50 text-amber-700",
+  PENDING_APPROVAL: "border-blue-200 bg-blue-50 text-blue-700",
+  PENDING: "border-blue-200 bg-blue-50 text-blue-700",
+  PendingApproval: "border-blue-200 bg-blue-50 text-blue-700",
+  DROPPED: "border-red-200 bg-red-50 text-red-700",
   COMPLETED: "border-slate-200 bg-slate-100 text-slate-700",
 };
 
@@ -58,6 +60,25 @@ function StatBadge({ label, count, color }: { label: string; count: number; colo
       <span className="mt-0.5 text-xs font-semibold uppercase tracking-wide">{label}</span>
     </div>
   );
+}
+
+function gradeBadgeClass(finalGrade: string | null | undefined): string | null {
+  const normalized = finalGrade?.trim().toUpperCase();
+  if (!normalized) return null;
+  const letter = normalized[0];
+  if (letter === "A") {
+    return "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700";
+  }
+  if (letter === "B") {
+    return "inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700";
+  }
+  if (letter === "C") {
+    return "inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700";
+  }
+  if (letter === "D" || letter === "F") {
+    return "inline-flex rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-bold text-red-700";
+  }
+  return "inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-bold text-slate-700";
 }
 
 export default function EnrollmentsPage() {
@@ -316,6 +337,7 @@ export default function EnrollmentsPage() {
   }, [selectedTermId, statusFilter, debouncedSearch]);
 
   const selectedTerm = terms.find((t) => t.id === selectedTermId);
+  const hasActiveFilters = Boolean(selectedTermId || statusFilter || debouncedSearch);
 
   return (
     <div className="campus-page">
@@ -328,18 +350,23 @@ export default function EnrollmentsPage() {
               Adjust enrollment status and publish final grades for completed sections.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Matched {total}</span>
-              <span className="campus-chip border-emerald-200 bg-emerald-50 text-emerald-700">
-                Enrolled {statusCounts.get("ENROLLED") ?? 0}
-              </span>
-              <span className="campus-chip border-amber-200 bg-amber-50 text-amber-700">
-                Waitlisted {statusCounts.get("WAITLISTED") ?? 0}
-              </span>
-              {(statusCounts.get("COMPLETED") ?? 0) > 0 && (
-                <span className="campus-chip border-slate-300 bg-slate-100 text-slate-600">
-                  Completed {statusCounts.get("COMPLETED")}
+              <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-700">Total {total}</span>
+              {(statusCounts.get("ENROLLED") ?? 0) > 0 && (
+                <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-700">
+                  Enrolled {statusCounts.get("ENROLLED")}
                 </span>
               )}
+              {(statusCounts.get("WAITLISTED") ?? 0) > 0 && (
+                <span className="campus-chip border-amber-300 bg-amber-50 text-amber-700">
+                  Waitlisted {statusCounts.get("WAITLISTED")}
+                </span>
+              )}
+              {(statusCounts.get("PENDING_APPROVAL") ?? 0) > 0 && (
+                <span className="campus-chip border-blue-300 bg-blue-50 text-blue-700">
+                  Pending approval {statusCounts.get("PENDING_APPROVAL")}
+                </span>
+              )}
+              <span className="campus-chip border-slate-300 bg-slate-100 text-slate-700">Visible {rows.length}</span>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -504,8 +531,16 @@ export default function EnrollmentsPage() {
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
-                    No enrollment records found.
+                  <td colSpan={7} className="px-4 py-12 text-center">
+                    <p className="text-3xl">📋</p>
+                    <p className="mt-2 text-sm font-medium text-slate-600">
+                      {hasActiveFilters ? "No enrollments match your filters" : "No enrollments yet"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {hasActiveFilters
+                        ? "Try adjusting your search or filter criteria."
+                        : "Enrollments will appear here once students register."}
+                    </p>
                   </td>
                 </tr>
               ) : (
@@ -534,7 +569,7 @@ export default function EnrollmentsPage() {
                       <td className="px-4 py-3 text-xs text-slate-500">{row.term?.name ?? "—"}</td>
                     )}
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${STATUS_COLORS[statusState[row.id] ?? row.status] ?? "border-slate-200 bg-slate-100 text-slate-700"}`}>
+                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${STATUS_COLORS[statusState[row.id] ?? row.status] ?? "border-slate-200 bg-slate-100 text-slate-700"}`}>
                         {statusState[row.id] ?? row.status}
                       </span>
                       {(statusState[row.id] ?? row.status) === "WAITLISTED" && row.waitlistPosition !== null && (
@@ -542,12 +577,21 @@ export default function EnrollmentsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <input
-                        className="campus-input h-9 w-24"
-                        placeholder="A, B+…"
-                        value={gradeState[row.id] || ""}
-                        onChange={(e) => setGradeState((prev) => ({ ...prev, [row.id]: e.target.value }))}
-                      />
+                      <div className="space-y-2">
+                        {gradeBadgeClass(row.finalGrade) ? (
+                          <span className={gradeBadgeClass(row.finalGrade) || ""}>
+                            {row.finalGrade?.trim().toUpperCase()}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
+                        <input
+                          className="campus-input h-9 w-24"
+                          placeholder="A, B+…"
+                          value={gradeState[row.id] || ""}
+                          onChange={(e) => setGradeState((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                        />
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
