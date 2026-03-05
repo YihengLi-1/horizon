@@ -571,7 +571,9 @@ export default function StudentCatalogPage() {
               {activeTerm ? <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{activeTerm.name}</span> : null}
               {activeTerm ? <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Max {activeTerm.maxCredits} credits</span> : null}
               <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-700">{sections.length} sections</span>
-              <span className="campus-chip border-blue-300 bg-blue-50 text-blue-700">In cart {cartItems.length}</span>
+              {cartItems.length > 0 && (
+                <span className="campus-chip border-blue-300 bg-blue-50 text-blue-700">In cart {cartItems.length}</span>
+              )}
               {catalogStats.conflictCount > 0 ? (
                 <span className="campus-chip border-red-300 bg-red-50 text-red-700">
                   Conflicts {catalogStats.conflictCount}

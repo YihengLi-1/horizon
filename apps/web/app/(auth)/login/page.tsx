@@ -67,6 +67,7 @@ export default function LoginPage() {
       <CardHeader className="pb-4">
         <CardTitle className="font-heading text-2xl text-slate-900">University SIS</CardTitle>
         <CardDescription className="text-slate-600">Login with student ID or email and password.</CardDescription>
+        <p className="mt-1 text-sm text-slate-500">Welcome back to 地平线 SIS</p>
       </CardHeader>
       <CardContent>
         <form className="space-y-4" onSubmit={onSubmit}>
@@ -135,9 +136,10 @@ export default function LoginPage() {
           </div>
         ) : null}
 
-        <div className="mt-4 flex items-center justify-between text-sm">
-          <Link href="/register">Register</Link>
-          <Link href="/forgot">Forgot password?</Link>
+        <div className="mt-6 text-center text-sm text-slate-500">
+          <Link className="font-medium text-primary underline underline-offset-2" href="/register">Register</Link>
+          <span className="mx-2 text-slate-300">·</span>
+          <Link className="font-medium text-primary underline underline-offset-2" href="/forgot">Forgot password?</Link>
         </div>
 
         {SHOW_DEMO_ACCOUNTS ? (
