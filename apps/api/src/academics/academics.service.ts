@@ -61,6 +61,7 @@ export class AcademicsService {
         meetingTimes: true,
         enrollments: {
           where: {
+            deletedAt: null,
             status: { in: ["ENROLLED", "WAITLISTED"] }
           },
           select: { status: true }

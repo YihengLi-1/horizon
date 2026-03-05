@@ -673,7 +673,9 @@ export class AdminService {
           term: true,
           course: true,
           meetingTimes: true,
-          enrollments: true
+          enrollments: {
+            where: { deletedAt: null }
+          }
         }
       });
     });
