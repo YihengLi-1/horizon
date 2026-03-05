@@ -1,19 +1,12 @@
 {
-  "/student/dashboard/page": "app/student/dashboard/page.js",
-  "/student/schedule/page": "app/student/schedule/page.js",
-  "/student/cart/page": "app/student/cart/page.js",
-  "/admin/dashboard/page": "app/admin/dashboard/page.js",
-  "/admin/sections/page": "app/admin/sections/page.js",
-  "/admin/import/page": "app/admin/import/page.js",
-  "/student/grades/page": "app/student/grades/page.js",
   "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/student/dashboard/page": "app/student/dashboard/page.js",
+  "/student/cart/page": "app/student/cart/page.js",
+  "/admin/import/page": "app/admin/import/page.js",
+  "/admin/sections/page": "app/admin/sections/page.js",
   "/student/catalog/page": "app/student/catalog/page.js",
-  "/admin/terms/page": "app/admin/terms/page.js",
-  "/admin/courses/page": "app/admin/courses/page.js",
-  "/admin/enrollments/page": "app/admin/enrollments/page.js",
-  "/admin/waitlist/page": "app/admin/waitlist/page.js",
+  "/student/grades/page": "app/student/grades/page.js",
+  "/admin/dashboard/page": "app/admin/dashboard/page.js",
   "/student/profile/page": "app/student/profile/page.js",
-  "/admin/invite-codes/page": "app/admin/invite-codes/page.js",
-  "/admin/audit-logs/page": "app/admin/audit-logs/page.js",
-  "/admin/students/page": "app/admin/students/page.js"
+  "/student/schedule/page": "app/student/schedule/page.js"
 }

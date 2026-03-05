@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RegistrationStepper } from "@/components/registration-stepper";
 import { ApiError, apiFetch } from "@/lib/api";
+import { enrollmentStatusLabel, reasonCodeLabel } from "@/lib/labels";
 
 type Term = {
   id: string;
@@ -69,22 +70,6 @@ function statusBadgeClass(status: string): string {
   if (status === "WAITLISTED") return "border-amber-200 bg-amber-50 text-amber-700";
   if (status === "PENDING_APPROVAL") return "border-blue-200 bg-blue-50 text-blue-700";
   return "border-slate-200 bg-slate-50 text-slate-700";
-}
-
-function formatStatusLabel(status: string): string {
-  return status
-    .toLowerCase()
-    .split("_")
-    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
-    .join(" ");
-}
-
-function formatReasonLabel(reason: string): string {
-  return reason
-    .toLowerCase()
-    .split("_")
-    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
-    .join(" ");
 }
 
 function issueHint(reasonCode: string): string | null {
@@ -609,7 +594,7 @@ export default function StudentCartPage() {
           <h2 className="text-sm font-semibold text-slate-900">Status Guide</h2>
           <div className="mt-2 grid gap-2">
             <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-              <span className="font-semibold">ENROLLED:</span> Seat confirmed after submit.
+              <span className="font-semibold">{enrollmentStatusLabel("ENROLLED")}:</span> Seat confirmed after submit.
             </p>
             <p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
               <span className="font-semibold">Pending Approval:</span> Awaiting department/admin action.
@@ -700,7 +685,7 @@ export default function StudentCartPage() {
                 className="inline-flex items-center rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-medium text-red-800"
                 title={reason}
               >
-                {formatReasonLabel(reason)} · {count}
+                {reasonCodeLabel(reason)} · {count}
               </span>
             ))}
           </div>
@@ -766,7 +751,7 @@ export default function StudentCartPage() {
                           className="inline-flex rounded-full border border-red-200 bg-white px-2 py-0.5 text-[11px] font-medium text-red-700"
                           title={`${issue.reasonCode}: ${issue.message}`}
                         >
-                          {formatReasonLabel(issue.reasonCode)}
+                          {reasonCodeLabel(issue.reasonCode)}
                         </span>
                       ))}
                     </div>
@@ -837,7 +822,7 @@ export default function StudentCartPage() {
                                 className="inline-flex rounded-full border border-red-200 bg-white px-2 py-0.5 text-[11px] font-medium text-red-700"
                                 title={`${issue.reasonCode}: ${issue.message}`}
                               >
-                                {formatReasonLabel(issue.reasonCode)}
+                                {reasonCodeLabel(issue.reasonCode)}
                               </span>
                             ))}
                           </div>
@@ -918,9 +903,9 @@ export default function StudentCartPage() {
             {groupedPreview.map((group) => (
               <div key={group.status} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <div className="flex items-center gap-2">
-                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadgeClass(group.status)}`}>
-                    {formatStatusLabel(group.status)}
-                  </span>
+                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadgeClass(group.status)}`}>
+                      {enrollmentStatusLabel(group.status)}
+                    </span>
                   <span className="text-xs text-slate-500">{group.items.length} item(s)</span>
                 </div>
                 <ul className="mt-2 flex flex-wrap gap-2">
@@ -944,9 +929,9 @@ export default function StudentCartPage() {
             {groupedResults.map((group) => (
               <div key={group.status} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <div className="flex items-center gap-2">
-                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadgeClass(group.status)}`}>
-                    {formatStatusLabel(group.status)}
-                  </span>
+                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadgeClass(group.status)}`}>
+                      {enrollmentStatusLabel(group.status)}
+                    </span>
                   <span className="text-xs text-slate-500">{group.items.length} item(s)</span>
                 </div>
                 <ul className="mt-2 flex flex-wrap gap-2">

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { enrollmentStatusLabel } from "@/lib/labels";
 
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_INDEXES = [1, 2, 3, 4, 5]; // Mon–Fri
@@ -50,14 +51,6 @@ function meetingSummary(mts: MeetingTime[]): string {
   return mts.map((mt) => `${WEEKDAY[mt.weekday] ?? mt.weekday} ${fmt(mt.startMinutes)}–${fmt(mt.endMinutes)}`).join(", ");
 }
 
-function formatCodeLabel(value: string): string {
-  return value
-    .toLowerCase()
-    .split("_")
-    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
-    .join(" ");
-}
-
 function statusBadge(status: string) {
   if (status === "ENROLLED") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (status === "WAITLISTED") return "border-amber-200 bg-amber-50 text-amber-700";
@@ -77,6 +70,7 @@ export default function SchedulePage() {
   const [showEnrolled, setShowEnrolled] = useState(true);
   const [showPending, setShowPending] = useState(true);
   const [showWaitlisted, setShowWaitlisted] = useState(true);
+  const [showMobileWeekView, setShowMobileWeekView] = useState(false);
 
   const activeTerm = useMemo(() => terms.find((t) => t.id === termId) ?? null, [terms, termId]);
   const dropDeadlinePassed = useMemo(() => {
@@ -343,7 +337,7 @@ export default function SchedulePage() {
                 : "border-slate-300 bg-white text-slate-600"
             }`}
           >
-            {formatCodeLabel("ENROLLED")} ({statusCounts.ENROLLED})
+            {enrollmentStatusLabel("ENROLLED")} ({statusCounts.ENROLLED})
           </button>
           <button
             type="button"
@@ -355,7 +349,7 @@ export default function SchedulePage() {
                 : "border-slate-300 bg-white text-slate-600"
             }`}
           >
-            {formatCodeLabel("PENDING_APPROVAL")} ({statusCounts.PENDING_APPROVAL})
+            {enrollmentStatusLabel("PENDING_APPROVAL")} ({statusCounts.PENDING_APPROVAL})
           </button>
           <button
             type="button"
@@ -367,7 +361,7 @@ export default function SchedulePage() {
                 : "border-slate-300 bg-white text-slate-600"
             }`}
           >
-            {formatCodeLabel("WAITLISTED")} ({statusCounts.WAITLISTED})
+            {enrollmentStatusLabel("WAITLISTED")} ({statusCounts.WAITLISTED})
           </button>
           <span className="text-xs text-slate-500">{visibleEnrollments.length} visible</span>
           {hasStatusFiltersApplied ? (
@@ -423,7 +417,7 @@ export default function SchedulePage() {
                 <p className="mt-1 text-xs text-slate-600">{meetingSummary(enrollment.section.meetingTimes)}</p>
                 <div className="mt-2 flex items-center justify-between gap-2">
                   <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadge(enrollment.status)}`}>
-                    {formatCodeLabel(enrollment.status)}
+                    {enrollmentStatusLabel(enrollment.status)}
                   </span>
                   {dropDeadlinePassed && (enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL") ? (
                     <span className="text-[11px] text-amber-700">Drop unavailable after deadline</span>
@@ -492,7 +486,7 @@ export default function SchedulePage() {
                       <td className="px-4 py-3 text-slate-600 text-xs">{meetingSummary(enrollment.section.meetingTimes)}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadge(enrollment.status)}`}>
-                          {formatCodeLabel(enrollment.status)}
+                          {enrollmentStatusLabel(enrollment.status)}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -540,13 +534,25 @@ export default function SchedulePage() {
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-slate-900">Week View (Mon-Fri, 08:00-18:00)</h2>
           <div className="flex flex-wrap gap-2 text-xs">
-            <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-emerald-700">{formatCodeLabel("ENROLLED")}</span>
-            <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-blue-700">{formatCodeLabel("PENDING_APPROVAL")}</span>
-            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-amber-700">{formatCodeLabel("WAITLISTED")}</span>
+            <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-emerald-700">{enrollmentStatusLabel("ENROLLED")}</span>
+            <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-blue-700">{enrollmentStatusLabel("PENDING_APPROVAL")}</span>
+            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-amber-700">{enrollmentStatusLabel("WAITLISTED")}</span>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowMobileWeekView((prev) => !prev)}
+            aria-expanded={showMobileWeekView}
+            className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50 md:hidden"
+          >
+            {showMobileWeekView ? "Hide mobile agenda" : "Show mobile agenda"}
+          </button>
         </div>
         <div className="space-y-3 md:hidden">
-          {loadingSchedule ? (
+          {!showMobileWeekView ? (
+            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+              Mobile agenda is collapsed by default to reduce page density. Use the toggle above to expand.
+            </p>
+          ) : loadingSchedule ? (
             <p role="status" aria-live="polite" className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
               Loading week view…
             </p>
