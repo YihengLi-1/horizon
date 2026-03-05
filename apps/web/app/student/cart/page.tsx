@@ -93,6 +93,14 @@ function issueHint(reasonCode: string): string | null {
   return null;
 }
 
+function creditBarClass(used: number, max: number): string {
+  if (max <= 0) return "bg-emerald-400";
+  const pct = used / max;
+  if (pct >= 1) return "bg-red-500";
+  if (pct >= 0.85) return "bg-amber-400";
+  return "bg-emerald-400";
+}
+
 function formatDateTime(value: string): string {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
@@ -127,6 +135,7 @@ export default function StudentCartPage() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [removingInvalid, setRemovingInvalid] = useState(false);
+  const [removingItemId, setRemovingItemId] = useState("");
   const errorSummaryRef = useRef<HTMLDivElement | null>(null);
 
   const activeTerm = useMemo(() => terms.find((t) => t.id === termId), [terms, termId]);
@@ -384,11 +393,14 @@ export default function StudentCartPage() {
   const removeItem = async (cartItemId: string) => {
     try {
       setError("");
+      setRemovingItemId(cartItemId);
       resetPrecheck();
       await apiFetch(`/registration/cart/${cartItemId}`, { method: "DELETE" });
       await loadCart(termId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to remove item");
+    } finally {
+      setRemovingItemId("");
     }
   };
 
@@ -585,27 +597,31 @@ export default function StudentCartPage() {
               {prechecking ? (
                 <>
                   <span className="size-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700" />
-                  Checking
+                  Checking…
                 </>
+              ) : precheckRan && !hasBlockingIssues && precheckPreview.length > 0 ? (
+                "✓ Precheck passed"
               ) : (
-                "Precheck"
+                "Run Precheck"
               )}
             </button>
-            <button
-              type="button"
-              onClick={removeInvalidItems}
-              disabled={invalidCartItemIds.length === 0 || removingInvalid || submitting}
-              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-red-200/80 bg-red-50 px-4 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-32 sm:w-auto"
-            >
-              {removingInvalid ? (
-                <>
-                  <span className="size-4 animate-spin rounded-full border-2 border-red-200 border-t-red-700" />
-                  Cleaning
-                </>
-              ) : (
-                "Remove invalid"
-              )}
-            </button>
+            {invalidCartItemIds.length > 0 ? (
+              <button
+                type="button"
+                onClick={removeInvalidItems}
+                disabled={removingInvalid || submitting}
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-red-200/80 bg-red-50 px-4 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-32 sm:w-auto"
+              >
+                {removingInvalid ? (
+                  <>
+                    <span className="size-4 animate-spin rounded-full border-2 border-red-200 border-t-red-700" />
+                    Cleaning…
+                  </>
+                ) : (
+                  <>Remove invalid ({invalidCartItemIds.length})</>
+                )}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={submit}
@@ -615,8 +631,8 @@ export default function StudentCartPage() {
             >
               {submitting ? (
                 <>
-                  <span className="size-4 animate-spin rounded-full border-2 border-blue-200 border-t-blue-800" />
-                  Submitting
+                  <span className="size-4 animate-spin rounded-full border-2 border-slate-300 border-t-white" />
+                  Submitting…
                 </>
               ) : (
                 "Submit"
@@ -626,7 +642,7 @@ export default function StudentCartPage() {
               <p className="w-full text-xs text-slate-600 sm:text-right">{submitDisabledReason}</p>
             ) : null}
             {!prechecking && precheckDisabledReason ? (
-              <p className="w-full text-xs text-slate-600 sm:text-right">Precheck unavailable: {precheckDisabledReason}</p>
+              <p className="w-full text-xs text-slate-600 sm:text-right">Precheck: {precheckDisabledReason}</p>
             ) : null}
           </div>
         </div>
@@ -654,7 +670,7 @@ export default function StudentCartPage() {
           ) : cartMetrics.maxCredits !== null ? (
             <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200">
               <div
-                className="h-full rounded-full bg-emerald-400"
+                className={`h-full rounded-full transition-all ${creditBarClass(cartMetrics.totalCredits, cartMetrics.maxCredits)}`}
                 style={{ width: `${Math.min(100, (cartMetrics.totalCredits / cartMetrics.maxCredits) * 100)}%` }}
               />
             </div>
@@ -663,10 +679,24 @@ export default function StudentCartPage() {
         <div className="campus-kpi border-blue-200 bg-blue-50">
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Approval Required</p>
           <p className="mt-1 text-2xl font-semibold text-blue-900">{cartMetrics.approvalCount}</p>
+          {cartMetrics.approvalCount > 0 ? (
+            <p className="mt-0.5 text-xs text-blue-600">Awaiting admin action</p>
+          ) : (
+            <p className="mt-0.5 text-xs text-blue-500">No approvals needed</p>
+          )}
         </div>
-        <div className="campus-kpi border-red-200 bg-red-50">
-          <p className="text-xs font-semibold uppercase tracking-wide text-red-700">Issue Rows</p>
-          <p className="mt-1 text-2xl font-semibold text-red-900">{invalidCartItemIds.length}</p>
+        <div className={`campus-kpi ${invalidCartItemIds.length > 0 ? "border-red-200 bg-red-50" : "border-emerald-200 bg-emerald-50"}`}>
+          <p className={`text-xs font-semibold uppercase tracking-wide ${invalidCartItemIds.length > 0 ? "text-red-700" : "text-emerald-700"}`}>
+            Issue Rows
+          </p>
+          <p className={`mt-1 text-2xl font-semibold ${invalidCartItemIds.length > 0 ? "text-red-900" : "text-emerald-900"}`}>
+            {invalidCartItemIds.length}
+          </p>
+          {invalidCartItemIds.length > 0 ? (
+            <p className="mt-0.5 text-xs font-medium text-red-600">Run precheck to review</p>
+          ) : precheckRan ? (
+            <p className="mt-0.5 text-xs font-medium text-emerald-600">All clear ✓</p>
+          ) : null}
         </div>
       </section>
 
@@ -723,8 +753,13 @@ export default function StudentCartPage() {
                   check.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-slate-50 text-slate-700"
                 }`}
               >
-                <span>{check.label}</span>
-                <span className="text-xs font-semibold">
+                <span className="flex items-center gap-2">
+                  <span className={`inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold ${check.ok ? "bg-emerald-500 text-white" : "border border-slate-300 bg-white text-slate-400"}`}>
+                    {check.ok ? "✓" : "·"}
+                  </span>
+                  {check.label}
+                </span>
+                <span className={`text-xs font-semibold ${check.ok ? "text-emerald-700" : "text-slate-500"}`}>
                   {check.ok ? "Ready" : check.hint ?? "Pending"}
                 </span>
               </div>
@@ -862,8 +897,18 @@ export default function StudentCartPage() {
           ) : null}
 
           {!loading && items.length === 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-white p-5 text-center text-sm text-slate-500">
-              Cart is empty.
+            <div className="rounded-xl border border-slate-200 bg-white p-6 text-center">
+              <div className="flex flex-col items-center gap-3">
+                <span className="text-3xl">🛒</span>
+                <p className="text-sm font-medium text-slate-700">Your cart is empty</p>
+                <p className="text-xs text-slate-500">Browse the catalog to add sections.</p>
+                <a
+                  href={catalogHref}
+                  className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 no-underline transition hover:bg-slate-50"
+                >
+                  Browse Catalog →
+                </a>
+              </div>
             </div>
           ) : null}
 
@@ -874,15 +919,21 @@ export default function StudentCartPage() {
                 <article
                   id={`cart-item-${item.id}`}
                   key={item.id}
-                  className={`rounded-xl border p-3 ${
+                  className={`rounded-xl border p-3 transition-opacity ${
                     rowIssues.length > 0 ? "border-red-200 bg-red-50/50" : "border-slate-200 bg-white"
-                  }`}
+                  } ${removingItemId === item.id ? "opacity-50" : ""}`}
                 >
-                  <p className="text-sm font-semibold text-slate-900">
-                    {item.section.course.code} - {item.section.course.title}
-                  </p>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{item.section.course.code}</p>
+                      <p className="text-xs text-slate-500">{item.section.course.title}</p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                      {item.section.credits} cr
+                    </span>
+                  </div>
                   <p className="mt-1 text-xs text-slate-600">
-                    Section {item.section.sectionCode} · {item.section.credits} credits
+                    Section {item.section.sectionCode}
                   </p>
                   <div className="mt-2 flex items-center gap-2">
                     <span
@@ -911,9 +962,17 @@ export default function StudentCartPage() {
                   <button
                     type="button"
                     onClick={() => void removeItem(item.id)}
-                    className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-lg border border-red-200 bg-white px-3 text-sm font-medium text-red-700 transition hover:bg-red-50"
+                    disabled={removingItemId === item.id || submitting}
+                    className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-3 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Remove
+                    {removingItemId === item.id ? (
+                      <>
+                        <span className="size-4 animate-spin rounded-full border-2 border-red-200 border-t-red-700" />
+                        Removing…
+                      </>
+                    ) : (
+                      "Remove"
+                    )}
                   </button>
                 </article>
               );
@@ -947,8 +1006,18 @@ export default function StudentCartPage() {
 
               {!loading && items.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
-                    Cart is empty.
+                  <td colSpan={5} className="px-4 py-14 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <span className="text-4xl">🛒</span>
+                      <p className="text-sm font-medium text-slate-700">Your cart is empty</p>
+                      <p className="text-xs text-slate-500">Add sections from the course catalog to get started.</p>
+                      <a
+                        href={catalogHref}
+                        className="mt-1 inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 no-underline transition hover:bg-slate-50"
+                      >
+                        Browse Catalog →
+                      </a>
+                    </div>
                   </td>
                 </tr>
               ) : null}
@@ -960,12 +1029,13 @@ export default function StudentCartPage() {
                     <tr
                       id={`cart-item-${item.id}`}
                       key={item.id}
-                      className={`border-b border-slate-100 hover:bg-slate-100/60 target:bg-amber-50 ${
+                      className={`border-b border-slate-100 transition-colors hover:bg-slate-100/60 target:bg-amber-50 ${
                         rowIssues.length > 0 ? "bg-red-50/60" : "odd:bg-white even:bg-slate-50/40"
-                      }`}
+                      } ${removingItemId === item.id ? "opacity-50" : ""}`}
                     >
                       <td className="px-4 py-3 text-slate-800">
-                        <p>{item.section.course.code} - {item.section.course.title}</p>
+                        <p className="font-medium text-slate-900">{item.section.course.code}</p>
+                        <p className="text-xs text-slate-500">{item.section.course.title}</p>
                         {rowIssues.length > 0 ? (
                           <div className="mt-1 flex flex-wrap gap-1.5">
                             {rowIssues.map((issue, idx) => (
@@ -997,9 +1067,17 @@ export default function StudentCartPage() {
                         <button
                           type="button"
                           onClick={() => void removeItem(item.id)}
-                          className="inline-flex h-10 items-center rounded-lg border border-red-200 bg-white px-3 text-sm font-medium text-red-700 transition hover:bg-red-50"
+                          disabled={removingItemId === item.id || submitting}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          Remove
+                          {removingItemId === item.id ? (
+                            <>
+                              <span className="size-3 animate-spin rounded-full border border-red-200 border-t-red-700" />
+                              Removing…
+                            </>
+                          ) : (
+                            "Remove"
+                          )}
                         </button>
                       </td>
                     </tr>
@@ -1050,24 +1128,30 @@ export default function StudentCartPage() {
 
       {precheckRan && groupedPreview.length > 0 ? (
         <section className="campus-card p-4 md:p-5">
-          <h2 className="text-base font-semibold text-slate-900">Precheck Status Preview</h2>
-          <div className="mt-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-slate-900">Precheck Status Preview</h2>
+            <span className="text-xs text-slate-500">{precheckPreview.length} section(s)</span>
+          </div>
+          <p className="mt-1 text-xs text-slate-500">Predicted outcome if you submit now.</p>
+          <div className="mt-3 space-y-2">
             {groupedPreview.map((group) => (
-              <div key={group.status} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div key={group.status} className={`rounded-xl border p-3 ${statusBadgeClass(group.status).replace("text-", "border-").split(" ")[0]} bg-white`}>
                 <div className="flex items-center gap-2">
-                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadgeClass(group.status)}`}>
-                      {enrollmentStatusLabel(group.status)}
-                    </span>
-                  <span className="text-xs text-slate-500">{group.items.length} item(s)</span>
+                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadgeClass(group.status)}`}>
+                    {enrollmentStatusLabel(group.status)}
+                  </span>
+                  <span className="text-xs text-slate-500">{group.items.length} section(s)</span>
                 </div>
-                <ul className="mt-2 flex flex-wrap gap-2">
+                <div className="mt-2 grid gap-1">
                   {group.items.map((item) => (
-                    <li key={`${item.sectionId}-${item.status}`} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700">
-                      {item.courseCode} §{item.sectionCode}
-                      {item.status === "WAITLISTED" && item.waitlistPosition ? ` (pos ${item.waitlistPosition})` : ""}
-                    </li>
+                    <div key={`${item.sectionId}-${item.status}`} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-1.5 text-xs">
+                      <span className="font-medium text-slate-800">{item.courseCode} §{item.sectionCode}</span>
+                      {item.status === "WAITLISTED" && item.waitlistPosition ? (
+                        <span className="text-amber-600">Queue position {item.waitlistPosition}</span>
+                      ) : null}
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             ))}
           </div>
@@ -1075,27 +1159,38 @@ export default function StudentCartPage() {
       ) : null}
 
       {groupedResults.length > 0 ? (
-        <section className="campus-card p-4 md:p-5">
-          <h2 className="text-base font-semibold text-slate-900">Submission Results</h2>
-          <div className="mt-3 space-y-3">
+        <section className="campus-card border-emerald-200 bg-emerald-50/40 p-4 md:p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-slate-900">Submission Results</h2>
+            <span className="text-xs text-slate-500">{submitResults.length} enrolled</span>
+          </div>
+          <p className="mt-1 text-xs text-emerald-700">
+            Registration submitted successfully.{" "}
+            <Link href="/student/grades" className="underline underline-offset-2">View grades</Link>{" "}
+            or{" "}
+            <Link href="/student/schedule" className="underline underline-offset-2">view schedule</Link>.
+          </p>
+          <div className="mt-3 space-y-2">
             {groupedResults.map((group) => (
-              <div key={group.status} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div key={group.status} className="rounded-xl border border-slate-200 bg-white p-3">
                 <div className="flex items-center gap-2">
-                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadgeClass(group.status)}`}>
-                      {enrollmentStatusLabel(group.status)}
-                    </span>
-                  <span className="text-xs text-slate-500">{group.items.length} item(s)</span>
+                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadgeClass(group.status)}`}>
+                    {enrollmentStatusLabel(group.status)}
+                  </span>
+                  <span className="text-xs text-slate-500">{group.items.length} section(s)</span>
                 </div>
-                <ul className="mt-2 flex flex-wrap gap-2">
+                <div className="mt-2 grid gap-1">
                   {group.items.map((item) => (
-                    <li
-                      key={item.id}
-                      className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700"
-                    >
-                      {(item.section.course?.code ? `${item.section.course.code} ` : "") + item.section.sectionCode}
-                    </li>
+                    <div key={item.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-1.5 text-xs">
+                      <span className="font-medium text-slate-800">
+                        {item.section.course?.code ? `${item.section.course.code} §` : "§"}{item.section.sectionCode}
+                      </span>
+                      {item.section.course?.title ? (
+                        <span className="text-slate-500 truncate ml-2">{item.section.course.title}</span>
+                      ) : null}
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             ))}
           </div>

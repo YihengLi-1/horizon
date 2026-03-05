@@ -1,11 +1,15 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
+import { PrismaService } from "../common/prisma.service";
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(@Inject(ConfigService) private readonly config: ConfigService) {
+  constructor(
+    @Inject(ConfigService) private readonly config: ConfigService,
+    private readonly prisma: PrismaService
+  ) {
     const secret = config.get<string>("JWT_SECRET") || "dev-secret-change-me";
 
     super({
@@ -18,7 +22,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  validate(payload: { sub: string; role: "STUDENT" | "ADMIN" }) {
-    return { userId: payload.sub, role: payload.role };
+  async validate(payload: { sub: string; role: "STUDENT" | "ADMIN" }) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: payload.sub, deletedAt: null },
+      select: { id: true, role: true }
+    });
+    if (!user) {
+      throw new UnauthorizedException({ code: "USER_NOT_FOUND", message: "User not found" });
+    }
+    return { userId: user.id, role: user.role };
   }
 }

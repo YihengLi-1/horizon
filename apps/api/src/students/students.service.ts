@@ -13,20 +13,27 @@ export class StudentsService {
   ) {}
 
   async getMyProfile(userId: string) {
-    const profile = await this.prisma.studentProfile.findUnique({
-      where: { userId },
-      include: { user: true }
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      include: { studentProfile: true }
     });
 
-    if (!profile) {
+    if (!user?.studentProfile) {
       throw new NotFoundException({ code: "PROFILE_NOT_FOUND", message: "Student profile not found" });
     }
 
-    return profile;
+    return {
+      ...user.studentProfile,
+      user
+    };
   }
 
   async updateMyProfile(userId: string, input: UpdateProfileInput) {
-    const existing = await this.prisma.studentProfile.findUnique({ where: { userId } });
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      include: { studentProfile: true }
+    });
+    const existing = user?.studentProfile ?? null;
     if (!existing) {
       throw new NotFoundException({ code: "PROFILE_NOT_FOUND", message: "Student profile not found" });
     }
@@ -49,18 +56,18 @@ export class StudentsService {
 
   async adminListStudents() {
     return this.prisma.user.findMany({
-      where: { role: "STUDENT" },
+      where: { role: "STUDENT", deletedAt: null },
       include: { studentProfile: true },
       orderBy: { createdAt: "desc" }
     });
   }
 
   async adminGetStudent(id: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
+    const user = await this.prisma.user.findFirst({
+      where: { id, role: "STUDENT", deletedAt: null },
       include: { studentProfile: true }
     });
-    if (!user || user.role !== "STUDENT") {
+    if (!user) {
       throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
     }
     return user;
@@ -74,6 +81,7 @@ export class StudentsService {
   }, actorUserId: string) {
     const existing = await this.prisma.user.findFirst({
       where: {
+        deletedAt: null,
         OR: [{ email: input.email }, { studentId: input.studentId }]
       }
     });
@@ -124,8 +132,11 @@ export class StudentsService {
     }>,
     actorUserId: string
   ) {
-    const user = await this.prisma.user.findUnique({ where: { id }, include: { studentProfile: true } });
-    if (!user || user.role !== "STUDENT") {
+    const user = await this.prisma.user.findFirst({
+      where: { id, role: "STUDENT", deletedAt: null },
+      include: { studentProfile: true }
+    });
+    if (!user) {
       throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
     }
 
@@ -158,7 +169,7 @@ export class StudentsService {
   }
 
   async changePassword(userId: string, input: ChangePasswordInput) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
     if (!user) {
       throw new NotFoundException({ code: "USER_NOT_FOUND", message: "User not found" });
     }
@@ -183,12 +194,27 @@ export class StudentsService {
   }
 
   async adminDeleteStudent(id: string, actorUserId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user || user.role !== "STUDENT") {
+    const user = await this.prisma.user.findFirst({ where: { id, role: "STUDENT", deletedAt: null } });
+    if (!user) {
       throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
     }
 
-    await this.prisma.user.delete({ where: { id } });
+    await this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+      await tx.user.update({
+        where: { id },
+        data: { deletedAt: now }
+      });
+      await tx.enrollment.updateMany({
+        where: {
+          studentId: id,
+          deletedAt: null
+        },
+        data: {
+          deletedAt: now
+        }
+      });
+    });
     await this.auditService.log({
       actorUserId,
       action: "admin_crud",

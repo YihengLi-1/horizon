@@ -163,6 +163,7 @@ export class AuthService {
 
     const existingUser = await this.prisma.user.findFirst({
       where: {
+        deletedAt: null,
         OR: [{ email: input.email }, { studentId: input.studentId }]
       }
     });
@@ -254,6 +255,7 @@ export class AuthService {
 
     const user = await this.prisma.user.findFirst({
       where: {
+        deletedAt: null,
         OR: [{ email: input.identifier }, { studentId: input.identifier }]
       },
       include: { studentProfile: true }
@@ -321,7 +323,12 @@ export class AuthService {
   }
 
   async forgotPassword(input: ForgotPasswordSchema) {
-    const user = await this.prisma.user.findUnique({ where: { email: input.email } });
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email: input.email,
+        deletedAt: null
+      }
+    });
     if (!user) {
       return { message: "If the account exists, a reset link has been generated" };
     }
@@ -355,24 +362,28 @@ export class AuthService {
     }
 
     const passwordHash = await argon2.hash(input.newPassword);
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: tokenRecord.userId },
+    await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.user.updateMany({
+        where: { id: tokenRecord.userId, deletedAt: null },
         data: { passwordHash }
-      }),
-      this.prisma.passwordResetToken.deleteMany({
+      });
+      if (updated.count === 0) {
+        throw new BadRequestException({ code: "INVALID_TOKEN", message: "Reset token is invalid or expired" });
+      }
+
+      await tx.passwordResetToken.deleteMany({
         where: {
           OR: [{ id: tokenRecord.id }, { userId: tokenRecord.userId }]
         }
-      })
-    ]);
+      });
+    });
 
     return { message: "Password reset successful" };
   }
 
   async me(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
       include: { studentProfile: true }
     });
     if (!user) {

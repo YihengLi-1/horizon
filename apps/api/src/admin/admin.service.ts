@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { EnrollmentStatus, Modality, Prisma } from "@prisma/client";
 import argon2 from "argon2";
+import { createHash } from "crypto";
 import {
   createCourseSchema,
   createInviteCodeSchema,
@@ -77,6 +78,13 @@ type PaginatedResult<T> = {
   total: number;
   page: number;
   pageSize: number;
+};
+
+type AuditIntegrityCheckResult = {
+  ok: boolean;
+  checked: number;
+  brokenAtId: string | null;
+  reason: string | null;
 };
 
 function parseCsvRows(csv: string): string[][] {
@@ -256,6 +264,30 @@ export class AdminService {
 
   private isSuperAdmin(actorUserId: string): boolean {
     return this.superAdminUserIds.has(actorUserId);
+  }
+
+  private buildAuditIntegrityHash(input: {
+    prevIntegrityHash: string | null;
+    actorUserId: string | null;
+    action: string;
+    entityType: string;
+    entityId: string | null;
+    metadata: unknown;
+    ip: string | null;
+    userAgent: string | null;
+  }): string {
+    const canonical = JSON.stringify({
+      actorUserId: input.actorUserId,
+      action: input.action,
+      entityType: input.entityType,
+      entityId: input.entityId,
+      metadata: input.metadata ?? null,
+      ip: input.ip,
+      userAgent: input.userAgent
+    });
+    return createHash("sha256")
+      .update(`${input.prevIntegrityHash ?? "GENESIS"}|${canonical}`)
+      .digest("hex");
   }
 
   private isSerializationFailure(error: unknown): boolean {
@@ -848,18 +880,16 @@ export class AdminService {
       const promotedCount = promotedEnrollmentIds.length;
       const availableSeatsAfter = Math.max(0, section.capacity - (enrolledCount + promotedCount));
 
-      await tx.auditLog.create({
-        data: {
-          actorUserId,
-          action: "promote_waitlist",
-          entityType: "section",
-          entityId: input.sectionId,
-          metadata: {
-            promotedCount,
-            promotedEnrollmentIds,
-            availableSeatsBefore,
-            availableSeatsAfter
-          }
+      await this.auditService.logInTransaction(tx, {
+        actorUserId,
+        action: "promote_waitlist",
+        entityType: "section",
+        entityId: input.sectionId,
+        metadata: {
+          promotedCount,
+          promotedEnrollmentIds,
+          availableSeatsBefore,
+          availableSeatsAfter
         }
       });
 
@@ -1030,6 +1060,77 @@ export class AdminService {
       total,
       page: paging.page,
       pageSize: paging.pageSize
+    };
+  }
+
+  async verifyAuditIntegrity(limit = 2000): Promise<AuditIntegrityCheckResult> {
+    const safeLimit = Math.max(1, Math.min(10_000, Math.floor(limit)));
+    const logs = await this.prisma.auditLog.findMany({
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      take: safeLimit,
+      select: {
+        id: true,
+        actorUserId: true,
+        action: true,
+        entityType: true,
+        entityId: true,
+        metadata: true,
+        ip: true,
+        userAgent: true,
+        prevIntegrityHash: true,
+        integrityHash: true
+      }
+    });
+
+    let previousHash: string | null = null;
+
+    for (const log of logs) {
+      if (!log.integrityHash) {
+        return {
+          ok: false,
+          checked: logs.length,
+          brokenAtId: log.id,
+          reason: "Missing integrity hash (legacy or tampered record)"
+        };
+      }
+
+      if (log.prevIntegrityHash !== previousHash) {
+        return {
+          ok: false,
+          checked: logs.length,
+          brokenAtId: log.id,
+          reason: "Previous hash pointer mismatch"
+        };
+      }
+
+      const expectedHash = this.buildAuditIntegrityHash({
+        prevIntegrityHash: log.prevIntegrityHash,
+        actorUserId: log.actorUserId,
+        action: log.action,
+        entityType: log.entityType,
+        entityId: log.entityId,
+        metadata: log.metadata,
+        ip: log.ip,
+        userAgent: log.userAgent
+      });
+
+      if (expectedHash !== log.integrityHash) {
+        return {
+          ok: false,
+          checked: logs.length,
+          brokenAtId: log.id,
+          reason: "Hash mismatch"
+        };
+      }
+
+      previousHash = log.integrityHash;
+    }
+
+    return {
+      ok: true,
+      checked: logs.length,
+      brokenAtId: null,
+      reason: null
     };
   }
 

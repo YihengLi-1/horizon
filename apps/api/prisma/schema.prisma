@@ -34,6 +34,7 @@ model User {
   passwordHash            String
   role                    Role
   emailVerifiedAt         DateTime?
+  deletedAt               DateTime?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   studentProfile          StudentProfile?
@@ -43,6 +44,8 @@ model User {
   enrollments             Enrollment[]             @relation("StudentEnrollments")
   cartItems               CartItem[]               @relation("StudentCartItems")
   auditLogs               AuditLog[]               @relation("AuditActor")
+
+  @@index([role, deletedAt])
 }
 
 model StudentProfile {
@@ -173,14 +176,15 @@ model Enrollment {
   waitlistPosition Int?
   finalGrade      String?
   droppedAt       DateTime?
+  deletedAt       DateTime?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   student         User             @relation("StudentEnrollments", fields: [studentId], references: [id], onDelete: Cascade)
   term            Term             @relation(fields: [termId], references: [id], onDelete: Cascade)
   section         Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
-  @@index([studentId, termId])
-  @@index([sectionId, status])
+  @@index([studentId, termId, deletedAt])
+  @@index([sectionId, status, deletedAt])
   @@unique([sectionId, waitlistPosition])
 }
 
@@ -204,6 +208,8 @@ model AuditLog {
   entityType  String
   entityId    String?
   metadata    Json?
+  prevIntegrityHash String?
+  integrityHash     String?
   ip          String?
   userAgent   String?
   createdAt   DateTime @default(now())

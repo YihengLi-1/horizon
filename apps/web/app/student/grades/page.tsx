@@ -166,9 +166,12 @@ export default async function GradesPage({
               Final grades and GPA trends across completed terms.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{grades.length} graded classes</span>
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{terms.length} term(s)</span>
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{completedCredits} completed credits</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{grades.length} graded courses</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{terms.length} term{terms.length === 1 ? "" : "s"}</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{completedCredits} credits completed</span>
+              {cumulative ? (
+                <span className={`campus-chip ${gpaTier(cumulative.gpa).cls}`}>GPA {cumulative.gpa.toFixed(2)} · {gpaTier(cumulative.gpa).label}</span>
+              ) : null}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -229,8 +232,18 @@ export default async function GradesPage({
       </section>
 
       {grades.length === 0 ? (
-        <section className="campus-card px-6 py-10 text-center">
-          <p className="text-sm text-slate-600">No grades on record yet.</p>
+        <section className="campus-card px-6 py-14 text-center">
+          <div className="flex flex-col items-center gap-3">
+            <span className="text-4xl">🎓</span>
+            <p className="text-sm font-medium text-slate-700">No grades on record yet</p>
+            <p className="text-xs text-slate-500">Grades will appear here once instructors submit them for your completed courses.</p>
+            <Link
+              href="/student/schedule"
+              className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 no-underline transition hover:bg-slate-50"
+            >
+              View Schedule →
+            </Link>
+          </div>
         </section>
       ) : null}
 
@@ -255,23 +268,39 @@ export default async function GradesPage({
             </div>
 
             {total > 0 ? (
-              <div className="flex h-1.5 overflow-hidden">
-                {(["A", "B", "C", "D", "F"] as const).map((letter) =>
-                  dist[letter] > 0 ? (
-                    <div
-                      key={letter}
-                      title={`${letter}: ${dist[letter]} course${dist[letter] !== 1 ? "s" : ""}`}
-                      className={`h-full transition-all ${
+              <div>
+                <div className="flex h-2 overflow-hidden">
+                  {(["A", "B", "C", "D", "F"] as const).map((letter) =>
+                    dist[letter] > 0 ? (
+                      <div
+                        key={letter}
+                        title={`${letter}: ${dist[letter]} course${dist[letter] !== 1 ? "s" : ""}`}
+                        className={`h-full transition-all ${
+                          letter === "A" ? "bg-emerald-400"
+                          : letter === "B" ? "bg-blue-400"
+                          : letter === "C" ? "bg-amber-400"
+                          : letter === "D" ? "bg-orange-400"
+                          : "bg-red-500"
+                        }`}
+                        style={{ width: `${(dist[letter] / total) * 100}%` }}
+                      />
+                    ) : null
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 border-b border-slate-100 bg-slate-50/60 px-5 py-2">
+                  {(["A", "B", "C", "D", "F"] as const).filter((l) => dist[l] > 0).map((letter) => (
+                    <span key={letter} className="flex items-center gap-1 text-[11px] text-slate-600">
+                      <span className={`inline-block size-2 rounded-sm ${
                         letter === "A" ? "bg-emerald-400"
                         : letter === "B" ? "bg-blue-400"
                         : letter === "C" ? "bg-amber-400"
                         : letter === "D" ? "bg-orange-400"
                         : "bg-red-500"
-                      }`}
-                      style={{ width: `${(dist[letter] / total) * 100}%` }}
-                    />
-                  ) : null
-                )}
+                      }`} />
+                      {letter} · {dist[letter]}
+                    </span>
+                  ))}
+                </div>
               </div>
             ) : null}
 

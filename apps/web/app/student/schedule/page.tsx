@@ -47,6 +47,12 @@ function fmt(minutes: number): string {
   return `${h}:${m}`;
 }
 
+function daysUntil(dateStr: string): number {
+  const target = new Date(dateStr);
+  const now = new Date();
+  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+}
+
 function meetingSummary(mts: MeetingTime[]): string {
   if (!mts.length) return "No meeting time (async)";
   return mts.map((mt) => `${WEEKDAY[mt.weekday] ?? mt.weekday} ${fmt(mt.startMinutes)}–${fmt(mt.endMinutes)}`).join(", ");
@@ -239,6 +245,8 @@ export default function SchedulePage() {
         ? "border-blue-300 bg-blue-100 text-blue-900"
         : "border-emerald-300 bg-emerald-100 text-emerald-900";
 
+  const dropDaysLeft = activeTerm && !dropDeadlinePassed ? daysUntil(activeTerm.dropDeadline) : 0;
+
   return (
     <div className="campus-page">
       <section className="campus-hero">
@@ -250,9 +258,16 @@ export default function SchedulePage() {
               Review enrollment statuses and manage drops with a timetable view.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Enrolled {statusCounts.ENROLLED}</span>
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Pending {statusCounts.PENDING_APPROVAL}</span>
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Waitlisted {statusCounts.WAITLISTED}</span>
+              <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-800">Enrolled {statusCounts.ENROLLED}</span>
+              {statusCounts.PENDING_APPROVAL > 0 ? (
+                <span className="campus-chip border-blue-300 bg-blue-50 text-blue-800">Pending {statusCounts.PENDING_APPROVAL}</span>
+              ) : null}
+              {statusCounts.WAITLISTED > 0 ? (
+                <span className="campus-chip border-amber-300 bg-amber-50 text-amber-800">Waitlisted {statusCounts.WAITLISTED}</span>
+              ) : null}
+              {visibleCredits > 0 ? (
+                <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{visibleCredits} enrolled credits</span>
+              ) : null}
             </div>
           </div>
           <div className="w-full max-w-sm space-y-2">
@@ -314,14 +329,29 @@ export default function SchedulePage() {
       {activeTerm ? (
         dropDeadlinePassed ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            <span className="font-semibold">Drop deadline has passed</span> (was {new Date(activeTerm.dropDeadline).toLocaleDateString()}).
-            Enrolled and pending-approval drops now require advisor/registrar support.
+            <div className="flex items-start gap-2">
+              <span className="text-base">⚠️</span>
+              <div>
+                <span className="font-semibold">Drop deadline has passed</span>{" "}
+                (was {new Date(activeTerm.dropDeadline).toLocaleDateString()}).
+                Enrolled and pending-approval drops now require advisor/registrar support.
+              </div>
+            </div>
           </div>
         ) : (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            Drop deadline: <span className="font-semibold">{new Date(activeTerm.dropDeadline).toLocaleDateString()}</span>
-            {" "}at {new Date(activeTerm.dropDeadline).toLocaleTimeString()}.
-            You can drop courses until then.
+          <div className={`rounded-xl border px-4 py-3 text-sm ${dropDaysLeft <= 3 ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                Drop deadline:{" "}
+                <span className="font-semibold">{new Date(activeTerm.dropDeadline).toLocaleDateString()}</span>
+                {" "}at{" "}
+                <span className="font-semibold">{new Date(activeTerm.dropDeadline).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>.
+                {" "}You can drop courses until then.
+              </div>
+              <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${dropDaysLeft <= 3 ? "border-amber-300 bg-amber-100 text-amber-800" : "border-emerald-300 bg-emerald-100 text-emerald-800"}`}>
+                {dropDaysLeft <= 0 ? "Today!" : dropDaysLeft === 1 ? "1 day left" : `${dropDaysLeft} days left`}
+              </span>
+            </div>
           </div>
         )
       ) : null}
@@ -472,19 +502,34 @@ export default function SchedulePage() {
                 <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400">Loading schedule…</td></tr>
               ) : visibleEnrollments.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
-                    {enrollments.length === 0 ? "No courses in this term yet." : "No courses match current status filters."}
-                    {hasStatusFiltersApplied ? (
-                      <div className="mt-3">
-                        <button
-                          type="button"
-                          onClick={resetStatusFilters}
-                          className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
-                        >
-                          Show all statuses
-                        </button>
-                      </div>
-                    ) : null}
+                  <td colSpan={6} className="px-4 py-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      {enrollments.length === 0 ? (
+                        <>
+                          <span className="text-3xl">📅</span>
+                          <p className="text-sm font-medium text-slate-700">No courses enrolled this term</p>
+                          <p className="text-xs text-slate-500">Browse the catalog and add sections to your cart to register.</p>
+                          <a
+                            href={termId ? `/student/catalog?termId=${termId}` : "/student/catalog"}
+                            className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 no-underline transition hover:bg-slate-50"
+                          >
+                            Browse Catalog →
+                          </a>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-3xl">🔍</span>
+                          <p className="text-sm font-medium text-slate-700">No courses match current status filters</p>
+                          <button
+                            type="button"
+                            onClick={resetStatusFilters}
+                            className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                          >
+                            Show all statuses
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (

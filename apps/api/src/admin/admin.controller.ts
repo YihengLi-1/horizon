@@ -183,6 +183,11 @@ export class AdminController {
     );
   }
 
+  @Get("audit-logs/integrity")
+  async verifyAuditIntegrity(@Query("limit") limit?: string) {
+    return ok(await this.adminService.verifyAuditIntegrity(limit ? Number(limit) : undefined));
+  }
+
   @Post("import/students")
   async importStudents(
     @Body(new ZodValidationPipe(csvImportSchema)) body: unknown,
