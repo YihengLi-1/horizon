@@ -82,7 +82,66 @@ function calcGPA(items: GradeItem[]): { gpa: number; totalCredits: number } | nu
   return { gpa: weightedSum / totalCredits, totalCredits };
 }
 
-export default async function GradesPage() {
+type SortCol = "code" | "title" | "credits" | "grade" | "points" | "contribution";
+
+function sortItems(items: GradeItem[], sortBy: SortCol, sortDir: "asc" | "desc"): GradeItem[] {
+  const dir = sortDir === "desc" ? -1 : 1;
+  return [...items].sort((a, b) => {
+    switch (sortBy) {
+      case "title":
+        return dir * a.section.course.title.localeCompare(b.section.course.title);
+      case "credits":
+        return dir * (a.section.credits - b.section.credits);
+      case "grade":
+      case "points": {
+        const ap = gradePoints(a.finalGrade) ?? -1;
+        const bp = gradePoints(b.finalGrade) ?? -1;
+        return dir * (ap - bp);
+      }
+      case "contribution": {
+        const ac = (gradePoints(a.finalGrade) ?? 0) * a.section.credits;
+        const bc = (gradePoints(b.finalGrade) ?? 0) * b.section.credits;
+        return dir * (ac - bc);
+      }
+      default:
+        return dir * a.section.course.code.localeCompare(b.section.course.code);
+    }
+  });
+}
+
+function SortTh({
+  col, label, sortBy, sortDir, right,
+}: {
+  col: SortCol; label: string; sortBy: SortCol; sortDir: "asc" | "desc"; right?: boolean;
+}) {
+  const active  = sortBy === col;
+  const nextDir = active && sortDir === "asc" ? "desc" : "asc";
+  return (
+    <th className={`px-4 py-2 ${right ? "text-right" : ""}`}>
+      <Link
+        href={`?sortBy=${col}&sortDir=${nextDir}`}
+        className={`inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide whitespace-nowrap transition-colors ${
+          active ? "text-slate-900" : "text-slate-400 hover:text-slate-700"
+        } ${right ? "flex-row-reverse" : ""}`}
+      >
+        {label}
+        <span className="text-[9px] leading-none">
+          {active ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
+        </span>
+      </Link>
+    </th>
+  );
+}
+
+export default async function GradesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sortBy?: string; sortDir?: string }>;
+}) {
+  const params  = await searchParams;
+  const sortBy  = (params.sortBy  ?? "code") as SortCol;
+  const sortDir = (params.sortDir === "desc" ? "desc" : "asc") as "asc" | "desc";
+
   const grades = await serverApi<GradeItem[]>("/registration/grades");
 
   const byTerm = new Map<string, GradeItem[]>();
@@ -176,7 +235,8 @@ export default async function GradesPage() {
       ) : null}
 
       {terms.map((termName) => {
-        const items = byTerm.get(termName) ?? [];
+        const rawItems = byTerm.get(termName) ?? [];
+        const items = sortItems(rawItems, sortBy, sortDir);
         const termGpa = calcGPA(items);
         const termCredits = items.reduce((sum, item) => sum + item.section.credits, 0);
         const dist = gradeDistribution(items);
@@ -218,13 +278,13 @@ export default async function GradesPage() {
             <div className="max-h-[380px] overflow-auto">
               <table className="w-full border-collapse text-sm">
                 <thead className="sticky top-0 z-10 bg-slate-50">
-                  <tr className="border-b border-slate-200 text-left">
-                    <th className="px-4 py-2.5 font-semibold text-slate-700">Course</th>
-                    <th className="px-4 py-2.5 font-semibold text-slate-700">Title</th>
-                    <th className="px-4 py-2.5 font-semibold text-slate-700">Credits</th>
-                    <th className="px-4 py-2.5 font-semibold text-slate-700">Grade</th>
-                    <th className="px-4 py-2.5 font-semibold text-slate-700">Points</th>
-                    <th className="px-4 py-2.5 font-semibold text-slate-700 text-right">Contribution</th>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-left">
+                    <SortTh col="code"         label="Course"       sortBy={sortBy} sortDir={sortDir} />
+                    <SortTh col="title"        label="Title"        sortBy={sortBy} sortDir={sortDir} />
+                    <SortTh col="credits"      label="Credits"      sortBy={sortBy} sortDir={sortDir} />
+                    <SortTh col="grade"        label="Grade"        sortBy={sortBy} sortDir={sortDir} />
+                    <SortTh col="points"       label="Points"       sortBy={sortBy} sortDir={sortDir} />
+                    <SortTh col="contribution" label="Contribution" sortBy={sortBy} sortDir={sortDir} right />
                   </tr>
                 </thead>
                 <tbody>

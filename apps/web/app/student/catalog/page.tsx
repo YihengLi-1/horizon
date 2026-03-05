@@ -47,6 +47,15 @@ type CartItem = {
   };
 };
 
+type StudentEnrollment = {
+  id: string;
+  status: string;
+  section: {
+    id: string;
+    course: { code: string };
+  };
+};
+
 type GradeEnrollment = {
   section: {
     course: {
@@ -170,10 +179,12 @@ export default function StudentCatalogPage() {
   const [filterApprovalOnly, setFilterApprovalOnly] = useState(false);
   const [filterNoConflict, setFilterNoConflict] = useState(false);
   const [sortBy, setSortBy] = useState("RELEVANCE");
+  const [termEnrollments, setTermEnrollments] = useState<StudentEnrollment[]>([]);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [addingSectionId, setAddingSectionId] = useState("");
+  const [removingSectionId, setRemovingSectionId] = useState("");
   const [passedCourseCodes, setPassedCourseCodes] = useState<string[]>([]);
   const [hydratedFilters, setHydratedFilters] = useState(false);
   const [page, setPage] = useState(1);
@@ -209,6 +220,24 @@ export default function StudentCatalogPage() {
   );
   const passedCourseCodeSet = useMemo(() => new Set(passedCourseCodes), [passedCourseCodes]);
 
+  // Track which section IDs and course codes the student is already enrolled in for this term
+  const enrolledSectionIdSet = useMemo(
+    () => new Set(
+      termEnrollments
+        .filter((e) => e.status === "ENROLLED" || e.status === "PENDING_APPROVAL")
+        .map((e) => e.section.id)
+    ),
+    [termEnrollments]
+  );
+  const enrolledCourseCodeSet = useMemo(
+    () => new Set(
+      termEnrollments
+        .filter((e) => e.status === "ENROLLED" || e.status === "PENDING_APPROVAL")
+        .map((e) => e.section.course.code)
+    ),
+    [termEnrollments]
+  );
+
   const updateUrlTerm = (nextTermId: string) => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
@@ -240,6 +269,16 @@ export default function StudentCatalogPage() {
       setCartItems(data);
     } catch {
       setCartItems([]);
+    }
+  };
+
+  const loadEnrollments = async (tid: string) => {
+    if (!tid) { setTermEnrollments([]); return; }
+    try {
+      const data = await apiFetch<StudentEnrollment[]>(`/registration/enrollments?termId=${tid}`);
+      setTermEnrollments(data);
+    } catch {
+      setTermEnrollments([]);
     }
   };
 
@@ -279,7 +318,7 @@ export default function StudentCatalogPage() {
         setTermId(validId);
         if (validId) {
           updateUrlTerm(validId);
-          await Promise.all([loadSections(validId), loadCart(validId)]);
+          await Promise.all([loadSections(validId), loadCart(validId), loadEnrollments(validId)]);
         }
         setHydratedFilters(true);
       } catch (err) {
@@ -304,7 +343,7 @@ export default function StudentCatalogPage() {
     setSortBy("RELEVANCE");
     setNotice("");
     setError("");
-    await Promise.all([loadSections(nextTermId), loadCart(nextTermId)]);
+    await Promise.all([loadSections(nextTermId), loadCart(nextTermId), loadEnrollments(nextTermId)]);
   };
 
   useEffect(() => {
@@ -427,6 +466,10 @@ export default function StudentCatalogPage() {
       });
     } else if (sortBy === "CREDITS_ASC") {
       filtered.sort((a, b) => a.credits - b.credits);
+    } else if (sortBy === "CREDITS_DESC") {
+      filtered.sort((a, b) => b.credits - a.credits);
+    } else if (sortBy === "TITLE_ASC") {
+      filtered.sort((a, b) => a.course.title.localeCompare(b.course.title));
     }
 
     return filtered;
@@ -493,6 +536,23 @@ export default function StudentCatalogPage() {
       setError(err instanceof Error ? err.message : "Failed to add to cart");
     } finally {
       setAddingSectionId("");
+    }
+  };
+
+  const removeFromCart = async (section: Section) => {
+    const cartItem = cartItems.find((ci) => ci.section.id === section.id);
+    if (!cartItem || !termId) return;
+    try {
+      setNotice("");
+      setError("");
+      setRemovingSectionId(section.id);
+      await apiFetch(`/registration/cart/${cartItem.id}`, { method: "DELETE" });
+      setNotice(`${section.course.code} §${section.sectionCode} removed from cart.`);
+      await loadCart(termId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to remove from cart");
+    } finally {
+      setRemovingSectionId("");
     }
   };
 
