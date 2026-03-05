@@ -2,10 +2,26 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/api";
+
+function passwordStrength(pw: string): { score: number; label: string; color: string; bg: string } {
+  if (!pw) return { score: 0, label: "", color: "text-slate-400", bg: "bg-slate-200" };
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  if (score <= 1) return { score, label: "Weak", color: "text-red-600", bg: "bg-red-500" };
+  if (score <= 2) return { score, label: "Fair", color: "text-amber-600", bg: "bg-amber-500" };
+  if (score <= 3) return { score, label: "Good", color: "text-yellow-600", bg: "bg-yellow-400" };
+  if (score <= 4) return { score, label: "Strong", color: "text-emerald-600", bg: "bg-emerald-500" };
+  return { score, label: "Very Strong", color: "text-emerald-700", bg: "bg-emerald-600" };
+}
 
 type RegisterResult = {
   message: string;
@@ -20,14 +36,29 @@ export default function RegisterPage() {
     inviteCode: "",
     password: ""
   });
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [result, setResult] = useState<RegisterResult | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const pwStrength = passwordStrength(form.password);
+  const pwMatch = confirmPassword.length > 0 && confirmPassword === form.password;
+  const pwMismatch = confirmPassword.length > 0 && confirmPassword !== form.password;
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
     setResult(null);
+    if (form.password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+    if (form.password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
     setLoading(true);
     try {
       const data = await apiFetch<RegisterResult>("/auth/register", {
@@ -95,14 +126,67 @@ export default function RegisterPage() {
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium text-slate-700">Password</label>
-            <Input
-              type="password"
-              className="h-10"
-              placeholder="Create a secure password"
-              value={form.password}
-              onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
-              required
-            />
+            <div className="relative">
+              <Input
+                type={showPw ? "text" : "password"}
+                className="h-10 pr-10"
+                placeholder="Create a secure password"
+                value={form.password}
+                onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+                required
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setShowPw((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                aria-label={showPw ? "Hide password" : "Show password"}
+              >
+                {showPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+            {form.password ? (
+              <div className="mt-2 space-y-1">
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((seg) => (
+                    <div
+                      key={seg}
+                      className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
+                        seg <= pwStrength.score ? pwStrength.bg : "bg-slate-200"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className={`text-xs font-medium ${pwStrength.color}`}>{pwStrength.label}</p>
+              </div>
+            ) : null}
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-slate-700">Confirm password</label>
+            <div className="relative">
+              <Input
+                type={showConfirm ? "text" : "password"}
+                className={`h-10 pr-10 ${pwMismatch ? "border-red-400 focus-visible:ring-red-300" : pwMatch ? "border-emerald-400 focus-visible:ring-emerald-300" : ""}`}
+                placeholder="Re-enter your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setShowConfirm((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                aria-label={showConfirm ? "Hide password" : "Show password"}
+              >
+                {showConfirm ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+            {pwMismatch ? (
+              <p className="text-xs font-medium text-red-600">Passwords do not match</p>
+            ) : pwMatch ? (
+              <p className="text-xs font-medium text-emerald-600">Passwords match ✓</p>
+            ) : null}
           </div>
           {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
           {result ? (
@@ -114,7 +198,14 @@ export default function RegisterPage() {
             </div>
           ) : null}
           <Button disabled={loading} className="h-10 w-full bg-primary text-white hover:bg-primary/90" type="submit">
-            {loading ? "Creating account..." : "Create Account"}
+            {loading ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                Creating account...
+              </span>
+            ) : (
+              "Create Account"
+            )}
           </Button>
         </form>
         <p className="mt-4 text-sm text-slate-600">

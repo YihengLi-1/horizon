@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type Student = {
@@ -39,6 +39,19 @@ export default function AdminStudentsPage() {
   });
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Press "/" to focus search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
@@ -372,8 +385,9 @@ export default function AdminStudentsPage() {
         <label className="block">
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search</span>
           <input
+            ref={searchRef}
             className="campus-input"
-            placeholder="Name, Student ID, email, major..."
+            placeholder="Name, Student ID, email, major…  [/]"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />

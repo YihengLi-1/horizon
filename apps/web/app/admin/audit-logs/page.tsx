@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type AuditLog = {
@@ -35,12 +35,25 @@ export default function AuditLogsPage() {
   const [actionFilter, setActionFilter] = useState("");
   const [entityFilter, setEntityFilter] = useState("");
   const [page, setPage] = useState(1);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Press "/" to focus search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const load = async () => {
     try {
       setLoading(true);
       setError("");
-      const data = await apiFetch<AuditLog[]>("/admin/audit-logs?limit=500");
+      const data = await apiFetch<AuditLog[]>("/admin/audit-logs?limit=1000");
       setLogs(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load audit logs");
@@ -140,8 +153,9 @@ export default function AuditLogsPage() {
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search</span>
             <input
+              ref={searchRef}
               className="campus-input"
-              placeholder="Actor, action, entity ID..."
+              placeholder="Actor, action, entity ID…  [/]"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />

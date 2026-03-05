@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, Fragment, useEffect, useMemo, useState } from "react";
+import { FormEvent, Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type Enrollment = {
@@ -127,6 +127,7 @@ export default function AdminSectionsPage() {
   const [sortActionFirst, setSortActionFirst] = useState(true);
   const [createError, setCreateError] = useState("");
   const [createSuccess, setCreateSuccess] = useState("");
+  const [creating, setCreating] = useState(false);
   const [createForm, setCreateForm] = useState({
     termId: "",
     courseId: "",
@@ -145,6 +146,20 @@ export default function AdminSectionsPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Press "/" to focus search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   const sectionIds = useMemo(() => sections.map((section) => section.id), [sections]);
   const termOptions = useMemo(
     () => Array.from(new Set(sections.map((section) => section.term.name))).sort((a, b) => a.localeCompare(b)),
@@ -156,7 +171,7 @@ export default function AdminSectionsPage() {
     return sections.filter((section) => {
       if (termFilter !== "ALL" && section.term.name !== termFilter) return false;
       if (!q) return true;
-      const target = `${section.term.name} ${section.course.code} ${section.sectionCode}`.toLowerCase();
+      const target = `${section.term.name} ${section.course.code} ${section.sectionCode} ${section.instructorName} ${section.location ?? ""}`.toLowerCase();
       if (!target.includes(q)) return false;
       return true;
     });
@@ -272,6 +287,7 @@ export default function AdminSectionsPage() {
     setCreateError("");
     setCreateSuccess("");
     try {
+      setCreating(true);
       await apiFetch("/admin/sections", {
         method: "POST",
         body: JSON.stringify({
@@ -296,6 +312,8 @@ export default function AdminSectionsPage() {
       await loadSections();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : "Create failed");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -605,8 +623,9 @@ export default function AdminSectionsPage() {
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">⌕</span>
               <input
+                ref={searchRef}
                 className="campus-input pl-8"
-                placeholder="Filter by term, course code, or section"
+                placeholder="Filter by term, course, section, or instructor  [/]"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
               />
@@ -821,9 +840,12 @@ export default function AdminSectionsPage() {
           </div>
           <button
             type="submit"
-            className="col-span-full inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-white transition hover:bg-primary/90 md:col-span-1"
+            disabled={creating}
+            className="col-span-full inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 md:col-span-1"
           >
-            Create Section
+            {creating ? (
+              <><span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />Creating…</>
+            ) : "Create Section"}
           </button>
         </form>
         {createError ? <p className="mt-2 text-sm text-red-600">{createError}</p> : null}
@@ -1086,6 +1108,21 @@ export default function AdminSectionsPage() {
                     <span>Waitlist {waitlisted}</span>
                     <span>Seats {seats}</span>
                   </div>
+                  <div className="mt-2">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className={`h-full rounded-full ${
+                          enrolledCount(section) / section.capacity >= 0.9 ? "bg-red-500"
+                          : enrolledCount(section) / section.capacity >= 0.7 ? "bg-amber-400"
+                          : "bg-emerald-400"
+                        }`}
+                        style={{ width: `${Math.min(100, section.capacity > 0 ? Math.round((enrolledCount(section) / section.capacity) * 100) : 0)}%` }}
+                      />
+                    </div>
+                    <p className="mt-0.5 text-[10px] text-slate-400">
+                      {enrolledCount(section)}/{section.capacity} enrolled
+                    </p>
+                  </div>
                 </li>
               );
             })}
@@ -1159,6 +1196,15 @@ export default function AdminSectionsPage() {
                         <td className="px-4 py-3 text-xs text-slate-600">{formatMeetingTimes(section.meetingTimes)}</td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap gap-1.5">
+                            <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                              section.modality === "ONLINE"
+                                ? "border-violet-200 bg-violet-50 text-violet-700"
+                                : section.modality === "HYBRID"
+                                  ? "border-teal-200 bg-teal-50 text-teal-700"
+                                  : "border-slate-200 bg-slate-50 text-slate-600"
+                            }`}>
+                              {section.modality === "ON_CAMPUS" ? "On Campus" : section.modality === "ONLINE" ? "Online" : "Hybrid"}
+                            </span>
                             {section.requireApproval ? (
                               <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
                                 Approval
@@ -1169,14 +1215,26 @@ export default function AdminSectionsPage() {
                                 Can promote
                               </span>
                             ) : null}
-                            {!section.requireApproval && !(waitlisted > 0 && seats > 0) ? (
-                              <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                                —
-                              </span>
-                            ) : null}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-slate-700">{section.capacity}</td>
+                        <td className="px-4 py-3">
+                          <p className="text-sm text-slate-700">{section.capacity}</p>
+                          <div className="mt-1 h-1.5 w-16 overflow-hidden rounded-full bg-slate-200">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                enrolled / section.capacity >= 0.9
+                                  ? "bg-red-500"
+                                  : enrolled / section.capacity >= 0.7
+                                    ? "bg-amber-400"
+                                    : "bg-emerald-400"
+                              }`}
+                              style={{ width: `${Math.min(100, section.capacity > 0 ? Math.round((enrolled / section.capacity) * 100) : 0)}%` }}
+                            />
+                          </div>
+                          <p className="mt-0.5 text-[10px] text-slate-400">
+                            {section.capacity > 0 ? Math.round((enrolled / section.capacity) * 100) : 0}% full
+                          </p>
+                        </td>
                         <td className="px-4 py-3">
                           <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                             ENROLLED {enrolled}

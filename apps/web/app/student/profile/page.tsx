@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 type ProfileResponse = {
@@ -71,6 +72,9 @@ function statusClass(value: string | null | undefined) {
 
 function ChangePasswordCard() {
   const [form, setForm] = useState({ currentPassword: "", newPassword: "", confirm: "" });
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
@@ -110,37 +114,70 @@ function ChangePasswordCard() {
       <form onSubmit={onSubmit} className="space-y-3 p-4">
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Current password</label>
-          <input
-            type="password"
-            value={form.currentPassword}
-            required
-            onChange={(e) => setForm((p) => ({ ...p, currentPassword: e.target.value }))}
-            className="campus-input"
-            autoComplete="current-password"
-          />
+          <div className="relative">
+            <input
+              type={showCurrent ? "text" : "password"}
+              value={form.currentPassword}
+              required
+              onChange={(e) => setForm((p) => ({ ...p, currentPassword: e.target.value }))}
+              className="campus-input pr-10"
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => setShowCurrent((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              aria-label={showCurrent ? "Hide password" : "Show password"}
+            >
+              {showCurrent ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
         </div>
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">New password</label>
-          <input
-            type="password"
-            value={form.newPassword}
-            required
-            minLength={8}
-            onChange={(e) => setForm((p) => ({ ...p, newPassword: e.target.value }))}
-            className="campus-input"
-            autoComplete="new-password"
-          />
+          <div className="relative">
+            <input
+              type={showNew ? "text" : "password"}
+              value={form.newPassword}
+              required
+              minLength={8}
+              onChange={(e) => setForm((p) => ({ ...p, newPassword: e.target.value }))}
+              className="campus-input pr-10"
+              autoComplete="new-password"
+            />
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => setShowNew((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              aria-label={showNew ? "Hide password" : "Show password"}
+            >
+              {showNew ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
         </div>
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Confirm new password</label>
-          <input
-            type="password"
-            value={form.confirm}
-            required
-            onChange={(e) => setForm((p) => ({ ...p, confirm: e.target.value }))}
-            className="campus-input"
-            autoComplete="new-password"
-          />
+          <div className="relative">
+            <input
+              type={showConfirm ? "text" : "password"}
+              value={form.confirm}
+              required
+              onChange={(e) => setForm((p) => ({ ...p, confirm: e.target.value }))}
+              className="campus-input pr-10"
+              autoComplete="new-password"
+            />
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => setShowConfirm((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              aria-label={showConfirm ? "Hide password" : "Show password"}
+            >
+              {showConfirm ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
         </div>
         {msg ? <p className="text-xs text-emerald-700">{msg}</p> : null}
         {err ? <p className="text-xs text-red-700">{err}</p> : null}

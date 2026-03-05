@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type Term = {
@@ -68,6 +68,19 @@ export default function EnrollmentsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [page, setPage] = useState(1);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Press "/" to focus search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   // Load terms for selector
   useEffect(() => {
@@ -381,8 +394,9 @@ export default function EnrollmentsPage() {
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search</span>
             <input
+              ref={searchRef}
               className="campus-input"
-              placeholder="Student name, ID, course code, section..."
+              placeholder="Student name, ID, course code, section…  [/]"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />

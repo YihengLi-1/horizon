@@ -165,6 +165,12 @@ export default function SchedulePage() {
     setShowWaitlisted(true);
   };
 
+  const confirmDrop = (enrollment: Enrollment) => {
+    const label = `${enrollment.section.course.code} §${enrollment.section.sectionCode}`;
+    if (!window.confirm(`Drop ${label}? This cannot be undone.`)) return;
+    void dropEnrollment(enrollment.id);
+  };
+
   const dropEnrollment = async (enrollmentId: string) => {
     try {
       setDropping((p) => ({ ...p, [enrollmentId]: true }));
@@ -430,7 +436,7 @@ export default function SchedulePage() {
                   ) : enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL" || enrollment.status === "WAITLISTED" ? (
                     <button
                       type="button"
-                      onClick={() => void dropEnrollment(enrollment.id)}
+                      onClick={() => confirmDrop(enrollment)}
                       disabled={dropping[enrollment.id]}
                       className="inline-flex h-8 items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
                     >
@@ -511,7 +517,7 @@ export default function SchedulePage() {
                         ) : enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL" || enrollment.status === "WAITLISTED" ? (
                           <button
                             type="button"
-                            onClick={() => void dropEnrollment(enrollment.id)}
+                            onClick={() => confirmDrop(enrollment)}
                             disabled={dropping[enrollment.id]}
                             className="inline-flex h-8 items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
                           >

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type InviteCode = {
@@ -79,6 +79,21 @@ export default function InviteCodesPage() {
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [filterStatus, setFilterStatus] = useState("ALL");
+  const [search, setSearch] = useState("");
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Press "/" to focus search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const load = async () => {
     try {
@@ -124,6 +139,7 @@ export default function InviteCodesPage() {
 
   const toggleActive = async (item: InviteCode) => {
     try {
+      setTogglingId(item.id);
       setError("");
       setNotice("");
       await apiFetch(`/admin/invite-codes/${item.id}`, {
@@ -134,6 +150,8 @@ export default function InviteCodesPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Update failed");
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -145,11 +163,16 @@ export default function InviteCodesPage() {
   }, [codes]);
 
   const visibleCodes = useMemo(() => {
-    if (filterStatus === "ACTIVE") return codes.filter((item) => item.active && !isExpired(item) && (item.maxUses === null || item.usedCount < item.maxUses));
-    if (filterStatus === "DISABLED") return codes.filter((item) => !item.active);
-    if (filterStatus === "EXPIRED") return codes.filter(isExpired);
-    return codes;
-  }, [codes, filterStatus]);
+    let filtered = codes;
+    if (filterStatus === "ACTIVE") filtered = filtered.filter((item) => item.active && !isExpired(item) && (item.maxUses === null || item.usedCount < item.maxUses));
+    else if (filterStatus === "DISABLED") filtered = filtered.filter((item) => !item.active);
+    else if (filterStatus === "EXPIRED") filtered = filtered.filter(isExpired);
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      filtered = filtered.filter((item) => item.code.toLowerCase().includes(q));
+    }
+    return filtered;
+  }, [codes, filterStatus, search]);
 
   const exportCsv = () => {
     const rows = [
@@ -276,22 +299,48 @@ export default function InviteCodesPage() {
       {notice ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{notice}</div> : null}
 
       <section className="campus-toolbar">
-        <div className="flex flex-wrap items-center gap-2">
-          {(["ALL", "ACTIVE", "DISABLED", "EXPIRED"] as const).map((status) => (
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">⌕</span>
+            <input
+              ref={searchRef}
+              className="campus-input pl-8"
+              placeholder="Search by code…  [/]"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {(["ALL", "ACTIVE", "DISABLED", "EXPIRED"] as const).map((status) => (
+              <button
+                key={status}
+                type="button"
+                onClick={() => setFilterStatus(status)}
+                className={`inline-flex h-9 items-center rounded-full border px-3 text-xs font-medium transition ${
+                  filterStatus === status
+                    ? "border-slate-400 bg-slate-900 text-white"
+                    : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {status === "ALL" ? `All (${codes.length})` : status}
+              </button>
+            ))}
+          </div>
+          {(search || filterStatus !== "ALL") ? (
             <button
-              key={status}
               type="button"
-              onClick={() => setFilterStatus(status)}
-              className={`inline-flex h-9 items-center rounded-full border px-3 text-xs font-medium transition ${
-                filterStatus === status
-                  ? "border-slate-400 bg-slate-900 text-white"
-                  : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
-              }`}
+              onClick={() => { setSearch(""); setFilterStatus("ALL"); }}
+              className="text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
             >
-              {status === "ALL" ? `All (${codes.length})` : status}
+              Clear filters
             </button>
-          ))}
+          ) : null}
         </div>
+        {search && (
+          <p className="mt-2 text-xs text-slate-500">
+            Showing {visibleCodes.length} of {codes.length} codes
+          </p>
+        )}
       </section>
 
       <section className="campus-card overflow-hidden">
@@ -352,10 +401,15 @@ export default function InviteCodesPage() {
                       <td className="px-4 py-3">
                         <button
                           type="button"
+                          disabled={togglingId === item.id}
                           onClick={() => void toggleActive(item)}
-                          className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          {item.active ? "Disable" : "Enable"}
+                          {togglingId === item.id ? (
+                            <><span className="size-3.5 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />Working</>
+                          ) : (
+                            item.active ? "Disable" : "Enable"
+                          )}
                         </button>
                       </td>
                     </tr>

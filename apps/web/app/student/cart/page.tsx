@@ -11,6 +11,7 @@ type Term = {
   name: string;
   registrationOpenAt: string;
   registrationCloseAt: string;
+  maxCredits: number;
 };
 
 type CartItem = {
@@ -242,8 +243,10 @@ export default function StudentCartPage() {
   const cartMetrics = useMemo(() => {
     const totalCredits = items.reduce((sum, item) => sum + item.section.credits, 0);
     const approvalCount = items.filter((item) => item.section.requireApproval).length;
-    return { totalCredits, approvalCount };
-  }, [items]);
+    const maxCredits = activeTerm?.maxCredits ?? null;
+    const overLimit = maxCredits !== null && totalCredits > maxCredits;
+    return { totalCredits, approvalCount, maxCredits, overLimit };
+  }, [items, activeTerm]);
 
   const activeIssues = useMemo(
     () => (submitIssues.length > 0 ? submitIssues : precheckIssues),
@@ -556,8 +559,13 @@ export default function StudentCartPage() {
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
               <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{items.length} item(s)</span>
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{cartMetrics.totalCredits} planned credits</span>
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{cartMetrics.approvalCount} approval required</span>
+              <span className={`campus-chip ${cartMetrics.overLimit ? "border-red-300 bg-red-50 text-red-700" : "border-slate-300 bg-slate-50 text-slate-700"}`}>
+                {cartMetrics.totalCredits}{cartMetrics.maxCredits !== null ? ` / ${cartMetrics.maxCredits}` : ""} credits
+                {cartMetrics.overLimit ? " ⚠" : ""}
+              </span>
+              {cartMetrics.approvalCount > 0 ? (
+                <span className="campus-chip border-blue-200 bg-blue-50 text-blue-700">{cartMetrics.approvalCount} need approval</span>
+              ) : null}
             </div>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
@@ -634,9 +642,23 @@ export default function StudentCartPage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Cart Items</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{items.length}</p>
         </div>
-        <div className="campus-kpi border-slate-200 bg-white">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Planned Credits</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{cartMetrics.totalCredits}</p>
+        <div className={`campus-kpi ${cartMetrics.overLimit ? "border-red-200 bg-red-50" : "border-slate-200 bg-white"}`}>
+          <p className={`text-xs font-semibold uppercase tracking-wide ${cartMetrics.overLimit ? "text-red-700" : "text-slate-500"}`}>
+            Planned Credits
+          </p>
+          <p className={`mt-1 text-2xl font-semibold ${cartMetrics.overLimit ? "text-red-900" : "text-slate-900"}`}>
+            {cartMetrics.totalCredits}{cartMetrics.maxCredits !== null ? ` / ${cartMetrics.maxCredits}` : ""}
+          </p>
+          {cartMetrics.overLimit ? (
+            <p className="mt-0.5 text-xs font-medium text-red-700">Over credit limit</p>
+          ) : cartMetrics.maxCredits !== null ? (
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="h-full rounded-full bg-emerald-400"
+                style={{ width: `${Math.min(100, (cartMetrics.totalCredits / cartMetrics.maxCredits) * 100)}%` }}
+              />
+            </div>
+          ) : null}
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50">
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Approval Required</p>

@@ -26,6 +26,26 @@ type TermForm = {
   timezone: string;
 };
 
+function termStatusBadge(term: Term): { label: string; cls: string } {
+  const now = Date.now();
+  const start = new Date(term.startDate).getTime();
+  const end = new Date(term.endDate).getTime();
+  const regOpen = new Date(term.registrationOpenAt).getTime();
+  const regClose = new Date(term.registrationCloseAt).getTime();
+
+  if (now > end) return { label: "Past", cls: "border-slate-300 bg-slate-100 text-slate-500" };
+  if (now >= start && now <= end) {
+    if (now >= regOpen && now <= regClose) {
+      return { label: "Reg. Open", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" };
+    }
+    return { label: "Active", cls: "border-blue-200 bg-blue-50 text-blue-700" };
+  }
+  if (now >= regOpen && now <= regClose) {
+    return { label: "Reg. Open", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" };
+  }
+  return { label: "Upcoming", cls: "border-amber-200 bg-amber-50 text-amber-700" };
+}
+
 function toLocalInput(iso: string): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -312,6 +332,7 @@ export default function TermsPage() {
             <thead className="sticky top-0 z-10 bg-slate-50">
               <tr className="border-b border-slate-200 text-left">
                 <th className="px-4 py-3 font-semibold text-slate-700">Term</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">Status</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Date Range</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Registration Window</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Drop Deadline</th>
@@ -322,19 +343,26 @@ export default function TermsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">Loading terms...</td>
+                  <td colSpan={7} className="px-4 py-8 text-center text-slate-500">Loading terms...</td>
                 </tr>
               ) : terms.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-slate-500">No terms yet. Create one above.</td>
+                  <td colSpan={7} className="px-4 py-10 text-center text-slate-500">No terms yet. Create one above.</td>
                 </tr>
               ) : (
-                terms.map((term) => (
+                terms.map((term) => {
+                  const { label: statusLabel, cls: statusCls } = termStatusBadge(term);
+                  return (
                   <tr
                     key={term.id}
                     className={`border-b border-slate-100 hover:bg-slate-100/60 ${editingId === term.id ? "bg-blue-50/40 outline outline-1 outline-blue-200" : "odd:bg-white even:bg-slate-50/40"}`}
                   >
                     <td className="px-4 py-3 font-medium text-slate-900">{term.name}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusCls}`}>
+                        {statusLabel}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-slate-700">
                       {new Date(term.startDate).toLocaleDateString()} – {new Date(term.endDate).toLocaleDateString()}
                     </td>
@@ -364,7 +392,8 @@ export default function TermsPage() {
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type Course = {
@@ -31,6 +31,19 @@ export default function CoursesPage() {
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Press "/" to focus search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({ code: "", title: "", credits: 3, description: "", prerequisiteCourseIds: [] });
@@ -388,8 +401,9 @@ export default function CoursesPage() {
         <label className="block">
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search courses</span>
           <input
+            ref={searchRef}
             className="campus-input"
-            placeholder="Course code, title, description..."
+            placeholder="Course code, title, description…  [/]"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />

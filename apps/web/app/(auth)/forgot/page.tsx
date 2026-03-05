@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,11 +16,13 @@ export default function ForgotPage() {
   const [email, setEmail] = useState("");
   const [result, setResult] = useState<ForgotResult | null>(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
     setResult(null);
+    setLoading(true);
     try {
       const data = await apiFetch<ForgotResult>("/auth/forgot-password", {
         method: "POST",
@@ -28,6 +31,8 @@ export default function ForgotPage() {
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -61,10 +66,23 @@ export default function ForgotPage() {
               ) : null}
             </div>
           ) : null}
-          <Button className="h-10 w-full bg-primary text-white hover:bg-primary/90" type="submit">
-            Send reset link
+          <Button disabled={loading} className="h-10 w-full bg-primary text-white hover:bg-primary/90" type="submit">
+            {loading ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                Sending...
+              </span>
+            ) : (
+              "Send reset link"
+            )}
           </Button>
         </form>
+        <p className="mt-4 text-sm text-slate-600">
+          Remember your password?{" "}
+          <Link className="font-medium text-primary underline underline-offset-2" href="/login">
+            Sign in
+          </Link>
+        </p>
       </CardContent>
     </Card>
   );

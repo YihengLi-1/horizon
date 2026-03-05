@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { RegistrationStepper } from "@/components/registration-stepper";
 import { apiFetch } from "@/lib/api";
 
@@ -177,6 +177,19 @@ export default function StudentCatalogPage() {
   const [passedCourseCodes, setPassedCourseCodes] = useState<string[]>([]);
   const [hydratedFilters, setHydratedFilters] = useState(false);
   const [page, setPage] = useState(1);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Press "/" to focus search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const activeTerm = useMemo(() => terms.find((t) => t.id === termId) ?? null, [terms, termId]);
 
@@ -564,8 +577,9 @@ export default function StudentCatalogPage() {
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">⌕</span>
               <input
+                ref={searchRef}
                 className="campus-input pl-8"
-                placeholder="Code, title, instructor…"
+                placeholder="Code, title, instructor…  [/]"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />

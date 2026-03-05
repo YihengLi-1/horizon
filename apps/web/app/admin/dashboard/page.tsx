@@ -109,6 +109,7 @@ export default async function AdminDashboardPage() {
   ]);
   const { breakdown, activeTerm, recentActivity } = data;
 
+  const now = Date.now();
   const enrollmentTotal = breakdown.enrolled + breakdown.waitlisted + breakdown.pendingApproval;
   const enrolledPct = enrollmentTotal > 0 ? Math.round((breakdown.enrolled / enrollmentTotal) * 100) : 0;
   const errorRatePct = opsMetrics
@@ -121,6 +122,26 @@ export default async function AdminDashboardPage() {
         .sort((a, b) => b[1] - a[1])
         .slice(0, 4)
     : [];
+  const topRoutes = opsMetrics
+    ? Object.entries(opsMetrics.byRoute)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+    : [];
+
+  // Check if registration is actually open for activeTerm
+  const regOpen = activeTerm
+    ? now >= new Date(activeTerm.registrationOpenAt).getTime() && now <= new Date(activeTerm.registrationCloseAt).getTime()
+    : false;
+
+  function relativeDate(dateStr: string): string {
+    const d = new Date(dateStr);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const dayDiff = Math.floor((todayStart.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+    if (dayDiff <= 0) return "Today";
+    if (dayDiff === 1) return "Yesterday";
+    return d.toLocaleDateString();
+  }
 
   return (
     <div className="campus-page">
@@ -151,24 +172,38 @@ export default async function AdminDashboardPage() {
 
       {/* Active term spotlight */}
       {activeTerm ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+        <div className={`rounded-2xl border p-5 ${regOpen ? "border-emerald-200 bg-emerald-50" : "border-blue-200 bg-blue-50"}`}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Registration Open</p>
-              <p className="mt-1 text-xl font-bold text-emerald-900">{activeTerm.name}</p>
-              <p className="mt-1 text-sm text-emerald-700">
-                Closes {new Date(activeTerm.registrationCloseAt).toLocaleDateString()} · Drop by{" "}
-                {new Date(activeTerm.dropDeadline).toLocaleDateString()}
+              <div className="flex items-center gap-2">
+                <p className={`text-[11px] font-semibold uppercase tracking-wide ${regOpen ? "text-emerald-700" : "text-blue-700"}`}>
+                  Active Term
+                </p>
+                <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                  regOpen
+                    ? "border-emerald-300 bg-emerald-100 text-emerald-800"
+                    : "border-blue-300 bg-blue-100 text-blue-800"
+                }`}>
+                  {regOpen ? "Reg Open" : "Reg Closed"}
+                </span>
+              </div>
+              <p className={`mt-1 text-xl font-bold ${regOpen ? "text-emerald-900" : "text-blue-900"}`}>{activeTerm.name}</p>
+              <p className={`mt-1 text-sm ${regOpen ? "text-emerald-700" : "text-blue-700"}`}>
+                {regOpen
+                  ? `Registration closes ${new Date(activeTerm.registrationCloseAt).toLocaleDateString()}`
+                  : `Registration was ${new Date(activeTerm.registrationOpenAt) > new Date() ? "not yet open" : "closed " + new Date(activeTerm.registrationCloseAt).toLocaleDateString()}`
+                }
+                {" · "}Drop by {new Date(activeTerm.dropDeadline).toLocaleDateString()}
               </p>
             </div>
-            <div className="flex gap-6 text-center">
+            <div className={`flex gap-6 text-center`}>
               <div>
-                <p className="text-2xl font-bold text-emerald-900">{activeTerm.sectionCount}</p>
-                <p className="text-sm text-emerald-700">sections</p>
+                <p className={`text-2xl font-bold ${regOpen ? "text-emerald-900" : "text-blue-900"}`}>{activeTerm.sectionCount}</p>
+                <p className={`text-sm ${regOpen ? "text-emerald-700" : "text-blue-700"}`}>sections</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-emerald-900">{activeTerm.enrollmentCount}</p>
-                <p className="text-sm text-emerald-700">enrollments</p>
+                <p className={`text-2xl font-bold ${regOpen ? "text-emerald-900" : "text-blue-900"}`}>{activeTerm.enrollmentCount}</p>
+                <p className={`text-sm ${regOpen ? "text-emerald-700" : "text-blue-700"}`}>enrollments</p>
               </div>
             </div>
           </div>
@@ -258,6 +293,27 @@ export default async function AdminDashboardPage() {
                     </div>
                   )}
                 </div>
+
+                {topRoutes.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Busiest Routes</p>
+                    <div className="space-y-1.5">
+                      {topRoutes.map(([route, count]) => {
+                        const maxCount = topRoutes[0]?.[1] ?? 1;
+                        const pct = Math.round((count / maxCount) * 100);
+                        return (
+                          <div key={route} className="flex items-center gap-3">
+                            <span className="min-w-0 flex-1 truncate font-mono text-xs text-slate-600">{route}</span>
+                            <div className="w-20 overflow-hidden rounded-full bg-slate-100" style={{ height: 6 }}>
+                              <div className="h-full rounded-full bg-slate-400" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="w-8 shrink-0 text-right text-xs font-semibold text-slate-700">{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : (
               <p className="text-sm text-slate-500">Metrics endpoint unavailable.</p>
@@ -333,19 +389,27 @@ export default async function AdminDashboardPage() {
             <p className="text-sm text-slate-400">No recent activity.</p>
           ) : (
             <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white shadow-sm">
-              {recentActivity.map((log) => (
-                <div key={log.id} className="flex items-center justify-between px-4 py-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-slate-800">{actionLabel(log.action)}</p>
-                    <p className="truncate text-sm text-slate-500">
-                      {log.actorEmail} · {log.entityType}
-                    </p>
+              {recentActivity.map((log) => {
+                const dateLabel = relativeDate(log.createdAt);
+                return (
+                  <div key={log.id} className="flex items-center justify-between px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-800">{actionLabel(log.action)}</p>
+                      <p className="truncate text-sm text-slate-500">
+                        {log.actorEmail} · {log.entityType}
+                      </p>
+                    </div>
+                    <div className="ml-4 shrink-0 text-right">
+                      <p className="text-xs font-medium text-slate-500">
+                        {new Date(log.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                      {dateLabel !== "Today" ? (
+                        <p className="text-[10px] text-slate-400">{dateLabel}</p>
+                      ) : null}
+                    </div>
                   </div>
-                  <span className="ml-4 shrink-0 text-sm text-slate-500">
-                    {new Date(log.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
           <Link href="/admin/audit-logs" className="mt-3 block text-sm font-medium text-slate-500 hover:text-slate-700">
