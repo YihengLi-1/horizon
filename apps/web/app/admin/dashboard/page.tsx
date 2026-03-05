@@ -110,8 +110,35 @@ export default async function AdminDashboardPage() {
   const { breakdown, activeTerm, recentActivity } = data;
 
   const now = Date.now();
+  const enrollmentGrandTotal =
+    breakdown.enrolled + breakdown.waitlisted + breakdown.pendingApproval + breakdown.completed + breakdown.dropped;
   const enrollmentTotal = breakdown.enrolled + breakdown.waitlisted + breakdown.pendingApproval;
   const enrolledPct = enrollmentTotal > 0 ? Math.round((breakdown.enrolled / enrollmentTotal) * 100) : 0;
+
+  // Segments for the multi-color composition bar
+  const barSegments =
+    enrollmentGrandTotal > 0
+      ? [
+          { label: "Enrolled", count: breakdown.enrolled, cls: "bg-emerald-500" },
+          { label: "Waitlisted", count: breakdown.waitlisted, cls: "bg-amber-400" },
+          { label: "Pending", count: breakdown.pendingApproval, cls: "bg-blue-400" },
+          { label: "Dropped", count: breakdown.dropped, cls: "bg-red-400" },
+          { label: "Completed", count: breakdown.completed, cls: "bg-slate-300" },
+        ]
+      : [];
+
+  function formatUptime(seconds: number): string {
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} min`;
+    if (seconds < 86400) {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      return `${h}h ${m}m`;
+    }
+    const d = Math.floor(seconds / 86400);
+    const h = Math.floor((seconds % 86400) / 3600);
+    return `${d}d ${h}h`;
+  }
+
   const errorRatePct = opsMetrics
     ? opsMetrics.requestsTotal > 0
       ? ((opsMetrics.errorResponsesTotal / opsMetrics.requestsTotal) * 100).toFixed(1)
@@ -155,9 +182,22 @@ export default async function AdminDashboardPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Students {data.students}</span>
-            <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Sections {data.sections}</span>
-            <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Waitlist {data.waitlist}</span>
+            <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-700">
+              {data.students} Students
+            </span>
+            <span className="campus-chip border-blue-300 bg-blue-50 text-blue-700">
+              {data.sections} Sections
+            </span>
+            {data.waitlist > 0 && (
+              <span className="campus-chip border-amber-300 bg-amber-50 text-amber-700">
+                {data.waitlist} Waitlisted
+              </span>
+            )}
+            {breakdown.pendingApproval > 0 && (
+              <span className="campus-chip border-violet-300 bg-violet-50 text-violet-700">
+                {breakdown.pendingApproval} Pending Approval
+              </span>
+            )}
           </div>
         </div>
       </section>
@@ -189,10 +229,29 @@ export default async function AdminDashboardPage() {
               </div>
               <p className={`mt-1 text-xl font-bold ${regOpen ? "text-emerald-900" : "text-blue-900"}`}>{activeTerm.name}</p>
               <p className={`mt-1 text-sm ${regOpen ? "text-emerald-700" : "text-blue-700"}`}>
-                {regOpen
-                  ? `Registration closes ${new Date(activeTerm.registrationCloseAt).toLocaleDateString()}`
-                  : `Registration was ${new Date(activeTerm.registrationOpenAt) > new Date() ? "not yet open" : "closed " + new Date(activeTerm.registrationCloseAt).toLocaleDateString()}`
-                }
+                {regOpen ? (
+                  <>
+                    Registration closes {new Date(activeTerm.registrationCloseAt).toLocaleDateString()}
+                    {(() => {
+                      const daysLeft = Math.ceil(
+                        (new Date(activeTerm.registrationCloseAt).getTime() - now) / (1000 * 60 * 60 * 24)
+                      );
+                      return daysLeft <= 7 ? (
+                        <span className={`ml-2 inline-flex rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${
+                          daysLeft <= 2
+                            ? "border-red-300 bg-red-100 text-red-700"
+                            : "border-amber-300 bg-amber-100 text-amber-700"
+                        }`}>
+                          {daysLeft}d left
+                        </span>
+                      ) : null;
+                    })()}
+                  </>
+                ) : (
+                  new Date(activeTerm.registrationOpenAt) > new Date()
+                    ? `Registration opens ${new Date(activeTerm.registrationOpenAt).toLocaleDateString()}`
+                    : `Registration closed ${new Date(activeTerm.registrationCloseAt).toLocaleDateString()}`
+                )}
                 {" · "}Drop by {new Date(activeTerm.dropDeadline).toLocaleDateString()}
               </p>
             </div>
@@ -238,20 +297,29 @@ export default async function AdminDashboardPage() {
           <StatCard label="Dropped" value={breakdown.dropped} accent="text-red-500" />
         </div>
 
-        {/* Enrollment composition bar */}
-        {enrollmentTotal > 0 ? (
-          <div className="mt-4 overflow-hidden rounded-full bg-slate-100" style={{ height: 8 }}>
-            <div
-              className="h-full rounded-full bg-emerald-500 transition-all"
-              style={{ width: `${enrolledPct}%` }}
-            />
-          </div>
-        ) : null}
-        {enrollmentTotal > 0 ? (
-          <p className="mt-1.5 text-sm text-slate-500">
-            {enrolledPct}% of active enrollments confirmed · {breakdown.waitlisted} on waitlist ·{" "}
-            {breakdown.pendingApproval} awaiting approval
-          </p>
+        {/* Enrollment composition bar — multi-segment */}
+        {enrollmentGrandTotal > 0 ? (
+          <>
+            <div className="mt-4 flex h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+              {barSegments.filter((s) => s.count > 0).map((seg) => (
+                <div
+                  key={seg.label}
+                  className={`h-full transition-all ${seg.cls}`}
+                  style={{ width: `${(seg.count / enrollmentGrandTotal) * 100}%` }}
+                  title={`${seg.label}: ${seg.count}`}
+                />
+              ))}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+              {barSegments.filter((s) => s.count > 0).map((seg) => (
+                <span key={seg.label} className="flex items-center gap-1">
+                  <span className={`inline-block size-2 rounded-sm ${seg.cls}`} />
+                  {seg.label} {seg.count}
+                </span>
+              ))}
+              <span className="ml-auto text-slate-400">{enrolledPct}% of active confirmed</span>
+            </div>
+          </>
         ) : null}
       </div>
 
@@ -272,7 +340,7 @@ export default async function AdminDashboardPage() {
                   </div>
                   <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Uptime</p>
-                    <p className="mt-1 text-lg font-semibold text-blue-900">{Math.floor(opsMetrics.uptimeSeconds / 60)} min</p>
+                    <p className="mt-1 text-lg font-semibold text-blue-900">{formatUptime(opsMetrics.uptimeSeconds)}</p>
                   </div>
                 </div>
 
@@ -386,16 +454,30 @@ export default async function AdminDashboardPage() {
         <div>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Recent Activity</h2>
           {recentActivity.length === 0 ? (
-            <p className="text-sm text-slate-400">No recent activity.</p>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-8 text-center">
+              <p className="text-2xl">📋</p>
+              <p className="mt-2 text-sm font-medium text-slate-600">No recent activity</p>
+              <p className="mt-1 text-xs text-slate-400">Activity will appear here as actions are performed</p>
+            </div>
           ) : (
             <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white shadow-sm">
               {recentActivity.map((log) => {
                 const dateLabel = relativeDate(log.createdAt);
+                const isAdmin = log.actorRole === "admin";
                 return (
                   <div key={log.id} className="flex items-center justify-between px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-slate-800">{actionLabel(log.action)}</p>
-                      <p className="truncate text-sm text-slate-500">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-sm font-medium text-slate-800">{actionLabel(log.action)}</p>
+                        <span className={`hidden shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase sm:inline-flex ${
+                          isAdmin
+                            ? "border-violet-200 bg-violet-50 text-violet-700"
+                            : "border-blue-200 bg-blue-50 text-blue-700"
+                        }`}>
+                          {isAdmin ? "Admin" : "Student"}
+                        </span>
+                      </div>
+                      <p className="truncate text-xs text-slate-500">
                         {log.actorEmail} · {log.entityType}
                       </p>
                     </div>

@@ -243,8 +243,14 @@ export default function CoursesPage() {
               Maintain course definitions, credit values, and prerequisite mappings for registration validation.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{stats.total} course(s)</span>
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Avg {stats.avg} credits</span>
+              <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-700">{stats.total} Courses</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-600">Avg {stats.avg} cr</span>
+              {stats.withPrereq > 0 && (
+                <span className="campus-chip border-blue-300 bg-blue-50 text-blue-700">{stats.withPrereq} with Prerequisites</span>
+              )}
+              {visibleCourses.length !== courses.length && (
+                <span className="campus-chip border-amber-300 bg-amber-50 text-amber-700">{visibleCourses.length} visible</span>
+              )}
             </div>
           </div>
           <div className="flex gap-2">
@@ -542,8 +548,14 @@ export default function CoursesPage() {
                 </tr>
               ) : visibleCourses.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
-                    No courses found.
+                  <td colSpan={5} className="px-4 py-12 text-center">
+                    <p className="text-3xl">📚</p>
+                    <p className="mt-2 text-sm font-medium text-slate-600">
+                      {courses.length === 0 ? "No courses yet" : "No courses match your filters"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {courses.length === 0 ? "Use the form above to create the first course." : "Try clearing your search or filter."}
+                    </p>
                   </td>
                 </tr>
               ) : (
@@ -552,12 +564,24 @@ export default function CoursesPage() {
                     key={course.id}
                     className={`border-b border-slate-100 hover:bg-slate-100/60 ${editingId === course.id ? "bg-blue-50/40 outline outline-1 outline-blue-200" : "odd:bg-white even:bg-slate-50/40"}`}
                   >
-                    <td className="px-4 py-3 font-medium text-slate-900">{course.code}</td>
-                    <td className="px-4 py-3 text-slate-700">
-                      <p>{course.title}</p>
-                      {course.description ? <p className="mt-0.5 text-xs text-slate-400">{course.description}</p> : null}
+                    <td className="px-4 py-3">
+                      <span className="font-mono text-sm font-semibold text-slate-900">{course.code}</span>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{course.credits}</td>
+                    <td className="px-4 py-3 text-slate-700">
+                      <p className="font-medium">{course.title}</p>
+                      {course.description ? <p className="mt-0.5 text-xs text-slate-400 line-clamp-1">{course.description}</p> : null}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${
+                        course.credits >= 4
+                          ? "border-violet-200 bg-violet-50 text-violet-700"
+                          : course.credits === 3
+                          ? "border-blue-200 bg-blue-50 text-blue-700"
+                          : "border-slate-200 bg-slate-50 text-slate-600"
+                      }`}>
+                        {course.credits} cr
+                      </span>
+                    </td>
                     <td className="px-4 py-3">
                       {(() => {
                         const prereqCodes = (course.prerequisiteLinks ?? [])

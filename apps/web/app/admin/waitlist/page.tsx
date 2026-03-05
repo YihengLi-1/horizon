@@ -221,10 +221,13 @@ export default function WaitlistPage() {
               Review ordered waitlist positions and promote the next student when ENROLLED seats free up.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{totalWaitlisted} waitlisted enrollment(s)</span>
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{grouped.length} section queue(s)</span>
+              <span className="campus-chip border-amber-300 bg-amber-50 text-amber-700">{totalWaitlisted} Waitlisted</span>
+              <span className="campus-chip border-blue-300 bg-blue-50 text-blue-700">{grouped.length} Section Queue{grouped.length !== 1 ? "s" : ""}</span>
+              {longestQueue >= 5 && (
+                <span className="campus-chip border-red-300 bg-red-50 text-red-700">⚠ Longest: {longestQueue}</span>
+              )}
               {filteredGroups.length !== grouped.length ? (
-                <span className="campus-chip border-blue-200 bg-blue-50 text-blue-700">{filteredGroups.length} visible</span>
+                <span className="campus-chip border-slate-300 bg-slate-50 text-slate-500">{filteredGroups.length} visible</span>
               ) : null}
             </div>
           </div>
@@ -354,10 +357,18 @@ export default function WaitlistPage() {
 
       <section className="space-y-4">
         {loading ? (
-          <div className="campus-card px-4 py-8 text-center text-slate-500">Loading waitlist...</div>
+          <div className="campus-card px-4 py-8 text-center text-slate-500">Loading waitlist…</div>
         ) : filteredGroups.length === 0 ? (
-          <div className="campus-card px-4 py-10 text-center text-slate-500">
-            {grouped.length === 0 ? "No waitlist entries." : "No queues match your search."}
+          <div className="campus-card px-5 py-12 text-center">
+            <p className="text-3xl">{grouped.length === 0 ? "✅" : "🔍"}</p>
+            <p className="mt-3 text-base font-semibold text-slate-700">
+              {grouped.length === 0 ? "All clear — no waitlist entries" : "No queues match your search"}
+            </p>
+            <p className="mt-1 text-sm text-slate-400">
+              {grouped.length === 0
+                ? "Students are either enrolled or there are no pending waitlist positions."
+                : "Try adjusting your search term to find the queue you're looking for."}
+            </p>
           </div>
         ) : (
           filteredGroups.map((group) => {
@@ -386,21 +397,45 @@ export default function WaitlistPage() {
                     </div>
                     <p className="mt-0.5 truncate text-xs text-slate-500">{group.title}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void promote(group.sectionId, promoteCount)}
-                    disabled={promotingSectionId === group.sectionId || bulkPromoting}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-white transition hover:bg-primary/90 disabled:opacity-60"
-                  >
-                    {promotingSectionId === group.sectionId ? (
-                      <>
-                        <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                        Promoting
-                      </>
-                    ) : (
-                      `Promote ${promoteCount}`
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {group.items[0]?.section.capacity ? (
+                      <div className="hidden sm:flex flex-col items-end gap-0.5">
+                        <p className="text-[10px] text-slate-400">Queue / Cap</p>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-20 overflow-hidden rounded-full bg-slate-200" style={{ height: 5 }}>
+                            <div
+                              className={`h-full rounded-full ${
+                                group.items.length / group.items[0].section.capacity >= 0.5
+                                  ? "bg-red-500"
+                                  : group.items.length / group.items[0].section.capacity >= 0.25
+                                  ? "bg-amber-400"
+                                  : "bg-slate-400"
+                              }`}
+                              style={{ width: `${Math.min(100, Math.round((group.items.length / group.items[0].section.capacity) * 100))}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-medium text-slate-500">
+                            {group.items.length}/{group.items[0].section.capacity}
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => void promote(group.sectionId, promoteCount)}
+                      disabled={promotingSectionId === group.sectionId || bulkPromoting}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-white transition hover:bg-primary/90 disabled:opacity-60"
+                    >
+                      {promotingSectionId === group.sectionId ? (
+                        <>
+                          <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                          Promoting
+                        </>
+                      ) : (
+                        `Promote ${promoteCount}`
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 {msg ? (
