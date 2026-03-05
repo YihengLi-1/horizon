@@ -20,6 +20,14 @@ async function bootstrap() {
   };
 
   const safeMethods = new Set(["GET", "HEAD", "OPTIONS"]);
+  const csrfCookieName = (process.env.CSRF_COOKIE_NAME || "csrf_token").trim() || "csrf_token";
+  const csrfHeaderName = (process.env.CSRF_HEADER_NAME || "x-csrf-token").trim().toLowerCase() || "x-csrf-token";
+  const csrfExemptPaths = new Set(
+    (process.env.CSRF_EXEMPT_PATHS || "/auth/login,/auth/register,/auth/forgot-password,/auth/reset-password")
+      .split(",")
+      .map((path) => path.trim())
+      .filter(Boolean)
+  );
   const csrfAllowedOrigins = new Set(
     (process.env.CSRF_ALLOWED_ORIGINS || process.env.WEB_URL || "http://localhost:3000")
       .split(",")
@@ -52,6 +60,35 @@ async function bootstrap() {
           statusCode: 403,
           code: "CSRF_ORIGIN_BLOCKED",
           message: "Request origin is not allowed",
+          requestId: req.requestId
+        }
+      });
+      return;
+    }
+
+    const requestPath = String(req.originalUrl || req.url || "").split("?")[0];
+    if (csrfExemptPaths.has(requestPath)) {
+      next();
+      return;
+    }
+
+    const cookieToken = req.cookies?.[csrfCookieName];
+    const headerValue = req.headers[csrfHeaderName];
+    const headerToken = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+
+    if (
+      typeof cookieToken !== "string" ||
+      cookieToken.length === 0 ||
+      typeof headerToken !== "string" ||
+      headerToken.length === 0 ||
+      cookieToken !== headerToken
+    ) {
+      res.status(403).json({
+        success: false,
+        error: {
+          statusCode: 403,
+          code: "CSRF_TOKEN_INVALID",
+          message: "Missing or invalid CSRF token",
           requestId: req.requestId
         }
       });

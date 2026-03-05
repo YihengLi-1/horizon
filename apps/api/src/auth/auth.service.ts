@@ -16,6 +16,7 @@ import { AuditService } from "../audit/audit.service";
 import { NotificationsService } from "../notifications/notifications.service";
 
 const ACCESS_COOKIE = "access_token";
+const CSRF_COOKIE = "csrf_token";
 const ACCESS_EXPIRES_SECONDS = 60 * 60 * 2;
 const LOGIN_RATE_LIMIT_WINDOW_MS = Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS || 10 * 60 * 1000);
 const LOGIN_RATE_LIMIT_MAX_ATTEMPTS = Number(process.env.LOGIN_RATE_LIMIT_MAX_ATTEMPTS || 8);
@@ -149,6 +150,20 @@ export class AuthService {
       secure: false,
       maxAge: ACCESS_EXPIRES_SECONDS * 1000
     });
+  }
+
+  private setCsrfCookie(res: Response, token: string) {
+    res.cookie(CSRF_COOKIE, token, {
+      httpOnly: false,
+      sameSite: "lax",
+      secure: false,
+      maxAge: ACCESS_EXPIRES_SECONDS * 1000
+    });
+  }
+
+  private clearAuthCookies(res: Response) {
+    res.clearCookie(ACCESS_COOKIE);
+    res.clearCookie(CSRF_COOKIE);
   }
 
   async register(input: RegisterInput, req: Request) {
@@ -297,6 +312,7 @@ export class AuthService {
     });
 
     this.setAuthCookie(res, token);
+    this.setCsrfCookie(res, randomBytes(32).toString("hex"));
 
     await this.auditService.log({
       actorUserId: user.id,
@@ -317,7 +333,7 @@ export class AuthService {
   }
 
   async logout(userId: string, req: Request, res: Response) {
-    res.clearCookie(ACCESS_COOKIE);
+    this.clearAuthCookies(res);
     await this.auditService.log({
       actorUserId: userId,
       action: "logout",
@@ -327,6 +343,12 @@ export class AuthService {
     });
 
     return { message: "Logged out" };
+  }
+
+  async issueCsrfToken(res: Response) {
+    const token = randomBytes(32).toString("hex");
+    this.setCsrfCookie(res, token);
+    return { csrfToken: token };
   }
 
   async forgotPassword(input: ForgotPasswordSchema) {

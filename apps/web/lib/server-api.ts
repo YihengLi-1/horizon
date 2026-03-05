@@ -16,11 +16,18 @@ export async function serverApi<T>(path: string, options: ServerApiOptions = {})
     .map((cookie) => `${cookie.name}=${cookie.value}`)
     .join("; ");
 
+  const method = (options.method ?? "GET").toUpperCase();
   const headers: Record<string, string> = {
     ...(options.headers ?? {})
   };
   if (cookieHeader) {
     headers.cookie = cookieHeader;
+  }
+  if (!["GET", "HEAD", "OPTIONS", "TRACE"].includes(method)) {
+    const csrfToken = cookieStore.get("csrf_token")?.value;
+    if (csrfToken) {
+      headers["x-csrf-token"] = csrfToken;
+    }
   }
 
   let body: string | undefined;
@@ -32,7 +39,7 @@ export async function serverApi<T>(path: string, options: ServerApiOptions = {})
   }
 
   const res = await fetch(`${SERVER_API_URL}${path}`, {
-    method: options.method ?? "GET",
+    method,
     headers: Object.keys(headers).length > 0 ? headers : undefined,
     body,
     cache: options.cache ?? "no-store"

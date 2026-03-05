@@ -63,4 +63,10 @@ export class AuthController {
   async me(@CurrentUser() user: { userId: string }) {
     return ok(await this.authService.me(user.userId));
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("csrf-token")
+  async csrfToken(@Res({ passthrough: true }) res: Response) {
+    return ok(await this.authService.issueCsrfToken(res));
+  }
 }
