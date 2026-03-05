@@ -190,6 +190,48 @@ function issueTitle(reasonCode: string): string {
   return "Registration issue";
 }
 
+function getNextAction(enrollments: Enrollment[], cartItems: CartItem[], term: Term | null) {
+  if (!term) return null;
+  const enrolled = enrollments.filter((item) => item.status === "ENROLLED");
+  const waitlisted = enrollments.filter((item) => item.status === "WAITLISTED");
+  const cartCount = cartItems.length;
+
+  if (enrolled.length === 0 && cartCount === 0) {
+    return {
+      icon: "📚",
+      title: "Browse the Catalog",
+      desc: "Registration is open. Add courses to your cart.",
+      href: "/student/catalog",
+      cta: "Go to Catalog"
+    };
+  }
+  if (cartCount > 0 && enrolled.length === 0) {
+    return {
+      icon: "🛒",
+      title: "Submit Your Cart",
+      desc: `You have ${cartCount} course(s) ready. Submit now to confirm enrollment.`,
+      href: "/student/cart",
+      cta: "Review Cart"
+    };
+  }
+  if (waitlisted.length > 0) {
+    return {
+      icon: "⏳",
+      title: "You're on Waitlists",
+      desc: `You're waitlisted for ${waitlisted.length} course(s). Keep checking.`,
+      href: "/student/schedule",
+      cta: "View Status"
+    };
+  }
+  return {
+    icon: "✅",
+    title: "You're All Set",
+    desc: `Enrolled in ${enrolled.length} course(s). Check your schedule.`,
+    href: "/student/schedule",
+    cta: "View Schedule"
+  };
+}
+
 export default async function StudentDashboardPage() {
   const [terms, me, grades, announcements] = await Promise.all([
     serverApi<Term[]>("/academics/terms").catch(() => [] as Term[]),
@@ -374,6 +416,8 @@ export default async function StudentDashboardPage() {
     });
   }
 
+  const nextAction = getNextAction(enrollments, cartItems, term);
+
   return (
     <div className="campus-page">
       <section className="campus-hero">
@@ -480,6 +524,22 @@ export default async function StudentDashboardPage() {
           <p className="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{announcement.body}</p>
         </div>
       ))}
+
+      {nextAction ? (
+        <div className="campus-card flex items-center gap-4 p-4">
+          <span className="text-3xl">{nextAction.icon}</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{nextAction.title}</p>
+            <p className="mt-0.5 text-xs text-slate-500">{nextAction.desc}</p>
+          </div>
+          <a
+            href={nextAction.href}
+            className="shrink-0 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 dark:bg-white dark:text-slate-900"
+          >
+            {nextAction.cta}
+          </a>
+        </div>
+      ) : null}
 
       <QuickCoursesPanel enrollments={enrollments ?? []} />
 

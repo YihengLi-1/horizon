@@ -587,12 +587,17 @@ export default function CoursesPage() {
                         const prereqCodes = (course.prerequisiteLinks ?? [])
                           .map((item) => item.prerequisiteCourse?.code)
                           .filter((code): code is string => Boolean(code));
-                        if (prereqCodes.length === 0) return <span className="text-slate-400">—</span>;
+                        if (prereqCodes.length === 0) {
+                          return <span className="text-slate-300">No prereqs</span>;
+                        }
                         return (
-                          <div className="flex flex-wrap gap-1">
-                            {prereqCodes.map((code) => (
-                              <span key={code} className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                                {code}
+                          <div className="flex items-center gap-1 text-xs text-slate-500">
+                            {prereqCodes.map((code, index) => (
+                              <span key={code}>
+                                {index > 0 ? <span className="mx-1 text-slate-300">→</span> : null}
+                                <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                                  {code}
+                                </span>
                               </span>
                             ))}
                           </div>

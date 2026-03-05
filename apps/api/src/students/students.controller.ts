@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { changePasswordSchema, createStudentSchema, updateProfileSchema } from "@sis/shared";
 import { AdminPermissionGuard } from "../common/admin-permission.guard";
 import { RequireAdminPermissions } from "../common/admin-permission.decorator";
@@ -69,8 +69,18 @@ export class StudentsController {
   @Roles("ADMIN")
   @RequireAdminPermissions("students:read")
   @Get()
-  async adminList() {
-    return ok(await this.studentsService.adminListStudents());
+  async adminList(
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
+    @Query("search") search?: string
+  ) {
+    return ok(
+      await this.studentsService.adminListStudents({
+        page: page ? Number(page) : undefined,
+        pageSize: pageSize ? Number(pageSize) : undefined,
+        search
+      })
+    );
   }
 
   @Roles("ADMIN")

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { serverApi } from "@/lib/server-api";
 import GpaCalculator from "./GpaCalculator";
+import GpaTrendChart from "./GpaTrendChart";
 import StarRating from "./StarRating";
 import TranscriptExportButton from "./TranscriptExportButton";
 
@@ -207,6 +208,13 @@ export default async function GradesPage({
   const cumulative = calcGPA(grades);
   const completedCredits = grades.reduce((sum, item) => sum + item.section.credits, 0);
   const standing = getStanding(cumulative?.gpa ?? null);
+  const trendData = terms
+    .map((termName) => {
+      const items = byTerm.get(termName) ?? [];
+      const termGpa = calcGPA(items);
+      return termGpa ? { term: termName, gpa: termGpa.gpa } : null;
+    })
+    .filter((item): item is { term: string; gpa: number } => Boolean(item));
 
   return (
     <div className="campus-page">
@@ -252,6 +260,8 @@ export default async function GradesPage({
           <p className="mt-0.5 text-sm">{standing.description}</p>
         </div>
       </section>
+
+      <GpaTrendChart data={trendData} />
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-slate-200">

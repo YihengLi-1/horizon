@@ -15,6 +15,7 @@ type ActiveTerm = {
   name: string;
   registrationOpenAt: string;
   registrationCloseAt: string;
+  registrationOpen: boolean;
   dropDeadline: string;
   sectionCount: number;
   enrollmentCount: number;
@@ -39,6 +40,10 @@ type Dashboard = {
   breakdown: Breakdown;
   activeTerm: ActiveTerm | null;
   recentActivity: RecentActivity[];
+};
+
+type EnrollmentTrendItem = {
+  createdAt: string;
 };
 
 type OpsMetrics = {
@@ -146,9 +151,10 @@ const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME ?? "—";
 const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_URL ?? "http://localhost:3001";
 
 export default async function AdminDashboardPage() {
-  const [data, opsMetrics] = await Promise.all([
+  const [data, opsMetrics, enrollmentFeed] = await Promise.all([
     serverApi<Dashboard>("/admin/dashboard"),
-    serverApi<OpsMetrics>("/ops/metrics").catch(() => null)
+    serverApi<OpsMetrics>("/ops/metrics").catch(() => null),
+    serverApi<{ data: EnrollmentTrendItem[] }>("/admin/enrollments?limit=9999").catch(() => ({ data: [] as EnrollmentTrendItem[] }))
   ]);
   const { breakdown, activeTerm, recentActivity } = data;
 
@@ -203,9 +209,31 @@ export default async function AdminDashboardPage() {
   const mailLastFailure = opsMetrics?.mail.lastFailureAt ? new Date(opsMetrics.mail.lastFailureAt).toLocaleString() : "None";
 
   // Check if registration is actually open for activeTerm
-  const regOpen = activeTerm
-    ? now >= new Date(activeTerm.registrationOpenAt).getTime() && now <= new Date(activeTerm.registrationCloseAt).getTime()
-    : false;
+  const regOpen = Boolean(activeTerm?.registrationOpen);
+  const daysToRegEnd = activeTerm?.registrationCloseAt
+    ? Math.ceil((new Date(activeTerm.registrationCloseAt).getTime() - now) / (1000 * 60 * 60 * 24))
+    : null;
+  const last7Days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - 6 + index);
+    return date.toISOString().slice(0, 10);
+  });
+  const enrollmentByDay: Record<string, number> = Object.fromEntries(last7Days.map((day) => [day, 0]));
+  for (const enrollment of enrollmentFeed.data ?? []) {
+    const day = new Date(enrollment.createdAt).toISOString().slice(0, 10);
+    if (day in enrollmentByDay) enrollmentByDay[day] += 1;
+  }
+  const trendData = last7Days.map((day) => ({ day: day.slice(5), count: enrollmentByDay[day] }));
+  const maxTrendCount = Math.max(...trendData.map((item) => item.count), 1);
+  const trendWidth = 400;
+  const trendHeight = 80;
+  const trendPad = 20;
+  const trendPoints = trendData.map((item, index) => ({
+    x: trendPad + (index * (trendWidth - trendPad * 2)) / Math.max(1, trendData.length - 1),
+    y: trendHeight - trendPad - (item.count / maxTrendCount) * (trendHeight - trendPad * 2),
+    point: item
+  }));
+  const trendPath = trendPoints.map((point, index) => `${index === 0 ? "M" : "L"}${point.x},${point.y}`).join(" ");
 
   function relativeDate(dateStr: string): string {
     const d = new Date(dateStr);
@@ -316,12 +344,33 @@ export default async function AdminDashboardPage() {
         </div>
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-          No term currently in registration window.{" "}
+          No active academic term is in progress.{" "}
           <Link href="/admin/terms" className="font-medium text-slate-700 underline underline-offset-2">
             Manage terms →
           </Link>
         </div>
       )}
+
+      {activeTerm ? (
+        <div className={`flex items-center gap-3 rounded-xl border p-4 ${regOpen ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
+          <span className="text-2xl">{regOpen ? "🟢" : "🔴"}</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-slate-800">
+              {activeTerm.name} — Registration {regOpen ? "Open" : "Closed"}
+            </p>
+            {regOpen && daysToRegEnd !== null ? (
+              <p className={`text-xs font-medium ${daysToRegEnd <= 3 ? "text-red-600" : daysToRegEnd <= 7 ? "text-amber-600" : "text-emerald-600"}`}>
+                {daysToRegEnd > 0 ? `Closes in ${daysToRegEnd} day${daysToRegEnd !== 1 ? "s" : ""}` : "Closes today!"}
+              </p>
+            ) : (
+              <p className="text-xs font-medium text-slate-500">Registration can be reopened from Terms if needed.</p>
+            )}
+          </div>
+          <a href="/admin/terms" className="text-xs font-medium text-blue-600 hover:underline">
+            Manage →
+          </a>
+        </div>
+      ) : null}
 
       {/* Enrollment breakdown */}
       <div>
@@ -368,6 +417,37 @@ export default async function AdminDashboardPage() {
             </div>
           </>
         ) : null}
+      </div>
+
+      <div className="campus-card p-4">
+        <p className="mb-3 text-xs font-semibold uppercase text-slate-400">Enrollment Trend (7 days)</p>
+        <svg width={trendWidth} height={trendHeight} viewBox={`0 0 ${trendWidth} ${trendHeight}`} className="w-full overflow-visible">
+          <defs>
+            <linearGradient id="trend-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#6366f1" stopOpacity="0.6" />
+              <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path
+            d={`${trendPath} L${trendPoints[trendPoints.length - 1]?.x ?? trendPad},${trendHeight - trendPad} L${trendPoints[0]?.x ?? trendPad},${trendHeight - trendPad} Z`}
+            fill="url(#trend-grad)"
+            opacity="0.4"
+          />
+          <path d={trendPath} fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          {trendPoints.map((point) => (
+            <g key={point.point.day}>
+              <circle cx={point.x} cy={point.y} r={3} fill="#6366f1" />
+              <text x={point.x} y={trendHeight - 4} textAnchor="middle" fontSize="8" fill="#94a3b8">
+                {point.point.day}
+              </text>
+              {point.point.count > 0 ? (
+                <text x={point.x} y={point.y - 6} textAnchor="middle" fontSize="8" fill="#4f46e5" fontWeight="600">
+                  {point.point.count}
+                </text>
+              ) : null}
+            </g>
+          ))}
+        </svg>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

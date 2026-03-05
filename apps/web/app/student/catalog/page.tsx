@@ -4,6 +4,7 @@ import Link from "next/link";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { RegistrationStepper } from "@/components/registration-stepper";
 import { apiFetch } from "@/lib/api";
+import RecommendedCourses from "./RecommendedCourses";
 
 type MeetingTime = {
   weekday: number;
@@ -101,6 +102,25 @@ function getPrerequisiteCodes(section: Section): string[] {
     .filter((code): code is string => Boolean(code));
 }
 
+function Highlight({ text, query }: { text: string; query: string }) {
+  if (!query) return <>{text}</>;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const parts = text.split(new RegExp(`(${escaped})`, "gi"));
+  return (
+    <>
+      {parts.map((part, index) =>
+        part.toLowerCase() === query.toLowerCase() ? (
+          <mark key={`${part}-${index}`} className="rounded bg-amber-200 px-0.5 dark:bg-amber-700">
+            {part}
+          </mark>
+        ) : (
+          <span key={`${part}-${index}`}>{part}</span>
+        )
+      )}
+    </>
+  );
+}
+
 function Alert({
   type,
   message,
@@ -172,6 +192,7 @@ export default function StudentCatalogPage() {
   const [sections, setSections] = useState<Section[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterModality, setFilterModality] = useState("ALL");
   const [filterCredits, setFilterCredits] = useState("ALL");
   const [filterAvailable, setFilterAvailable] = useState(false);
@@ -188,6 +209,7 @@ export default function StudentCatalogPage() {
   const [passedCourseCodes, setPassedCourseCodes] = useState<string[]>([]);
   const [hydratedFilters, setHydratedFilters] = useState(false);
   const [page, setPage] = useState(1);
+  const [alerts, setAlerts] = useState<Set<string>>(new Set());
   const searchRef = useRef<HTMLInputElement>(null);
 
   // Press "/" to focus search
@@ -200,6 +222,21 @@ export default function StudentCatalogPage() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = JSON.parse(window.localStorage.getItem("sis-capacity-alerts") || "[]");
+      setAlerts(new Set(Array.isArray(saved) ? saved : []));
+    } catch {
+      setAlerts(new Set());
+    }
   }, []);
 
   const activeTerm = useMemo(() => terms.find((t) => t.id === termId) ?? null, [terms, termId]);
@@ -236,6 +273,23 @@ export default function StudentCatalogPage() {
         .map((e) => e.section.course.code)
     ),
     [termEnrollments]
+  );
+  const allCourses = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          sections.map((section) => [
+            section.course.code,
+            {
+              id: section.course.code,
+              code: section.course.code,
+              title: section.course.title,
+              credits: section.credits
+            }
+          ])
+        ).values()
+      ),
+    [sections]
   );
 
   const updateUrlTerm = (nextTermId: string) => {
@@ -300,6 +354,7 @@ export default function StudentCatalogPage() {
         const querySort = query?.get("sort") ?? "RELEVANCE";
 
         setSearch(querySearch);
+        setDebouncedSearch(querySearch);
         setFilterModality(
           ["ALL", "ON_CAMPUS", "ONLINE", "HYBRID"].includes(queryModality) ? queryModality : "ALL"
         );
@@ -352,7 +407,7 @@ export default function StudentCatalogPage() {
     if (termId) url.searchParams.set("termId", termId);
     else url.searchParams.delete("termId");
 
-    if (search.trim()) url.searchParams.set("q", search.trim());
+    if (debouncedSearch.trim()) url.searchParams.set("q", debouncedSearch.trim());
     else url.searchParams.delete("q");
 
     if (filterModality !== "ALL") url.searchParams.set("modality", filterModality);
@@ -380,7 +435,7 @@ export default function StudentCatalogPage() {
   }, [
     hydratedFilters,
     termId,
-    search,
+    debouncedSearch,
     filterModality,
     filterCredits,
     filterAvailable,
@@ -402,9 +457,21 @@ export default function StudentCatalogPage() {
     setPage(1);
   };
 
+  const toggleAlert = (sectionId: string) => {
+    setAlerts((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) next.delete(sectionId);
+      else next.add(sectionId);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("sis-capacity-alerts", JSON.stringify(Array.from(next)));
+      }
+      return next;
+    });
+  };
+
   const activeFilterLabels = useMemo(() => {
     const labels: string[] = [];
-    if (search.trim()) labels.push(`Search: ${search.trim()}`);
+    if (debouncedSearch.trim()) labels.push(`Search: ${debouncedSearch.trim()}`);
     if (filterModality !== "ALL") labels.push(`Modality: ${filterModality.replace("_", " ")}`);
     if (filterCredits !== "ALL") labels.push(`Credits: ${filterCredits}`);
     if (filterAvailable) labels.push("Seats available");
@@ -414,7 +481,7 @@ export default function StudentCatalogPage() {
     if (sortBy !== "RELEVANCE") labels.push(`Sort: ${sortBy.replace("_", " ").toLowerCase()}`);
     return labels;
   }, [
-    search,
+    debouncedSearch,
     filterModality,
     filterCredits,
     filterAvailable,
@@ -430,7 +497,7 @@ export default function StudentCatalogPage() {
   }, [sections]);
 
   const filteredSections = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     const filtered = sections.filter((s) => {
       const sectionMeetingTimes = s.meetingTimes ?? [];
       const enrolledCount = getEnrolledCount(s);
@@ -475,7 +542,7 @@ export default function StudentCatalogPage() {
     return filtered;
   }, [
     sections,
-    search,
+    debouncedSearch,
     filterModality,
     filterCredits,
     filterAvailable,
@@ -492,7 +559,7 @@ export default function StudentCatalogPage() {
   useEffect(() => {
     if (!hydratedFilters) return;
     setPage(1);
-  }, [hydratedFilters, search, filterModality, filterCredits, filterAvailable, filterPrereqReady, filterApprovalOnly, filterNoConflict, sortBy]);
+  }, [hydratedFilters, debouncedSearch, filterModality, filterCredits, filterAvailable, filterPrereqReady, filterApprovalOnly, filterNoConflict, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filteredSections.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -857,8 +924,12 @@ export default function StudentCatalogPage() {
                   <div className="space-y-4 p-4 md:p-5">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold tracking-wide text-slate-600">{section.course.code}</p>
-                        <h3 className="font-heading text-2xl font-semibold text-slate-900">{section.course.title}</h3>
+                        <p className="text-sm font-semibold tracking-wide text-slate-600">
+                          <Highlight text={section.course.code} query={debouncedSearch.trim()} />
+                        </p>
+                        <h3 className="font-heading text-2xl font-semibold text-slate-900">
+                          <Highlight text={section.course.title} query={debouncedSearch.trim()} />
+                        </h3>
                       </div>
                       <div className="flex flex-wrap justify-end gap-2">
                         <Badge>§{section.sectionCode}</Badge>
@@ -1010,6 +1081,19 @@ export default function StudentCatalogPage() {
                       {cartConflict && !inCart && !alreadyEnrolledHere ? (
                         <p className="text-sm text-amber-700">Conflict will be rechecked at submit.</p>
                       ) : null}
+                      {isFull && !alreadyEnrolledHere ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleAlert(section.id)}
+                          className={`rounded px-2 py-1 text-xs font-medium border transition-colors ${
+                            alerts.has(section.id)
+                              ? "border-amber-300 bg-amber-50 text-amber-700"
+                              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          {alerts.has(section.id) ? "🔔 Notifying" : "🔕 Notify me"}
+                        </button>
+                      ) : null}
                     </div>
                   </aside>
                 </div>
@@ -1017,6 +1101,10 @@ export default function StudentCatalogPage() {
             );
           })}
       </section>
+
+      {!loading && filteredSections.length > 0 ? (
+        <RecommendedCourses allCourses={allCourses} enrolledCourseCodes={Array.from(enrolledCourseCodeSet)} />
+      ) : null}
 
       {/* Pagination */}
       {!loading && filteredSections.length > PAGE_SIZE ? (

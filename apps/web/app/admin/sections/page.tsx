@@ -182,6 +182,7 @@ export default function AdminSectionsPage() {
   const [notifyingSectionId, setNotifyingSectionId] = useState<string | null>(null);
   const [notifyForm, setNotifyForm] = useState({ subject: "", message: "" });
   const [notifySending, setNotifySending] = useState(false);
+  const [editingCapacity, setEditingCapacity] = useState<{ id: string; val: number } | null>(null);
 
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -699,6 +700,27 @@ export default function AdminSectionsPage() {
       }));
     } finally {
       setNotifySending(false);
+    }
+  };
+
+  const saveCapacityEdit = async (sectionId: string, value: number) => {
+    try {
+      await apiFetch(`/admin/sections/${sectionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ capacity: value })
+      });
+      setEditingCapacity(null);
+      await loadSections();
+    } catch (error) {
+      setMessageBySection((prev) => ({
+        ...prev,
+        [sectionId]: {
+          type: "error",
+          text: error instanceof Error ? error.message : "Capacity update failed"
+        }
+      }));
+      setEditingCapacity(null);
     }
   };
 
@@ -1383,7 +1405,33 @@ export default function AdminSectionsPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <p className="text-sm text-slate-700">{section.capacity}</p>
+                          {editingCapacity?.id === section.id ? (
+                            <input
+                              type="number"
+                              min={1}
+                              className="w-16 rounded border border-blue-300 px-1 text-sm"
+                              value={editingCapacity.val}
+                              onChange={(event) =>
+                                setEditingCapacity((current) => (current ? { ...current, val: Number(event.target.value) } : null))
+                              }
+                              onBlur={() => void saveCapacityEdit(section.id, editingCapacity.val)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Escape") setEditingCapacity(null);
+                                if (event.key === "Enter") {
+                                  event.currentTarget.blur();
+                                }
+                              }}
+                              autoFocus
+                            />
+                          ) : (
+                            <span
+                              onDoubleClick={() => setEditingCapacity({ id: section.id, val: section.capacity })}
+                              className="cursor-pointer text-sm text-slate-700 hover:underline decoration-dotted"
+                              title="Double-click to edit"
+                            >
+                              {enrolled}/{section.capacity}
+                            </span>
+                          )}
                           <div className="mt-1 h-1.5 w-16 overflow-hidden rounded-full bg-slate-200">
                             <div
                               className={`h-full rounded-full transition-all ${

@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import argon2 from "argon2";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../common/prisma.service";
 import { ChangePasswordInput, UpdateProfileInput } from "@sis/shared";
 import { toDateOrNull } from "../common/grade.utils";
@@ -185,31 +186,77 @@ export class StudentsService {
     return updated;
   }
 
-  async adminListStudents() {
-    const students = await this.prisma.user.findMany({
-      where: { role: "STUDENT", deletedAt: null },
-      include: {
-        studentProfile: true,
-        enrollments: {
-          where: {
-            deletedAt: null,
-            status: "COMPLETED",
-            finalGrade: { not: null }
-          },
-          include: {
-            section: {
-              select: { credits: true }
-            }
+  async adminListStudents(params?: { page?: number; pageSize?: number; search?: string }) {
+    const q = params?.search?.trim();
+    const usePagination = params?.page !== undefined || params?.pageSize !== undefined || Boolean(q);
+    const page = Number.isFinite(params?.page) && (params?.page as number) > 0 ? Math.floor(params?.page as number) : 1;
+    const pageSize = Math.min(100, Number.isFinite(params?.pageSize) && (params?.pageSize as number) > 0 ? Math.floor(params?.pageSize as number) : 50);
+    const skip = (page - 1) * pageSize;
+
+    const where: Prisma.UserWhereInput = {
+      role: "STUDENT",
+      deletedAt: null
+    };
+
+    if (q) {
+      where.OR = [
+        { email: { contains: q, mode: "insensitive" } },
+        { studentId: { contains: q, mode: "insensitive" } },
+        { studentProfile: { is: { legalName: { contains: q, mode: "insensitive" } } } },
+        { studentProfile: { is: { programMajor: { contains: q, mode: "insensitive" } } } }
+      ];
+    }
+
+    const include = {
+      studentProfile: true,
+      enrollments: {
+        where: {
+          deletedAt: null,
+          status: "COMPLETED",
+          finalGrade: { not: null }
+        },
+        include: {
+          section: {
+            select: { credits: true }
           }
         }
-      },
-      orderBy: { createdAt: "desc" }
-    });
+      }
+    } satisfies Prisma.UserInclude;
 
-    return students.map(({ enrollments, ...student }) => ({
-      ...student,
-      gpa: this.computeGpa(enrollments)
-    }));
+    if (!usePagination) {
+      const students = await this.prisma.user.findMany({
+        where,
+        include,
+        orderBy: { createdAt: "desc" }
+      });
+
+      return students.map(({ enrollments, ...student }) => ({
+        ...student,
+        gpa: this.computeGpa(enrollments)
+      }));
+    }
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.user.findMany({
+        where,
+        include,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize
+      }),
+      this.prisma.user.count({ where })
+    ]);
+
+    return {
+      items: items.map(({ enrollments, ...student }) => ({
+        ...student,
+        gpa: this.computeGpa(enrollments)
+      })),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize)
+    };
   }
 
   async adminGetStudent(id: string) {

@@ -369,8 +369,8 @@ export class AdminService {
       this.prisma.enrollment.count({ where: { deletedAt: null, status: "DROPPED" } }),
       this.prisma.term.findFirst({
         where: {
-          registrationOpenAt: { lte: now },
-          registrationCloseAt: { gte: now }
+          startDate: { lte: now },
+          endDate: { gte: now }
         },
         include: {
           _count: { select: { sections: true, enrollments: true } }
@@ -407,6 +407,7 @@ export class AdminService {
             name: activeTerm.name,
             registrationOpenAt: activeTerm.registrationOpenAt,
             registrationCloseAt: activeTerm.registrationCloseAt,
+            registrationOpen: activeTerm.registrationOpen,
             dropDeadline: activeTerm.dropDeadline,
             sectionCount: activeTerm._count.sections,
             enrollmentCount: activeTerm._count.enrollments

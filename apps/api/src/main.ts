@@ -165,10 +165,10 @@ async function bootstrap() {
     next();
   });
   app.use((req: any, res: any, next: () => void) => {
-    const start = process.hrtime.bigint();
+    const startTime = Date.now();
 
     res.on("finish", () => {
-      const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
+      const durationMs = Date.now() - startTime;
       const routeKey = `${req.method} ${req.originalUrl || req.url}`;
       const statusCode = String(res.statusCode);
 
@@ -183,18 +183,25 @@ async function bootstrap() {
         metrics.security.loginRateLimited += 1;
       }
 
-      console.log(
-        JSON.stringify({
-          event: "http_request",
-          requestId: req.requestId,
-          method: req.method,
-          path: req.originalUrl || req.url,
-          statusCode: res.statusCode,
-          durationMs: Math.round(durationMs * 100) / 100,
-          ip: req.ip,
-          userAgent: req.headers["user-agent"] || null
-        })
-      );
+      const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress || null;
+      const ua = String(req.headers["user-agent"] || "").slice(0, 50);
+      const logLine = {
+        event: "http_request",
+        requestId: req.requestId,
+        method: req.method,
+        path: req.originalUrl || req.url,
+        status: res.statusCode,
+        ms: durationMs,
+        ip,
+        ua
+      };
+
+      if (process.env.NODE_ENV === "production") {
+        process.stdout.write(`${JSON.stringify(logLine)}\n`);
+      } else {
+        const color = res.statusCode >= 500 ? "\x1b[31m" : res.statusCode >= 400 ? "\x1b[33m" : "\x1b[32m";
+        console.log(`${color}${req.method} ${req.path} ${res.statusCode}\x1b[0m ${durationMs}ms`);
+      }
     });
 
     next();

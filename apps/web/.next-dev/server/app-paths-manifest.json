@@ -1,10 +1,8 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
-  "/student/schedule/page": "app/student/schedule/page.js",
-  "/student/catalog/page": "app/student/catalog/page.js",
-  "/student/calendar/page": "app/student/calendar/page.js",
-  "/student/cart/page": "app/student/cart/page.js",
   "/admin/students/page": "app/admin/students/page.js",
-  "/admin/announcements/page": "app/admin/announcements/page.js",
-  "/admin/invite-codes/page": "app/admin/invite-codes/page.js"
+  "/student/catalog/page": "app/student/catalog/page.js",
+  "/admin/invite-codes/page": "app/admin/invite-codes/page.js",
+  "/student/calendar/page": "app/student/calendar/page.js",
+  "/admin/dashboard/page": "app/admin/dashboard/page.js"
 }

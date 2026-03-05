@@ -26,6 +26,17 @@ type Student = {
   }>;
 };
 
+type StudentListResponse =
+  | Student[]
+  | {
+      items?: Student[];
+      data?: Student[];
+      total?: number;
+      page?: number;
+      pageSize?: number;
+      totalPages?: number;
+    };
+
 type EditForm = {
   email: string;
   studentId: string;
@@ -81,8 +92,8 @@ export default function AdminStudentsPage() {
     try {
       setLoading(true);
       setError("");
-      const data = await apiFetch<Student[]>("/students");
-      setStudents(data);
+      const data = await apiFetch<StudentListResponse>("/students");
+      setStudents(Array.isArray(data) ? data : data.items ?? data.data ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load students");
     } finally {

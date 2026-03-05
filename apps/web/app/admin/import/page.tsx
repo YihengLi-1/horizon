@@ -176,6 +176,16 @@ export default function ImportPage() {
     await executeImport(lastPayload);
   };
 
+  const downloadTemplate = () => {
+    const csv = `name,email,studentId\n张三,zhangsan@example.com,20240001\n李四,lisi@example.com,20240002`;
+    const anchor = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })),
+      download: "students-template.csv"
+    });
+    anchor.click();
+    URL.revokeObjectURL(anchor.href);
+  };
+
   return (
     <div className="campus-page">
       <section className="campus-hero">
@@ -303,6 +313,11 @@ export default function ImportPage() {
               >
                 {showExample ? "Hide example CSV" : "Show example CSV"}
               </button>
+              {target === "students" ? (
+                <button type="button" onClick={downloadTemplate} className="font-medium text-blue-600 hover:underline">
+                  ⬇ Download Template
+                </button>
+              ) : null}
               <span>{Math.max(rowCount, 0)} rows detected (excluding header)</span>
             </div>
 
@@ -383,12 +398,15 @@ export default function ImportPage() {
 
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="campus-card p-4">
-          <p className="text-sm font-semibold text-slate-700">Students Import</p>
+          <p className="text-sm font-semibold text-slate-700">Students</p>
           <p className="mt-1 text-xs text-slate-500">
             Use the main import workflow above for students, courses, and sections with dry-run and row validation.
           </p>
         </div>
-        <GradeImport apiUrl={process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"} />
+        <div>
+          <p className="mb-2 text-sm font-semibold text-slate-700">Grades</p>
+          <GradeImport apiUrl={process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"} />
+        </div>
       </section>
     </div>
   );
