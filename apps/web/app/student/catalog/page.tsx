@@ -305,7 +305,7 @@ export default function StudentCatalogPage() {
         );
         setFilterCredits(queryCredits === "ALL" ? "ALL" : queryCredits);
         setSortBy(
-          ["RELEVANCE", "SEATS_DESC", "CODE_ASC", "CREDITS_ASC"].includes(querySort)
+          ["RELEVANCE", "SEATS_DESC", "CODE_ASC", "TITLE_ASC", "CREDITS_ASC", "CREDITS_DESC"].includes(querySort)
             ? querySort
             : "RELEVANCE"
         );
@@ -411,7 +411,7 @@ export default function StudentCatalogPage() {
     if (filterPrereqReady) labels.push("Prerequisites met");
     if (filterApprovalOnly) labels.push("Approval required");
     if (filterNoConflict) labels.push("No cart conflicts");
-    if (sortBy !== "RELEVANCE") labels.push(`Sort: ${sortBy}`);
+    if (sortBy !== "RELEVANCE") labels.push(`Sort: ${sortBy.replace("_", " ").toLowerCase()}`);
     return labels;
   }, [
     search,
@@ -813,6 +813,9 @@ export default function StudentCatalogPage() {
             const missingPrereqs = prereqs.filter((code) => !passedCourseCodeSet.has(code));
             const prereqBlocked = missingPrereqs.length > 0;
             const seatPct = section.capacity > 0 ? Math.round((enrolledCount / section.capacity) * 100) : 0;
+            // Whether this student is already enrolled in this exact section or another section of the same course
+            const alreadyEnrolledHere   = enrolledSectionIdSet.has(section.id);
+            const alreadyEnrolledCourse = !alreadyEnrolledHere && enrolledCourseCodeSet.has(section.course.code);
 
             return (
               <article
@@ -904,10 +907,25 @@ export default function StudentCatalogPage() {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      {inCart ? (
-                        <span className="inline-flex h-10 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700">
-                          In cart
+                      {alreadyEnrolledHere ? (
+                        <span className="inline-flex h-10 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-100 px-4 text-sm font-semibold text-emerald-800">
+                          ✓ Enrolled
                         </span>
+                      ) : alreadyEnrolledCourse ? (
+                        <span className="inline-flex h-10 items-center justify-center rounded-xl border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-800">
+                          Enrolled (other section)
+                        </span>
+                      ) : inCart ? (
+                        <button
+                          type="button"
+                          onClick={() => void removeFromCart(section)}
+                          disabled={removingSectionId === section.id}
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 transition hover:bg-red-50 hover:border-red-300 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {removingSectionId === section.id ? (
+                            <span className="size-4 animate-spin rounded-full border-2 border-current/40 border-t-current" />
+                          ) : "✓ In cart — remove"}
+                        </button>
                       ) : prereqBlocked ? (
                         <span
                           className="inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700"
@@ -943,7 +961,9 @@ export default function StudentCatalogPage() {
                           )}
                         </button>
                       )}
-                      {cartConflict ? <p className="text-sm text-amber-700">Conflict will be rechecked at submit.</p> : null}
+                      {cartConflict && !inCart && !alreadyEnrolledHere ? (
+                        <p className="text-sm text-amber-700">Conflict will be rechecked at submit.</p>
+                      ) : null}
                     </div>
                   </aside>
                 </div>
