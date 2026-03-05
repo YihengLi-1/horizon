@@ -33,6 +33,13 @@ type Enrollment = {
   };
 };
 
+type PaginatedResponse<T> = {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
 const STATUS_OPTIONS = ["ENROLLED", "WAITLISTED", "PENDING_APPROVAL", "DROPPED", "COMPLETED"];
 const PAGE_SIZE = 50;
 
@@ -57,6 +64,7 @@ export default function EnrollmentsPage() {
   const [terms, setTerms] = useState<Term[]>([]);
   const [selectedTermId, setSelectedTermId] = useState<string>("");
   const [rows, setRows] = useState<Enrollment[]>([]);
+  const [total, setTotal] = useState(0);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
@@ -67,9 +75,15 @@ export default function EnrollmentsPage() {
   const [selectedById, setSelectedById] = useState<Record<string, boolean>>({});
   const [bulkSaving, setBulkSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [page, setPage] = useState(1);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   // Press "/" to focus search
   useEffect(() => {
@@ -95,18 +109,26 @@ export default function EnrollmentsPage() {
       .catch(() => { /* non-critical */ });
   }, []);
 
-  const load = async (termId?: string) => {
+  const load = async () => {
     try {
       setLoading(true);
       setError("");
-      const url = termId ? `/admin/enrollments?termId=${termId}` : "/admin/enrollments";
-      const data = await apiFetch<Enrollment[]>(url);
-      setRows(data);
-      setGradeState(Object.fromEntries(data.map((item) => [item.id, item.finalGrade || ""])));
-      setStatusState(Object.fromEntries(data.map((item) => [item.id, item.status])));
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(PAGE_SIZE),
+      });
+      if (selectedTermId) params.set("termId", selectedTermId);
+      if (statusFilter) params.set("status", statusFilter);
+      if (debouncedSearch) params.set("search", debouncedSearch);
+
+      const result = await apiFetch<PaginatedResponse<Enrollment>>(`/admin/enrollments?${params.toString()}`);
+      setRows(result.data);
+      setTotal(result.total);
+      setGradeState(Object.fromEntries(result.data.map((item) => [item.id, item.finalGrade || ""])));
+      setStatusState(Object.fromEntries(result.data.map((item) => [item.id, item.status])));
       setSelectedById((prev) => {
         const next: Record<string, boolean> = {};
-        for (const item of data) {
+        for (const item of result.data) {
           if (prev[item.id]) next[item.id] = true;
         }
         return next;
@@ -119,9 +141,9 @@ export default function EnrollmentsPage() {
   };
 
   useEffect(() => {
-    void load(selectedTermId || undefined);
+    void load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTermId]);
+  }, [selectedTermId, statusFilter, debouncedSearch, page]);
 
   const updateStatus = async (id: string) => {
     const status = statusState[id];
@@ -135,7 +157,7 @@ export default function EnrollmentsPage() {
         body: JSON.stringify({ status })
       });
       setNotice("Enrollment status updated.");
-      await load(selectedTermId || undefined);
+      await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Status update failed");
     } finally {
@@ -155,7 +177,7 @@ export default function EnrollmentsPage() {
         body: JSON.stringify({ enrollmentId: id, finalGrade })
       });
       setNotice("Final grade saved.");
-      await load(selectedTermId || undefined);
+      await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Grade update failed");
     } finally {
@@ -175,20 +197,10 @@ export default function EnrollmentsPage() {
       .reduce((sum, r) => sum + (r.section.course.credits ?? 0), 0);
   }, [rows]);
 
-  const visibleRows = useMemo(() => {
-    let filtered = rows;
-    if (statusFilter) filtered = filtered.filter((r) => r.status === statusFilter);
-    const query = search.trim().toLowerCase();
-    if (!query) return filtered;
-    return filtered.filter((row) => {
-      const text = `${row.student.studentProfile?.legalName ?? ""} ${row.student.studentId ?? ""} ${row.section.course.code} ${row.section.sectionCode} ${row.status}`.toLowerCase();
-      return text.includes(query);
-    });
-  }, [rows, search, statusFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE));
+  const visibleRows = rows;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const pagedRows = visibleRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const pagedRows = visibleRows;
 
   const selectedVisibleIds = useMemo(
     () => visibleRows.map((row) => row.id).filter((id) => selectedById[id]),
@@ -282,7 +294,7 @@ export default function EnrollmentsPage() {
       }
     }
 
-    await load(selectedTermId || undefined);
+    await load();
     clearSelection();
     setBulkSaving(false);
 
@@ -293,8 +305,15 @@ export default function EnrollmentsPage() {
     setNotice(`Bulk update complete: ${success} enrollment(s) moved to ${nextStatus}.`);
   };
 
-  // Reset page on filter changes
-  useEffect(() => { setPage(1); }, [search, statusFilter, selectedTermId]);
+  // Keep page in range after totals change
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  // Reset page on server-side filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [selectedTermId, statusFilter, debouncedSearch]);
 
   const selectedTerm = terms.find((t) => t.id === selectedTermId);
 

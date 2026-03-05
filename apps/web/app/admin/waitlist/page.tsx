@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api";
 type WaitlistRow = {
   id: string;
   waitlistPosition: number | null;
+  createdAt: string;
   student: {
     studentId: string | null;
     studentProfile?: { legalName?: string };
@@ -13,6 +14,8 @@ type WaitlistRow = {
   section: {
     id: string;
     sectionCode: string;
+    capacity: number;
+    term?: { name: string };
     course: { code: string; title: string };
   };
 };
@@ -34,6 +37,7 @@ export default function WaitlistPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [promotingSectionId, setPromotingSectionId] = useState<string | null>(null);
+  const [promoteCount, setPromoteCount] = useState(1);
   const [bulkPromoting, setBulkPromoting] = useState(false);
   const [bulkNotice, setBulkNotice] = useState("");
   const [bulkError, setBulkError] = useState("");
@@ -70,7 +74,7 @@ export default function WaitlistPage() {
     void load();
   }, []);
 
-  const promote = async (sectionId: string) => {
+  const promote = async (sectionId: string, count: number = promoteCount) => {
     try {
       setPromotingSectionId(sectionId);
       setBulkNotice("");
@@ -78,13 +82,13 @@ export default function WaitlistPage() {
       setMessageBySection((prev) => { const n = { ...prev }; delete n[sectionId]; return n; });
       const response = await apiFetch<PromoteResponse>("/admin/waitlist/promote", {
         method: "POST",
-        body: JSON.stringify({ sectionId, count: 1 })
+        body: JSON.stringify({ sectionId, count })
       });
       setMessageBySection((prev) => ({
         ...prev,
         [sectionId]: {
           type: "success",
-          text: `Promoted ${response.promotedCount}. Remaining: ${response.remainingWaitlistCount}. Seats: ${response.availableSeatsBefore}→${response.availableSeatsAfter}.`
+          text: `Promoted ${response.promotedCount}. Remaining: ${response.remainingWaitlistCount}. Available seats: ${response.availableSeatsBefore}→${response.availableSeatsAfter}.`
         }
       }));
       await load();
@@ -136,6 +140,12 @@ export default function WaitlistPage() {
   }, [grouped, search]);
 
   const totalWaitlisted = rows.length;
+  const avgQueueDepth = grouped.length > 0
+    ? (totalWaitlisted / grouped.length).toFixed(1)
+    : "0.0";
+  const longestQueue = grouped.length > 0
+    ? Math.max(...grouped.map((g) => g.items.length))
+    : 0;
 
   const promoteAll = async () => {
     if (filteredGroups.length === 0) return;
@@ -248,17 +258,61 @@ export default function WaitlistPage() {
         </div>
       </section>
 
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="campus-kpi border-amber-200 bg-amber-50/60">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Total Waitlisted</p>
+          <p className="mt-1 text-2xl font-semibold text-amber-900">{totalWaitlisted}</p>
+          <p className="text-[11px] text-amber-500">across all sections</p>
+        </div>
+        <div className="campus-kpi border-slate-200">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sections with Queue</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-900">{grouped.length}</p>
+        </div>
+        <div className="campus-kpi border-slate-200">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Avg Queue Depth</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-900">{avgQueueDepth}</p>
+          <p className="text-[11px] text-slate-400">students per section</p>
+        </div>
+        <div className={`campus-kpi ${longestQueue >= 5 ? "border-red-200 bg-red-50/60" : "border-slate-200"}`}>
+          <p className={`text-xs font-semibold uppercase tracking-wide ${longestQueue >= 5 ? "text-red-600" : "text-slate-500"}`}>
+            Longest Queue
+          </p>
+          <p className={`mt-1 text-2xl font-semibold ${longestQueue >= 5 ? "text-red-800" : "text-slate-900"}`}>
+            {longestQueue}
+          </p>
+          <p className="text-[11px] text-slate-400">students in deepest queue</p>
+        </div>
+      </section>
+
       <section className="campus-toolbar">
-        <label className="block max-w-sm">
-          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search</span>
-          <input
-            ref={searchRef}
-            className="campus-input"
-            placeholder="Course, section, student name or ID…  [/]"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </label>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="block flex-1 min-w-48">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search</span>
+            <input
+              ref={searchRef}
+              className="campus-input"
+              placeholder="Course, section, student name or ID…  [/]"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Promote count
+            </label>
+            <select
+              className="campus-select w-32"
+              value={promoteCount}
+              onChange={(e) => setPromoteCount(Number(e.target.value))}
+            >
+              <option value={1}>1 student</option>
+              <option value={2}>2 students</option>
+              <option value={3}>3 students</option>
+              <option value={5}>5 students</option>
+              <option value={10}>10 students</option>
+            </select>
+          </div>
+        </div>
         {search ? (
           <button
             type="button"
@@ -310,16 +364,31 @@ export default function WaitlistPage() {
             const msg = messageBySection[group.sectionId];
             return (
               <article key={group.sectionId} className="campus-card overflow-hidden">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-                  <div>
-                    <h2 className="text-base font-semibold text-slate-900">
-                      {group.courseCode} §{group.sectionCode}
-                    </h2>
-                    <p className="text-xs text-slate-500">{group.title} · {group.items.length} student(s) in queue</p>
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/60 px-4 py-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="font-heading text-lg font-semibold text-slate-900">
+                        {group.courseCode} §{group.sectionCode}
+                      </h2>
+                      {group.items[0]?.section.term?.name ? (
+                        <span className="campus-chip border-slate-300 bg-white text-slate-600 text-[11px]">
+                          {group.items[0].section.term.name}
+                        </span>
+                      ) : null}
+                      <span className={`campus-chip text-[11px] ${group.items.length >= 5 ? "border-red-200 bg-red-50 text-red-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+                        {group.items.length} in queue
+                      </span>
+                      {group.items[0]?.section.capacity ? (
+                        <span className="campus-chip border-slate-200 bg-white text-slate-500 text-[11px]">
+                          Cap {group.items[0].section.capacity}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-slate-500">{group.title}</p>
                   </div>
                   <button
                     type="button"
-                    onClick={() => void promote(group.sectionId)}
+                    onClick={() => void promote(group.sectionId, promoteCount)}
                     disabled={promotingSectionId === group.sectionId || bulkPromoting}
                     className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-white transition hover:bg-primary/90 disabled:opacity-60"
                   >
@@ -329,7 +398,7 @@ export default function WaitlistPage() {
                         Promoting
                       </>
                     ) : (
-                      "Promote next"
+                      `Promote ${promoteCount}`
                     )}
                   </button>
                 </div>
@@ -346,26 +415,44 @@ export default function WaitlistPage() {
 
                 <p className="px-4 pt-3 text-xs text-slate-500 md:hidden">Tip: Swipe horizontally to view all columns.</p>
                 <div className="overflow-auto">
-                  <table className="min-w-[520px] w-full border-collapse text-sm">
+                  <table className="min-w-[560px] w-full border-collapse text-sm">
                     <thead className="bg-slate-50 text-left">
                       <tr className="border-b border-slate-200">
-                        <th className="px-4 py-2.5 font-semibold text-slate-700">Position</th>
-                        <th className="px-4 py-2.5 font-semibold text-slate-700">Student</th>
-                        <th className="px-4 py-2.5 font-semibold text-slate-700">Student ID</th>
+                        <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Position</th>
+                        <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Student</th>
+                        <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Student ID</th>
+                        <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Waiting since</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {group.items.map((row) => (
-                        <tr key={row.id} className="border-b border-slate-100 odd:bg-white even:bg-slate-50/40">
-                          <td className="px-4 py-2.5">
-                            <span className={`inline-flex size-7 items-center justify-center rounded-full text-xs font-semibold ${row.waitlistPosition === 1 ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-700"}`}>
-                              #{row.waitlistPosition ?? "-"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2.5 text-slate-700">{row.student.studentProfile?.legalName || "-"}</td>
-                          <td className="px-4 py-2.5 font-mono text-xs text-slate-600">{row.student.studentId || "-"}</td>
-                        </tr>
-                      ))}
+                      {group.items.map((row) => {
+                        const isNext = row.waitlistPosition === 1;
+                        const daysSince = row.createdAt
+                          ? Math.floor((Date.now() - new Date(row.createdAt).getTime()) / 86_400_000)
+                          : null;
+                        return (
+                          <tr key={row.id} className={`border-b border-slate-100 ${isNext ? "bg-emerald-50/50" : "odd:bg-white even:bg-slate-50/30"}`}>
+                            <td className="px-4 py-2.5">
+                              <span className={`inline-flex h-7 min-w-[28px] items-center justify-center rounded-full px-2 text-xs font-semibold ${
+                                isNext ? "bg-emerald-200 text-emerald-900" : "bg-slate-100 text-slate-700"
+                              }`}>
+                                #{row.waitlistPosition ?? "—"}
+                              </span>
+                              {isNext ? <span className="ml-1.5 text-[10px] font-semibold text-emerald-700">NEXT</span> : null}
+                            </td>
+                            <td className="px-4 py-2.5 font-medium text-slate-800">{row.student.studentProfile?.legalName || "—"}</td>
+                            <td className="px-4 py-2.5 font-mono text-xs text-slate-500">{row.student.studentId || "—"}</td>
+                            <td className="px-4 py-2.5 text-xs text-slate-500">
+                              {row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "—"}
+                              {daysSince !== null ? (
+                                <span className={`ml-1.5 ${daysSince > 14 ? "text-amber-600 font-medium" : "text-slate-400"}`}>
+                                  ({daysSince}d)
+                                </span>
+                              ) : null}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
