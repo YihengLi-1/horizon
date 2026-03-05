@@ -1,15 +1,79 @@
 version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 地平线 SIS — 完整服务编排
+#
+# 快速启动（首次）:
+#   cp .env.example .env          # 填写真实密钥
+#   docker compose up -d --build
+#
+# 更新代码后重建:
+#   docker compose up -d --build api web
+# ─────────────────────────────────────────────────────────────────────────────
+
 services:
+  # ── PostgreSQL 数据库 ─────────────────────────────────────────────────────
   postgres:
-    image: postgres:16
+    image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: sis_db
+      POSTGRES_USER:     ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB:       ${POSTGRES_DB:-sis_db}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── NestJS API ───────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-sis_db}?schema=public
+      JWT_SECRET:   ${JWT_SECRET:-change-me-in-production}
+      API_PORT:     4000
+      WEB_URL:      ${WEB_URL:-http://localhost:3000}
+      CSRF_ALLOWED_ORIGINS: ${WEB_URL:-http://localhost:3000}
+      LOGIN_RATE_LIMIT_WINDOW_MS:   600000
+      LOGIN_RATE_LIMIT_MAX_ATTEMPTS: 8
+      LOGIN_RATE_LIMIT_LOCK_MS:     900000
+    ports:
+      - "${API_PORT:-4000}:4000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/ops/metrics || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # ── Next.js Web ──────────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # 浏览器端 API 地址 —— 必须是外部可访问的地址
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_URL:              http://api:4000   # 服务端 SSR 使用内部地址
+      NEXT_PUBLIC_API_URL:  ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+      NODE_ENV:             production
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+
 volumes:
   pgdata:

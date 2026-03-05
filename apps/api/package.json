@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node --watch -r @swc-node/register src/main.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/main.js",
+    "start": "node dist/src/main.js",
     "lint": "echo 'no lint for api'",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -24,6 +24,7 @@
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.15",
     "@prisma/client": "^6.4.1",
+    "prisma": "^6.4.1",
     "@sis/shared": "workspace:*",
     "argon2": "^0.41.1",
     "class-transformer": "^0.5.1",
@@ -40,7 +41,6 @@
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.10",
     "@types/passport-jwt": "^4.0.1",
-    "prisma": "^6.4.1",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   }

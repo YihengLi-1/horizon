@@ -61,8 +61,9 @@ export class AcademicsService {
         meetingTimes: true,
         enrollments: {
           where: {
-            status: "ENROLLED"
-          }
+            status: { in: ["ENROLLED", "WAITLISTED"] }
+          },
+          select: { status: true }
         }
       },
       orderBy: [{ term: { startDate: "desc" } }, { sectionCode: "asc" }]

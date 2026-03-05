@@ -34,7 +34,7 @@ login() {
     -H "Content-Type: application/json" \
     -d "{\"identifier\":\"$identifier\",\"password\":\"$password\"}")"
 
-  if ! echo "$body" | rg -q '"success":true'; then
+  if ! echo "$body" | grep -q '"success":true'; then
     echo "Login failed for $identifier"
     echo "$body"
     return 1
@@ -56,7 +56,7 @@ check_route() {
   fi
 
   for marker in "${runtime_markers[@]}"; do
-    if rg -q "$marker" "$output_file"; then
+    if grep -qF "$marker" "$output_file"; then
       echo "[$label] runtime marker detected: $marker"
       return 1
     fi
