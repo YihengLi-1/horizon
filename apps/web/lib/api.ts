@@ -36,16 +36,10 @@ const resolveTokenName = (raw: string | undefined, fallback: string, kind: "cook
   const normalized = kind === "header" ? value.toLowerCase() : value;
   return TOKEN_NAME_PATTERN.test(normalized) ? normalized : fallback;
 };
-const CSRF_COOKIE_NAME = resolveTokenName(
-  process.env.NEXT_PUBLIC_CSRF_COOKIE_NAME || process.env.CSRF_COOKIE_NAME,
-  "csrf_token",
-  "cookie"
-);
-const CSRF_HEADER_NAME = resolveTokenName(
-  process.env.NEXT_PUBLIC_CSRF_HEADER_NAME || process.env.CSRF_HEADER_NAME,
-  "x-csrf-token",
-  "header"
-);
+const CSRF_COOKIE = process.env.NEXT_PUBLIC_CSRF_COOKIE_NAME ?? "sis-csrf";
+const CSRF_HEADER = process.env.NEXT_PUBLIC_CSRF_HEADER_NAME ?? "x-csrf-token";
+const CSRF_COOKIE_NAME = resolveTokenName(CSRF_COOKIE || process.env.CSRF_COOKIE_NAME, "sis-csrf", "cookie");
+const CSRF_HEADER_NAME = resolveTokenName(CSRF_HEADER || process.env.CSRF_HEADER_NAME, "x-csrf-token", "header");
 
 function readCookie(name: string): string | null {
   if (typeof document === "undefined") return null;

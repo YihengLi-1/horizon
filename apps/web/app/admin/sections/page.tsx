@@ -8,6 +8,19 @@ type Enrollment = {
   status: string;
 };
 
+type RosterEnrollment = {
+  id: string;
+  status: string;
+  finalGrade: string | null;
+  student: {
+    email: string;
+    studentId: string | null;
+    studentProfile?: {
+      legalName?: string;
+    };
+  };
+};
+
 type MeetingTime = {
   id: string;
   weekday: number;
@@ -61,6 +74,13 @@ type RowMessage = {
 type BulkPromoteSummary = {
   sectionsTouched: number;
   totalPromoted: number;
+};
+
+type PaginatedResponse<T> = {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
 function Alert({ type, message }: { type: "success" | "error" | "info"; message: string }) {
@@ -146,6 +166,7 @@ export default function AdminSectionsPage() {
   const [editMeetingTimes, setEditMeetingTimes] = useState<Array<{ weekday: number; startTime: string; endTime: string }>>([]);
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [exportingRosterId, setExportingRosterId] = useState<string | null>(null);
 
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -549,6 +570,72 @@ export default function AdminSectionsPage() {
     a.download = `sections-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const exportRoster = async (section: Section) => {
+    setMessageBySection((prev) => {
+      const next = { ...prev };
+      delete next[section.id];
+      return next;
+    });
+
+    try {
+      setExportingRosterId(section.id);
+
+      const records: RosterEnrollment[] = [];
+      let currentPage = 1;
+      let totalPages = 1;
+
+      while (currentPage <= totalPages) {
+        const params = new URLSearchParams({
+          sectionId: section.id,
+          page: String(currentPage),
+          pageSize: "200"
+        });
+        const result = await apiFetch<PaginatedResponse<RosterEnrollment>>(`/admin/enrollments?${params.toString()}`);
+        records.push(...result.data);
+        totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
+        currentPage += 1;
+      }
+
+      const rows = [
+        ["Student Name", "Student ID", "Email", "Status", "Grade"],
+        ...records.map((entry) => [
+          entry.student.studentProfile?.legalName ?? "",
+          entry.student.studentId ?? "",
+          entry.student.email ?? "",
+          entry.status ?? "",
+          entry.finalGrade ?? ""
+        ])
+      ];
+
+      const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `roster-${section.course.code ?? "section"}-${section.sectionCode}.csv`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+
+      setMessageBySection((prev) => ({
+        ...prev,
+        [section.id]: {
+          type: "success",
+          text: `Exported ${records.length} roster row${records.length === 1 ? "" : "s"} for ${section.course.code} §${section.sectionCode}.`
+        }
+      }));
+    } catch (error) {
+      setMessageBySection((prev) => ({
+        ...prev,
+        [section.id]: {
+          type: "error",
+          text: error instanceof Error ? error.message : "Roster export failed"
+        }
+      }));
+    } finally {
+      setExportingRosterId(null);
+    }
   };
 
   return (
@@ -1297,6 +1384,14 @@ export default function AdminSectionsPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
+                            <button
+                              type="button"
+                              disabled={exportingRosterId === section.id}
+                              onClick={() => void exportRoster(section)}
+                              className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                            >
+                              {exportingRosterId === section.id ? "Exporting..." : "📋 Roster"}
+                            </button>
                             <button
                               type="button"
                               onClick={() => editingId === section.id ? cancelEdit() : startEdit(section)}

@@ -62,7 +62,7 @@ export default function AdminStudentsPage() {
     email: "", studentId: "", legalName: "", programMajor: "",
     enrollmentStatus: "New", academicStatus: "Active"
   });
-  const [savingEdit, setSavingEdit] = useState(false);
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   const loadStudents = async () => {
     try {
@@ -123,7 +123,7 @@ export default function AdminStudentsPage() {
     setError("");
     setNotice("");
     try {
-      setSavingEdit(true);
+      setSavingId(editingId);
       await apiFetch(`/students/${editingId}`, {
         method: "PATCH",
         body: JSON.stringify({
@@ -141,7 +141,7 @@ export default function AdminStudentsPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Update failed");
     } finally {
-      setSavingEdit(false);
+      setSavingId(null);
     }
   };
 
@@ -398,13 +398,13 @@ export default function AdminStudentsPage() {
             <div className="md:col-span-3 md:flex md:justify-end">
               <button
                 type="submit"
-                disabled={savingEdit}
+                disabled={savingId === editingId}
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {savingEdit ? (
+                {savingId === editingId ? (
                   <>
-                    <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                    Saving
+                    <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600" />
+                    Save
                   </>
                 ) : (
                   "Save changes"
@@ -540,15 +540,19 @@ export default function AdminStudentsPage() {
                       <div className="flex gap-2">
                         <button
                           type="button"
+                          disabled={savingId === student.id}
                           onClick={() => editingId === student.id ? cancelEdit() : startEdit(student)}
-                          className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                          className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
                         >
-                          {editingId === student.id ? "Cancel" : "Edit"}
+                          {savingId === student.id ? (
+                            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600" />
+                          ) : editingId === student.id ? "Cancel" : "Edit"}
                         </button>
                         <button
                           type="button"
+                          disabled={savingId === student.id}
                           onClick={() => onDelete(student.id, student.studentProfile?.legalName ?? student.email)}
-                          className="inline-flex h-8 items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-700 transition hover:bg-red-50"
+                          className="inline-flex h-8 items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
                         >
                           Delete
                         </button>

@@ -16,7 +16,7 @@ import { AuditService } from "../audit/audit.service";
 import { NotificationsService } from "../notifications/notifications.service";
 
 const ACCESS_COOKIE = "access_token";
-const CSRF_COOKIE = (process.env.CSRF_COOKIE_NAME || "csrf_token").trim() || "csrf_token";
+const CSRF_COOKIE = (process.env.CSRF_COOKIE_NAME || "sis-csrf").trim() || "sis-csrf";
 const ACCESS_EXPIRES_SECONDS = 60 * 60 * 2;
 const LOGIN_RATE_LIMIT_WINDOW_MS = Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS || 10 * 60 * 1000);
 const LOGIN_RATE_LIMIT_MAX_ATTEMPTS = Number(process.env.LOGIN_RATE_LIMIT_MAX_ATTEMPTS || 8);

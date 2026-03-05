@@ -1,48 +1,26 @@
-export default function CartLoading() {
+export default function Loading() {
   return (
-    <div className="campus-page animate-pulse">
-      <section className="campus-hero">
-        <div className="space-y-3">
-          <div className="h-3 w-28 rounded-full bg-slate-200" />
-          <div className="h-10 w-56 rounded-xl bg-slate-200" />
-          <div className="h-4 w-80 rounded-lg bg-slate-200" />
-        </div>
-      </section>
-
-      {/* Stepper skeleton */}
-      <div className="flex items-center gap-2">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-slate-200" />
-            <div className="h-3 w-20 rounded-full bg-slate-200" />
-            {i < 3 && <div className="h-px w-12 bg-slate-200" />}
+    <div className="campus-page animate-pulse space-y-6">
+      <div className="campus-hero">
+        <div className="h-6 w-36 rounded bg-slate-200" />
+        <div className="mt-2 h-4 w-64 rounded bg-slate-200" />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="campus-kpi">
+            <div className="h-3 w-20 rounded bg-slate-200" />
+            <div className="mt-2 h-7 w-12 rounded bg-slate-200" />
           </div>
         ))}
       </div>
-
-      {/* Submit readiness card */}
-      <div className="campus-card p-5 space-y-3">
-        <div className="h-4 w-32 rounded-lg bg-slate-200" />
-        <div className="grid gap-3 md:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 rounded-xl bg-slate-200" />
-          ))}
-        </div>
-      </div>
-
-      {/* Cart items skeleton */}
-      <div className="campus-card overflow-hidden">
-        <div className="divide-y divide-slate-100">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center justify-between px-5 py-4">
-              <div className="space-y-2">
-                <div className="h-4 w-48 rounded-lg bg-slate-200" />
-                <div className="h-3 w-32 rounded-full bg-slate-200" />
-              </div>
-              <div className="h-8 w-20 rounded-xl bg-slate-200" />
-            </div>
-          ))}
-        </div>
+      <div className="campus-card space-y-3 p-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex items-center gap-3 py-2">
+            <div className="h-4 w-1/3 rounded bg-slate-200" />
+            <div className="h-4 w-1/4 rounded bg-slate-200" />
+            <div className="ml-auto h-4 w-16 rounded bg-slate-200" />
+          </div>
+        ))}
       </div>
     </div>
   );
