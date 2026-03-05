@@ -48,6 +48,27 @@ function gpaTone(gpa: number): string {
   return "text-red-700";
 }
 
+function gpaTier(gpa: number): { label: string; cls: string } {
+  if (gpa >= 3.7) return { label: "Dean's List", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" };
+  if (gpa >= 3.0) return { label: "Good Standing", cls: "border-blue-200 bg-blue-50 text-blue-700" };
+  if (gpa >= 2.0) return { label: "Satisfactory", cls: "border-slate-200 bg-slate-50 text-slate-600" };
+  return { label: "Academic Warning", cls: "border-amber-200 bg-amber-50 text-amber-700" };
+}
+
+function gradeDistribution(items: GradeItem[]): { A: number; B: number; C: number; D: number; F: number; other: number } {
+  const dist = { A: 0, B: 0, C: 0, D: 0, F: 0, other: 0 };
+  for (const item of items) {
+    const g = item.finalGrade;
+    if (g.startsWith("A")) dist.A += 1;
+    else if (g.startsWith("B")) dist.B += 1;
+    else if (g.startsWith("C")) dist.C += 1;
+    else if (g.startsWith("D")) dist.D += 1;
+    else if (g === "F") dist.F += 1;
+    else dist.other += 1;
+  }
+  return dist;
+}
+
 function calcGPA(items: GradeItem[]): { gpa: number; totalCredits: number } | null {
   let weightedSum = 0;
   let totalCredits = 0;
@@ -140,6 +161,11 @@ export default async function GradesPage() {
           <p className={`mt-1 text-2xl font-semibold ${cumulative ? gpaTone(cumulative.gpa) : "text-slate-700"}`}>
             {cumulative ? cumulative.gpa.toFixed(2) : "N/A"}
           </p>
+          {cumulative ? (
+            <span className={`mt-1.5 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${gpaTier(cumulative.gpa).cls}`}>
+              {gpaTier(cumulative.gpa).label}
+            </span>
+          ) : null}
         </div>
       </section>
 
@@ -153,6 +179,8 @@ export default async function GradesPage() {
         const items = byTerm.get(termName) ?? [];
         const termGpa = calcGPA(items);
         const termCredits = items.reduce((sum, item) => sum + item.section.credits, 0);
+        const dist = gradeDistribution(items);
+        const total = items.length;
 
         return (
           <section key={termName} className="campus-card overflow-hidden">
@@ -166,6 +194,27 @@ export default async function GradesPage() {
               </div>
             </div>
 
+            {total > 0 ? (
+              <div className="flex h-1.5 overflow-hidden">
+                {(["A", "B", "C", "D", "F"] as const).map((letter) =>
+                  dist[letter] > 0 ? (
+                    <div
+                      key={letter}
+                      title={`${letter}: ${dist[letter]} course${dist[letter] !== 1 ? "s" : ""}`}
+                      className={`h-full transition-all ${
+                        letter === "A" ? "bg-emerald-400"
+                        : letter === "B" ? "bg-blue-400"
+                        : letter === "C" ? "bg-amber-400"
+                        : letter === "D" ? "bg-orange-400"
+                        : "bg-red-500"
+                      }`}
+                      style={{ width: `${(dist[letter] / total) * 100}%` }}
+                    />
+                  ) : null
+                )}
+              </div>
+            ) : null}
+
             <div className="max-h-[380px] overflow-auto">
               <table className="w-full border-collapse text-sm">
                 <thead className="sticky top-0 z-10 bg-slate-50">
@@ -175,11 +224,13 @@ export default async function GradesPage() {
                     <th className="px-4 py-2.5 font-semibold text-slate-700">Credits</th>
                     <th className="px-4 py-2.5 font-semibold text-slate-700">Grade</th>
                     <th className="px-4 py-2.5 font-semibold text-slate-700">Points</th>
+                    <th className="px-4 py-2.5 font-semibold text-slate-700 text-right">Contribution</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((item) => {
                     const pts = gradePoints(item.finalGrade);
+                    const contribution = pts !== null ? pts * item.section.credits : null;
                     return (
                       <tr key={item.id} className="border-b border-slate-100 odd:bg-white even:bg-slate-50/40">
                         <td className="px-4 py-3 font-medium text-slate-900">{item.section.course.code}</td>
@@ -187,6 +238,9 @@ export default async function GradesPage() {
                         <td className="px-4 py-3 text-slate-700">{item.section.credits}</td>
                         <td className={`px-4 py-3 font-semibold ${gradeColor(item.finalGrade)}`}>{item.finalGrade}</td>
                         <td className="px-4 py-3 text-slate-700">{pts !== null ? pts.toFixed(1) : "-"}</td>
+                        <td className="px-4 py-3 text-right text-slate-500 text-xs">
+                          {contribution !== null ? contribution.toFixed(1) : "-"}
+                        </td>
                       </tr>
                     );
                   })}

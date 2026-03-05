@@ -29,6 +29,7 @@ type MeetingTime = {
 type Enrollment = {
   id: string;
   status: string;
+  waitlistPosition: number | null;
   section: {
     id: string;
     sectionCode: string;
@@ -286,10 +287,6 @@ export default function SchedulePage() {
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="campus-kpi border-slate-200">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Visible Sections</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{visibleEnrollments.length}</p>
-        </div>
         <div className="campus-kpi border-emerald-200 bg-emerald-50/70">
           <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Enrolled</p>
           <p className="mt-1 text-2xl font-semibold text-emerald-900">{statusCounts.ENROLLED}</p>
@@ -298,8 +295,12 @@ export default function SchedulePage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Pending Approval</p>
           <p className="mt-1 text-2xl font-semibold text-blue-900">{statusCounts.PENDING_APPROVAL}</p>
         </div>
+        <div className="campus-kpi border-amber-200 bg-amber-50/70">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Waitlisted</p>
+          <p className="mt-1 text-2xl font-semibold text-amber-900">{statusCounts.WAITLISTED}</p>
+        </div>
         <div className="campus-kpi border-slate-200">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Visible Credits</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Enrolled Credits</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{visibleCredits}</p>
         </div>
       </section>
@@ -428,9 +429,14 @@ export default function SchedulePage() {
                 <p className="mt-1 text-xs text-slate-600">Instructor: {enrollment.section.instructorName}</p>
                 <p className="mt-1 text-xs text-slate-600">{meetingSummary(enrollment.section.meetingTimes)}</p>
                 <div className="mt-2 flex items-center justify-between gap-2">
-                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadge(enrollment.status)}`}>
-                    {enrollmentStatusLabel(enrollment.status)}
-                  </span>
+                  <div>
+                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadge(enrollment.status)}`}>
+                      {enrollmentStatusLabel(enrollment.status)}
+                    </span>
+                    {enrollment.status === "WAITLISTED" && enrollment.waitlistPosition !== null && (
+                      <p className="mt-0.5 text-[10px] text-amber-700">#{enrollment.waitlistPosition} in queue</p>
+                    )}
+                  </div>
                   {dropDeadlinePassed && (enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL") ? (
                     <span className="text-[11px] text-amber-700">Drop unavailable after deadline</span>
                   ) : enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL" || enrollment.status === "WAITLISTED" ? (
@@ -488,6 +494,7 @@ export default function SchedulePage() {
                       <td className="px-4 py-3 font-medium text-slate-800">
                         {enrollment.section.course.code}
                         <span className="ml-1 font-normal text-slate-500">— {enrollment.section.course.title}</span>
+                        <span className="ml-1.5 text-xs font-normal text-slate-400">({enrollment.section.credits} cr)</span>
                       </td>
                       <td className="px-4 py-3 text-slate-700">
                         §{enrollment.section.sectionCode}
@@ -500,6 +507,9 @@ export default function SchedulePage() {
                         <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadge(enrollment.status)}`}>
                           {enrollmentStatusLabel(enrollment.status)}
                         </span>
+                        {enrollment.status === "WAITLISTED" && enrollment.waitlistPosition !== null && (
+                          <p className="mt-0.5 text-[10px] text-amber-700">#{enrollment.waitlistPosition} in queue</p>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         {dropDeadlinePassed && (enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL") ? (

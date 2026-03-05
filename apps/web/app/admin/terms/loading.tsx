@@ -35,6 +35,7 @@ export default function TermsLoading() {
             <div className="h-4 w-48 rounded-full bg-slate-200" />
             <div className="h-4 w-32 rounded-full bg-slate-200" />
             <div className="h-4 w-8 rounded-full bg-slate-200" />
+            <div className="h-6 w-20 rounded-full bg-slate-200" />
             <div className="flex gap-2">
               <div className="h-8 w-16 rounded-xl bg-slate-200" />
               <div className="h-8 w-16 rounded-xl bg-slate-200" />

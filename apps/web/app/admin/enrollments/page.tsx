@@ -17,6 +17,7 @@ type Enrollment = {
   id: string;
   status: string;
   finalGrade: string | null;
+  waitlistPosition: number | null;
   createdAt: string;
   student: {
     studentId: string | null;
@@ -36,11 +37,11 @@ const STATUS_OPTIONS = ["ENROLLED", "WAITLISTED", "PENDING_APPROVAL", "DROPPED",
 const PAGE_SIZE = 50;
 
 const STATUS_COLORS: Record<string, string> = {
-  ENROLLED: "bg-emerald-100 text-emerald-800",
-  WAITLISTED: "bg-amber-100 text-amber-800",
-  PENDING_APPROVAL: "bg-blue-100 text-blue-800",
-  DROPPED: "bg-red-100 text-red-800",
-  COMPLETED: "bg-slate-100 text-slate-700",
+  ENROLLED: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  WAITLISTED: "border-amber-200 bg-amber-50 text-amber-800",
+  PENDING_APPROVAL: "border-blue-200 bg-blue-50 text-blue-800",
+  DROPPED: "border-red-200 bg-red-50 text-red-800",
+  COMPLETED: "border-slate-200 bg-slate-100 text-slate-700",
 };
 
 function StatBadge({ label, count, color }: { label: string; count: number; color: string }) {
@@ -503,18 +504,23 @@ export default function EnrollmentsPage() {
                     <td className="px-4 py-3 text-slate-800">
                       <p className="font-medium">{row.student.studentProfile?.legalName || "-"}</p>
                       <p className="text-xs text-slate-500">{row.student.studentId || "No ID"}</p>
+                      <p className="text-[10px] text-slate-400">{new Date(row.createdAt).toLocaleDateString()}</p>
                     </td>
                     <td className="px-4 py-3 text-slate-700">
                       <p className="font-medium">{row.section.course.code} · {row.section.sectionCode}</p>
                       <p className="text-xs text-slate-500">{row.section.course.title}</p>
+                      <p className="text-xs text-slate-400">{row.section.course.credits} cr</p>
                     </td>
                     {!selectedTermId && (
                       <td className="px-4 py-3 text-xs text-slate-500">{row.term?.name ?? "—"}</td>
                     )}
                     <td className="px-4 py-3">
-                      <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_COLORS[statusState[row.id] ?? row.status] ?? "bg-slate-100 text-slate-700"}`}>
+                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${STATUS_COLORS[statusState[row.id] ?? row.status] ?? "border-slate-200 bg-slate-100 text-slate-700"}`}>
                         {statusState[row.id] ?? row.status}
                       </span>
+                      {(statusState[row.id] ?? row.status) === "WAITLISTED" && row.waitlistPosition !== null && (
+                        <p className="mt-0.5 text-[10px] text-amber-700">#{row.waitlistPosition} in queue</p>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <input

@@ -136,7 +136,8 @@ export default function AdminSectionsPage() {
     capacity: 30,
     credits: 3,
     instructorName: "",
-    location: ""
+    location: "",
+    requireApproval: false
   });
   const [createMeetingTimes, setCreateMeetingTimes] = useState<Array<{ weekday: number; startTime: string; endTime: string }>>([]);
 
@@ -299,6 +300,7 @@ export default function AdminSectionsPage() {
           credits: Number(createForm.credits),
           instructorName: createForm.instructorName,
           location: createForm.location || null,
+          requireApproval: createForm.requireApproval,
           meetingTimes: createMeetingTimes.map((mt) => ({
             weekday: mt.weekday,
             startMinutes: timeToMinutes(mt.startTime),
@@ -307,7 +309,7 @@ export default function AdminSectionsPage() {
         })
       });
       setCreateSuccess("Section created successfully.");
-      setCreateForm({ termId: "", courseId: "", sectionCode: "", modality: "ON_CAMPUS", capacity: 30, credits: 3, instructorName: "", location: "" });
+      setCreateForm({ termId: "", courseId: "", sectionCode: "", modality: "ON_CAMPUS", capacity: 30, credits: 3, instructorName: "", location: "", requireApproval: false });
       setCreateMeetingTimes([]);
       await loadSections();
     } catch (err) {
@@ -785,6 +787,17 @@ export default function AdminSectionsPage() {
               className="campus-input"
             />
           </label>
+          <div className="flex items-center col-span-full md:col-span-2">
+            <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 cursor-pointer hover:bg-slate-100 transition">
+              <input
+                type="checkbox"
+                className="size-4 accent-slate-900"
+                checked={createForm.requireApproval}
+                onChange={(e) => setCreateForm((p) => ({ ...p, requireApproval: e.target.checked }))}
+              />
+              Requires instructor approval
+            </label>
+          </div>
           <div className="col-span-full space-y-2">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Meeting Times</span>
@@ -848,8 +861,8 @@ export default function AdminSectionsPage() {
             ) : "Create Section"}
           </button>
         </form>
-        {createError ? <p className="mt-2 text-sm text-red-600">{createError}</p> : null}
-        {createSuccess ? <p className="mt-2 text-sm text-emerald-700">{createSuccess}</p> : null}
+        {createError ? <Alert type="error" message={createError} /> : null}
+        {createSuccess ? <Alert type="success" message={createSuccess} /> : null}
       </section>
 
       {editingId ? (

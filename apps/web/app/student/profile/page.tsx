@@ -156,6 +156,28 @@ function ChangePasswordCard() {
               {showNew ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
           </div>
+          {form.newPassword.length > 0 ? (
+            <div className="mt-1.5 flex gap-1">
+              {[1, 2, 3, 4].map((level) => {
+                const strength = [
+                  form.newPassword.length >= 8,
+                  /[A-Z]/.test(form.newPassword),
+                  /[0-9]/.test(form.newPassword),
+                  /[^A-Za-z0-9]/.test(form.newPassword)
+                ].filter(Boolean).length;
+                return (
+                  <div
+                    key={level}
+                    className={`h-1 flex-1 rounded-full transition-colors ${
+                      strength >= level
+                        ? strength <= 1 ? "bg-red-400" : strength <= 2 ? "bg-amber-400" : strength <= 3 ? "bg-blue-400" : "bg-emerald-400"
+                        : "bg-slate-200"
+                    }`}
+                  />
+                );
+              })}
+            </div>
+          ) : null}
         </div>
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Confirm new password</label>
@@ -179,8 +201,12 @@ function ChangePasswordCard() {
             </button>
           </div>
         </div>
-        {msg ? <p className="text-xs text-emerald-700">{msg}</p> : null}
-        {err ? <p className="text-xs text-red-700">{err}</p> : null}
+        {msg ? (
+          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">{msg}</p>
+        ) : null}
+        {err ? (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-800">{err}</p>
+        ) : null}
         <button
           type="submit"
           disabled={saving}
@@ -352,15 +378,26 @@ export default function StudentProfilePage() {
             <section className="campus-card p-4">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Profile Checklist</h3>
               <div className="mt-2 space-y-2 text-sm">
-                <p className={`rounded-lg border px-3 py-2 ${form.legalName ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600"}`}>
-                  Legal name {form.legalName ? "completed" : "missing"}
-                </p>
-                <p className={`rounded-lg border px-3 py-2 ${form.address ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
-                  Address {form.address ? "completed" : "recommended"}
-                </p>
-                <p className={`rounded-lg border px-3 py-2 ${form.emergencyContact ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
-                  Emergency contact {form.emergencyContact ? "completed" : "recommended"}
-                </p>
+                {[
+                  { label: "Legal name", done: Boolean(form.legalName), required: true },
+                  { label: "Date of birth", done: Boolean(form.dob), required: false },
+                  { label: "Address", done: Boolean(form.address), required: false },
+                  { label: "Emergency contact", done: Boolean(form.emergencyContact), required: false }
+                ].map(({ label, done, required }) => (
+                  <div
+                    key={label}
+                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${
+                      done
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : required
+                          ? "border-red-200 bg-red-50 text-red-700"
+                          : "border-amber-200 bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    <span className="text-base leading-none">{done ? "✓" : required ? "!" : "○"}</span>
+                    <span>{label} — {done ? "set" : required ? "required" : "recommended"}</span>
+                  </div>
+                ))}
               </div>
             </section>
 

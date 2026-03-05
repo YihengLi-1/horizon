@@ -60,6 +60,38 @@ type PrecheckResponse = {
   issues: PrecheckIssue[];
 };
 
+type GradeItem = {
+  id: string;
+  finalGrade: string;
+  section: { credits: number };
+};
+
+const GRADE_POINTS: Record<string, number> = {
+  "A+": 4.0, A: 4.0, "A-": 3.7,
+  "B+": 3.3, B: 3.0, "B-": 2.7,
+  "C+": 2.3, C: 2.0, "C-": 1.7,
+  "D+": 1.3, D: 1.0, "D-": 0.7,
+  F: 0.0
+};
+
+function calcGPA(items: GradeItem[]): number | null {
+  let weighted = 0, credits = 0;
+  for (const item of items) {
+    const pts = GRADE_POINTS[item.finalGrade];
+    if (pts === undefined) continue;
+    weighted += pts * item.section.credits;
+    credits += item.section.credits;
+  }
+  return credits > 0 ? weighted / credits : null;
+}
+
+function gpaTier(gpa: number): { text: string; kpi: string; label: string } {
+  if (gpa >= 3.7) return { text: "text-emerald-700", kpi: "border-emerald-200 bg-emerald-50", label: "Dean's List" };
+  if (gpa >= 3.0) return { text: "text-blue-700", kpi: "border-blue-200 bg-blue-50", label: "Good Standing" };
+  if (gpa >= 2.0) return { text: "text-slate-700", kpi: "border-slate-200 bg-slate-50", label: "Satisfactory" };
+  return { text: "text-amber-700", kpi: "border-amber-200 bg-amber-50", label: "Academic Warning" };
+}
+
 type ActionItem = {
   title: string;
   description: string;
