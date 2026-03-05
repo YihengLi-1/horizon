@@ -26,12 +26,21 @@ export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [form, setForm] = useState({ code: "", title: "", credits: 3, description: "", prerequisiteCourseIds: [] as string[] });
   const [search, setSearch] = useState("");
+  const [filterCredits, setFilterCredits] = useState("ALL");
+  const [filterPrereq, setFilterPrereq] = useState("ALL"); // ALL | WITH | WITHOUT
+  const [sortCol, setSortCol] = useState<"code" | "title" | "credits" | "prereqs">("code");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(1);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  const toggleSort = (col: typeof sortCol) => {
+    if (sortCol === col) setSortDir((d) => d === "asc" ? "desc" : "asc");
+    else { setSortCol(col); setSortDir("asc"); }
+  };
 
   // Press "/" to focus search
   useEffect(() => {
@@ -150,19 +159,50 @@ export default function CoursesPage() {
     }
   };
 
+  const creditOptions = useMemo(
+    () => Array.from(new Set(courses.map((c) => c.credits))).sort((a, b) => a - b),
+    [courses]
+  );
+
   const stats = useMemo(() => {
-    const totalCredits = courses.reduce((sum, course) => sum + course.credits, 0);
-    return { total: courses.length, avg: courses.length > 0 ? (totalCredits / courses.length).toFixed(1) : "0.0" };
-  }, [courses]);
+    const totalCredits = courses.reduce((sum, c) => sum + c.credits, 0);
+    const withPrereq   = courses.filter((c) => (c.prerequisiteLinks ?? []).length > 0).length;
+    const byCredits    = creditOptions.map((cr) => ({ cr, count: courses.filter((c) => c.credits === cr).length }));
+    return {
+      total:      courses.length,
+      avg:        courses.length > 0 ? (totalCredits / courses.length).toFixed(1) : "0.0",
+      withPrereq,
+      noPrereq:   courses.length - withPrereq,
+      byCredits
+    };
+  }, [courses, creditOptions]);
 
   const visibleCourses = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return courses;
-    return courses.filter((c) => `${c.code} ${c.title} ${c.description ?? ""}`.toLowerCase().includes(q));
-  }, [courses, search]);
+    let list = courses.filter((c) => {
+      if (q && !`${c.code} ${c.title} ${c.description ?? ""}`.toLowerCase().includes(q)) return false;
+      if (filterCredits !== "ALL" && c.credits !== Number(filterCredits)) return false;
+      const hasPre = (c.prerequisiteLinks ?? []).length > 0;
+      if (filterPrereq === "WITH"    && !hasPre) return false;
+      if (filterPrereq === "WITHOUT" &&  hasPre) return false;
+      return true;
+    });
 
-  // Reset page when search changes
-  useEffect(() => { setPage(1); }, [search]);
+    list = [...list].sort((a, b) => {
+      const dir = sortDir === "asc" ? 1 : -1;
+      switch (sortCol) {
+        case "title":   return dir * a.title.localeCompare(b.title);
+        case "credits": return dir * (a.credits - b.credits);
+        case "prereqs": return dir * ((a.prerequisiteLinks?.length ?? 0) - (b.prerequisiteLinks?.length ?? 0));
+        default:        return dir * a.code.localeCompare(b.code);
+      }
+    });
+
+    return list;
+  }, [courses, search, filterCredits, filterPrereq, sortCol, sortDir]);
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1); }, [search, filterCredits, filterPrereq, sortCol, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(visibleCourses.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -223,6 +263,35 @@ export default function CoursesPage() {
             >
               Refresh
             </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="campus-kpi border-slate-200">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Courses</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-900">{stats.total}</p>
+          <p className="text-[11px] text-slate-400">Avg {stats.avg} credits</p>
+        </div>
+        <div className="campus-kpi border-emerald-200 bg-emerald-50/60">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">No Prerequisites</p>
+          <p className="mt-1 text-2xl font-semibold text-emerald-900">{stats.noPrereq}</p>
+          <p className="text-[11px] text-emerald-500">Open enrollment</p>
+        </div>
+        <div className="campus-kpi border-blue-200 bg-blue-50/60">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Has Prerequisites</p>
+          <p className="mt-1 text-2xl font-semibold text-blue-900">{stats.withPrereq}</p>
+          <p className="text-[11px] text-blue-500">Gated enrollment</p>
+        </div>
+        <div className="campus-kpi border-slate-200">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Credit Distribution</p>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {stats.byCredits.map(({ cr, count }) => (
+              <span key={cr} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-xs font-medium text-slate-700">
+                <span className="font-semibold">{cr}cr</span>
+                <span className="text-slate-400">×{count}</span>
+              </span>
+            ))}
           </div>
         </div>
       </section>
@@ -398,20 +467,44 @@ export default function CoursesPage() {
       ) : null}
 
       <section className="campus-toolbar">
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search courses</span>
-          <input
-            ref={searchRef}
-            className="campus-input"
-            placeholder="Course code, title, description…  [/]"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </label>
-        {search ? (
-          <p className="mt-2 text-xs text-slate-500">
-            Showing {visibleCourses.length} of {courses.length}
-          </p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="block sm:col-span-2">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search</span>
+            <input
+              ref={searchRef}
+              className="campus-input"
+              placeholder="Code, title, description…  [/]"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Credits</span>
+            <select className="campus-select" value={filterCredits} onChange={(e) => setFilterCredits(e.target.value)}>
+              <option value="ALL">All credits</option>
+              {creditOptions.map((cr) => <option key={cr} value={cr}>{cr} cr</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Prerequisites</span>
+            <select className="campus-select" value={filterPrereq} onChange={(e) => setFilterPrereq(e.target.value)}>
+              <option value="ALL">All courses</option>
+              <option value="WITHOUT">No prerequisites</option>
+              <option value="WITH">Has prerequisites</option>
+            </select>
+          </label>
+        </div>
+        {(search || filterCredits !== "ALL" || filterPrereq !== "ALL") ? (
+          <div className="mt-2 flex items-center gap-2">
+            <p className="text-xs text-slate-500">{visibleCourses.length} of {courses.length} shown</p>
+            <button
+              type="button"
+              onClick={() => { setSearch(""); setFilterCredits("ALL"); setFilterPrereq("ALL"); }}
+              className="text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
+            >
+              Clear filters
+            </button>
+          </div>
         ) : null}
       </section>
 
@@ -423,11 +516,21 @@ export default function CoursesPage() {
           <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-slate-50">
               <tr className="border-b border-slate-200 text-left">
-                <th className="px-4 py-3 font-semibold text-slate-700">Code</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Title</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Credits</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Prerequisites</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Actions</th>
+                {(["code", "title", "credits", "prereqs"] as const).map((col) => (
+                  <th key={col} className="px-4 py-2.5">
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(col)}
+                      className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wide transition-colors ${sortCol === col ? "text-slate-900" : "text-slate-400 hover:text-slate-700"}`}
+                    >
+                      {{ code: "Code", title: "Title", credits: "Credits", prereqs: "Prerequisites" }[col]}
+                      <span className="text-[9px] leading-none">
+                        {sortCol === col ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
+                      </span>
+                    </button>
+                  </th>
+                ))}
+                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -455,11 +558,22 @@ export default function CoursesPage() {
                       {course.description ? <p className="mt-0.5 text-xs text-slate-400">{course.description}</p> : null}
                     </td>
                     <td className="px-4 py-3 text-slate-700">{course.credits}</td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {(course.prerequisiteLinks ?? [])
-                        .map((item) => item.prerequisiteCourse?.code)
-                        .filter((code): code is string => Boolean(code))
-                        .join(", ") || "-"}
+                    <td className="px-4 py-3">
+                      {(() => {
+                        const prereqCodes = (course.prerequisiteLinks ?? [])
+                          .map((item) => item.prerequisiteCourse?.code)
+                          .filter((code): code is string => Boolean(code));
+                        if (prereqCodes.length === 0) return <span className="text-slate-400">—</span>;
+                        return (
+                          <div className="flex flex-wrap gap-1">
+                            {prereqCodes.map((code) => (
+                              <span key={code} className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                                {code}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
