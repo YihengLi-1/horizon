@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { apiFetch } from "@/lib/api";
@@ -352,11 +353,13 @@ export default function StudentProfilePage() {
                 />
               </div>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-5 py-4 md:px-6">
-              <div>
-                {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
-                {error ? <p className="text-sm text-red-700">{error}</p> : null}
-              </div>
+            {message ? (
+              <div className="mx-5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800 md:mx-6">{message}</div>
+            ) : null}
+            {error ? (
+              <div className="mx-5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-800 md:mx-6">{error}</div>
+            ) : null}
+            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 px-5 py-4 md:px-6">
               <button
                 type="submit"
                 disabled={saving}
@@ -365,7 +368,7 @@ export default function StudentProfilePage() {
                 {saving ? (
                   <>
                     <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                    Saving
+                    Saving…
                   </>
                 ) : (
                   "Save Changes"
@@ -402,6 +405,28 @@ export default function StudentProfilePage() {
             </section>
 
             <ChangePasswordCard />
+
+            <section className="campus-card p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Quick Links</h3>
+              <div className="mt-2 space-y-1.5">
+                {[
+                  { href: "/student/dashboard", label: "Dashboard" },
+                  { href: "/student/schedule", label: "Class Schedule" },
+                  { href: "/student/grades", label: "Grades" },
+                  { href: "/student/catalog", label: "Course Catalog" },
+                  { href: "/student/cart", label: "Registration Cart" },
+                ].map(({ href, label }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 no-underline transition hover:bg-slate-100 hover:text-slate-900"
+                  >
+                    {label}
+                    <span className="text-slate-400">→</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
 
             <section className="campus-card p-4">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Registrar Notes</h3>
