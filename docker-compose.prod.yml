@@ -1,0 +1,44 @@
+# 生产环境覆盖配置（与 docker-compose.yml 合并使用）
+# 启动方式：docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  api:
+    environment:
+      NODE_ENV: production
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  web:
+    environment:
+      NODE_ENV: production
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  postgres:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  nginx:
+    restart: always
+
+  prometheus:
+    restart: always
+
+  grafana:
+    restart: always
+    environment:
+      GF_SERVER_ROOT_URL: https://${DOMAIN:-sis.edu}:3001
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+
+  alertmanager:
+    restart: always

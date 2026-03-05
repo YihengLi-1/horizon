@@ -4,6 +4,7 @@ import { PrismaService } from "../common/prisma.service";
 import { ChangePasswordInput, UpdateProfileInput } from "@sis/shared";
 import { toDateOrNull } from "../common/grade.utils";
 import { AuditService } from "../audit/audit.service";
+import { verifyPasswordHash } from "../common/password-hash";
 
 @Injectable()
 export class StudentsService {
@@ -184,7 +185,7 @@ export class StudentsService {
       throw new NotFoundException({ code: "USER_NOT_FOUND", message: "User not found" });
     }
 
-    const valid = await argon2.verify(user.passwordHash, input.currentPassword);
+    const valid = await verifyPasswordHash(user.passwordHash, input.currentPassword);
     if (!valid) {
       throw new UnauthorizedException({ code: "INVALID_CURRENT_PASSWORD", message: "Current password is incorrect" });
     }

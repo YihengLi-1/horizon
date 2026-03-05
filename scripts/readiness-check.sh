@@ -149,6 +149,34 @@ else
   warning "Grafana provisioning missing"
 fi
 
+if [[ -f nginx/nginx.conf ]]; then
+  ok "nginx/nginx.conf found"
+else
+  warning "nginx/nginx.conf missing — reverse proxy not configured"
+fi
+
+if [[ -f docker-compose.prod.yml ]]; then
+  ok "docker-compose.prod.yml found"
+else
+  warning "docker-compose.prod.yml missing"
+fi
+
+if grep -q "admin@sis.edu" apps/api/prisma/seed.ts 2>/dev/null; then
+  ok "Seed file contains demo admin account"
+else
+  warning "Seed file may be missing demo data"
+fi
+
+FILE_COUNT=0
+if [[ -d monitoring ]]; then
+  FILE_COUNT="$(find monitoring/ -type f | wc -l | tr -d ' ')"
+fi
+if [[ "$FILE_COUNT" -ge 6 ]]; then
+  ok "Monitoring stack has $FILE_COUNT config files"
+else
+  warning "Monitoring stack incomplete ($FILE_COUNT files found, expected ≥6)"
+fi
+
 echo
 printf "Summary: %d pass, %d warn, %d fail\n" "$pass" "$warn" "$fail"
 

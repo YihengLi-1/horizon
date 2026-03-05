@@ -139,6 +139,11 @@ function actionLabel(action: string): string {
   return map[action] ?? action;
 }
 
+const nodeEnv = process.env.NODE_ENV ?? "development";
+const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? "v1.0.0";
+const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME ?? "—";
+const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_URL ?? "http://localhost:3001";
+
 export default async function AdminDashboardPage() {
   const [data, opsMetrics] = await Promise.all([
     serverApi<Dashboard>("/admin/dashboard"),
@@ -494,6 +499,34 @@ export default async function AdminDashboardPage() {
                     </div>
                   </div>
                 ) : null}
+
+                <div className="mt-4 border-t border-slate-100 pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Deployment Info</p>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <p className="text-slate-500">Environment</p>
+                      <p className={`mt-0.5 font-semibold ${nodeEnv === "production" ? "text-emerald-600" : "text-amber-600"}`}>
+                        {nodeEnv}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Version</p>
+                      <p className="mt-0.5 font-mono font-semibold text-slate-700">{appVersion}</p>
+                      <p className="mt-1 text-[11px] text-slate-400">{buildTime || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Grafana</p>
+                      <a
+                        href={grafanaUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-0.5 block font-medium text-blue-600 hover:underline"
+                      >
+                        Open ↗
+                      </a>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : (
               <p className="text-sm text-slate-500">Metrics endpoint unavailable.</p>

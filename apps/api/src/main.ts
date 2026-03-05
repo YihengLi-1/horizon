@@ -373,6 +373,19 @@ async function bootstrap() {
     res.send(lines.join("\n") + "\n");
   });
 
+  expressApp.get("/ops/ready", async (_req: any, res: any) => {
+    try {
+      const ready = process.uptime() > 5;
+      if (ready) {
+        res.json({ status: "ready", uptime: Math.floor(process.uptime()) });
+        return;
+      }
+      res.status(503).json({ status: "starting", uptime: Math.floor(process.uptime()) });
+    } catch {
+      res.status(503).json({ status: "not_ready", error: "dependency check failed" });
+    }
+  });
+
   const port = Number(process.env.API_PORT || 4000);
   await app.listen(port);
   console.log(`API running at http://localhost:${port}`);

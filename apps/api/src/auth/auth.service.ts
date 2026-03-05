@@ -14,6 +14,7 @@ import {
 import { PrismaService } from "../common/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { NotificationsService } from "../notifications/notifications.service";
+import { verifyPasswordHash } from "../common/password-hash";
 
 const ACCESS_COOKIE = "access_token";
 const CSRF_COOKIE = (process.env.CSRF_COOKIE_NAME || "sis-csrf").trim() || "sis-csrf";
@@ -308,7 +309,7 @@ export class AuthService {
       throw new UnauthorizedException({ code: "INVALID_CREDENTIALS", message: "Invalid credentials" });
     }
 
-    const validPassword = await argon2.verify(user.passwordHash, input.password);
+    const validPassword = await verifyPasswordHash(user.passwordHash, input.password);
     if (!validPassword) {
       this.recordLoginFailure(loginAttemptKey, now);
       await this.auditLoginFailure(req, input.identifier, "invalid_credentials");
