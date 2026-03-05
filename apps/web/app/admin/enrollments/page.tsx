@@ -231,7 +231,7 @@ export default function EnrollmentsPage() {
   const clearSelection = () => setSelectedById({});
 
   const exportCsv = () => {
-    const source = visibleRows.length > 0 ? visibleRows : rows;
+    const source = rows;
     const headers = ["StudentID", "LegalName", "CourseCode", "CourseTitle", "SectionCode", "Credits", "Status", "FinalGrade", "Term"];
     const csvRows = [
       headers.join(","),
@@ -328,7 +328,7 @@ export default function EnrollmentsPage() {
               Adjust enrollment status and publish final grades for completed sections.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Total {rows.length}</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Matched {total}</span>
               <span className="campus-chip border-emerald-200 bg-emerald-50 text-emerald-700">
                 Enrolled {statusCounts.get("ENROLLED") ?? 0}
               </span>
@@ -353,7 +353,7 @@ export default function EnrollmentsPage() {
             </button>
             <button
               type="button"
-              onClick={() => void load(selectedTermId || undefined)}
+              onClick={() => void load()}
               className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
             >
               Refresh
@@ -397,7 +397,7 @@ export default function EnrollmentsPage() {
         </div>
 
         {/* Status breakdown stats */}
-        {rows.length > 0 && (
+        {total > 0 && (
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <StatBadge label="Enrolled" count={statusCounts.get("ENROLLED") ?? 0} color="border-emerald-200 bg-emerald-50 text-emerald-800" />
             <StatBadge label="Waitlisted" count={statusCounts.get("WAITLISTED") ?? 0} color="border-amber-200 bg-amber-50 text-amber-800" />
@@ -464,7 +464,7 @@ export default function EnrollmentsPage() {
           </div>
         </div>
         <p className="mt-2 text-xs text-slate-500">
-          Showing {visibleRows.length} of {rows.length} · Selected: {selectedVisibleIds.length}
+          Showing {rows.length} of {total} · Selected: {selectedVisibleIds.length}
         </p>
       </section>
 
@@ -502,7 +502,7 @@ export default function EnrollmentsPage() {
                     Loading enrollments...
                   </td>
                 </tr>
-              ) : visibleRows.length === 0 ? (
+              ) : rows.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
                     No enrollment records found.
@@ -592,10 +592,10 @@ export default function EnrollmentsPage() {
         </div>
 
         {/* Pagination */}
-        {visibleRows.length > PAGE_SIZE ? (
+        {total > PAGE_SIZE ? (
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-3 text-sm text-slate-600">
             <p>
-              Showing {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, visibleRows.length)} of {visibleRows.length} records
+              Showing {total === 0 ? 0 : ((safePage - 1) * PAGE_SIZE) + 1}–{Math.min((safePage - 1) * PAGE_SIZE + rows.length, total)} of {total} records
             </p>
             <div className="flex items-center gap-1.5">
               <button
