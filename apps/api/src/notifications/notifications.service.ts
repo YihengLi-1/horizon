@@ -15,12 +15,38 @@ type MailEnvelope = {
   text: string;
 };
 
+type MailHealthSnapshot = {
+  enabled: boolean;
+  configured: boolean;
+  deliveryActive: boolean;
+  attempts: number;
+  sent: number;
+  failed: number;
+  skipped: number;
+  lastSuccessAt: string | null;
+  lastFailureAt: string | null;
+  lastFailureReason: string | null;
+};
+
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
   private readonly from = process.env.SMTP_FROM || "noreply@horizon-sis.local";
   private readonly enabled = this.resolveEnabled();
+  private readonly smtpConfigured = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
   private readonly transporter: Transporter | null = this.createTransport();
+  private readonly health: MailHealthSnapshot = {
+    enabled: this.enabled,
+    configured: this.smtpConfigured,
+    deliveryActive: false,
+    attempts: 0,
+    sent: 0,
+    failed: 0,
+    skipped: 0,
+    lastSuccessAt: null,
+    lastFailureAt: null,
+    lastFailureReason: null
+  };
 
   private resolveEnabled(): boolean {
     const raw = (process.env.MAIL_ENABLED || "").trim().toLowerCase();
@@ -51,8 +77,22 @@ export class NotificationsService {
     });
   }
 
+  constructor() {
+    this.health.deliveryActive = Boolean(this.transporter);
+  }
+
+  getHealthSnapshot(): MailHealthSnapshot {
+    return { ...this.health };
+  }
+
   private async send(envelope: MailEnvelope): Promise<boolean> {
+    this.health.attempts += 1;
     if (!this.transporter) {
+      this.health.skipped += 1;
+      this.health.lastFailureAt = new Date().toISOString();
+      this.health.lastFailureReason = this.enabled
+        ? "mail_enabled_but_smtp_not_configured"
+        : "mail_disabled";
       this.logger.log(`Email skipped (delivery disabled): to=${envelope.to} subject=${envelope.subject}`);
       return false;
     }
@@ -65,9 +105,14 @@ export class NotificationsService {
         text: envelope.text,
         html: envelope.html
       });
+      this.health.sent += 1;
+      this.health.lastSuccessAt = new Date().toISOString();
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown email error";
+      this.health.failed += 1;
+      this.health.lastFailureAt = new Date().toISOString();
+      this.health.lastFailureReason = message;
       this.logger.error(`Email delivery failed: to=${envelope.to} subject=${envelope.subject} error=${message}`);
       return false;
     }

@@ -10,6 +10,7 @@
     "test:e2e:web": "pnpm --filter @sis/web test:e2e:critical",
     "test:e2e:api": "node scripts/e2e-api-p0.mjs",
     "readiness:check": "bash scripts/readiness-check.sh",
+    "backup:restore:drill": "bash scripts/backup-restore-drill.sh",
     "autopilot:check": "bash scripts/autopilot-check.sh",
     "db:migrate": "pnpm --filter @sis/api db:migrate",
     "db:seed": "pnpm --filter @sis/api db:seed",

@@ -9,7 +9,6 @@ import { apiFetch } from "@/lib/api";
 
 type ForgotResult = {
   message: string;
-  resetLink?: string;
 };
 
 export default function ForgotPage() {
@@ -59,11 +58,7 @@ export default function ForgotPage() {
           {result ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
               <p>{result.message}</p>
-              {result.resetLink ? (
-                <a className="mt-1 block font-semibold underline underline-offset-2" href={result.resetLink}>
-                  Open reset link
-                </a>
-              ) : null}
+              <p className="mt-1 text-emerald-700">Please check your email inbox and spam folder.</p>
             </div>
           ) : null}
           <Button disabled={loading} className="h-10 w-full bg-primary text-white hover:bg-primary/90" type="submit">

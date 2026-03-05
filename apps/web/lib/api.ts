@@ -7,6 +7,7 @@ export type ApiResponse<T> = {
     statusCode?: number;
     code?: string;
     message?: string;
+    requestId?: string;
     details?: unknown;
   };
 };
@@ -14,18 +15,37 @@ export type ApiResponse<T> = {
 export class ApiError extends Error {
   statusCode?: number;
   code?: string;
+  requestId?: string;
   details?: unknown;
 
-  constructor(message: string, options?: { statusCode?: number; code?: string; details?: unknown }) {
+  constructor(message: string, options?: { statusCode?: number; code?: string; requestId?: string; details?: unknown }) {
     super(message);
     this.name = "ApiError";
     this.statusCode = options?.statusCode;
     this.code = options?.code;
+    this.requestId = options?.requestId;
     this.details = options?.details;
   }
 }
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS", "TRACE"]);
+const TOKEN_NAME_PATTERN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+const resolveTokenName = (raw: string | undefined, fallback: string, kind: "cookie" | "header"): string => {
+  const value = (raw || "").trim();
+  if (!value) return fallback;
+  const normalized = kind === "header" ? value.toLowerCase() : value;
+  return TOKEN_NAME_PATTERN.test(normalized) ? normalized : fallback;
+};
+const CSRF_COOKIE_NAME = resolveTokenName(
+  process.env.NEXT_PUBLIC_CSRF_COOKIE_NAME || process.env.CSRF_COOKIE_NAME,
+  "csrf_token",
+  "cookie"
+);
+const CSRF_HEADER_NAME = resolveTokenName(
+  process.env.NEXT_PUBLIC_CSRF_HEADER_NAME || process.env.CSRF_HEADER_NAME,
+  "x-csrf-token",
+  "header"
+);
 
 function readCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
@@ -34,33 +54,73 @@ function readCookie(name: string): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
+function canUseFormData(): boolean {
+  return typeof FormData !== "undefined";
+}
+
+async function fetchCsrfToken(): Promise<void> {
+  await fetch(`${API_URL}/auth/csrf-token`, {
+    method: "GET",
+    credentials: "include"
+  }).catch(() => null);
+}
+
+async function readOrRefreshCsrfToken(): Promise<string | null> {
+  const existing = readCookie(CSRF_COOKIE_NAME);
+  if (existing) return existing;
+  await fetchCsrfToken();
+  return readCookie(CSRF_COOKIE_NAME);
+}
+
+async function parseResponse<T>(res: Response): Promise<ApiResponse<T> | null> {
+  return (await res.json().catch(() => null)) as ApiResponse<T> | null;
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const method = (init?.method || "GET").toUpperCase();
-  const headers = new Headers(init?.headers);
-  if (!headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
+  const unsafeMethod = !SAFE_METHODS.has(method);
+  const baseHeaders = new Headers(init?.headers);
+  const bodyIsFormData = canUseFormData() && init?.body instanceof FormData;
+  if (init?.body !== undefined && !baseHeaders.has("Content-Type") && !bodyIsFormData) {
+    baseHeaders.set("Content-Type", "application/json");
   }
-  if (!SAFE_METHODS.has(method)) {
-    const csrfToken = readCookie("csrf_token");
+  if (unsafeMethod) {
+    const csrfToken = await readOrRefreshCsrfToken();
     if (csrfToken) {
-      headers.set("x-csrf-token", csrfToken);
+      baseHeaders.set(CSRF_HEADER_NAME, csrfToken);
     }
   }
 
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    method,
-    credentials: "include",
-    headers
-  });
+  const send = async (headers: Headers): Promise<{ res: Response; body: ApiResponse<T> | null }> => {
+    const res = await fetch(`${API_URL}${path}`, {
+      ...init,
+      method,
+      credentials: "include",
+      headers
+    });
+    return { res, body: await parseResponse<T>(res) };
+  };
 
-  const body = (await res.json().catch(() => null)) as ApiResponse<T> | null;
+  let { res, body } = await send(baseHeaders);
+
+  if (unsafeMethod && res.status === 403 && body?.error?.code === "CSRF_TOKEN_INVALID") {
+    await fetchCsrfToken();
+    const retryHeaders = new Headers(baseHeaders);
+    const refreshedToken = readCookie(CSRF_COOKIE_NAME);
+    if (refreshedToken) {
+      retryHeaders.set(CSRF_HEADER_NAME, refreshedToken);
+    }
+    ({ res, body } = await send(retryHeaders));
+  }
 
   if (!res.ok || !body?.success) {
-    const message = body?.error?.message || `Request failed (${res.status})`;
+    const baseMessage = body?.error?.message || `Request failed (${res.status})`;
+    const requestId = body?.error?.requestId;
+    const message = requestId ? `${baseMessage} (Request ID: ${requestId})` : baseMessage;
     throw new ApiError(message, {
       statusCode: body?.error?.statusCode ?? res.status,
       code: body?.error?.code,
+      requestId,
       details: body?.error?.details
     });
   }

@@ -48,6 +48,43 @@ type OpsMetrics = {
   byStatusCode: Record<string, number>;
   byRoute: Record<string, number>;
   auditActionCounts: Record<string, number>;
+  mail: {
+    enabled: boolean;
+    configured: boolean;
+    deliveryActive: boolean;
+    attempts: number;
+    sent: number;
+    failed: number;
+    skipped: number;
+    lastSuccessAt: string | null;
+    lastFailureAt: string | null;
+    lastFailureReason: string | null;
+  };
+  mailIndicators: {
+    deliveryAttempts: number;
+    failureRatePercent: number;
+    minutesSinceLastSuccess: number | null;
+  };
+  security: {
+    csrfOriginBlocked: number;
+    csrfTokenInvalid: number;
+    loginRateLimited: number;
+    loginFailed: number;
+  };
+  alerts: Array<{
+    level: "warning" | "critical";
+    code: string;
+    message: string;
+    value: number;
+    threshold: number;
+  }>;
+  thresholds: {
+    csrfOriginBlocked: number;
+    csrfTokenInvalid: number;
+    loginRateLimited: number;
+    errorRatePercent: number;
+    mailDeliveryFailed: number;
+  };
 };
 
 function StatCard({
@@ -154,6 +191,10 @@ export default async function AdminDashboardPage() {
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5)
     : [];
+  const activeAlerts = opsMetrics?.alerts ?? [];
+  const mailFailureRate = opsMetrics ? `${opsMetrics.mailIndicators.failureRatePercent.toFixed(2)}%` : null;
+  const mailLastSuccess = opsMetrics?.mail.lastSuccessAt ? new Date(opsMetrics.mail.lastSuccessAt).toLocaleString() : "Never";
+  const mailLastFailure = opsMetrics?.mail.lastFailureAt ? new Date(opsMetrics.mail.lastFailureAt).toLocaleString() : "None";
 
   // Check if registration is actually open for activeTerm
   const regOpen = activeTerm
@@ -360,6 +401,77 @@ export default async function AdminDashboardPage() {
                       ))}
                     </div>
                   )}
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Operational Alerts</p>
+                  {activeAlerts.length === 0 ? (
+                    <p className="text-sm text-emerald-700">No active threshold alerts.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {activeAlerts.map((alert) => (
+                        <div
+                          key={alert.code}
+                          className={`rounded-lg border px-3 py-2 text-sm ${
+                            alert.level === "critical"
+                              ? "border-red-200 bg-red-50 text-red-700"
+                              : "border-amber-200 bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          <p className="font-semibold">{alert.message}</p>
+                          <p className="mt-0.5 text-xs">
+                            {alert.code} · {alert.value} / {alert.threshold}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">CSRF Origin Blocked</p>
+                    <p className="mt-1 font-semibold text-slate-800">
+                      {opsMetrics.security.csrfOriginBlocked} / {opsMetrics.thresholds.csrfOriginBlocked}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">CSRF Token Invalid</p>
+                    <p className="mt-1 font-semibold text-slate-800">
+                      {opsMetrics.security.csrfTokenInvalid} / {opsMetrics.thresholds.csrfTokenInvalid}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Login Rate Limited</p>
+                    <p className="mt-1 font-semibold text-slate-800">
+                      {opsMetrics.security.loginRateLimited} / {opsMetrics.thresholds.loginRateLimited}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Login Failed</p>
+                    <p className="mt-1 font-semibold text-slate-800">{opsMetrics.security.loginFailed}</p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Mail Delivery</p>
+                    <p className="mt-1 font-semibold text-slate-800">
+                      {opsMetrics.mail.sent} sent / {opsMetrics.mail.failed} failed
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {opsMetrics.mailIndicators.deliveryAttempts} attempts · {mailFailureRate} failure rate
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Mail Transport</p>
+                    <p className="mt-1 font-semibold text-slate-800">
+                      {opsMetrics.mail.enabled ? (opsMetrics.mail.configured ? "Configured" : "Misconfigured") : "Disabled"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Last success: {mailLastSuccess}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Last failure: {mailLastFailure}
+                    </p>
+                  </div>
                 </div>
 
                 {topRoutes.length > 0 ? (

@@ -3,7 +3,7 @@ import { JwtService } from "@nestjs/jwt";
 import { Role } from "@prisma/client";
 import argon2 from "argon2";
 import { randomBytes } from "crypto";
-import { Request, Response } from "express";
+import { CookieOptions, Request, Response } from "express";
 import {
   ForgotPasswordSchema,
   LoginInput,
@@ -16,12 +16,33 @@ import { AuditService } from "../audit/audit.service";
 import { NotificationsService } from "../notifications/notifications.service";
 
 const ACCESS_COOKIE = "access_token";
-const CSRF_COOKIE = "csrf_token";
+const CSRF_COOKIE = (process.env.CSRF_COOKIE_NAME || "csrf_token").trim() || "csrf_token";
 const ACCESS_EXPIRES_SECONDS = 60 * 60 * 2;
 const LOGIN_RATE_LIMIT_WINDOW_MS = Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS || 10 * 60 * 1000);
 const LOGIN_RATE_LIMIT_MAX_ATTEMPTS = Number(process.env.LOGIN_RATE_LIMIT_MAX_ATTEMPTS || 8);
 const LOGIN_RATE_LIMIT_LOCK_MS = Number(process.env.LOGIN_RATE_LIMIT_LOCK_MS || 15 * 60 * 1000);
 const PASSWORD_RESET_TOKEN_TTL_MS = Number(process.env.PASSWORD_RESET_TOKEN_TTL_MS || 30 * 60 * 1000);
+const AUTH_EXPOSE_DEBUG_LINKS = (process.env.AUTH_EXPOSE_DEBUG_LINKS || "false").trim().toLowerCase() === "true";
+const COOKIE_SAME_SITE: "lax" | "strict" | "none" = (() => {
+  const raw = (process.env.COOKIE_SAME_SITE || "lax").trim().toLowerCase();
+  if (raw === "lax" || raw === "strict" || raw === "none") {
+    return raw;
+  }
+  return "lax";
+})();
+const COOKIE_SECURE = (() => {
+  const raw = (process.env.COOKIE_SECURE || "").trim().toLowerCase();
+  if (raw === "true") return true;
+  if (raw === "false") return false;
+  return process.env.NODE_ENV === "production";
+})();
+const COOKIE_DOMAIN = (process.env.COOKIE_DOMAIN || "").trim() || undefined;
+const COOKIE_BASE_OPTIONS: Pick<CookieOptions, "sameSite" | "secure" | "domain" | "path"> = {
+  sameSite: COOKIE_SAME_SITE,
+  secure: COOKIE_SAME_SITE === "none" ? true : COOKIE_SECURE,
+  domain: COOKIE_DOMAIN,
+  path: "/"
+};
 
 type LoginAttemptState = {
   count: number;
@@ -146,8 +167,7 @@ export class AuthService {
   private setAuthCookie(res: Response, token: string) {
     res.cookie(ACCESS_COOKIE, token, {
       httpOnly: true,
-      sameSite: "lax",
-      secure: false,
+      ...COOKIE_BASE_OPTIONS,
       maxAge: ACCESS_EXPIRES_SECONDS * 1000
     });
   }
@@ -155,15 +175,14 @@ export class AuthService {
   private setCsrfCookie(res: Response, token: string) {
     res.cookie(CSRF_COOKIE, token, {
       httpOnly: false,
-      sameSite: "lax",
-      secure: false,
+      ...COOKIE_BASE_OPTIONS,
       maxAge: ACCESS_EXPIRES_SECONDS * 1000
     });
   }
 
   private clearAuthCookies(res: Response) {
-    res.clearCookie(ACCESS_COOKIE);
-    res.clearCookie(CSRF_COOKIE);
+    res.clearCookie(ACCESS_COOKIE, COOKIE_BASE_OPTIONS);
+    res.clearCookie(CSRF_COOKIE, COOKIE_BASE_OPTIONS);
   }
 
   async register(input: RegisterInput, req: Request) {
@@ -237,7 +256,7 @@ export class AuthService {
 
     return {
       message: "Registration successful. Verify email before login.",
-      activationLink
+      ...(AUTH_EXPOSE_DEBUG_LINKS ? { activationLink } : {})
     };
   }
 
@@ -385,7 +404,7 @@ export class AuthService {
 
     return {
       message: "If the account exists, a reset link has been generated",
-      resetLink
+      ...(AUTH_EXPOSE_DEBUG_LINKS ? { resetLink } : {})
     };
   }
 

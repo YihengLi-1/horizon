@@ -6,22 +6,65 @@ import { randomUUID } from "crypto";
 import { AuditService } from "./audit/audit.service";
 import { AppModule } from "./app.module";
 import { AllExceptionsFilter } from "./common/exception.filter";
+import { NotificationsService } from "./notifications/notifications.service";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const auditService = app.get(AuditService);
+  const notificationsService = app.get(NotificationsService);
   const bootAt = Date.now();
   const metrics = {
     requestsTotal: 0,
     errorResponsesTotal: 0,
     byMethod: new Map<string, number>(),
     byStatusCode: new Map<string, number>(),
-    byRoute: new Map<string, number>()
+    byRoute: new Map<string, number>(),
+    security: {
+      csrfOriginBlocked: 0,
+      csrfTokenInvalid: 0,
+      loginRateLimited: 0
+    }
+  };
+  const parseNumberEnv = (name: string, fallback: number): number => {
+    const raw = Number(process.env[name]);
+    return Number.isFinite(raw) && raw >= 0 ? raw : fallback;
+  };
+  const securityAlertThresholds = {
+    csrfOriginBlocked: parseNumberEnv("ALERT_CSRF_ORIGIN_BLOCKED_THRESHOLD", 5),
+    csrfTokenInvalid: parseNumberEnv("ALERT_CSRF_TOKEN_INVALID_THRESHOLD", 20),
+    loginRateLimited: parseNumberEnv("ALERT_LOGIN_RATE_LIMITED_THRESHOLD", 10),
+    errorRatePercent: parseNumberEnv("ALERT_HTTP_ERROR_RATE_PERCENT", 5),
+    mailDeliveryFailed: parseNumberEnv("ALERT_MAIL_DELIVERY_FAILED_THRESHOLD", 3),
+    mailFailureRatePercent: parseNumberEnv("ALERT_MAIL_FAILURE_RATE_PERCENT", 30),
+    mailSuccessStaleMinutes: parseNumberEnv("ALERT_MAIL_SUCCESS_STALE_MINUTES", 60)
   };
 
   const safeMethods = new Set(["GET", "HEAD", "OPTIONS"]);
-  const csrfCookieName = (process.env.CSRF_COOKIE_NAME || "csrf_token").trim() || "csrf_token";
-  const csrfHeaderName = (process.env.CSRF_HEADER_NAME || "x-csrf-token").trim().toLowerCase() || "x-csrf-token";
+  const tokenNamePattern = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+  const resolveTokenName = (
+    envKey: string,
+    fallback: string,
+    kind: "cookie" | "header"
+  ): string => {
+    const raw = (process.env[envKey] || "").trim();
+    if (!raw) return fallback;
+    const normalized = kind === "header" ? raw.toLowerCase() : raw;
+    if (!tokenNamePattern.test(normalized)) {
+      console.warn(
+        JSON.stringify({
+          event: "config_warning",
+          code: "INVALID_TOKEN_NAME",
+          envKey,
+          value: raw,
+          fallback
+        })
+      );
+      return fallback;
+    }
+    return normalized;
+  };
+  const csrfCookieName = resolveTokenName("CSRF_COOKIE_NAME", "csrf_token", "cookie");
+  const csrfHeaderName = resolveTokenName("CSRF_HEADER_NAME", "x-csrf-token", "header");
   const csrfExemptPaths = new Set(
     (process.env.CSRF_EXEMPT_PATHS || "/auth/login,/auth/register,/auth/forgot-password,/auth/reset-password")
       .split(",")
@@ -54,6 +97,7 @@ async function bootstrap() {
 
     const origin = typeof req.headers.origin === "string" ? req.headers.origin : "";
     if (origin && !csrfAllowedOrigins.has(origin)) {
+      metrics.security.csrfOriginBlocked += 1;
       res.status(403).json({
         success: false,
         error: {
@@ -83,6 +127,7 @@ async function bootstrap() {
       headerToken.length === 0 ||
       cookieToken !== headerToken
     ) {
+      metrics.security.csrfTokenInvalid += 1;
       res.status(403).json({
         success: false,
         error: {
@@ -111,6 +156,9 @@ async function bootstrap() {
       metrics.byRoute.set(routeKey, (metrics.byRoute.get(routeKey) ?? 0) + 1);
       if (res.statusCode >= 400) {
         metrics.errorResponsesTotal += 1;
+      }
+      if (res.statusCode === 429 && routeKey.startsWith("POST /auth/login")) {
+        metrics.security.loginRateLimited += 1;
       }
 
       console.log(
@@ -147,6 +195,104 @@ async function bootstrap() {
 
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.get("/ops/metrics", (_req: any, res: any) => {
+    const auditActionCounts = auditService.getActionCounts();
+    const mail = notificationsService.getHealthSnapshot();
+    const loginFailed = auditActionCounts.login_failed ?? 0;
+    const errorRatePercent =
+      metrics.requestsTotal > 0 ? Math.round((metrics.errorResponsesTotal / metrics.requestsTotal) * 10_000) / 100 : 0;
+    const deliveryAttempts = mail.sent + mail.failed;
+    const mailFailureRatePercent =
+      deliveryAttempts > 0 ? Math.round((mail.failed / deliveryAttempts) * 10_000) / 100 : 0;
+    const nowMs = Date.now();
+    const toTimestamp = (iso: string | null): number | null => {
+      if (!iso) return null;
+      const timestamp = Date.parse(iso);
+      return Number.isNaN(timestamp) ? null : timestamp;
+    };
+    const lastSuccessAtMs = toTimestamp(mail.lastSuccessAt);
+    const lastFailureAtMs = toTimestamp(mail.lastFailureAt);
+    const minutesSinceLastSuccess = lastSuccessAtMs ? Math.floor((nowMs - lastSuccessAtMs) / 60_000) : null;
+    const alerts: Array<{ level: "warning" | "critical"; code: string; message: string; value: number; threshold: number }> = [];
+
+    if (metrics.security.csrfOriginBlocked >= securityAlertThresholds.csrfOriginBlocked) {
+      alerts.push({
+        level: "critical",
+        code: "CSRF_ORIGIN_BLOCK_SPIKE",
+        message: "CSRF blocked origins exceeded threshold",
+        value: metrics.security.csrfOriginBlocked,
+        threshold: securityAlertThresholds.csrfOriginBlocked
+      });
+    }
+    if (metrics.security.csrfTokenInvalid >= securityAlertThresholds.csrfTokenInvalid) {
+      alerts.push({
+        level: "warning",
+        code: "CSRF_TOKEN_INVALID_SPIKE",
+        message: "Invalid CSRF token responses exceeded threshold",
+        value: metrics.security.csrfTokenInvalid,
+        threshold: securityAlertThresholds.csrfTokenInvalid
+      });
+    }
+    if (metrics.security.loginRateLimited >= securityAlertThresholds.loginRateLimited) {
+      alerts.push({
+        level: "warning",
+        code: "LOGIN_RATE_LIMIT_SPIKE",
+        message: "Login rate-limit events exceeded threshold",
+        value: metrics.security.loginRateLimited,
+        threshold: securityAlertThresholds.loginRateLimited
+      });
+    }
+    if (metrics.requestsTotal >= 50 && errorRatePercent >= securityAlertThresholds.errorRatePercent) {
+      alerts.push({
+        level: "warning",
+        code: "HTTP_ERROR_RATE_HIGH",
+        message: "HTTP error rate exceeded threshold",
+        value: errorRatePercent,
+        threshold: securityAlertThresholds.errorRatePercent
+      });
+    }
+    if (mail.enabled && !mail.configured) {
+      alerts.push({
+        level: "critical",
+        code: "MAIL_TRANSPORT_MISCONFIGURED",
+        message: "MAIL_ENABLED=true but SMTP credentials are incomplete",
+        value: 1,
+        threshold: 1
+      });
+    }
+    if (mail.failed >= securityAlertThresholds.mailDeliveryFailed) {
+      alerts.push({
+        level: "warning",
+        code: "MAIL_DELIVERY_FAILURE_SPIKE",
+        message: "Email delivery failures exceeded threshold",
+        value: mail.failed,
+        threshold: securityAlertThresholds.mailDeliveryFailed
+      });
+    }
+    if (deliveryAttempts >= 5 && mailFailureRatePercent >= securityAlertThresholds.mailFailureRatePercent) {
+      alerts.push({
+        level: "critical",
+        code: "MAIL_DELIVERY_FAILURE_RATE_HIGH",
+        message: "Email delivery failure rate exceeded threshold",
+        value: mailFailureRatePercent,
+        threshold: securityAlertThresholds.mailFailureRatePercent
+      });
+    }
+    if (
+      mail.deliveryActive &&
+      mail.failed > 0 &&
+      minutesSinceLastSuccess !== null &&
+      minutesSinceLastSuccess >= securityAlertThresholds.mailSuccessStaleMinutes &&
+      (!lastFailureAtMs || !lastSuccessAtMs || lastFailureAtMs >= lastSuccessAtMs)
+    ) {
+      alerts.push({
+        level: "critical",
+        code: "MAIL_DELIVERY_STALE_SUCCESS",
+        message: "No successful email delivery observed within allowed window",
+        value: minutesSinceLastSuccess,
+        threshold: securityAlertThresholds.mailSuccessStaleMinutes
+      });
+    }
+
     res.json({
       success: true,
       data: {
@@ -156,7 +302,21 @@ async function bootstrap() {
         byMethod: Object.fromEntries(metrics.byMethod.entries()),
         byStatusCode: Object.fromEntries(metrics.byStatusCode.entries()),
         byRoute: Object.fromEntries(metrics.byRoute.entries()),
-        auditActionCounts: auditService.getActionCounts()
+        auditActionCounts,
+        mail,
+        mailIndicators: {
+          deliveryAttempts,
+          failureRatePercent: mailFailureRatePercent,
+          minutesSinceLastSuccess
+        },
+        security: {
+          csrfOriginBlocked: metrics.security.csrfOriginBlocked,
+          csrfTokenInvalid: metrics.security.csrfTokenInvalid,
+          loginRateLimited: metrics.security.loginRateLimited,
+          loginFailed
+        },
+        alerts,
+        thresholds: securityAlertThresholds
       }
     });
   });

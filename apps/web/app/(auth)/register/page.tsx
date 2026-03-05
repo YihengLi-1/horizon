@@ -25,7 +25,6 @@ function passwordStrength(pw: string): { score: number; label: string; color: st
 
 type RegisterResult = {
   message: string;
-  activationLink: string;
 };
 
 export default function RegisterPage() {
@@ -192,9 +191,7 @@ export default function RegisterPage() {
           {result ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
               <p>{result.message}</p>
-              <a className="mt-1 block font-semibold underline underline-offset-2" href={result.activationLink}>
-                Open activation link
-              </a>
+              <p className="mt-1 text-emerald-700">We sent a verification email. Please complete verification before login.</p>
             </div>
           ) : null}
           <Button disabled={loading} className="h-10 w-full bg-primary text-white hover:bg-primary/90" type="submit">

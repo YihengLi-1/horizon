@@ -1,6 +1,11 @@
 import { cookies } from "next/headers";
 
 const SERVER_API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const CSRF_COOKIE_NAME =
+  (process.env.NEXT_PUBLIC_CSRF_COOKIE_NAME || process.env.CSRF_COOKIE_NAME || "csrf_token").trim() || "csrf_token";
+const CSRF_HEADER_NAME =
+  (process.env.NEXT_PUBLIC_CSRF_HEADER_NAME || process.env.CSRF_HEADER_NAME || "x-csrf-token").trim().toLowerCase() ||
+  "x-csrf-token";
 
 type ServerApiOptions = {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
@@ -24,9 +29,9 @@ export async function serverApi<T>(path: string, options: ServerApiOptions = {})
     headers.cookie = cookieHeader;
   }
   if (!["GET", "HEAD", "OPTIONS", "TRACE"].includes(method)) {
-    const csrfToken = cookieStore.get("csrf_token")?.value;
+    const csrfToken = cookieStore.get(CSRF_COOKIE_NAME)?.value;
     if (csrfToken) {
-      headers["x-csrf-token"] = csrfToken;
+      headers[CSRF_HEADER_NAME] = csrfToken;
     }
   }
 

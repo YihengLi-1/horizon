@@ -44,6 +44,46 @@ check_exists() {
   fi
 }
 
+read_env_value() {
+  local file="$1"
+  local key="$2"
+  if [[ ! -f "$file" ]]; then
+    return 0
+  fi
+  local line
+  line="$(rg -n "^${key}=" "$file" -m 1 -N 2>/dev/null | head -n 1 || true)"
+  line="${line#*=}"
+  line="${line%\"}"
+  line="${line#\"}"
+  echo "$line"
+}
+
+check_env_pair_match() {
+  local file="$1"
+  local key_a="$2"
+  local key_b="$3"
+  local label="$4"
+  if [[ ! -f "$file" ]]; then
+    warning "$file not found, skipped $label"
+    return 0
+  fi
+
+  local value_a value_b
+  value_a="$(read_env_value "$file" "$key_a")"
+  value_b="$(read_env_value "$file" "$key_b")"
+
+  if [[ -z "$value_a" || -z "$value_b" ]]; then
+    warning "$file missing $key_a or $key_b for $label"
+    return 0
+  fi
+
+  if [[ "$value_a" == "$value_b" ]]; then
+    ok "$label"
+  else
+    bad "$label ($key_a=$value_a, $key_b=$value_b)"
+  fi
+}
+
 check_exists "apps/api/src/main.ts" "API bootstrap exists"
 check_exists "apps/api/src/registration/registration.service.ts" "Registration service exists"
 check_exists "apps/api/src/admin/admin.service.ts" "Admin service exists"
@@ -53,6 +93,7 @@ check_exists "docker-compose.yml" "Docker Compose exists"
 check_contains "apps/api/src/app.module.ts" "ThrottlerModule" "Global API throttling configured"
 check_contains "apps/api/src/auth/auth.controller.ts" "@Throttle" "Auth endpoints have throttling"
 check_contains "apps/api/src/main.ts" "CSRF_ORIGIN_BLOCKED" "CSRF origin guard middleware present"
+check_contains "apps/api/src/main.ts" "MAIL_DELIVERY_FAILURE_SPIKE" "Mail delivery failure alert present"
 check_contains "apps/api/src/registration/registration.service.ts" "FOR UPDATE" "Enrollment concurrency lock uses FOR UPDATE"
 check_contains "apps/api/src/registration/registration.service.ts" "TransactionIsolationLevel\.Serializable" "Serializable transaction retry path present"
 check_contains "apps/api/src/auth/auth.service.ts" "usedAt" "Reset/verification token one-time use tracking present"
@@ -61,10 +102,14 @@ check_contains "apps/api/src/admin/admin.controller.ts" "audit-logs/integrity" "
 check_contains "apps/api/src/health/health.controller.ts" "@Get\\(\"health\"\\)" "Health endpoint exists"
 check_contains "docker-compose.yml" "postgres-backup" "Database backup sidecar configured"
 check_contains "docker-compose.yml" "pgbackups" "Backup volume configured"
+check_contains "scripts/backup-restore-drill.sh" "pg_restore" "Backup restore drill script present"
 check_contains "apps/api/src/admin/admin.service.ts" "pageSize" "Admin server-side pagination logic present"
 check_contains "apps/api/src/admin/admin.service.ts" "COMPLETED_ENROLLMENT_LOCKED" "Grade lock for completed enrollments present"
 check_contains "apps/api/src/notifications/notifications.service.ts" "sendGradePostedEmail" "Grade email notification handler present"
 check_contains "apps/api/src/notifications/notifications.service.ts" "sendWaitlistPromotionEmail" "Waitlist promotion email handler present"
+check_contains "apps/api/src/notifications/notifications.service.ts" "getHealthSnapshot" "Email health snapshot exposed for ops metrics"
+check_contains "apps/web/lib/server-api.ts" "NEXT_PUBLIC_CSRF_COOKIE_NAME" "Server API uses configurable CSRF cookie name"
+check_contains "apps/web/lib/server-api.ts" "NEXT_PUBLIC_CSRF_HEADER_NAME" "Server API uses configurable CSRF header name"
 
 if [[ -f .env ]]; then
   if rg -n '^MAIL_ENABLED=' .env >/dev/null 2>&1; then
@@ -77,9 +122,14 @@ if [[ -f .env ]]; then
   else
     warning ".env missing SMTP_HOST"
   fi
+  check_env_pair_match ".env" "CSRF_COOKIE_NAME" "NEXT_PUBLIC_CSRF_COOKIE_NAME" ".env CSRF cookie name aligned (API/Web)"
+  check_env_pair_match ".env" "CSRF_HEADER_NAME" "NEXT_PUBLIC_CSRF_HEADER_NAME" ".env CSRF header name aligned (API/Web)"
 else
   warning ".env not found"
 fi
+
+check_env_pair_match ".env.example" "CSRF_COOKIE_NAME" "NEXT_PUBLIC_CSRF_COOKIE_NAME" ".env.example CSRF cookie name aligned (API/Web)"
+check_env_pair_match ".env.example" "CSRF_HEADER_NAME" "NEXT_PUBLIC_CSRF_HEADER_NAME" ".env.example CSRF header name aligned (API/Web)"
 
 echo
 printf "Summary: %d pass, %d warn, %d fail\n" "$pass" "$warn" "$fail"
