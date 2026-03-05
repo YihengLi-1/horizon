@@ -185,6 +185,13 @@ export class RegistrationService {
     return { enrolledCountBySection, maxWaitlistPositionBySection };
   }
 
+  private async lockSectionsForUpdate(tx: Prisma.TransactionClient, sectionIds: string[]): Promise<void> {
+    if (sectionIds.length === 0) return;
+    await tx.$queryRaw(
+      Prisma.sql`SELECT id FROM "Section" WHERE id IN (${Prisma.join(sectionIds)}) FOR UPDATE`
+    );
+  }
+
   private getPassedCourseIds(completedEnrollments: CompletedEnrollmentWithCourse[]): Set<string> {
     return new Set(
       completedEnrollments
@@ -639,6 +646,7 @@ export class RegistrationService {
       }
 
       const txSectionIds = Array.from(new Set(txCartItems.map((item) => item.sectionId)));
+      await this.lockSectionsForUpdate(tx, txSectionIds);
 
       const [txExistingEnrollments, txCompletedEnrollments, txSectionStats] = await Promise.all([
         tx.enrollment.findMany({

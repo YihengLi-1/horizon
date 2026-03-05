@@ -19,6 +19,7 @@ const ACCESS_EXPIRES_SECONDS = 60 * 60 * 2;
 const LOGIN_RATE_LIMIT_WINDOW_MS = Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS || 10 * 60 * 1000);
 const LOGIN_RATE_LIMIT_MAX_ATTEMPTS = Number(process.env.LOGIN_RATE_LIMIT_MAX_ATTEMPTS || 8);
 const LOGIN_RATE_LIMIT_LOCK_MS = Number(process.env.LOGIN_RATE_LIMIT_LOCK_MS || 15 * 60 * 1000);
+const PASSWORD_RESET_TOKEN_TTL_MS = Number(process.env.PASSWORD_RESET_TOKEN_TTL_MS || 30 * 60 * 1000);
 
 type LoginAttemptState = {
   count: number;
@@ -326,13 +327,18 @@ export class AuthService {
     }
 
     const token = randomBytes(32).toString("hex");
-    await this.prisma.passwordResetToken.create({
-      data: {
-        userId: user.id,
-        token,
-        expiresAt: new Date(Date.now() + 60 * 60 * 1000)
-      }
-    });
+    await this.prisma.$transaction([
+      this.prisma.passwordResetToken.deleteMany({
+        where: { userId: user.id }
+      }),
+      this.prisma.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          token,
+          expiresAt: new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS)
+        }
+      })
+    ]);
 
     const resetLink = `${process.env.WEB_URL || "http://localhost:3000"}/reset?token=${token}`;
     return {
@@ -354,9 +360,10 @@ export class AuthService {
         where: { id: tokenRecord.userId },
         data: { passwordHash }
       }),
-      this.prisma.passwordResetToken.update({
-        where: { id: tokenRecord.id },
-        data: { usedAt: new Date() }
+      this.prisma.passwordResetToken.deleteMany({
+        where: {
+          OR: [{ id: tokenRecord.id }, { userId: tokenRecord.userId }]
+        }
       })
     ]);
 

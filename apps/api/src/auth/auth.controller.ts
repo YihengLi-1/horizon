@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { Request, Response } from "express";
 import {
   forgotPasswordSchema,
@@ -18,6 +19,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post("register")
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async register(@Body(new ZodValidationPipe(registerSchema)) body: unknown, @Req() req: Request) {
     return ok(await this.authService.register(body as never, req));
   }
@@ -29,6 +31,7 @@ export class AuthController {
   }
 
   @Post("login")
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async login(
     @Body(new ZodValidationPipe(loginSchema)) body: unknown,
     @Req() req: Request,
@@ -44,11 +47,13 @@ export class AuthController {
   }
 
   @Post("forgot-password")
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async forgotPassword(@Body(new ZodValidationPipe(forgotPasswordSchema)) body: unknown) {
     return ok(await this.authService.forgotPassword(body as never));
   }
 
   @Post("reset-password")
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async resetPassword(@Body(new ZodValidationPipe(resetPasswordSchema)) body: unknown) {
     return ok(await this.authService.resetPassword(body as never));
   }

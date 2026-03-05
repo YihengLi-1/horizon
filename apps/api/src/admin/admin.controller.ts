@@ -94,8 +94,24 @@ export class AdminController {
   }
 
   @Get("enrollments")
-  async listEnrollments(@Query("termId") termId?: string, @Query("sectionId") sectionId?: string) {
-    return ok(await this.adminService.listEnrollments(termId, sectionId));
+  async listEnrollments(
+    @Query("termId") termId?: string,
+    @Query("sectionId") sectionId?: string,
+    @Query("status") status?: string,
+    @Query("search") search?: string,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string
+  ) {
+    return ok(
+      await this.adminService.listEnrollments({
+        termId,
+        sectionId,
+        status,
+        search,
+        page: page ? Number(page) : undefined,
+        pageSize: pageSize ? Number(pageSize) : undefined
+      })
+    );
   }
 
   @Patch("enrollments/:id")
@@ -147,8 +163,24 @@ export class AdminController {
   }
 
   @Get("audit-logs")
-  async listAuditLogs(@Query("limit") limit?: string) {
-    return ok(await this.adminService.listAuditLogs(limit ? Number(limit) : undefined));
+  async listAuditLogs(
+    @Query("limit") limit?: string,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
+    @Query("action") action?: string,
+    @Query("entityType") entityType?: string,
+    @Query("search") search?: string
+  ) {
+    return ok(
+      await this.adminService.listAuditLogs({
+        limit: limit ? Number(limit) : undefined,
+        page: page ? Number(page) : undefined,
+        pageSize: pageSize ? Number(pageSize) : undefined,
+        action,
+        entityType,
+        search
+      })
+    );
   }
 
   @Post("import/students")

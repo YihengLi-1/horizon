@@ -1,5 +1,5 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { Modality, Prisma } from "@prisma/client";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { EnrollmentStatus, Modality, Prisma } from "@prisma/client";
 import argon2 from "argon2";
 import {
   createCourseSchema,
@@ -70,6 +70,13 @@ type ImportResultPayload = {
   wouldCreate?: number;
   skipped?: number;
   idempotencyReused?: boolean;
+};
+
+type PaginatedResult<T> = {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
 function parseCsvRows(csv: string): string[][] {
@@ -185,8 +192,16 @@ function parseCsvRows(csv: string): string[][] {
 
 @Injectable()
 export class AdminService {
+  private readonly defaultPageSize = 50;
+  private readonly maxPageSize = 200;
   private readonly importIdempotencyStore = new Map<string, { storedAt: number; result: ImportResultPayload }>();
   private readonly importIdempotencyTtlMs = Number(process.env.IMPORT_IDEMPOTENCY_TTL_MS || 24 * 60 * 60 * 1000);
+  private readonly superAdminUserIds = new Set(
+    (process.env.SUPERADMIN_USER_IDS || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean)
+  );
 
   constructor(
     private readonly prisma: PrismaService,
@@ -218,6 +233,29 @@ export class AdminService {
       storedAt: Date.now(),
       result
     });
+  }
+
+  private normalizePagination(input?: { page?: number; pageSize?: number }): {
+    page: number;
+    pageSize: number;
+    skip: number;
+  } {
+    const rawPage = input?.page;
+    const rawPageSize = input?.pageSize;
+
+    const page = Number.isFinite(rawPage) && (rawPage as number) > 0 ? Math.floor(rawPage as number) : 1;
+    const requestedPageSize =
+      Number.isFinite(rawPageSize) && (rawPageSize as number) > 0
+        ? Math.floor(rawPageSize as number)
+        : this.defaultPageSize;
+    const pageSize = Math.min(this.maxPageSize, requestedPageSize);
+    const skip = (page - 1) * pageSize;
+
+    return { page, pageSize, skip };
+  }
+
+  private isSuperAdmin(actorUserId: string): boolean {
+    return this.superAdminUserIds.has(actorUserId);
   }
 
   private isSerializationFailure(error: unknown): boolean {
@@ -629,25 +667,78 @@ export class AdminService {
     return { id };
   }
 
-  async listEnrollments(termId?: string, sectionId?: string) {
-    return this.prisma.enrollment.findMany({
-      where: {
-        termId: termId || undefined,
-        sectionId: sectionId || undefined
-      },
-      include: {
-        student: { include: { studentProfile: true } },
-        term: true,
-        section: { include: { course: true, meetingTimes: true } }
-      },
-      orderBy: { createdAt: "desc" }
-    });
+  async listEnrollments(params: {
+    termId?: string;
+    sectionId?: string;
+    status?: string;
+    search?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<PaginatedResult<Prisma.EnrollmentGetPayload<{
+    include: {
+      student: { include: { studentProfile: true } };
+      term: true;
+      section: { include: { course: true; meetingTimes: true } };
+    };
+  }>>> {
+    const { termId, sectionId, status, search, page, pageSize } = params;
+    const paging = this.normalizePagination({ page, pageSize });
+    const q = search?.trim();
+
+    const where: Prisma.EnrollmentWhereInput = {
+      termId: termId || undefined,
+      sectionId: sectionId || undefined,
+      status:
+        status && ["ENROLLED", "WAITLISTED", "PENDING_APPROVAL", "DROPPED", "COMPLETED"].includes(status)
+          ? (status as EnrollmentStatus)
+          : undefined
+    };
+
+    if (q) {
+      where.OR = [
+        { student: { is: { studentId: { contains: q, mode: "insensitive" } } } },
+        { student: { is: { email: { contains: q, mode: "insensitive" } } } },
+        { student: { is: { studentProfile: { is: { legalName: { contains: q, mode: "insensitive" } } } } } },
+        { section: { is: { sectionCode: { contains: q, mode: "insensitive" } } } },
+        { section: { is: { course: { is: { code: { contains: q, mode: "insensitive" } } } } } },
+        { section: { is: { course: { is: { title: { contains: q, mode: "insensitive" } } } } } }
+      ];
+    }
+
+    const [total, data] = await Promise.all([
+      this.prisma.enrollment.count({ where }),
+      this.prisma.enrollment.findMany({
+        where,
+        include: {
+          student: { include: { studentProfile: true } },
+          term: true,
+          section: { include: { course: true, meetingTimes: true } }
+        },
+        orderBy: { createdAt: "desc" },
+        skip: paging.skip,
+        take: paging.pageSize
+      })
+    ]);
+
+    return {
+      data,
+      total,
+      page: paging.page,
+      pageSize: paging.pageSize
+    };
   }
 
   async updateEnrollment(id: string, input: { status?: string; finalGrade?: string }, actorUserId: string) {
     const enrollment = await this.prisma.enrollment.findUnique({ where: { id } });
     if (!enrollment) {
       throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "Enrollment not found" });
+    }
+
+    if (enrollment.status === "COMPLETED" && !this.isSuperAdmin(actorUserId)) {
+      throw new ForbiddenException({
+        code: "COMPLETED_ENROLLMENT_LOCKED",
+        message: "Completed enrollments are locked and cannot be modified"
+      });
     }
 
     const updated = await this.prisma.enrollment.update({
@@ -792,6 +883,13 @@ export class AdminService {
       throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "Enrollment not found" });
     }
 
+    if (enrollment.status === "COMPLETED" && !this.isSuperAdmin(actorUserId)) {
+      throw new ForbiddenException({
+        code: "COMPLETED_ENROLLMENT_LOCKED",
+        message: "Completed enrollments are locked and cannot be modified"
+      });
+    }
+
     const updated = await this.prisma.enrollment.update({
       where: { id: input.enrollmentId },
       data: {
@@ -864,21 +962,75 @@ export class AdminService {
     return updated;
   }
 
-  async listAuditLogs(limit = 200) {
-    return this.prisma.auditLog.findMany({
-      take: limit,
-      orderBy: { createdAt: "desc" },
-      include: {
-        actor: {
-          select: {
-            id: true,
-            email: true,
-            role: true,
-            studentId: true
+  async listAuditLogs(params?: {
+    limit?: number;
+    page?: number;
+    pageSize?: number;
+    action?: string;
+    entityType?: string;
+    search?: string;
+  }): Promise<PaginatedResult<Prisma.AuditLogGetPayload<{
+    include: {
+      actor: {
+        select: {
+          id: true;
+          email: true;
+          role: true;
+          studentId: true;
+        };
+      };
+    };
+  }>>> {
+    const q = params?.search?.trim();
+    const action = params?.action?.trim();
+    const entityType = params?.entityType?.trim();
+
+    const paging = this.normalizePagination({
+      page: params?.page,
+      pageSize: params?.limit ?? params?.pageSize
+    });
+
+    const where: Prisma.AuditLogWhereInput = {
+      action: action || undefined,
+      entityType: entityType || undefined
+    };
+
+    if (q) {
+      where.OR = [
+        { action: { contains: q, mode: "insensitive" } },
+        { entityType: { contains: q, mode: "insensitive" } },
+        { entityId: { contains: q, mode: "insensitive" } },
+        { actor: { is: { email: { contains: q, mode: "insensitive" } } } },
+        { actor: { is: { studentId: { contains: q, mode: "insensitive" } } } }
+      ];
+    }
+
+    const [total, data] = await Promise.all([
+      this.prisma.auditLog.count({ where }),
+      this.prisma.auditLog.findMany({
+        where,
+        take: paging.pageSize,
+        skip: paging.skip,
+        orderBy: { createdAt: "desc" },
+        include: {
+          actor: {
+            select: {
+              id: true,
+              email: true,
+              role: true,
+              studentId: true
+            }
           }
         }
-      }
-    });
+      })
+    ]);
+
+    return {
+      data,
+      total,
+      page: paging.page,
+      pageSize: paging.pageSize
+    };
   }
 
   async importStudents(input: CsvImportInput, actorUserId: string) {
