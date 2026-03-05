@@ -70,10 +70,10 @@ export default function LoginPage() {
         <p className="mt-1 text-sm text-slate-500">Welcome back to 地平线 SIS</p>
       </CardHeader>
       <CardContent>
-        <form className="space-y-4" onSubmit={onSubmit}>
+        <form aria-label="Sign in form" className="space-y-4" onSubmit={onSubmit}>
           <div className="space-y-1">
             <label className="text-sm font-medium">Student ID or Email</label>
-            <Input value={identifier} onChange={(e) => setIdentifier(e.target.value)} required />
+            <Input value={identifier} onChange={(e) => setIdentifier(e.target.value)} required aria-required="true" />
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium">Password</label>
@@ -83,6 +83,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                aria-required="true"
                 className="pr-10"
               />
               <button

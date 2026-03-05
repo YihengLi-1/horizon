@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 
 const API_URL = process.env.API_URL || "http://localhost:4000";
 
-const ADMIN_IDENTIFIER = process.env.SMOKE_ADMIN_IDENTIFIER || "admin@university.edu";
-const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD || "Admin123!";
-const STUDENT1_IDENTIFIER = process.env.SMOKE_STUDENT_IDENTIFIER || "S1001";
-const STUDENT1_PASSWORD = process.env.SMOKE_STUDENT_PASSWORD || "Student123!";
-const STUDENT2_IDENTIFIER = process.env.SMOKE_STUDENT2_IDENTIFIER || "S1002";
-const STUDENT2_PASSWORD = process.env.SMOKE_STUDENT2_PASSWORD || "Student123!";
+const ADMIN_IDENTIFIER = process.env.SMOKE_ADMIN_IDENTIFIER || "admin@sis.edu";
+const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD || "Admin@2026!";
+const STUDENT1_IDENTIFIER = process.env.SMOKE_STUDENT_IDENTIFIER || "student1@sis.edu";
+const STUDENT1_PASSWORD = process.env.SMOKE_STUDENT_PASSWORD || "Student@2026!";
+const STUDENT2_IDENTIFIER = process.env.SMOKE_STUDENT2_IDENTIFIER || "student2@sis.edu";
+const STUDENT2_PASSWORD = process.env.SMOKE_STUDENT2_PASSWORD || "Student@2026!";
 
 class ApiClient {
   constructor(baseUrl) {
@@ -427,6 +427,23 @@ async function main() {
   });
   assert.equal(Array.isArray(csvError.details), true, "Expected CSV validation details array");
   assert.equal(csvError.details.length > 0, true, "Expected non-empty CSV validation details");
+
+  console.log("Validating readiness and docs endpoints...");
+  const readyResponse = await fetch(`${API_URL}/ops/ready`);
+  assert.equal(readyResponse.ok, true, `Expected /ops/ready 200, got ${readyResponse.status}`);
+  const readyBody = await readyResponse.json();
+  assert.equal(Boolean(readyBody?.status === "ready" || readyBody?.uptime > 0), true, "Missing ready status");
+
+  const swaggerResponse = await fetch(`${API_URL}/api/docs-json`);
+  assert.equal(swaggerResponse.ok, true, `Expected /api/docs-json 200, got ${swaggerResponse.status}`);
+
+  const notificationsResponse = await student1.request("/students/notifications");
+  assert.equal(notificationsResponse.ok, true, `Expected notifications 200, got ${notificationsResponse.status}`);
+  assert.equal(
+    Array.isArray(notificationsResponse.payload?.data ?? notificationsResponse.payload),
+    true,
+    "Expected notifications array"
+  );
 
   console.log("P0 API rule checks passed.");
 }

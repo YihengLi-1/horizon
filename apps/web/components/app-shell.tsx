@@ -91,7 +91,7 @@ export function AppShell({
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navMeta = areaMeta[area];
-  const sidebarId = `${area}-sidebar-nav`;
+  const sidebarId = "sidebar";
 
   const pageTitle = useMemo(() => {
     const normalizedPath = pathname.replace(/\/+$/, "");
@@ -231,7 +231,7 @@ export function AppShell({
           <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
             {navMeta.label}
           </p>
-          <nav>
+          <nav aria-label="Main navigation">
             {navGroups.map((group) => (
               <div key={group.label} className="mt-4 first:mt-0">
                 <p className="mb-1 px-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
