@@ -57,7 +57,13 @@ export class AuditService {
     const { actorUserId, action, entityType, entityId, metadata, req } = params;
     const normalizedMetadata = this.canonicalizeMetadata(metadata);
     const ip = req?.ip ?? null;
-    const userAgent = req?.headers["user-agent"] ?? null;
+    const rawUserAgent = req?.headers["user-agent"] as unknown;
+    const userAgent =
+      typeof rawUserAgent === "string"
+        ? rawUserAgent
+        : Array.isArray(rawUserAgent)
+          ? rawUserAgent.join(", ")
+          : null;
 
     await client.$executeRawUnsafe('LOCK TABLE "AuditLog" IN SHARE ROW EXCLUSIVE MODE');
     const previous = await client.auditLog.findFirst({

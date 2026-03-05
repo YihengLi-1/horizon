@@ -92,7 +92,6 @@ export class StudentsService {
   }, actorUserId: string) {
     const existing = await this.prisma.user.findFirst({
       where: {
-        deletedAt: null,
         OR: [{ email: input.email }, { studentId: input.studentId }]
       }
     });

@@ -1,5 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
 import { changePasswordSchema, createStudentSchema, updateProfileSchema } from "@sis/shared";
+import { AdminPermissionGuard } from "../common/admin-permission.guard";
+import { RequireAdminPermissions } from "../common/admin-permission.decorator";
 import { CurrentUser } from "../common/current-user.decorator";
 import { JwtAuthGuard } from "../common/jwt-auth.guard";
 import { Roles } from "../common/roles.decorator";
@@ -9,7 +11,7 @@ import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { StudentsService } from "./students.service";
 
 @Controller("students")
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, AdminPermissionGuard)
 export class StudentsController {
   constructor(private readonly studentsService: StudentsService) {}
 
@@ -38,18 +40,21 @@ export class StudentsController {
   }
 
   @Roles("ADMIN")
+  @RequireAdminPermissions("students:read")
   @Get()
   async adminList() {
     return ok(await this.studentsService.adminListStudents());
   }
 
   @Roles("ADMIN")
+  @RequireAdminPermissions("students:read")
   @Get(":id")
   async adminGet(@Param("id") id: string) {
     return ok(await this.studentsService.adminGetStudent(id));
   }
 
   @Roles("ADMIN")
+  @RequireAdminPermissions("students:write")
   @Post()
   async adminCreate(@Body(new ZodValidationPipe(createStudentSchema)) body: unknown, @CurrentUser() user: { userId: string }) {
     const payload = body as {
@@ -62,6 +67,7 @@ export class StudentsController {
   }
 
   @Roles("ADMIN")
+  @RequireAdminPermissions("students:write")
   @Patch(":id")
   async adminUpdate(
     @Param("id") id: string,
@@ -79,6 +85,7 @@ export class StudentsController {
   }
 
   @Roles("ADMIN")
+  @RequireAdminPermissions("students:write")
   @Delete(":id")
   async adminDelete(@Param("id") id: string, @CurrentUser() user: { userId: string }) {
     return ok(await this.studentsService.adminDeleteStudent(id, user.userId));

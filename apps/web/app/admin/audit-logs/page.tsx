@@ -114,6 +114,18 @@ export default function AuditLogsPage() {
   const actions = useMemo(() => Array.from(new Set(logs.map((l) => l.action))).sort(), [logs]);
   const entityTypes = useMemo(() => Array.from(new Set(logs.map((l) => l.entityType))).sort(), [logs]);
 
+  const pageStats = useMemo(() => {
+    const actorSet = new Set<string>();
+    const actionCount = new Map<string, number>();
+    for (const log of logs) {
+      const actor = log.actor?.email || log.actor?.studentId || "system";
+      actorSet.add(actor);
+      actionCount.set(log.action, (actionCount.get(log.action) ?? 0) + 1);
+    }
+    const topAction = [...actionCount.entries()].sort((a, b) => b[1] - a[1])[0];
+    return { uniqueActors: actorSet.size, topAction: topAction?.[0] ?? "-" };
+  }, [logs]);
+
   const exportCsv = () => {
     const rows = [
       ["Timestamp", "Actor", "Action", "Entity Type", "Entity ID"],
@@ -170,6 +182,28 @@ export default function AuditLogsPage() {
               Refresh
             </button>
           </div>
+        </div>
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="campus-kpi border-slate-200 bg-white">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Matched Events</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-900">{total.toLocaleString()}</p>
+        </div>
+        <div className="campus-kpi border-slate-200 bg-white">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">This Page</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-900">{logs.length}</p>
+          <p className="mt-0.5 text-xs text-slate-500">Page {safePage} of {totalPages}</p>
+        </div>
+        <div className="campus-kpi border-blue-200 bg-blue-50/70">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Unique Actors</p>
+          <p className="mt-1 text-2xl font-semibold text-blue-900">{pageStats.uniqueActors}</p>
+          <p className="mt-0.5 text-xs text-blue-600">on this page</p>
+        </div>
+        <div className="campus-kpi border-violet-200 bg-violet-50/70">
+          <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Top Action</p>
+          <p className="mt-1 truncate text-lg font-semibold text-violet-900">{pageStats.topAction}</p>
+          <p className="mt-0.5 text-xs text-violet-600">most frequent on page</p>
         </div>
       </section>
 
@@ -254,7 +288,7 @@ export default function AuditLogsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-700">{log.entityType}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-500">{log.entityId ? log.entityId.slice(0, 8) + "..." : "-"}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-slate-500" title={log.entityId ?? undefined}>{log.entityId ? log.entityId.slice(0, 8) + "…" : "-"}</td>
                 </tr>
               ))
             )}

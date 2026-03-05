@@ -242,9 +242,17 @@ export default function TermsPage() {
   };
 
   const stats = useMemo(() => {
-    if (terms.length === 0) return { total: 0, latest: "-" };
+    if (terms.length === 0) return { total: 0, latest: "-", active: 0, regOpen: 0, upcoming: 0, past: 0 };
     const sorted = [...terms].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
-    return { total: terms.length, latest: sorted[0].name };
+    let active = 0, regOpen = 0, upcoming = 0, past = 0;
+    for (const t of terms) {
+      const badge = termStatusBadge(t).label;
+      if (badge === "Active") active++;
+      else if (badge === "Reg. Open") regOpen++;
+      else if (badge === "Upcoming") upcoming++;
+      else if (badge === "Past") past++;
+    }
+    return { total: terms.length, latest: sorted[0].name, active, regOpen, upcoming, past };
   }, [terms]);
 
   const exportCsv = () => {
@@ -303,6 +311,25 @@ export default function TermsPage() {
               Refresh
             </button>
           </div>
+        </div>
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="campus-kpi border-slate-200 bg-white">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Terms</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-900">{stats.total}</p>
+        </div>
+        <div className="campus-kpi border-emerald-200 bg-emerald-50/70">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Reg. Open</p>
+          <p className="mt-1 text-2xl font-semibold text-emerald-900">{stats.regOpen}</p>
+        </div>
+        <div className="campus-kpi border-blue-200 bg-blue-50/70">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Active</p>
+          <p className="mt-1 text-2xl font-semibold text-blue-900">{stats.active}</p>
+        </div>
+        <div className="campus-kpi border-amber-200 bg-amber-50/70">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Upcoming</p>
+          <p className="mt-1 text-2xl font-semibold text-amber-900">{stats.upcoming}</p>
         </div>
       </section>
 
