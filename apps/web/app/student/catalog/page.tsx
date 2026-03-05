@@ -656,7 +656,9 @@ export default function StudentCatalogPage() {
               <option value="RELEVANCE">Relevance</option>
               <option value="SEATS_DESC">Seats available</option>
               <option value="CODE_ASC">Course code (A-Z)</option>
-              <option value="CREDITS_ASC">Credits (low-high)</option>
+              <option value="TITLE_ASC">Title (A-Z)</option>
+              <option value="CREDITS_ASC">Credits (low → high)</option>
+              <option value="CREDITS_DESC">Credits (high → low)</option>
             </select>
           </label>
         </div>
