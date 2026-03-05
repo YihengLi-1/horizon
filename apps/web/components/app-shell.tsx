@@ -32,6 +32,11 @@ type NavItem = {
   icon: ReactNode;
 };
 
+type NavGroup = {
+  label: string;
+  hrefs: string[];
+};
+
 const iconClass = "size-4";
 
 const studentItems: NavItem[] = [
@@ -99,6 +104,31 @@ export function AppShell({
     return `${navMeta.label} / ${toTitle(parts[parts.length - 1])}`;
   }, [pathname, navMeta.label]);
 
+  const navGroups = useMemo(() => {
+    const groups: NavGroup[] =
+      area === "admin"
+        ? [
+            { label: "Overview", hrefs: ["/admin/dashboard"] },
+            { label: "Data", hrefs: ["/admin/students", "/admin/courses", "/admin/sections", "/admin/terms"] },
+            { label: "Operations", hrefs: ["/admin/enrollments", "/admin/waitlist"] },
+            { label: "Tools", hrefs: ["/admin/invite-codes", "/admin/import", "/admin/audit-logs"] }
+          ]
+        : [
+            { label: "Overview", hrefs: ["/student/dashboard"] },
+            { label: "Registration", hrefs: ["/student/catalog", "/student/cart", "/student/schedule"] },
+            { label: "Academic", hrefs: ["/student/grades", "/student/profile"] }
+          ];
+
+    return groups
+      .map((group) => ({
+        label: group.label,
+        items: group.hrefs
+          .map((href) => navMeta.items.find((item) => item.href === href))
+          .filter((item): item is NavItem => Boolean(item))
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [area, navMeta.items]);
+
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   useEffect(() => {
@@ -128,16 +158,16 @@ export function AppShell({
         href={item.href}
         onClick={() => setSidebarOpen(false)}
         aria-current={active ? "page" : undefined}
-        className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm no-underline transition ${
+        className={`group flex items-center gap-3 rounded-r-lg border-l-2 px-3 py-2.5 text-sm no-underline transition ${
           active
-            ? "bg-slate-900 text-white shadow-sm"
-            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            ? "border-primary bg-primary/10 text-primary font-semibold"
+            : "border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
         }`}
       >
         <span
           className={`inline-flex size-7 items-center justify-center rounded-md border ${
             active
-              ? "border-slate-700 bg-slate-800 text-white"
+              ? "border-primary/30 bg-primary/10 text-primary"
               : "border-slate-200 bg-white text-slate-500 group-hover:border-slate-300 group-hover:text-slate-700"
           }`}
         >
@@ -195,10 +225,24 @@ export function AppShell({
           <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
             {navMeta.label}
           </p>
-          <nav className="space-y-1.5">{navMeta.items.map(renderNavItem)}</nav>
-          <div className="mt-auto rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
-            <p className="truncate font-semibold text-slate-800">{userLabel}</p>
-            <p className="mt-0.5">{area === "student" ? "Student Services" : "Administrative Services"}</p>
+          <nav>
+            {navGroups.map((group) => (
+              <div key={group.label} className="mt-4 first:mt-0">
+                <p className="mb-1 px-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                  {group.label}
+                </p>
+                <div className="space-y-1.5">{group.items.map(renderNavItem)}</div>
+              </div>
+            ))}
+          </nav>
+          <div className="mt-auto">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+              <p className="truncate font-semibold text-slate-800">{userLabel}</p>
+              <p className="mt-0.5">{area === "student" ? "Student Services" : "Administrative Services"}</p>
+            </div>
+            <div className="mt-3 border-t border-slate-200 px-3 py-3">
+              <p className="text-[10px] text-slate-400">地平线 SIS · v1.0</p>
+            </div>
           </div>
         </div>
       </aside>
