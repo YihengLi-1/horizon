@@ -23,6 +23,8 @@ import {
   User,
   Users
 } from "lucide-react";
+import DarkModeToggle from "@/components/DarkModeToggle";
+import KeyboardShortcutsModal from "@/components/KeyboardShortcutsModal";
 import NotificationBell from "@/components/NotificationBell";
 import { LogoutButton } from "@/components/logout-button";
 import SessionExpiryBanner from "@/components/SessionExpiryBanner";
@@ -49,6 +51,7 @@ const studentItems: NavItem[] = [
   { href: "/student/cart", label: "Cart", icon: <ShoppingCart className={iconClass} /> },
   { href: "/student/schedule", label: "Schedule", icon: <CalendarDays className={iconClass} /> },
   { href: "/student/grades", label: "Grades", icon: <GraduationCap className={iconClass} /> },
+  { href: "/student/calendar", label: "Calendar", icon: <CalendarRange className={iconClass} /> },
   { href: "/student/profile", label: "Profile", icon: <User className={iconClass} /> }
 ];
 
@@ -121,7 +124,7 @@ export function AppShell({
         : [
             { label: "Overview", hrefs: ["/student/dashboard"] },
             { label: "Registration", hrefs: ["/student/catalog", "/student/cart", "/student/schedule"] },
-            { label: "Academic", hrefs: ["/student/grades", "/student/profile"] }
+            { label: "Academic", hrefs: ["/student/grades", "/student/calendar", "/student/profile"] }
           ];
 
     return groups
@@ -184,7 +187,7 @@ export function AppShell({
   };
 
   return (
-    <div data-area={area} className="min-h-screen bg-slate-50 text-slate-900">
+    <div data-area={area} className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <SessionExpiryBanner />
       <a
         href="#main-content"
@@ -205,7 +208,7 @@ export function AppShell({
         aria-modal={sidebarOpen ? "true" : undefined}
         aria-label={`${navMeta.label} navigation`}
         id={sidebarId}
-        className={`fixed inset-y-0 left-0 z-50 w-72 border-r border-slate-200 bg-white text-slate-900 shadow-[0_26px_55px_-36px_rgba(15,23,42,0.65)] transition-transform md:block md:translate-x-0 ${
+        className={`no-print fixed inset-y-0 left-0 z-50 w-72 border-r border-slate-200 bg-white text-slate-900 shadow-[0_26px_55px_-36px_rgba(15,23,42,0.65)] transition-transform dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 md:block md:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "hidden -translate-x-full"
         }`}
       >
@@ -254,7 +257,7 @@ export function AppShell({
       </aside>
 
       <div className="relative md:pl-72">
-        <header className="sticky top-0 z-30 border-b border-slate-200/85 bg-white/95 backdrop-blur-md">
+        <header className="no-print sticky top-0 z-30 border-b border-slate-200/85 bg-white/95 backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/95">
           <div className="mx-auto flex h-16 max-w-[1360px] items-center justify-between px-4 md:px-8 lg:px-10">
             <div className="flex min-w-0 items-center gap-3">
               <button
@@ -276,6 +279,7 @@ export function AppShell({
             </div>
 
             <div className="flex items-center gap-2">
+              <DarkModeToggle />
               {area === "student" ? (
                 <NotificationBell apiBase={process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"} />
               ) : null}
@@ -289,12 +293,13 @@ export function AppShell({
 
         <main
           id="main-content"
-          className={`mx-auto max-w-[1360px] p-4 md:p-8 lg:p-10 ${area === "student" ? "pb-16 md:pb-0" : ""}`}
+          className={`mx-auto max-w-[1360px] p-4 dark:bg-slate-950 md:p-8 lg:p-10 ${area === "student" ? "pb-16 md:pb-0" : ""}`}
         >
           {children}
         </main>
       </div>
       {area === "student" ? <StudentMobileNav /> : null}
+      <KeyboardShortcutsModal />
     </div>
   );
 }

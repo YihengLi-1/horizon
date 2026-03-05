@@ -55,6 +55,54 @@ function gpaTier(gpa: number): { label: string; cls: string } {
   return { label: "Academic Warning", cls: "border-amber-200 bg-amber-50 text-amber-700" };
 }
 
+interface Standing {
+  label: string;
+  description: string;
+  cls: string;
+  icon: string;
+}
+
+function getStanding(gpa: number | null): Standing {
+  if (gpa === null) {
+    return {
+      label: "No GPA",
+      description: "No grades recorded yet.",
+      cls: "border-slate-200 bg-slate-50 text-slate-700",
+      icon: "📋"
+    };
+  }
+  if (gpa >= 3.7) {
+    return {
+      label: "Dean's List",
+      description: `GPA ${gpa.toFixed(2)} — Outstanding academic performance.`,
+      cls: "border-emerald-200 bg-emerald-50 text-emerald-800",
+      icon: "🏆"
+    };
+  }
+  if (gpa >= 3.0) {
+    return {
+      label: "Good Standing",
+      description: `GPA ${gpa.toFixed(2)} — Satisfactory academic progress.`,
+      cls: "border-blue-200 bg-blue-50 text-blue-800",
+      icon: "✅"
+    };
+  }
+  if (gpa >= 2.0) {
+    return {
+      label: "Satisfactory",
+      description: `GPA ${gpa.toFixed(2)} — Meeting minimum requirements.`,
+      cls: "border-amber-200 bg-amber-50 text-amber-800",
+      icon: "⚠️"
+    };
+  }
+  return {
+    label: "Academic Warning",
+    description: `GPA ${gpa.toFixed(2)} — Below minimum GPA requirement (2.0). Please contact your advisor.`,
+    cls: "border-red-200 bg-red-50 text-red-800",
+    icon: "🚨"
+  };
+}
+
 function gradeDistribution(items: GradeItem[]): { A: number; B: number; C: number; D: number; F: number; other: number } {
   const dist = { A: 0, B: 0, C: 0, D: 0, F: 0, other: 0 };
   for (const item of items) {
@@ -154,6 +202,7 @@ export default async function GradesPage({
   const terms = Array.from(byTerm.keys());
   const cumulative = calcGPA(grades);
   const completedCredits = grades.reduce((sum, item) => sum + item.section.credits, 0);
+  const standing = getStanding(cumulative?.gpa ?? null);
 
   return (
     <div className="campus-page">
@@ -189,6 +238,14 @@ export default async function GradesPage({
               Browse catalog
             </Link>
           </div>
+        </div>
+      </section>
+
+      <section className={`flex items-start gap-3 rounded-xl border p-4 ${standing.cls}`}>
+        <span className="text-2xl">{standing.icon}</span>
+        <div>
+          <p className="text-sm font-bold">{standing.label}</p>
+          <p className="mt-0.5 text-sm">{standing.description}</p>
         </div>
       </section>
 

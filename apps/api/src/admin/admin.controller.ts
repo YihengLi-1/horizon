@@ -48,6 +48,12 @@ export class AdminController {
     return ok(await this.adminService.updateTerm(id, body as never, user.userId));
   }
 
+  @Patch("terms/:id/toggle-registration")
+  @RequireAdminPermissions("terms:write")
+  async toggleRegistration(@Param("id") id: string, @CurrentUser() user: { userId: string }) {
+    return ok(await this.adminService.toggleTermRegistration(id, user.userId));
+  }
+
   @Delete("terms/:id")
   @RequireAdminPermissions("terms:write")
   async deleteTerm(@Param("id") id: string, @CurrentUser() user: { userId: string }) {

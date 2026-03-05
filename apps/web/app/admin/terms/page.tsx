@@ -7,6 +7,7 @@ type Term = {
   id: string;
   name: string;
   maxCredits: number;
+  registrationOpen: boolean;
   timezone: string;
   startDate: string;
   endDate: string;
@@ -144,6 +145,7 @@ export default function TermsPage() {
   const [editForm, setEditForm] = useState<TermForm>(blankForm);
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -238,6 +240,21 @@ export default function TermsPage() {
       setError(err instanceof Error ? err.message : "Delete failed");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const onToggleRegistration = async (id: string) => {
+    try {
+      setTogglingId(id);
+      setError("");
+      setNotice("");
+      await apiFetch(`/admin/terms/${id}/toggle-registration`, { method: "PATCH" });
+      setNotice("Registration status updated.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Toggle failed");
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -364,17 +381,18 @@ export default function TermsPage() {
                 <th className="px-4 py-3 font-semibold text-slate-700">Registration Window</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Drop Deadline</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Max Cr.</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">Registration</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-slate-500">Loading terms...</td>
+                  <td colSpan={8} className="px-4 py-8 text-center text-slate-500">Loading terms...</td>
                 </tr>
               ) : terms.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-slate-500">No terms yet. Create one above.</td>
+                  <td colSpan={8} className="px-4 py-10 text-center text-slate-500">No terms yet. Create one above.</td>
                 </tr>
               ) : (
                 terms.map((term) => {
@@ -399,6 +417,27 @@ export default function TermsPage() {
                     </td>
                     <td className="px-4 py-3 text-slate-700">{new Date(term.dropDeadline).toLocaleString()}</td>
                     <td className="px-4 py-3 text-slate-700">{term.maxCredits}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-2">
+                        <span
+                          className={`inline-flex w-fit rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                            term.registrationOpen
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-red-200 bg-red-50 text-red-700"
+                          }`}
+                        >
+                          {term.registrationOpen ? "🟢 Open" : "🔴 Closed"}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={togglingId === term.id}
+                          onClick={() => void onToggleRegistration(term.id)}
+                          className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          {togglingId === term.id ? "Updating..." : term.registrationOpen ? "Close Reg" : "Open Reg"}
+                        </button>
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <button

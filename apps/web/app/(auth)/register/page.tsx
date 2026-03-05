@@ -8,20 +8,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/api";
 
-function passwordStrength(pw: string): { score: number; label: string; color: string; bg: string } {
-  if (!pw) return { score: 0, label: "", color: "text-slate-400", bg: "bg-slate-200" };
+function getStrength(password: string): number {
   let score = 0;
-  if (pw.length >= 8) score++;
-  if (pw.length >= 12) score++;
-  if (/[A-Z]/.test(pw)) score++;
-  if (/[0-9]/.test(pw)) score++;
-  if (/[^A-Za-z0-9]/.test(pw)) score++;
-  if (score <= 1) return { score, label: "Weak", color: "text-red-600", bg: "bg-red-500" };
-  if (score <= 2) return { score, label: "Fair", color: "text-amber-600", bg: "bg-amber-500" };
-  if (score <= 3) return { score, label: "Good", color: "text-yellow-600", bg: "bg-yellow-400" };
-  if (score <= 4) return { score, label: "Strong", color: "text-emerald-600", bg: "bg-emerald-500" };
-  return { score, label: "Very Strong", color: "text-emerald-700", bg: "bg-emerald-600" };
+  if (password.length >= 8) score++;
+  if (password.length >= 12) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+  return score;
 }
+
+const STRENGTH_LABEL = ["", "Very Weak", "Weak", "Fair", "Good", "Strong"];
+const STRENGTH_COLOR = ["", "bg-red-400", "bg-orange-400", "bg-amber-400", "bg-blue-400", "bg-emerald-400"];
 
 type RegisterResult = {
   message: string;
@@ -38,11 +36,10 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [strength, setStrength] = useState(0);
   const [result, setResult] = useState<RegisterResult | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const pwStrength = passwordStrength(form.password);
   const pwMatch = confirmPassword.length > 0 && confirmPassword === form.password;
   const pwMismatch = confirmPassword.length > 0 && confirmPassword !== form.password;
 
@@ -131,7 +128,11 @@ export default function RegisterPage() {
                 className="h-10 pr-10"
                 placeholder="Create a secure password"
                 value={form.password}
-                onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+                onChange={(e) => {
+                  const nextPassword = e.target.value;
+                  setForm((prev) => ({ ...prev, password: nextPassword }));
+                  setStrength(getStrength(nextPassword));
+                }}
                 required
               />
               <button
@@ -145,18 +146,26 @@ export default function RegisterPage() {
               </button>
             </div>
             {form.password ? (
-              <div className="mt-2 space-y-1">
+              <div className="mt-1.5 space-y-1">
                 <div className="flex gap-1">
                   {[1, 2, 3, 4, 5].map((seg) => (
                     <div
                       key={seg}
-                      className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
-                        seg <= pwStrength.score ? pwStrength.bg : "bg-slate-200"
+                      className={`h-1 flex-1 rounded-full transition-colors ${
+                        seg <= strength ? STRENGTH_COLOR[strength] : "bg-slate-200"
                       }`}
                     />
                   ))}
                 </div>
-                <p className={`text-xs font-medium ${pwStrength.color}`}>{pwStrength.label}</p>
+                {strength > 0 ? (
+                  <p
+                    className={`text-xs font-medium ${
+                      strength <= 2 ? "text-red-500" : strength <= 3 ? "text-amber-500" : "text-emerald-600"
+                    }`}
+                  >
+                    {STRENGTH_LABEL[strength]}
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </div>

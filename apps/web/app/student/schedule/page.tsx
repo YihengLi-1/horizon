@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { enrollmentStatusLabel } from "@/lib/labels";
+import PrintButton from "./PrintButton";
 
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_INDEXES = [1, 2, 3, 4, 5]; // Mon–Fri
@@ -249,7 +250,7 @@ export default function SchedulePage() {
 
   return (
     <div className="campus-page">
-      <section className="campus-hero">
+      <section className="campus-hero no-print">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">Weekly Planning</p>
@@ -284,6 +285,7 @@ export default function SchedulePage() {
               </select>
             </div>
             <div className="flex gap-2">
+              <PrintButton />
               <Link
                 href={termId ? `/student/catalog?termId=${termId}` : "/student/catalog"}
                 className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 no-underline transition hover:bg-white"
@@ -328,7 +330,7 @@ export default function SchedulePage() {
       ) : null}
       {activeTerm ? (
         dropDeadlinePassed ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div className="no-print rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             <div className="flex items-start gap-2">
               <span className="text-base">⚠️</span>
               <div>
@@ -339,7 +341,7 @@ export default function SchedulePage() {
             </div>
           </div>
         ) : (
-          <div className={`rounded-xl border px-4 py-3 text-sm ${dropDaysLeft <= 3 ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
+          <div className={`no-print rounded-xl border px-4 py-3 text-sm ${dropDaysLeft <= 3 ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
             <div className="flex items-center justify-between gap-4">
               <div>
                 Drop deadline:{" "}
@@ -356,9 +358,9 @@ export default function SchedulePage() {
         )
       ) : null}
 
-      {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+      {error ? <div className="no-print rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
-      <section className="campus-card p-4">
+      <section className="campus-card no-print p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-slate-900">Status Filters</h2>
           <p className="text-xs text-slate-500 sm:hidden">{visibleEnrollments.length} visible</p>
@@ -420,7 +422,7 @@ export default function SchedulePage() {
       </section>
 
       {/* List view with drop buttons */}
-      <section className="campus-card overflow-hidden">
+      <section className="campus-card no-print overflow-hidden">
         <div className="border-b border-slate-100 px-4 py-3">
           <h2 className="text-sm font-semibold text-slate-900">Section List</h2>
         </div>
@@ -597,7 +599,7 @@ export default function SchedulePage() {
       </section>
 
       {/* Week grid */}
-      <section className="campus-card p-4">
+      <section className="campus-card no-print p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-slate-900">Week View (Mon-Fri, 08:00-18:00)</h2>
           <div className="flex flex-wrap gap-2 text-xs">
@@ -708,6 +710,37 @@ export default function SchedulePage() {
             ))}
           </div>
         </div>
+      </section>
+
+      <section className="print-only hidden">
+        <h2 className="mb-3 text-lg font-semibold text-slate-900">
+          Schedule{activeTerm ? ` — ${activeTerm.name}` : ""}
+        </h2>
+        <table aria-label="Printable schedule">
+          <thead>
+            <tr>
+              <th>Course</th>
+              <th>Section</th>
+              <th>Instructor</th>
+              <th>Meeting</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(visibleEnrollments.length > 0 ? visibleEnrollments : enrollments).map((enrollment) => (
+              <tr key={`print-${enrollment.id}`}>
+                <td>{enrollment.section.course.code} - {enrollment.section.course.title}</td>
+                <td>
+                  {enrollment.section.sectionCode}
+                  {enrollment.section.location ? ` @ ${enrollment.section.location}` : ""}
+                </td>
+                <td>{enrollment.section.instructorName}</td>
+                <td>{meetingSummary(enrollment.section.meetingTimes)}</td>
+                <td>{enrollmentStatusLabel(enrollment.status)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </section>
     </div>
   );

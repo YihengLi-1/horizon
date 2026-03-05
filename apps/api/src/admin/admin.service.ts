@@ -441,6 +441,7 @@ export class AdminService {
         endDate: new Date(input.endDate),
         registrationOpenAt: new Date(input.registrationOpenAt),
         registrationCloseAt: new Date(input.registrationCloseAt),
+        registrationOpen: true,
         dropDeadline: new Date(input.dropDeadline),
         maxCredits: input.maxCredits,
         timezone: input.timezone
@@ -501,6 +502,29 @@ export class AdminService {
       metadata: { op: "delete" }
     });
     return { id };
+  }
+
+  async toggleTermRegistration(id: string, actorUserId: string) {
+    apiCache.del("terms");
+    const term = await this.prisma.term.findUnique({ where: { id } });
+    if (!term) {
+      throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "Term not found" });
+    }
+
+    const updated = await this.prisma.term.update({
+      where: { id },
+      data: { registrationOpen: !term.registrationOpen }
+    });
+
+    await this.auditService.log({
+      actorUserId,
+      action: "admin_crud",
+      entityType: "term",
+      entityId: id,
+      metadata: { op: "toggle_registration", registrationOpen: updated.registrationOpen }
+    });
+
+    return updated;
   }
 
   async listCourses() {

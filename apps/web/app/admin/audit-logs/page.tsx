@@ -1,7 +1,9 @@
 "use client";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import AuditExportButton from "./AuditExportButton";
 
 type AuditLog = {
   id: string;
@@ -22,26 +24,32 @@ type PaginatedResponse<T> = {
   pageSize: number;
 };
 
-const ACTION_COLORS: Record<string, string> = {
-  login: "border-blue-200 bg-blue-50 text-blue-700",
-  admin_crud: "border-slate-200 bg-slate-100 text-slate-700",
-  grade_update: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  promote_waitlist: "border-amber-200 bg-amber-50 text-amber-700",
-  registration_submit: "border-violet-200 bg-violet-50 text-violet-700",
-  drop: "border-red-200 bg-red-50 text-red-700",
-  password_change: "border-orange-200 bg-orange-50 text-orange-700",
-};
-
 const PAGE_SIZE = 50;
 
+function actionTone(action: string): string {
+  const normalized = action.toUpperCase();
+  if (normalized.includes("LOGIN") || normalized.includes("LOGOUT")) return "border-slate-200 bg-slate-50 text-slate-700";
+  if (normalized.includes("CREATE")) return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (normalized.includes("UPDATE")) return "border-blue-200 bg-blue-50 text-blue-700";
+  if (normalized.includes("DELETE")) return "border-red-200 bg-red-50 text-red-700";
+  if (normalized.includes("NOTIFY")) return "border-violet-200 bg-violet-50 text-violet-700";
+  if (normalized.includes("ENROLL") || normalized.includes("DROP") || normalized.includes("WAITLIST") || normalized.includes("REGISTRATION")) {
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+  return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
 export default function AuditLogsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [actionFilter, setActionFilter] = useState("");
+  const [actionFilter, setActionFilter] = useState(searchParams.get("action") ?? "");
   const [entityFilter, setEntityFilter] = useState("");
   const [page, setPage] = useState(1);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -101,6 +109,14 @@ export default function AuditLogsPage() {
     setPage(1);
   }, [actionFilter, entityFilter, debouncedSearch]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (actionFilter) params.set("action", actionFilter);
+    else params.delete("action");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [actionFilter, pathname, router, searchParams]);
+
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
 
@@ -126,27 +142,6 @@ export default function AuditLogsPage() {
     return { uniqueActors: actorSet.size, topAction: topAction?.[0] ?? "-" };
   }, [logs]);
 
-  const exportCsv = () => {
-    const rows = [
-      ["Timestamp", "Actor", "Action", "Entity Type", "Entity ID"],
-      ...logs.map((log) => [
-        new Date(log.createdAt).toISOString(),
-        log.actor?.email || log.actor?.studentId || "system",
-        log.action,
-        log.entityType,
-        log.entityId ?? "",
-      ]),
-    ];
-    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `audit-logs-page-${safePage}-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <div className="campus-page">
       <section className="campus-hero">
@@ -166,14 +161,15 @@ export default function AuditLogsPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={exportCsv}
-              disabled={logs.length === 0}
-              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:-translate-y-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Export CSV (Page)
-            </button>
+            <AuditExportButton
+              rows={logs.map((log) => ({
+                createdAt: new Date(log.createdAt).toISOString(),
+                action: log.action,
+                entityType: log.entityType,
+                entityId: log.entityId ?? "",
+                actorLabel: log.actor?.email || log.actor?.studentId || "system"
+              }))}
+            />
             <button
               type="button"
               onClick={() => void load()}
@@ -264,14 +260,20 @@ export default function AuditLogsPage() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
+              {loading ? (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-slate-500">Loading audit logs...</td>
               </tr>
             ) : logs.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
-                  No logs match current filters.
+                <td colSpan={5} className="px-4 py-12 text-center">
+                  <p className="text-3xl">📋</p>
+                  <p className="mt-2 text-sm font-medium text-slate-600">No audit logs found</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {actionFilter || entityFilter || debouncedSearch
+                      ? "Try adjusting your search or filter criteria."
+                      : "Audit events will appear here as users interact with the system."}
+                  </p>
                 </td>
               </tr>
             ) : (
@@ -283,7 +285,7 @@ export default function AuditLogsPage() {
                   </td>
                   <td className="px-4 py-3 text-slate-700">{log.actor?.email || log.actor?.studentId || "system"}</td>
                   <td className="px-4 py-3 text-slate-800">
-                    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${ACTION_COLORS[log.action] ?? "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${actionTone(log.action)}`}>
                       {log.action}
                     </span>
                   </td>

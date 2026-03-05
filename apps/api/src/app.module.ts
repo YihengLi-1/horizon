@@ -1,9 +1,10 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
-import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { ThrottlerModule } from "@nestjs/throttler";
 import { AuthzModule } from "./common/authz.module";
 import { PrismaModule } from "./common/prisma.module";
+import { RateLimitGuard } from "./common/rate-limit.guard";
 import { AuthModule } from "./auth/auth.module";
 import { StudentsModule } from "./students/students.module";
 import { AcademicsModule } from "./academics/academics.module";
@@ -34,7 +35,7 @@ import { HealthModule } from "./health/health.module";
   providers: [
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard
+      useClass: RateLimitGuard
     }
   ]
 })

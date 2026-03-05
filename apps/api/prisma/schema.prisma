@@ -102,6 +102,7 @@ model Term {
   endDate             DateTime
   registrationOpenAt  DateTime
   registrationCloseAt DateTime
+  registrationOpen    Boolean      @default(true)
   dropDeadline        DateTime
   maxCredits          Int
   timezone            String
