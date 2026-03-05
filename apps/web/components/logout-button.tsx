@@ -16,6 +16,7 @@ export function LogoutButton() {
         method: "POST",
         credentials: "include"
       });
+      window.localStorage.removeItem("sis_session_exp");
     } finally {
       window.location.href = "/login";
     }

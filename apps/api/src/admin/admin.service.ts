@@ -14,6 +14,7 @@ import {
 import { z } from "zod";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../common/prisma.service";
+import { apiCache } from "../common/cache";
 import { NotificationsService } from "../notifications/notifications.service";
 
 type CreateTermInput = z.infer<typeof createTermSchema>;
@@ -423,10 +424,16 @@ export class AdminService {
   }
 
   async listTerms() {
-    return this.prisma.term.findMany({ orderBy: { startDate: "desc" } });
+    const cached = apiCache.get("terms");
+    if (cached) return cached as any;
+
+    const result = await this.prisma.term.findMany({ orderBy: { startDate: "desc" } });
+    apiCache.set("terms", result, 30_000);
+    return result;
   }
 
   async createTerm(input: CreateTermInput, actorUserId: string) {
+    apiCache.del("terms");
     const term = await this.prisma.term.create({
       data: {
         name: input.name,
@@ -452,6 +459,7 @@ export class AdminService {
   }
 
   async updateTerm(id: string, input: Partial<CreateTermInput>, actorUserId: string) {
+    apiCache.del("terms");
     const term = await this.prisma.term.findUnique({ where: { id } });
     if (!term) {
       throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "Term not found" });
@@ -483,6 +491,7 @@ export class AdminService {
   }
 
   async deleteTerm(id: string, actorUserId: string) {
+    apiCache.del("terms");
     await this.prisma.term.delete({ where: { id } });
     await this.auditService.log({
       actorUserId,
@@ -703,6 +712,81 @@ export class AdminService {
       metadata: { op: "delete" }
     });
     return { id };
+  }
+
+  async notifySection(sectionId: string, subject: string, message: string, actorUserId: string) {
+    const cleanSubject = subject.trim();
+    const cleanMessage = message.trim();
+    if (!cleanSubject || !cleanMessage) {
+      throw new BadRequestException({
+        code: "SECTION_NOTIFY_INVALID",
+        message: "Subject and message are required"
+      });
+    }
+
+    const section = await this.prisma.section.findUnique({
+      where: { id: sectionId },
+      include: { course: true }
+    });
+    if (!section) {
+      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
+    }
+
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: {
+        sectionId,
+        status: "ENROLLED",
+        deletedAt: null,
+        student: {
+          is: {
+            deletedAt: null
+          }
+        }
+      },
+      include: {
+        student: {
+          include: {
+            studentProfile: true
+          }
+        },
+        section: {
+          include: {
+            course: true
+          }
+        }
+      }
+    });
+
+    const results = await Promise.allSettled(
+      enrollments.map((enrollment) =>
+        this.notificationsService.sendMail({
+          to: enrollment.student.email,
+          subject: `[SIS] ${cleanSubject}`,
+          text: `Dear ${enrollment.student.studentProfile?.legalName ?? "Student"},\n\n${cleanMessage}\n\n— 地平线 SIS`,
+          html: `<p>Dear ${enrollment.student.studentProfile?.legalName ?? "Student"},</p><p>${cleanMessage.replace(/\n/g, "<br>")}</p><p>— 地平线 SIS</p>`
+        })
+      )
+    );
+
+    const sent = results.filter((result) => result.status === "fulfilled" && result.value).length;
+    const failed = results.length - sent;
+
+    await this.auditService.log({
+      actorUserId,
+      action: "NOTIFY_SECTION",
+      entityType: "section",
+      entityId: sectionId,
+      metadata: {
+        subject: cleanSubject,
+        sent,
+        failed,
+        total: results.length,
+        courseCode: section.course.code,
+        sectionCode: section.sectionCode
+      }
+    });
+
+    return { sent, failed, total: results.length };
   }
 
   async listEnrollments(params: {

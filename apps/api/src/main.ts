@@ -1,17 +1,37 @@
 import "reflect-metadata";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { randomUUID } from "crypto";
+import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AuditService } from "./audit/audit.service";
 import { AppModule } from "./app.module";
 import { AllExceptionsFilter } from "./common/exception.filter";
+import { StructuredLogger } from "./common/logger";
 import { NotificationsService } from "./notifications/notifications.service";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { logger: new StructuredLogger() });
   const auditService = app.get(AuditService);
   const notificationsService = app.get(NotificationsService);
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", "data:", "blob:"],
+          connectSrc: ["'self'"],
+          objectSrc: ["'none'"],
+        },
+      },
+      crossOriginEmbedderPolicy: false,
+      hsts: { maxAge: 31536000, includeSubDomains: true },
+    })
+  );
+
   const bootAt = Date.now();
   const metrics = {
     requestsTotal: 0,
@@ -385,6 +405,24 @@ async function bootstrap() {
       res.status(503).json({ status: "not_ready", error: "dependency check failed" });
     }
   });
+
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle("地平线 SIS API")
+    .setDescription("University SIS REST API — 地平线")
+    .setVersion("1.0.0")
+    .addCookieAuth("access_token")
+    .addTag("auth")
+    .addTag("admin")
+    .addTag("registration")
+    .addTag("students")
+    .addTag("health")
+    .build();
+  SwaggerModule.setup(
+    "api/docs",
+    app,
+    SwaggerModule.createDocument(app, swaggerConfig),
+    { swaggerOptions: { persistAuthorization: true, filter: true } }
+  );
 
   const port = Number(process.env.API_PORT || 4000);
   await app.listen(port);

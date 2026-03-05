@@ -37,6 +37,40 @@ export class StudentsService {
     };
   }
 
+  async getNotifications(studentId: string) {
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: { studentId, deletedAt: null },
+      include: { section: { include: { course: true } } },
+      orderBy: { updatedAt: "desc" },
+      take: 20
+    });
+
+    return enrollments
+      .filter((enrollment) => ["ENROLLED", "WAITLISTED", "PENDING_APPROVAL"].includes(enrollment.status))
+      .slice(0, 10)
+      .map((enrollment) => ({
+        id: enrollment.id,
+        type:
+          enrollment.status === "ENROLLED"
+            ? "success"
+            : enrollment.status === "WAITLISTED"
+              ? "warning"
+              : "info",
+        title:
+          enrollment.status === "ENROLLED"
+            ? `已选课：${enrollment.section.course.code}`
+            : enrollment.status === "WAITLISTED"
+              ? `候补队列：${enrollment.section.course.code}`
+              : `待审批：${enrollment.section.course.code}`,
+        body:
+          enrollment.status === "ENROLLED"
+            ? enrollment.section.course.title
+            : enrollment.status === "WAITLISTED"
+              ? "候补中"
+              : "等待管理员审批"
+      }));
+  }
+
   async updateMyProfile(userId: string, input: UpdateProfileInput) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, deletedAt: null },

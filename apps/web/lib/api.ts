@@ -119,5 +119,14 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     });
   }
 
+  if (typeof window !== "undefined" && method === "POST" && path === "/auth/login") {
+    const loginPayload = body.data as { expiresAt?: string | number } | undefined;
+    const expiresAt =
+      loginPayload?.expiresAt !== undefined
+        ? Number(loginPayload.expiresAt)
+        : Date.now() + 7 * 24 * 60 * 60 * 1000;
+    window.localStorage.setItem("sis_session_exp", String(expiresAt));
+  }
+
   return body.data;
 }

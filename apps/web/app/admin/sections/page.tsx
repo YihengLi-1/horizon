@@ -76,6 +76,12 @@ type BulkPromoteSummary = {
   totalPromoted: number;
 };
 
+type NotifyResponse = {
+  sent: number;
+  failed: number;
+  total: number;
+};
+
 type PaginatedResponse<T> = {
   data: T[];
   total: number;
@@ -167,6 +173,9 @@ export default function AdminSectionsPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [exportingRosterId, setExportingRosterId] = useState<string | null>(null);
+  const [notifyingSectionId, setNotifyingSectionId] = useState<string | null>(null);
+  const [notifyForm, setNotifyForm] = useState({ subject: "", message: "" });
+  const [notifySending, setNotifySending] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -635,6 +644,55 @@ export default function AdminSectionsPage() {
       }));
     } finally {
       setExportingRosterId(null);
+    }
+  };
+
+  const openNotify = (sectionId: string) => {
+    setNotifyingSectionId(sectionId);
+    setNotifyForm({ subject: "", message: "" });
+    setMessageBySection((prev) => {
+      const next = { ...prev };
+      delete next[sectionId];
+      return next;
+    });
+  };
+
+  const sendSectionNotification = async (section: Section) => {
+    if (!notifyForm.subject.trim() || !notifyForm.message.trim()) return;
+
+    setNotifySending(true);
+    try {
+      const result = await apiFetch<NotifyResponse>(`/admin/sections/${section.id}/notify`, {
+        method: "POST",
+        body: JSON.stringify({
+          subject: notifyForm.subject.trim(),
+          message: notifyForm.message.trim()
+        }),
+        headers: { "Content-Type": "application/json" }
+      });
+      window.alert(`Sent to ${result.sent} student(s).`);
+      setNotifyingSectionId(null);
+      setNotifyForm({ subject: "", message: "" });
+      setMessageBySection((prev) => ({
+        ...prev,
+        [section.id]: {
+          type: result.failed > 0 ? "error" : "success",
+          text:
+            result.failed > 0
+              ? `Notification sent to ${result.sent} student(s); ${result.failed} failed.`
+              : `Notification sent to ${result.sent} enrolled student(s).`
+        }
+      }));
+    } catch (error) {
+      setMessageBySection((prev) => ({
+        ...prev,
+        [section.id]: {
+          type: "error",
+          text: error instanceof Error ? error.message : "Notification failed"
+        }
+      }));
+    } finally {
+      setNotifySending(false);
     }
   };
 
@@ -1386,6 +1444,13 @@ export default function AdminSectionsPage() {
                           <div className="flex gap-2">
                             <button
                               type="button"
+                              onClick={() => openNotify(section.id)}
+                              className="rounded border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-medium text-violet-700 transition hover:bg-violet-100"
+                            >
+                              📢 Notify
+                            </button>
+                            <button
+                              type="button"
                               disabled={exportingRosterId === section.id}
                               onClick={() => void exportRoster(section)}
                               className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
@@ -1410,6 +1475,44 @@ export default function AdminSectionsPage() {
                           </div>
                         </td>
                       </tr>
+                      {notifyingSectionId === section.id ? (
+                        <tr className="border-b border-slate-100 bg-white">
+                          <td colSpan={11} className="px-4 pb-4">
+                            <div className="mt-2 flex flex-col gap-2 rounded-lg border border-violet-200 bg-violet-50 p-3">
+                              <input
+                                placeholder="Subject"
+                                value={notifyForm.subject}
+                                onChange={(event) => setNotifyForm((form) => ({ ...form, subject: event.target.value }))}
+                                className="campus-input text-sm"
+                              />
+                              <textarea
+                                placeholder="Message"
+                                rows={3}
+                                value={notifyForm.message}
+                                onChange={(event) => setNotifyForm((form) => ({ ...form, message: event.target.value }))}
+                                className="campus-input text-sm"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  disabled={notifySending || !notifyForm.subject.trim() || !notifyForm.message.trim()}
+                                  onClick={() => void sendSectionNotification(section)}
+                                  className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                                >
+                                  {notifySending ? "Sending…" : "Send"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setNotifyingSectionId(null)}
+                                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
                       {rowMessage ? (
                         <tr className="border-b border-slate-100 bg-white">
                           <td colSpan={11} className="px-4 pb-4">

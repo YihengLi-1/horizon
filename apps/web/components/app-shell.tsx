@@ -7,6 +7,7 @@ import {
   AlignJustify,
   BookCopy,
   BookOpen,
+  BarChart3,
   CalendarDays,
   CalendarRange,
   Clock,
@@ -22,7 +23,10 @@ import {
   User,
   Users
 } from "lucide-react";
+import NotificationBell from "@/components/NotificationBell";
 import { LogoutButton } from "@/components/logout-button";
+import SessionExpiryBanner from "@/components/SessionExpiryBanner";
+import StudentMobileNav from "@/components/StudentMobileNav";
 
 type AppArea = "student" | "admin";
 
@@ -58,6 +62,7 @@ const adminItems: NavItem[] = [
   { href: "/admin/waitlist", label: "Waitlist", icon: <Clock className={iconClass} /> },
   { href: "/admin/invite-codes", label: "Invite Codes", icon: <KeyRound className={iconClass} /> },
   { href: "/admin/audit-logs", label: "Audit Logs", icon: <ScrollText className={iconClass} /> },
+  { href: "/admin/reports", label: "Reports", icon: <BarChart3 className={iconClass} /> },
   { href: "/admin/import", label: "Import CSV", icon: <Upload className={iconClass} /> }
 ];
 
@@ -111,7 +116,7 @@ export function AppShell({
             { label: "Overview", hrefs: ["/admin/dashboard"] },
             { label: "Data", hrefs: ["/admin/students", "/admin/courses", "/admin/sections", "/admin/terms"] },
             { label: "Operations", hrefs: ["/admin/enrollments", "/admin/waitlist"] },
-            { label: "Tools", hrefs: ["/admin/invite-codes", "/admin/import", "/admin/audit-logs"] }
+            { label: "Tools", hrefs: ["/admin/invite-codes", "/admin/import", "/admin/audit-logs", "/admin/reports"] }
           ]
         : [
             { label: "Overview", hrefs: ["/student/dashboard"] },
@@ -180,6 +185,7 @@ export function AppShell({
 
   return (
     <div data-area={area} className="min-h-screen bg-slate-50 text-slate-900">
+      <SessionExpiryBanner />
       <a
         href="#main-content"
         className="sr-only z-[70] rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
@@ -270,6 +276,9 @@ export function AppShell({
             </div>
 
             <div className="flex items-center gap-2">
+              {area === "student" ? (
+                <NotificationBell apiBase={process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"} />
+              ) : null}
               <span className="hidden h-9 items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm sm:inline-flex">
                 Signed in: {userLabel}
               </span>
@@ -278,8 +287,14 @@ export function AppShell({
           </div>
         </header>
 
-        <main id="main-content" className="mx-auto max-w-[1360px] p-4 md:p-8 lg:p-10">{children}</main>
+        <main
+          id="main-content"
+          className={`mx-auto max-w-[1360px] p-4 md:p-8 lg:p-10 ${area === "student" ? "pb-16 md:pb-0" : ""}`}
+        >
+          {children}
+        </main>
       </div>
+      {area === "student" ? <StudentMobileNav /> : null}
     </div>
   );
 }

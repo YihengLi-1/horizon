@@ -108,6 +108,16 @@ export class AdminController {
     return ok(await this.adminService.deleteSection(id, user.userId));
   }
 
+  @Post("sections/:id/notify")
+  @RequireAdminPermissions("sections:write")
+  async notifySection(
+    @Param("id") id: string,
+    @Body() body: { subject: string; message: string },
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(await this.adminService.notifySection(id, body.subject, body.message, user.userId));
+  }
+
   @Get("enrollments")
   @RequireAdminPermissions("enrollments:read")
   async listEnrollments(

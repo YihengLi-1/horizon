@@ -177,6 +177,12 @@ else
   warning "Monitoring stack incomplete ($FILE_COUNT files found, expected ≥6)"
 fi
 
+if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
+  ok "Swagger docs reachable at /api/docs"
+else
+  warning "Swagger docs not reachable (start API first)"
+fi
+
 echo
 printf "Summary: %d pass, %d warn, %d fail\n" "$pass" "$warn" "$fail"
 

@@ -118,6 +118,15 @@ export class NotificationsService {
     }
   }
 
+  async sendMail(envelope: {
+    to: string;
+    subject: string;
+    html: string;
+    text: string;
+  }): Promise<boolean> {
+    return this.send(envelope);
+  }
+
   async sendVerificationEmail(input: {
     to: string;
     legalName?: string | null;

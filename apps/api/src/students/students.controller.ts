@@ -21,6 +21,12 @@ export class StudentsController {
     return ok(await this.studentsService.getMyProfile(user.userId));
   }
 
+  @Roles("STUDENT")
+  @Get("notifications")
+  async getNotifications(@CurrentUser() user: { userId: string }) {
+    return ok(await this.studentsService.getNotifications(user.userId));
+  }
+
   @Roles("STUDENT", "ADMIN")
   @Patch("me")
   async updateMe(
