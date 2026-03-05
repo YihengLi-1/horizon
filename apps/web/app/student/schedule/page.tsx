@@ -324,7 +324,8 @@ export default function SchedulePage() {
       <section className="campus-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-slate-900">Status Filters</h2>
-          <p className="text-xs text-slate-500">{visibleEnrollments.length} row(s) visible in list and grid</p>
+          <p className="text-xs text-slate-500 sm:hidden">{visibleEnrollments.length} visible</p>
+          <p className="hidden text-xs text-slate-500 sm:block">{visibleEnrollments.length} row(s) visible in list and grid</p>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
@@ -363,7 +364,6 @@ export default function SchedulePage() {
           >
             {enrollmentStatusLabel("WAITLISTED")} ({statusCounts.WAITLISTED})
           </button>
-          <span className="text-xs text-slate-500">{visibleEnrollments.length} visible</span>
           {hasStatusFiltersApplied ? (
             <button
               type="button"
