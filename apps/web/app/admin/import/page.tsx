@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { ApiError, apiFetch } from "@/lib/api";
+import GradeImport from "./GradeImport";
 
 type ImportTarget = "students" | "courses" | "sections";
 
@@ -379,6 +380,16 @@ export default function ImportPage() {
           </section>
         </aside>
       </div>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <div className="campus-card p-4">
+          <p className="text-sm font-semibold text-slate-700">Students Import</p>
+          <p className="mt-1 text-xs text-slate-500">
+            Use the main import workflow above for students, courses, and sections with dry-run and row validation.
+          </p>
+        </div>
+        <GradeImport apiUrl={process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"} />
+      </section>
     </div>
   );
 }

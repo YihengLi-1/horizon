@@ -43,6 +43,7 @@ model User {
   passwordResetTokens     PasswordResetToken[]
   enrollments             Enrollment[]             @relation("StudentEnrollments")
   cartItems               CartItem[]               @relation("StudentCartItems")
+  ratings                 CourseRating[]
   auditLogs               AuditLog[]               @relation("AuditActor")
 
   @@index([role, deletedAt])
@@ -155,6 +156,7 @@ model Section {
   meetingTimes    MeetingTime[]
   enrollments     Enrollment[]
   cartItems       CartItem[]
+  ratings         CourseRating[]
 
   @@unique([termId, sectionCode])
 }
@@ -217,4 +219,28 @@ model AuditLog {
   actor       User?    @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([action, createdAt])
+}
+
+model CourseRating {
+  id        String   @id @default(cuid())
+  studentId String
+  sectionId String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, sectionId])
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  audience  String   @default("ALL")
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
 }

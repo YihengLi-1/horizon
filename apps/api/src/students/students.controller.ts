@@ -28,6 +28,27 @@ export class StudentsController {
   }
 
   @Roles("STUDENT", "ADMIN")
+  @Get("announcements")
+  async getAnnouncements(@CurrentUser() user: { role: "STUDENT" | "ADMIN" }) {
+    return ok(await this.studentsService.getAnnouncements(user.role));
+  }
+
+  @Roles("STUDENT")
+  @Get("ratings")
+  async getMyRatings(@CurrentUser() user: { userId: string }) {
+    return ok(await this.studentsService.getMyRatings(user.userId));
+  }
+
+  @Roles("STUDENT")
+  @Post("rate-section")
+  async rateSection(
+    @CurrentUser() user: { userId: string },
+    @Body() body: { sectionId: string; rating: number; comment?: string }
+  ) {
+    return ok(await this.studentsService.rateSection(user.userId, body.sectionId, body.rating, body.comment));
+  }
+
+  @Roles("STUDENT", "ADMIN")
   @Patch("me")
   async updateMe(
     @CurrentUser() user: { userId: string },

@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import compression from "compression";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { ValidationPipe } from "@nestjs/common";
@@ -15,6 +16,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { logger: new StructuredLogger() });
   const auditService = app.get(AuditService);
   const notificationsService = app.get(NotificationsService);
+  app.use(compression({ threshold: 1024 }));
   app.use(
     helmet({
       contentSecurityPolicy: {

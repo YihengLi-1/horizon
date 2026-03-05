@@ -631,6 +631,9 @@ export class AdminService {
         term: true,
         course: true,
         meetingTimes: true,
+        ratings: {
+          select: { rating: true }
+        },
         enrollments: {
           where: { deletedAt: null }
         }
@@ -708,6 +711,9 @@ export class AdminService {
           term: true,
           course: true,
           meetingTimes: true,
+          ratings: {
+            select: { rating: true }
+          },
           enrollments: {
             where: { deletedAt: null }
           }
@@ -1141,6 +1147,18 @@ export class AdminService {
     return updated;
   }
 
+  async updateEnrollmentGrade(studentId: string, sectionId: string, grade: string, actorUserId: string) {
+    const enrollment = await this.prisma.enrollment.findFirst({
+      where: { studentId, sectionId, deletedAt: null }
+    });
+
+    if (!enrollment) {
+      throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "Enrollment not found" });
+    }
+
+    return this.updateGrade({ enrollmentId: enrollment.id, finalGrade: grade }, actorUserId);
+  }
+
   async listInviteCodes() {
     return this.prisma.inviteCode.findMany({ orderBy: { createdAt: "desc" } });
   }
@@ -1192,6 +1210,34 @@ export class AdminService {
     });
 
     return updated;
+  }
+
+  async getAnnouncements() {
+    return this.prisma.announcement.findMany({
+      orderBy: [{ pinned: "desc" }, { createdAt: "desc" }]
+    });
+  }
+
+  async createAnnouncement(data: {
+    title: string;
+    body: string;
+    audience?: string;
+    pinned?: boolean;
+    expiresAt?: string;
+  }) {
+    return this.prisma.announcement.create({
+      data: {
+        title: data.title,
+        body: data.body,
+        audience: data.audience ?? "ALL",
+        pinned: data.pinned ?? false,
+        expiresAt: data.expiresAt ? new Date(data.expiresAt) : null
+      }
+    });
+  }
+
+  async deleteAnnouncement(id: string) {
+    return this.prisma.announcement.delete({ where: { id } });
   }
 
   async listAuditLogs(params?: {

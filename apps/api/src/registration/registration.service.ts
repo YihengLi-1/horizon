@@ -771,7 +771,12 @@ export class RegistrationService {
   async dropEnrollment(studentId: string, input: DropEnrollmentInput, req: Request) {
     const enrollment = await this.prisma.enrollment.findFirst({
       where: { id: input.enrollmentId, deletedAt: null },
-      include: { term: true }
+      include: {
+        term: true,
+        section: {
+          include: { course: true }
+        }
+      }
     });
 
     if (!enrollment || enrollment.studentId !== studentId) {
@@ -906,6 +911,88 @@ export class RegistrationService {
       req
     });
 
+    if (seatFreed) {
+      const nextWaiting = await this.prisma.enrollment.findFirst({
+        where: {
+          deletedAt: null,
+          sectionId: enrollment.sectionId,
+          status: "WAITLISTED"
+        },
+        orderBy: { waitlistPosition: "asc" },
+        include: {
+          student: true,
+          section: {
+            include: {
+              course: true,
+              term: true
+            }
+          }
+        }
+      });
+
+      if (nextWaiting) {
+        await this.prisma.$transaction(async (tx) => {
+          await tx.enrollment.update({
+            where: { id: nextWaiting.id },
+            data: {
+              status: "ENROLLED",
+              waitlistPosition: null
+            }
+          });
+
+          if (nextWaiting.waitlistPosition !== null) {
+            await tx.enrollment.updateMany({
+              where: {
+                deletedAt: null,
+                sectionId: nextWaiting.sectionId,
+                status: "WAITLISTED",
+                waitlistPosition: { gt: nextWaiting.waitlistPosition }
+              },
+              data: {
+                waitlistPosition: { increment: 10000 }
+              }
+            });
+
+            await tx.enrollment.updateMany({
+              where: {
+                deletedAt: null,
+                sectionId: nextWaiting.sectionId,
+                status: "WAITLISTED",
+                waitlistPosition: { gt: nextWaiting.waitlistPosition + 10000 }
+              },
+              data: {
+                waitlistPosition: { decrement: 9999 }
+              }
+            });
+          }
+        });
+
+        await this.auditService.log({
+          actorUserId: studentId,
+          action: "AUTO_PROMOTE_WAITLIST",
+          entityType: "enrollment",
+          entityId: nextWaiting.id,
+          metadata: {
+            studentId: nextWaiting.studentId,
+            sectionId: nextWaiting.sectionId,
+            course: nextWaiting.section.course.code
+          },
+          req
+        });
+
+        try {
+          await this.notificationsService.sendMail({
+            to: nextWaiting.student.email,
+            subject: `[SIS] 🎉 Enrolled: ${nextWaiting.section.course.code}`,
+            text: `You have been automatically enrolled in ${nextWaiting.section.course.title}. Your waitlist spot was promoted.`,
+            html: `<p>You have been automatically enrolled in <strong>${nextWaiting.section.course.title}</strong>.</p><p>Your waitlist spot was promoted.</p>`
+          });
+        } catch {
+          // Mail delivery should not block the drop workflow.
+        }
+      }
+    }
+
     return {
       dropped,
       seatFreed
@@ -964,7 +1051,13 @@ export class RegistrationService {
       include: {
         term: true,
         section: {
-          include: { course: true }
+          include: {
+            course: true,
+            ratings: {
+              where: { studentId },
+              select: { rating: true }
+            }
+          }
         }
       },
       orderBy: { updatedAt: "desc" }

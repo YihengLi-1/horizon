@@ -165,6 +165,15 @@ export class AdminController {
     return ok(await this.adminService.updateGrade(body as never, user.userId));
   }
 
+  @Patch("enrollments/grade")
+  @RequireAdminPermissions("enrollments:write")
+  async updateEnrollmentGrade(
+    @Body() body: { studentId: string; sectionId: string; grade: string },
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(await this.adminService.updateEnrollmentGrade(body.studentId, body.sectionId, body.grade, user.userId));
+  }
+
   @Get("waitlist")
   @RequireAdminPermissions("waitlist:read")
   async listWaitlist(@Query("sectionId") sectionId?: string) {
@@ -199,6 +208,26 @@ export class AdminController {
   @RequireAdminPermissions("invite-codes:write")
   async updateInviteCode(@Param("id") id: string, @Body() body: unknown, @CurrentUser() user: { userId: string }) {
     return ok(await this.adminService.updateInviteCode(id, body as never, user.userId));
+  }
+
+  @Get("announcements")
+  @RequireAdminPermissions("dashboard:read")
+  async getAnnouncements() {
+    return ok(await this.adminService.getAnnouncements());
+  }
+
+  @Post("announcements")
+  @RequireAdminPermissions("dashboard:write")
+  async createAnnouncement(
+    @Body() body: { title: string; body: string; audience?: string; pinned?: boolean; expiresAt?: string }
+  ) {
+    return ok(await this.adminService.createAnnouncement(body));
+  }
+
+  @Delete("announcements/:id")
+  @RequireAdminPermissions("dashboard:write")
+  async deleteAnnouncement(@Param("id") id: string) {
+    return ok(await this.adminService.deleteAnnouncement(id));
   }
 
   @Get("audit-logs")

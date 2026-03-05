@@ -58,7 +58,7 @@ function CopyButton({ code }: { code: string }) {
       onClick={() => void copy()}
       className="inline-flex h-7 items-center rounded border border-slate-200 bg-slate-50 px-2 text-xs font-medium text-slate-600 transition hover:bg-slate-100"
     >
-      {copied ? "Copied!" : "Copy"}
+      {copied ? "Copied!" : "📋 Copy"}
     </button>
   );
 }
@@ -81,6 +81,10 @@ export default function InviteCodesPage() {
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [search, setSearch] = useState("");
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [bulkCount, setBulkCount] = useState(5);
+  const [bulkMaxUses, setBulkMaxUses] = useState<number | "">(10);
+  const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [lastGenerated, setLastGenerated] = useState<string[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
 
   // Press "/" to focus search
@@ -198,6 +202,33 @@ export default function InviteCodesPage() {
     URL.revokeObjectURL(url);
   };
 
+  const generateBulk = async () => {
+    setBulkGenerating(true);
+    setError("");
+    setNotice("");
+    const generated: string[] = [];
+    try {
+      for (let index = 0; index < Math.max(1, Math.min(20, bulkCount)); index += 1) {
+        try {
+          const response = await apiFetch<InviteCode>("/admin/invite-codes", {
+            method: "POST",
+            body: JSON.stringify({
+              maxUses: bulkMaxUses || null
+            })
+          });
+          if (response?.code) generated.push(response.code);
+        } catch {
+          // Skip individual failures and continue the batch.
+        }
+      }
+      setLastGenerated(generated);
+      setNotice(generated.length > 0 ? `Generated ${generated.length} code(s).` : "No codes were generated.");
+      await load();
+    } finally {
+      setBulkGenerating(false);
+    }
+  };
+
   return (
     <div className="campus-page">
       <section className="campus-hero">
@@ -295,6 +326,57 @@ export default function InviteCodesPage() {
         </form>
       </section>
 
+      <details className="campus-card p-4">
+        <summary className="cursor-pointer select-none text-sm font-semibold text-slate-700">⚡ Bulk Generate Codes</summary>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-500">Count (1–20)</label>
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={bulkCount}
+              onChange={(event) => setBulkCount(Number(event.target.value))}
+              className="campus-input w-20 text-sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-500">Max Uses (blank=∞)</label>
+            <input
+              type="number"
+              min={1}
+              value={bulkMaxUses}
+              onChange={(event) => setBulkMaxUses(event.target.value === "" ? "" : Number(event.target.value))}
+              className="campus-input w-28 text-sm"
+              placeholder="∞"
+            />
+          </div>
+          <button
+            onClick={() => void generateBulk()}
+            disabled={bulkGenerating}
+            className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {bulkGenerating ? "Generating…" : "Generate"}
+          </button>
+        </div>
+        {lastGenerated.length > 0 ? (
+          <div className="mt-3 space-y-1">
+            <p className="text-xs font-medium text-slate-500">Generated codes (click to copy):</p>
+            <div className="flex flex-wrap gap-2">
+              {lastGenerated.map((code) => (
+                <button
+                  key={code}
+                  onClick={() => void navigator.clipboard.writeText(code)}
+                  className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 font-mono text-xs text-emerald-800 hover:bg-emerald-100"
+                >
+                  {code}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </details>
+
       {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
       {notice ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{notice}</div> : null}
 
@@ -372,11 +454,13 @@ export default function InviteCodesPage() {
                 visibleCodes.map((item) => {
                   const { label, cls } = statusLabel(item);
                   const expired = isExpired(item);
+                  const exhausted = item.maxUses !== null && item.usedCount >= item.maxUses;
+                  const muted = expired || exhausted;
                   return (
                     <tr key={item.id} className="border-b border-slate-100 odd:bg-white even:bg-slate-50/40 hover:bg-slate-100/60">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono font-medium text-slate-900">{item.code}</span>
+                          <span className={`font-mono font-medium ${muted ? "text-slate-400 line-through" : "text-slate-900"}`}>{item.code}</span>
                           <CopyButton code={item.code} />
                         </div>
                       </td>
@@ -385,7 +469,7 @@ export default function InviteCodesPage() {
                       </td>
                       <td className="px-4 py-3">
                         {item.expiresAt ? (
-                          <span className={expired ? "text-red-600" : "text-slate-700"}>
+                          <span className={muted ? "text-slate-400 line-through" : "text-slate-700"}>
                             {new Date(item.expiresAt).toLocaleDateString()}
                             {expired ? " (expired)" : ""}
                           </span>

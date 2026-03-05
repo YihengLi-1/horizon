@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { serverApi } from "@/lib/server-api";
-import { getMeServer } from "@/lib/server-auth";
+import { requireRole } from "@/lib/server-auth";
+import QuickCoursesPanel from "./QuickCoursesPanel";
 
 type Term = {
   id: string;
@@ -18,6 +19,7 @@ type Enrollment = {
   waitlistPosition?: number | null;
   section: {
     credits: number;
+    location?: string | null;
     sectionCode?: string;
     course?: {
       code?: string;
@@ -181,8 +183,8 @@ function issueTitle(reasonCode: string): string {
 
 export default async function StudentDashboardPage() {
   const [terms, me, grades] = await Promise.all([
-    serverApi<Term[]>("/academics/terms"),
-    getMeServer(),
+    serverApi<Term[]>("/academics/terms").catch(() => [] as Term[]),
+    requireRole("STUDENT"),
     serverApi<GradeItem[]>("/registration/grades").catch(() => [] as GradeItem[])
   ]);
 
@@ -461,6 +463,8 @@ export default async function StudentDashboardPage() {
           </div>
         )}
       </section>
+
+      <QuickCoursesPanel enrollments={enrollments ?? []} />
 
       {term ? (
         <section className="campus-card p-4">

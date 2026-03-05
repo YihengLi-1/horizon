@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { serverApi } from "@/lib/server-api";
+import GpaCalculator from "./GpaCalculator";
+import StarRating from "./StarRating";
 import TranscriptExportButton from "./TranscriptExportButton";
 
 export type GradeItem = {
   id: string;
+  sectionId: string;
   finalGrade: string;
   term: { name: string };
   section: {
     credits: number;
     course: { code: string; title: string };
+    ratings?: Array<{ rating: number }>;
   };
 };
 
@@ -357,6 +361,7 @@ export default async function GradesPage({
                     <SortTh col="credits"      label="Credits"      sortBy={sortBy} sortDir={sortDir} />
                     <SortTh col="grade"        label="Grade"        sortBy={sortBy} sortDir={sortDir} />
                     <SortTh col="points"       label="Points"       sortBy={sortBy} sortDir={sortDir} />
+                    <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Rating</th>
                     <SortTh col="contribution" label="Contribution" sortBy={sortBy} sortDir={sortDir} right />
                   </tr>
                 </thead>
@@ -371,6 +376,13 @@ export default async function GradesPage({
                         <td className="px-4 py-3 text-slate-700">{item.section.credits}</td>
                         <td className={`px-4 py-3 font-semibold ${gradeColor(item.finalGrade)}`}>{item.finalGrade}</td>
                         <td className="px-4 py-3 text-slate-700">{pts !== null ? pts.toFixed(1) : "-"}</td>
+                        <td className="px-4 py-3">
+                          <StarRating
+                            sectionId={item.sectionId}
+                            initial={item.section.ratings?.[0]?.rating ?? 0}
+                            apiBase={process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}
+                          />
+                        </td>
                         <td className="px-4 py-3 text-right text-slate-500 text-xs">
                           {contribution !== null ? contribution.toFixed(1) : "-"}
                         </td>
@@ -383,6 +395,7 @@ export default async function GradesPage({
           </section>
         );
       })}
+      <GpaCalculator />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AdminDataExport from "@/components/AdminDataExport";
 import { serverApi } from "@/lib/server-api";
 
 type Breakdown = {
@@ -525,6 +526,9 @@ export default async function AdminDashboardPage() {
                         Open ↗
                       </a>
                     </div>
+                  </div>
+                  <div className="mt-3">
+                    <AdminDataExport apiUrl={process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"} />
                   </div>
                 </div>
               </div>

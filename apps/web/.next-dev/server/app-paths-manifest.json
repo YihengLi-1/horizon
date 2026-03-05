@@ -1,7 +1,8 @@
 {
-  "/admin/dashboard/page": "app/admin/dashboard/page.js",
-  "/student/dashboard/page": "app/student/dashboard/page.js",
-  "/student/grades/page": "app/student/grades/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
   "/student/schedule/page": "app/student/schedule/page.js",
-  "/admin/import/page": "app/admin/import/page.js"
+  "/student/dashboard/page": "app/student/dashboard/page.js",
+  "/student/calendar/page": "app/student/calendar/page.js",
+  "/student/catalog/page": "app/student/catalog/page.js",
+  "/student/cart/page": "app/student/cart/page.js"
 }

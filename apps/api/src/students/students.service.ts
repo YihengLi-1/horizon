@@ -6,6 +6,22 @@ import { toDateOrNull } from "../common/grade.utils";
 import { AuditService } from "../audit/audit.service";
 import { verifyPasswordHash } from "../common/password-hash";
 
+const GRADE_POINTS: Record<string, number> = {
+  "A+": 4.0,
+  A: 4.0,
+  "A-": 3.7,
+  "B+": 3.3,
+  B: 3.0,
+  "B-": 2.7,
+  "C+": 2.3,
+  C: 2.0,
+  "C-": 1.7,
+  "D+": 1.3,
+  D: 1.0,
+  "D-": 0.7,
+  F: 0.0
+};
+
 @Injectable()
 export class StudentsService {
   constructor(
@@ -71,6 +87,75 @@ export class StudentsService {
       }));
   }
 
+  async getMyRatings(userId: string) {
+    const student = await this.prisma.user.findFirst({
+      where: { id: userId, role: "STUDENT", deletedAt: null },
+      select: { id: true }
+    });
+
+    if (!student) return [];
+
+    return this.prisma.courseRating.findMany({
+      where: { studentId: student.id },
+      orderBy: { updatedAt: "desc" }
+    });
+  }
+
+  async getAnnouncements(role: "STUDENT" | "ADMIN" = "STUDENT") {
+    const audiences = role === "ADMIN" ? ["ALL", "ADMIN"] : ["ALL", "STUDENT"];
+    return this.prisma.announcement.findMany({
+      where: {
+        audience: { in: audiences },
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }]
+      },
+      orderBy: [{ pinned: "desc" }, { createdAt: "desc" }]
+    });
+  }
+
+  async rateSection(userId: string, sectionId: string, rating: number, comment?: string) {
+    const student = await this.prisma.user.findFirstOrThrow({
+      where: { id: userId, role: "STUDENT", deletedAt: null },
+      select: { id: true }
+    });
+
+    return this.prisma.courseRating.upsert({
+      where: {
+        studentId_sectionId: {
+          studentId: student.id,
+          sectionId
+        }
+      },
+      create: {
+        studentId: student.id,
+        sectionId,
+        rating,
+        comment
+      },
+      update: {
+        rating,
+        comment
+      }
+    });
+  }
+
+  private computeGpa(
+    enrollments: Array<{ finalGrade: string | null; section: { credits: number } }>
+  ): number | null {
+    let weighted = 0;
+    let credits = 0;
+
+    for (const enrollment of enrollments) {
+      if (!enrollment.finalGrade) continue;
+      const points = GRADE_POINTS[enrollment.finalGrade];
+      if (points === undefined) continue;
+      weighted += points * enrollment.section.credits;
+      credits += enrollment.section.credits;
+    }
+
+    if (credits === 0) return null;
+    return Math.round((weighted / credits) * 100) / 100;
+  }
+
   async updateMyProfile(userId: string, input: UpdateProfileInput) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, deletedAt: null },
@@ -101,22 +186,59 @@ export class StudentsService {
   }
 
   async adminListStudents() {
-    return this.prisma.user.findMany({
+    const students = await this.prisma.user.findMany({
       where: { role: "STUDENT", deletedAt: null },
-      include: { studentProfile: true },
+      include: {
+        studentProfile: true,
+        enrollments: {
+          where: {
+            deletedAt: null,
+            status: "COMPLETED",
+            finalGrade: { not: null }
+          },
+          include: {
+            section: {
+              select: { credits: true }
+            }
+          }
+        }
+      },
       orderBy: { createdAt: "desc" }
     });
+
+    return students.map(({ enrollments, ...student }) => ({
+      ...student,
+      gpa: this.computeGpa(enrollments)
+    }));
   }
 
   async adminGetStudent(id: string) {
     const user = await this.prisma.user.findFirst({
       where: { id, role: "STUDENT", deletedAt: null },
-      include: { studentProfile: true }
+      include: {
+        studentProfile: true,
+        enrollments: {
+          where: { deletedAt: null },
+          include: {
+            section: {
+              include: { course: true }
+            }
+          },
+          orderBy: { createdAt: "desc" }
+        }
+      }
     });
     if (!user) {
       throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
     }
-    return user;
+    const completedEnrollments = user.enrollments.filter(
+      (enrollment) => enrollment.status === "COMPLETED" && enrollment.finalGrade
+    );
+
+    return {
+      ...user,
+      gpa: this.computeGpa(completedEnrollments)
+    };
   }
 
   async adminCreateStudent(input: {

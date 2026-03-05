@@ -39,6 +39,7 @@ type Section = {
   credits: number;
   term: { id: string; name: string };
   course: { id: string; code: string };
+  ratings?: Array<{ rating: number }>;
   enrollments: Enrollment[];
   meetingTimes: MeetingTime[];
 };
@@ -130,6 +131,11 @@ function availableSeats(section: Section): number {
 
 function promotableCount(section: Section): number {
   return Math.min(waitlistCount(section), availableSeats(section));
+}
+
+function avgRating(ratings: Array<{ rating: number }> | undefined): string {
+  if (!ratings?.length) return "—";
+  return `⭐ ${(ratings.reduce((sum, item) => sum + item.rating, 0) / ratings.length).toFixed(1)} (${ratings.length})`;
 }
 
 const PAGE_SIZE = 25;
@@ -1307,6 +1313,7 @@ export default function AdminSectionsPage() {
                 <th className="px-4 py-3 font-semibold text-slate-700">Enrolled</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Waitlist</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Available</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">Rating</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Promote</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Actions</th>
               </tr>
@@ -1315,7 +1322,7 @@ export default function AdminSectionsPage() {
               {loading
                 ? [1, 2, 3, 4].map((row) => (
                     <tr key={row} className="border-b border-slate-100">
-                      <td colSpan={11} className="px-4 py-4">
+                      <td colSpan={12} className="px-4 py-4">
                         <div className="animate-pulse space-y-2">
                           <div className="h-4 w-1/4 rounded bg-slate-200" />
                           <div className="h-4 w-1/2 rounded bg-slate-100" />
@@ -1408,6 +1415,7 @@ export default function AdminSectionsPage() {
                             {seats} seats
                           </span>
                         </td>
+                        <td className="px-4 py-3 text-sm text-slate-500">{avgRating(section.ratings)}</td>
                         <td className="px-4 py-3">
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-2">
@@ -1477,7 +1485,7 @@ export default function AdminSectionsPage() {
                       </tr>
                       {notifyingSectionId === section.id ? (
                         <tr className="border-b border-slate-100 bg-white">
-                          <td colSpan={11} className="px-4 pb-4">
+                          <td colSpan={12} className="px-4 pb-4">
                             <div className="mt-2 flex flex-col gap-2 rounded-lg border border-violet-200 bg-violet-50 p-3">
                               <input
                                 placeholder="Subject"
@@ -1515,7 +1523,7 @@ export default function AdminSectionsPage() {
                       ) : null}
                       {rowMessage ? (
                         <tr className="border-b border-slate-100 bg-white">
-                          <td colSpan={11} className="px-4 pb-4">
+                          <td colSpan={12} className="px-4 pb-4">
                             <div
                               className={`rounded-lg border px-3 py-2 text-sm ${
                                 rowMessage.type === "success"
@@ -1534,7 +1542,7 @@ export default function AdminSectionsPage() {
 
               {!loading && visibleSections.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-10 text-center text-slate-500">
+                  <td colSpan={12} className="px-4 py-10 text-center text-slate-500">
                     No sections found.
                   </td>
                 </tr>
