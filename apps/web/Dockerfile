@@ -14,8 +14,12 @@ FROM deps AS builder
 ENV NEXT_BUILD_STANDALONE=1
 ENV NODE_ENV=production
 
-COPY packages/shared/ ./packages/shared/
-COPY apps/web/        ./apps/web/
+COPY tsconfig.base.json  ./
+COPY packages/shared/    ./packages/shared/
+COPY apps/web/           ./apps/web/
+
+# Build shared package first (main now points to dist/index.js)
+RUN pnpm --filter @sis/shared build
 
 # Build args injected at build time (override for your domain)
 ARG NEXT_PUBLIC_API_URL=http://localhost:4000
@@ -31,8 +35,6 @@ WORKDIR /app
 # The standalone output includes a minimal server + all traced deps
 COPY --from=builder /repo/apps/web/.next/standalone          ./
 COPY --from=builder /repo/apps/web/.next/static              ./apps/web/.next/static
-# public folder (static assets)
-COPY --from=builder /repo/apps/web/public                    ./apps/web/public
 
 EXPOSE 3000
 ENV PORT=3000

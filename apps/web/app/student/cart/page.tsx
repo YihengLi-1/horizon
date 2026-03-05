@@ -470,6 +470,8 @@ export default function StudentCartPage() {
   };
 
   const catalogHref = `/student/catalog${termId ? `?termId=${termId}` : ""}`;
+  const issueAnchorHref =
+    summaryIssues.length > 0 ? "#cart-issue-summary" : groupedPrecheckIssues.length > 0 ? "#precheck-issues" : "";
   const nextAction: NextAction = (() => {
     if (terms.length === 0 || !termId) {
       return {
@@ -521,7 +523,14 @@ export default function StudentCartPage() {
       return {
         title: "Resolve precheck issues",
         detail: "Review issue cards below, adjust sections, then rerun precheck.",
-        tone: "red"
+        tone: "red",
+        ...(issueAnchorHref
+          ? {
+              buttonLabel: "Review Issues",
+              buttonTone: "neutral" as const,
+              href: issueAnchorHref
+            }
+          : {})
       };
     }
     return {
@@ -769,6 +778,7 @@ export default function StudentCartPage() {
       {!registrationWindow.isOpen && registrationWindow.message ? <Alert type="info" message={registrationWindow.message} /> : null}
       {summaryIssues.length > 0 ? (
         <div
+          id="cart-issue-summary"
           ref={errorSummaryRef}
           tabIndex={-1}
           role="alert"
@@ -979,7 +989,7 @@ export default function StudentCartPage() {
       </section>
 
       {precheckRan && groupedPrecheckIssues.length > 0 ? (
-        <section className="campus-card border-amber-200 bg-amber-50 p-4 md:p-5">
+        <section id="precheck-issues" className="campus-card border-amber-200 bg-amber-50 p-4 md:p-5">
           <h2 className="text-base font-semibold text-amber-900">Precheck Issues</h2>
           <p className="mt-1 text-sm text-amber-800">Submit is likely to fail until these are resolved.</p>
           <div className="mt-3 space-y-3">

@@ -26,6 +26,7 @@ type EditForm = {
 
 const ENROLLMENT_STATUSES = ["New", "Continuing", "Returning", "Graduated", "Withdrawn"];
 const ACADEMIC_STATUSES = ["Active", "Probation", "Suspended", "Graduated"];
+const PAGE_SIZE = 50;
 
 export default function AdminStudentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -37,6 +38,7 @@ export default function AdminStudentsPage() {
     role: "STUDENT"
   });
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
@@ -152,6 +154,13 @@ export default function AdminStudentsPage() {
       return text.includes(query);
     });
   }, [students, search]);
+
+  // Reset page when search changes
+  useEffect(() => { setPage(1); }, [search]);
+
+  const totalPages = Math.max(1, Math.ceil(visibleStudents.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedStudents = visibleStudents.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const exportCsv = () => {
     const rows = [
@@ -418,7 +427,7 @@ export default function AdminStudentsPage() {
                   </td>
                 </tr>
               ) : (
-                visibleStudents.map((student) => (
+                pagedStudents.map((student) => (
                   <tr
                     key={student.id}
                     className={`border-b border-slate-100 hover:bg-slate-100/60 ${editingId === student.id ? "bg-blue-50/40 outline outline-1 outline-blue-200" : "odd:bg-white even:bg-slate-50/40"}`}
@@ -459,6 +468,54 @@ export default function AdminStudentsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {visibleStudents.length > PAGE_SIZE ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-3 text-sm text-slate-600">
+            <p>
+              Showing {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, visibleStudents.length)} of {visibleStudents.length} students
+            </p>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                ← Prev
+              </button>
+              {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
+                let pageNum: number;
+                if (totalPages <= 7) pageNum = i + 1;
+                else if (safePage <= 4) pageNum = i + 1;
+                else if (safePage >= totalPages - 3) pageNum = totalPages - 6 + i;
+                else pageNum = safePage - 3 + i;
+                return (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    onClick={() => setPage(pageNum)}
+                    className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg border px-2.5 font-medium transition ${
+                      pageNum === safePage
+                        ? "border-primary bg-primary text-white"
+                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        ) : null}
       </section>
     </div>
   );

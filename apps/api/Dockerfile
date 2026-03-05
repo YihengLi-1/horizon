@@ -15,6 +15,9 @@ COPY tsconfig.base.json  ./
 COPY packages/shared/    ./packages/shared/
 COPY apps/api/           ./apps/api/
 
+# Build shared package first (main now points to dist/index.js)
+RUN pnpm --filter @sis/shared build
+
 # Generate Prisma client and compile TypeScript
 RUN pnpm --filter @sis/api exec prisma generate
 RUN pnpm --filter @sis/api build
@@ -26,6 +29,8 @@ RUN pnpm deploy --filter @sis/api --prod --legacy /deploy
 # Copy compiled dist + prisma schema into the deploy directory
 RUN cp -r apps/api/dist /deploy/dist
 RUN cp -r apps/api/prisma /deploy/prisma
+# Copy shared package compiled JS into deploy (pnpm deploy already created the dir)
+RUN cp -r packages/shared/dist /deploy/node_modules/@sis/shared/dist
 
 # Sanity checks
 RUN test -f /deploy/dist/src/main.js       || (echo "❌ dist/src/main.js missing" && exit 1)

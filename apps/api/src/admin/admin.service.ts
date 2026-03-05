@@ -304,7 +304,7 @@ export class AdminService {
         }
       }),
       this.prisma.auditLog.findMany({
-        take: 5,
+        take: 10,
         orderBy: { createdAt: "desc" },
         include: {
           actor: { select: { email: true, role: true } }

@@ -33,6 +33,7 @@ type Enrollment = {
 };
 
 const STATUS_OPTIONS = ["ENROLLED", "WAITLISTED", "PENDING_APPROVAL", "DROPPED", "COMPLETED"];
+const PAGE_SIZE = 50;
 
 const STATUS_COLORS: Record<string, string> = {
   ENROLLED: "bg-emerald-100 text-emerald-800",
@@ -66,6 +67,7 @@ export default function EnrollmentsPage() {
   const [bulkSaving, setBulkSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [page, setPage] = useState(1);
 
   // Load terms for selector
   useEffect(() => {
@@ -170,6 +172,10 @@ export default function EnrollmentsPage() {
     });
   }, [rows, search, statusFilter]);
 
+  const totalPages = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedRows = visibleRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
   const selectedVisibleIds = useMemo(
     () => visibleRows.map((row) => row.id).filter((id) => selectedById[id]),
     [visibleRows, selectedById]
@@ -272,6 +278,9 @@ export default function EnrollmentsPage() {
     }
     setNotice(`Bulk update complete: ${success} enrollment(s) moved to ${nextStatus}.`);
   };
+
+  // Reset page on filter changes
+  useEffect(() => { setPage(1); }, [search, statusFilter, selectedTermId]);
 
   const selectedTerm = terms.find((t) => t.id === selectedTermId);
 
@@ -466,7 +475,7 @@ export default function EnrollmentsPage() {
                   </td>
                 </tr>
               ) : (
-                visibleRows.map((row) => (
+                pagedRows.map((row) => (
                   <tr key={row.id} className="border-b border-slate-100 odd:bg-white even:bg-slate-50/40 hover:bg-slate-100/60">
                     <td className="px-4 py-3">
                       <input
@@ -542,6 +551,54 @@ export default function EnrollmentsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {visibleRows.length > PAGE_SIZE ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-3 text-sm text-slate-600">
+            <p>
+              Showing {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, visibleRows.length)} of {visibleRows.length} records
+            </p>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                ← Prev
+              </button>
+              {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
+                let pageNum: number;
+                if (totalPages <= 7) pageNum = i + 1;
+                else if (safePage <= 4) pageNum = i + 1;
+                else if (safePage >= totalPages - 3) pageNum = totalPages - 6 + i;
+                else pageNum = safePage - 3 + i;
+                return (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    onClick={() => setPage(pageNum)}
+                    className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg border px-2.5 font-medium transition ${
+                      pageNum === safePage
+                        ? "border-primary bg-primary text-white"
+                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        ) : null}
       </section>
     </div>
   );

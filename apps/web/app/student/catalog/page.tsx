@@ -155,6 +155,8 @@ function RegistrationWindowBanner({ term }: { term: Term | null }) {
   );
 }
 
+const PAGE_SIZE = 20;
+
 export default function StudentCatalogPage() {
   const [terms, setTerms] = useState<Term[]>([]);
   const [termId, setTermId] = useState("");
@@ -174,6 +176,7 @@ export default function StudentCatalogPage() {
   const [addingSectionId, setAddingSectionId] = useState("");
   const [passedCourseCodes, setPassedCourseCodes] = useState<string[]>([]);
   const [hydratedFilters, setHydratedFilters] = useState(false);
+  const [page, setPage] = useState(1);
 
   const activeTerm = useMemo(() => terms.find((t) => t.id === termId) ?? null, [terms, termId]);
 
@@ -344,6 +347,7 @@ export default function StudentCatalogPage() {
     setFilterApprovalOnly(false);
     setFilterNoConflict(false);
     setSortBy("RELEVANCE");
+    setPage(1);
   };
 
   const activeFilterLabels = useMemo(() => {
@@ -427,6 +431,16 @@ export default function StudentCatalogPage() {
     passedCourseCodeSet,
     sortBy
   ]);
+
+  // Reset to page 1 whenever filters/search/sort change
+  useEffect(() => {
+    if (!hydratedFilters) return;
+    setPage(1);
+  }, [hydratedFilters, search, filterModality, filterCredits, filterAvailable, filterPrereqReady, filterApprovalOnly, filterNoConflict, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSections.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedSections = filteredSections.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const catalogStats = useMemo(() => {
     let openCount = 0;
@@ -664,6 +678,7 @@ export default function StudentCatalogPage() {
         <p className="text-sm text-slate-600" role="status" aria-live="polite">
           {filteredSections.length} section{filteredSections.length !== 1 ? "s" : ""} found
           {sections.length !== filteredSections.length ? ` (${sections.length} total)` : ""}
+          {filteredSections.length > PAGE_SIZE ? ` · Page ${safePage} of ${totalPages}` : ""}
         </p>
       ) : null}
 
@@ -707,7 +722,7 @@ export default function StudentCatalogPage() {
         ) : null}
 
         {!loading &&
-          filteredSections.map((section) => {
+          pagedSections.map((section) => {
             const sectionMeetingTimes = section.meetingTimes ?? [];
             const enrolledCount = getEnrolledCount(section);
             const waitlistCount = getWaitlistedCount(section);
@@ -860,6 +875,59 @@ export default function StudentCatalogPage() {
             );
           })}
       </section>
+
+      {/* Pagination */}
+      {!loading && filteredSections.length > PAGE_SIZE ? (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm text-slate-700">
+          <p className="text-slate-500">
+            Showing {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, filteredSections.length)} of {filteredSections.length} sections
+          </p>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={safePage === 1}
+              className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ← Prev
+            </button>
+            {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
+              let pageNum: number;
+              if (totalPages <= 7) {
+                pageNum = i + 1;
+              } else if (safePage <= 4) {
+                pageNum = i + 1;
+              } else if (safePage >= totalPages - 3) {
+                pageNum = totalPages - 6 + i;
+              } else {
+                pageNum = safePage - 3 + i;
+              }
+              return (
+                <button
+                  key={pageNum}
+                  type="button"
+                  onClick={() => setPage(pageNum)}
+                  className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg border px-2.5 font-medium transition ${
+                    pageNum === safePage
+                      ? "border-primary bg-primary text-white"
+                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage === totalPages}
+              className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

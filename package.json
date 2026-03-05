@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.8.0",
   "scripts": {
-    "dev": "concurrently \"pnpm --filter @sis/api dev\" \"pnpm --filter @sis/web dev\"",
+    "dev": "pnpm --filter @sis/shared build && concurrently \"pnpm --filter @sis/api dev\" \"pnpm --filter @sis/web dev\"",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "smoke:web": "bash scripts/smoke-web.sh",

@@ -20,10 +20,13 @@ type EditForm = {
   prerequisiteCourseIds: string[];
 };
 
+const PAGE_SIZE = 50;
+
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [form, setForm] = useState({ code: "", title: "", credits: 3, description: "", prerequisiteCourseIds: [] as string[] });
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
@@ -144,6 +147,13 @@ export default function CoursesPage() {
     if (!q) return courses;
     return courses.filter((c) => `${c.code} ${c.title} ${c.description ?? ""}`.toLowerCase().includes(q));
   }, [courses, search]);
+
+  // Reset page when search changes
+  useEffect(() => { setPage(1); }, [search]);
+
+  const totalPages = Math.max(1, Math.ceil(visibleCourses.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedCourses = visibleCourses.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const exportCsv = () => {
     const rows = [
@@ -420,7 +430,7 @@ export default function CoursesPage() {
                   </td>
                 </tr>
               ) : (
-                visibleCourses.map((course) => (
+                pagedCourses.map((course) => (
                   <tr
                     key={course.id}
                     className={`border-b border-slate-100 hover:bg-slate-100/60 ${editingId === course.id ? "bg-blue-50/40 outline outline-1 outline-blue-200" : "odd:bg-white even:bg-slate-50/40"}`}
@@ -461,6 +471,54 @@ export default function CoursesPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {visibleCourses.length > PAGE_SIZE ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-3 text-sm text-slate-600">
+            <p>
+              Showing {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, visibleCourses.length)} of {visibleCourses.length} courses
+            </p>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                ← Prev
+              </button>
+              {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
+                let pageNum: number;
+                if (totalPages <= 7) pageNum = i + 1;
+                else if (safePage <= 4) pageNum = i + 1;
+                else if (safePage >= totalPages - 3) pageNum = totalPages - 6 + i;
+                else pageNum = safePage - 3 + i;
+                return (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    onClick={() => setPage(pageNum)}
+                    className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg border px-2.5 font-medium transition ${
+                      pageNum === safePage
+                        ? "border-primary bg-primary text-white"
+                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        ) : null}
       </section>
     </div>
   );

@@ -106,6 +106,8 @@ function promotableCount(section: Section): number {
   return Math.min(waitlistCount(section), availableSeats(section));
 }
 
+const PAGE_SIZE = 25;
+
 export default function AdminSectionsPage() {
   const [sections, setSections] = useState<Section[]>([]);
   const [terms, setTerms] = useState<Term[]>([]);
@@ -115,6 +117,7 @@ export default function AdminSectionsPage() {
   const [loadingBySection, setLoadingBySection] = useState<Record<string, boolean>>({});
   const [messageBySection, setMessageBySection] = useState<Record<string, RowMessage>>({});
   const [bulkMessage, setBulkMessage] = useState<RowMessage | null>(null);
+  const [page, setPage] = useState(1);
   const [bulkPromoting, setBulkPromoting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [termFilter, setTermFilter] = useState("ALL");
@@ -181,6 +184,13 @@ export default function AdminSectionsPage() {
 
     return rows;
   }, [filteredSections, filterWaitlistOnly, filterActionOnly, sortActionFirst]);
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1); }, [termFilter, search, filterWaitlistOnly, filterActionOnly, sortActionFirst]);
+
+  const totalPages = Math.max(1, Math.ceil(visibleSections.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedSections = visibleSections.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const actionableSections = useMemo(
     () => visibleSections.filter((section) => waitlistCount(section) > 0 && availableSeats(section) > 0),
@@ -1121,7 +1131,7 @@ export default function AdminSectionsPage() {
                 : null}
 
               {!loading &&
-                visibleSections.map((section) => {
+                pagedSections.map((section) => {
                   const enrolled = enrolledCount(section);
                   const waitlisted = waitlistCount(section);
                   const seats = availableSeats(section);
@@ -1263,6 +1273,54 @@ export default function AdminSectionsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {visibleSections.length > PAGE_SIZE ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-3 text-sm text-slate-600">
+            <p>
+              Showing {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, visibleSections.length)} of {visibleSections.length} sections
+            </p>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                ← Prev
+              </button>
+              {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
+                let pageNum: number;
+                if (totalPages <= 7) pageNum = i + 1;
+                else if (safePage <= 4) pageNum = i + 1;
+                else if (safePage >= totalPages - 3) pageNum = totalPages - 6 + i;
+                else pageNum = safePage - 3 + i;
+                return (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    onClick={() => setPage(pageNum)}
+                    className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg border px-2.5 font-medium transition ${
+                      pageNum === safePage
+                        ? "border-primary bg-primary text-white"
+                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        ) : null}
       </section>
     </div>
   );

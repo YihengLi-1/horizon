@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { serverApi } from "@/lib/server-api";
+import { GradesCsvButton } from "@/components/grades-csv-button";
 
 type GradeItem = {
   id: string;
@@ -91,6 +92,20 @@ export default async function GradesPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            <GradesCsvButton
+              rows={grades.map((item) => {
+                const pts = gradePoints(item.finalGrade);
+                return {
+                  term: item.term.name,
+                  courseCode: item.section.course.code,
+                  courseTitle: item.section.course.title,
+                  credits: item.section.credits,
+                  grade: item.finalGrade,
+                  points: pts !== null ? pts.toFixed(1) : "N/A"
+                };
+              })}
+              gpa={cumulative ? cumulative.gpa.toFixed(2) : "N/A"}
+            />
             <Link
               href="/student/schedule"
               className="inline-flex h-10 items-center rounded-lg border border-white/35 bg-white/90 px-4 text-sm font-semibold text-slate-800 no-underline transition hover:bg-white"
