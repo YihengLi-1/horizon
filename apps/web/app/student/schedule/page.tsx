@@ -327,6 +327,12 @@ export default function SchedulePage() {
           <p className="text-xs text-slate-500 sm:hidden">{visibleEnrollments.length} visible</p>
           <p className="hidden text-xs text-slate-500 sm:block">{visibleEnrollments.length} row(s) visible in list and grid</p>
         </div>
+        <p className="mt-1 text-[11px] text-slate-500 sm:hidden">
+          Tip: tap a status chip to focus your schedule list.
+        </p>
+        <p aria-live="polite" className="sr-only">
+          {visibleEnrollments.length} sections currently visible with the selected status filters.
+        </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
             type="button"
