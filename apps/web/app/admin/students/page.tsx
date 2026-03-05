@@ -159,17 +159,32 @@ export default function AdminStudentsPage() {
     }
   };
 
+  const [filterAcademic, setFilterAcademic] = useState("");
+  const [filterEnrollment, setFilterEnrollment] = useState("");
+
+  const studentStats = useMemo(() => {
+    const active = students.filter((s) => s.studentProfile?.academicStatus === "Active").length;
+    const probation = students.filter((s) => s.studentProfile?.academicStatus === "Probation").length;
+    const suspended = students.filter((s) => s.studentProfile?.academicStatus === "Suspended").length;
+    const graduated = students.filter((s) => s.studentProfile?.academicStatus === "Graduated").length;
+    return { active, probation, suspended, graduated };
+  }, [students]);
+
   const visibleStudents = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return students;
     return students.filter((student) => {
-      const text = `${student.studentProfile?.legalName ?? ""} ${student.studentId ?? ""} ${student.email ?? ""} ${student.studentProfile?.programMajor ?? ""}`.toLowerCase();
-      return text.includes(query);
+      if (query) {
+        const text = `${student.studentProfile?.legalName ?? ""} ${student.studentId ?? ""} ${student.email ?? ""} ${student.studentProfile?.programMajor ?? ""}`.toLowerCase();
+        if (!text.includes(query)) return false;
+      }
+      if (filterAcademic && student.studentProfile?.academicStatus !== filterAcademic) return false;
+      if (filterEnrollment && student.studentProfile?.enrollmentStatus !== filterEnrollment) return false;
+      return true;
     });
-  }, [students, search]);
+  }, [students, search, filterAcademic, filterEnrollment]);
 
-  // Reset page when search changes
-  useEffect(() => { setPage(1); }, [search]);
+  // Reset page when filters change
+  useEffect(() => { setPage(1); }, [search, filterAcademic, filterEnrollment]);
 
   const totalPages = Math.max(1, Math.ceil(visibleStudents.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -229,6 +244,25 @@ export default function AdminStudentsPage() {
               Refresh
             </button>
           </div>
+        </div>
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="campus-kpi border-slate-200 bg-white">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Students</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-900">{students.length}</p>
+        </div>
+        <div className="campus-kpi border-emerald-200 bg-emerald-50/70">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Active</p>
+          <p className="mt-1 text-2xl font-semibold text-emerald-900">{studentStats.active}</p>
+        </div>
+        <div className="campus-kpi border-amber-200 bg-amber-50/70">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">On Probation</p>
+          <p className="mt-1 text-2xl font-semibold text-amber-900">{studentStats.probation}</p>
+        </div>
+        <div className="campus-kpi border-red-200 bg-red-50/70">
+          <p className="text-xs font-semibold uppercase tracking-wide text-red-700">Suspended</p>
+          <p className="mt-1 text-2xl font-semibold text-red-900">{studentStats.suspended}</p>
         </div>
       </section>
 
@@ -382,16 +416,53 @@ export default function AdminStudentsPage() {
       ) : null}
 
       <section className="campus-toolbar">
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search</span>
-          <input
-            ref={searchRef}
-            className="campus-input"
-            placeholder="Name, Student ID, email, major…  [/]"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </label>
+        <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search</span>
+            <input
+              ref={searchRef}
+              className="campus-input"
+              placeholder="Name, Student ID, email, major…  [/]"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Academic Status</span>
+            <select
+              className="campus-select"
+              value={filterAcademic}
+              onChange={(e) => setFilterAcademic(e.target.value)}
+            >
+              <option value="">All statuses</option>
+              {ACADEMIC_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Enrollment Status</span>
+            <select
+              className="campus-select"
+              value={filterEnrollment}
+              onChange={(e) => setFilterEnrollment(e.target.value)}
+            >
+              <option value="">All statuses</option>
+              {ENROLLMENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </label>
+          {(search || filterAcademic || filterEnrollment) ? (
+            <button
+              type="button"
+              onClick={() => { setSearch(""); setFilterAcademic(""); setFilterEnrollment(""); }}
+              className="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
+        <p className="mt-2 text-xs text-slate-500">
+          Showing {visibleStudents.length} of {students.length} students
+          {visibleStudents.length !== pagedStudents.length ? ` (page ${safePage} of ${totalPages})` : ""}
+        </p>
       </section>
 
       {error ? (
@@ -451,11 +522,18 @@ export default function AdminStudentsPage() {
                     <td className="px-4 py-3 text-slate-700">{student.email}</td>
                     <td className="px-4 py-3 text-slate-700">{student.studentProfile?.programMajor || "-"}</td>
                     <td className="px-4 py-3">
-                      <div className="space-y-0.5">
+                      <div className="space-y-1">
                         <span className="block text-xs text-slate-600">{student.studentProfile?.enrollmentStatus || "-"}</span>
-                        <span className={`block text-xs font-semibold ${student.studentProfile?.academicStatus === "Probation" ? "text-amber-700" : student.studentProfile?.academicStatus === "Suspended" ? "text-red-700" : "text-emerald-700"}`}>
-                          {student.studentProfile?.academicStatus || "-"}
-                        </span>
+                        {student.studentProfile?.academicStatus ? (
+                          <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                            student.studentProfile.academicStatus === "Probation" ? "border-amber-200 bg-amber-50 text-amber-700"
+                            : student.studentProfile.academicStatus === "Suspended" ? "border-red-200 bg-red-50 text-red-700"
+                            : student.studentProfile.academicStatus === "Graduated" ? "border-slate-200 bg-slate-50 text-slate-600"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          }`}>
+                            {student.studentProfile.academicStatus}
+                          </span>
+                        ) : <span className="text-xs text-slate-400">-</span>}
                       </div>
                     </td>
                     <td className="px-4 py-3">

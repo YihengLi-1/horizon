@@ -15,7 +15,15 @@ export class StudentsService {
   async getMyProfile(userId: string) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, deletedAt: null },
-      include: { studentProfile: true }
+      select: {
+        id: true,
+        email: true,
+        studentId: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+        studentProfile: true
+      }
     });
 
     if (!user?.studentProfile) {
@@ -31,7 +39,10 @@ export class StudentsService {
   async updateMyProfile(userId: string, input: UpdateProfileInput) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, deletedAt: null },
-      include: { studentProfile: true }
+      select: {
+        id: true,
+        studentProfile: true
+      }
     });
     const existing = user?.studentProfile ?? null;
     if (!existing) {

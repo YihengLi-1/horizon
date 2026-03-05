@@ -157,6 +157,7 @@ export class RegistrationService {
       client.enrollment.groupBy({
         by: ["sectionId"],
         where: {
+          deletedAt: null,
           sectionId: { in: sectionIds },
           status: { in: ["ENROLLED"] }
         },
@@ -165,6 +166,7 @@ export class RegistrationService {
       client.enrollment.groupBy({
         by: ["sectionId"],
         where: {
+          deletedAt: null,
           sectionId: { in: sectionIds },
           status: "WAITLISTED"
         },
@@ -372,7 +374,7 @@ export class RegistrationService {
             term: true,
             meetingTimes: true,
             enrollments: {
-              where: { status: { in: ["ENROLLED", "PENDING_APPROVAL"] } }
+              where: { deletedAt: null, status: { in: ["ENROLLED", "PENDING_APPROVAL"] } }
             }
           }
         }
@@ -393,6 +395,7 @@ export class RegistrationService {
 
     const existingActive = await this.prisma.enrollment.findFirst({
       where: {
+        deletedAt: null,
         studentId,
         sectionId: section.id,
         status: { in: ["ENROLLED", "WAITLISTED", "PENDING_APPROVAL"] }
@@ -473,6 +476,7 @@ export class RegistrationService {
     const [existingEnrollments, completedEnrollments, sectionStats] = await Promise.all([
       this.prisma.enrollment.findMany({
         where: {
+          deletedAt: null,
           studentId,
           termId: input.termId,
           status: { in: ["ENROLLED", "PENDING_APPROVAL", "WAITLISTED"] }
@@ -483,6 +487,7 @@ export class RegistrationService {
       }),
       this.prisma.enrollment.findMany({
         where: {
+          deletedAt: null,
           studentId,
           status: "COMPLETED"
         },
@@ -568,6 +573,7 @@ export class RegistrationService {
     const [existingEnrollments, completedEnrollments, sectionStats] = await Promise.all([
       this.prisma.enrollment.findMany({
         where: {
+          deletedAt: null,
           studentId,
           termId: input.termId,
           status: { in: ["ENROLLED", "PENDING_APPROVAL", "WAITLISTED"] }
@@ -578,6 +584,7 @@ export class RegistrationService {
       }),
       this.prisma.enrollment.findMany({
         where: {
+          deletedAt: null,
           studentId,
           status: "COMPLETED"
         },
@@ -651,6 +658,7 @@ export class RegistrationService {
       const [txExistingEnrollments, txCompletedEnrollments, txSectionStats] = await Promise.all([
         tx.enrollment.findMany({
           where: {
+            deletedAt: null,
             studentId,
             termId: input.termId,
             status: { in: ["ENROLLED", "PENDING_APPROVAL", "WAITLISTED"] }
@@ -661,6 +669,7 @@ export class RegistrationService {
         }),
         tx.enrollment.findMany({
           where: {
+            deletedAt: null,
             studentId,
             status: "COMPLETED"
           },
@@ -705,6 +714,7 @@ export class RegistrationService {
 
       return tx.enrollment.findMany({
         where: {
+          deletedAt: null,
           studentId,
           termId: input.termId,
           sectionId: { in: toCreate.map((item) => item.sectionId) }
@@ -732,8 +742,8 @@ export class RegistrationService {
   }
 
   async dropEnrollment(studentId: string, input: DropEnrollmentInput, req: Request) {
-    const enrollment = await this.prisma.enrollment.findUnique({
-      where: { id: input.enrollmentId },
+    const enrollment = await this.prisma.enrollment.findFirst({
+      where: { id: input.enrollmentId, deletedAt: null },
       include: { term: true }
     });
 
@@ -750,8 +760,8 @@ export class RegistrationService {
 
     if (previousStatus === "WAITLISTED") {
       const droppedResult = await this.prisma.$transaction(async (tx) => {
-        const current = await tx.enrollment.findUnique({
-          where: { id: enrollment.id },
+        const current = await tx.enrollment.findFirst({
+          where: { id: enrollment.id, deletedAt: null },
           select: {
             id: true,
             studentId: true,
@@ -786,6 +796,7 @@ export class RegistrationService {
         if (oldWaitlistPosition !== null) {
           await tx.enrollment.updateMany({
             where: {
+              deletedAt: null,
               sectionId: current.sectionId,
               status: "WAITLISTED",
               waitlistPosition: { gt: oldWaitlistPosition }
@@ -797,6 +808,7 @@ export class RegistrationService {
 
           await tx.enrollment.updateMany({
             where: {
+              deletedAt: null,
               sectionId: current.sectionId,
               status: "WAITLISTED",
               waitlistPosition: { gt: oldWaitlistPosition + 10000 }
@@ -876,6 +888,7 @@ export class RegistrationService {
   async listMyEnrollments(studentId: string, termId?: string) {
     return this.prisma.enrollment.findMany({
       where: {
+        deletedAt: null,
         studentId,
         termId: termId || undefined,
         status: { not: "DROPPED" }
@@ -896,6 +909,7 @@ export class RegistrationService {
   async listMySchedule(studentId: string, termId: string) {
     return this.prisma.enrollment.findMany({
       where: {
+        deletedAt: null,
         studentId,
         termId,
         status: { in: ["ENROLLED", "PENDING_APPROVAL"] }
@@ -915,6 +929,7 @@ export class RegistrationService {
   async listMyGrades(studentId: string) {
     return this.prisma.enrollment.findMany({
       where: {
+        deletedAt: null,
         studentId,
         status: "COMPLETED",
         finalGrade: { not: null }

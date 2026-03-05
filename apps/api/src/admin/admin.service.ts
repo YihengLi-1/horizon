@@ -355,15 +355,15 @@ export class AdminService {
       activeTerm,
       recentLogs
     ] = await Promise.all([
-      this.prisma.user.count({ where: { role: "STUDENT" } }),
+      this.prisma.user.count({ where: { role: "STUDENT", deletedAt: null } }),
       this.prisma.term.count(),
       this.prisma.course.count(),
       this.prisma.section.count(),
-      this.prisma.enrollment.count({ where: { status: "ENROLLED" } }),
-      this.prisma.enrollment.count({ where: { status: "WAITLISTED" } }),
-      this.prisma.enrollment.count({ where: { status: "PENDING_APPROVAL" } }),
-      this.prisma.enrollment.count({ where: { status: "COMPLETED" } }),
-      this.prisma.enrollment.count({ where: { status: "DROPPED" } }),
+      this.prisma.enrollment.count({ where: { deletedAt: null, status: "ENROLLED" } }),
+      this.prisma.enrollment.count({ where: { deletedAt: null, status: "WAITLISTED" } }),
+      this.prisma.enrollment.count({ where: { deletedAt: null, status: "PENDING_APPROVAL" } }),
+      this.prisma.enrollment.count({ where: { deletedAt: null, status: "COMPLETED" } }),
+      this.prisma.enrollment.count({ where: { deletedAt: null, status: "DROPPED" } }),
       this.prisma.term.findFirst({
         where: {
           registrationOpenAt: { lte: now },
@@ -596,7 +596,9 @@ export class AdminService {
         term: true,
         course: true,
         meetingTimes: true,
-        enrollments: true
+        enrollments: {
+          where: { deletedAt: null }
+        }
       },
       orderBy: [{ term: { startDate: "desc" } }, { sectionCode: "asc" }]
     });
@@ -718,8 +720,14 @@ export class AdminService {
     const q = search?.trim();
 
     const where: Prisma.EnrollmentWhereInput = {
+      deletedAt: null,
       termId: termId || undefined,
       sectionId: sectionId || undefined,
+      student: {
+        is: {
+          deletedAt: null
+        }
+      },
       status:
         status && ["ENROLLED", "WAITLISTED", "PENDING_APPROVAL", "DROPPED", "COMPLETED"].includes(status)
           ? (status as EnrollmentStatus)
@@ -761,7 +769,9 @@ export class AdminService {
   }
 
   async updateEnrollment(id: string, input: { status?: string; finalGrade?: string }, actorUserId: string) {
-    const enrollment = await this.prisma.enrollment.findUnique({ where: { id } });
+    const enrollment = await this.prisma.enrollment.findFirst({
+      where: { id, deletedAt: null }
+    });
     if (!enrollment) {
       throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "Enrollment not found" });
     }
@@ -795,8 +805,14 @@ export class AdminService {
   async listWaitlist(sectionId?: string) {
     return this.prisma.enrollment.findMany({
       where: {
+        deletedAt: null,
         status: "WAITLISTED",
-        sectionId: sectionId || undefined
+        sectionId: sectionId || undefined,
+        student: {
+          is: {
+            deletedAt: null
+          }
+        }
       },
       include: {
         student: { include: { studentProfile: true } },
@@ -820,7 +836,7 @@ export class AdminService {
       }
 
       const enrolledCount = await tx.enrollment.count({
-        where: { sectionId: input.sectionId, status: "ENROLLED" }
+        where: { deletedAt: null, sectionId: input.sectionId, status: "ENROLLED" }
       });
 
       const availableSeatsBefore = Math.max(0, section.capacity - enrolledCount);
@@ -828,6 +844,7 @@ export class AdminService {
 
       const waitlistedToPromote = await tx.enrollment.findMany({
         where: {
+          deletedAt: null,
           sectionId: input.sectionId,
           status: "WAITLISTED"
         },
@@ -849,6 +866,7 @@ export class AdminService {
 
       await tx.enrollment.updateMany({
         where: {
+          deletedAt: null,
           sectionId: input.sectionId,
           status: "WAITLISTED",
           waitlistPosition: { not: null }
@@ -860,6 +878,7 @@ export class AdminService {
 
       const remainingWaitlisted = await tx.enrollment.findMany({
         where: {
+          deletedAt: null,
           sectionId: input.sectionId,
           status: "WAITLISTED",
           waitlistPosition: { not: null }
@@ -908,7 +927,9 @@ export class AdminService {
   }
 
   async updateGrade(input: UpdateGradeInput, actorUserId: string) {
-    const enrollment = await this.prisma.enrollment.findUnique({ where: { id: input.enrollmentId } });
+    const enrollment = await this.prisma.enrollment.findFirst({
+      where: { id: input.enrollmentId, deletedAt: null }
+    });
     if (!enrollment) {
       throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "Enrollment not found" });
     }
