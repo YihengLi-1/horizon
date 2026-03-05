@@ -131,6 +131,24 @@ fi
 check_env_pair_match ".env.example" "CSRF_COOKIE_NAME" "NEXT_PUBLIC_CSRF_COOKIE_NAME" ".env.example CSRF cookie name aligned (API/Web)"
 check_env_pair_match ".env.example" "CSRF_HEADER_NAME" "NEXT_PUBLIC_CSRF_HEADER_NAME" ".env.example CSRF header name aligned (API/Web)"
 
+if [[ -f monitoring/prometheus.yml ]]; then
+  ok "monitoring/prometheus.yml found"
+else
+  warning "monitoring/prometheus.yml missing — monitoring stack not configured"
+fi
+
+if [[ -f monitoring/alertmanager.yml ]]; then
+  ok "monitoring/alertmanager.yml found"
+else
+  warning "monitoring/alertmanager.yml missing"
+fi
+
+if [[ -f monitoring/grafana/provisioning/datasources/prometheus.yml ]]; then
+  ok "Grafana datasource provisioning found"
+else
+  warning "Grafana provisioning missing"
+fi
+
 echo
 printf "Summary: %d pass, %d warn, %d fail\n" "$pass" "$warn" "$fail"
 

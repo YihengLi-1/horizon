@@ -321,6 +321,58 @@ async function bootstrap() {
     });
   });
 
+  expressApp.get("/ops/metrics/prometheus", (_req: any, res: any) => {
+    const uptime = process.uptime();
+    const memUsage = process.memoryUsage();
+    const lines: string[] = [
+      "# HELP sis_requests_total Total HTTP requests",
+      "# TYPE sis_requests_total counter",
+      `sis_requests_total ${metrics.requestsTotal}`,
+      "",
+      "# HELP sis_errors_total Total HTTP error responses (4xx+5xx)",
+      "# TYPE sis_errors_total counter",
+      `sis_errors_total ${metrics.errorResponsesTotal}`,
+      "",
+      "# HELP sis_process_uptime_seconds Process uptime in seconds",
+      "# TYPE sis_process_uptime_seconds gauge",
+      `sis_process_uptime_seconds ${Math.floor(uptime)}`,
+      "",
+      "# HELP sis_memory_rss_bytes Resident Set Size in bytes",
+      "# TYPE sis_memory_rss_bytes gauge",
+      `sis_memory_rss_bytes ${memUsage.rss}`,
+      "",
+      "# HELP sis_memory_heap_used_bytes Heap used in bytes",
+      "# TYPE sis_memory_heap_used_bytes gauge",
+      `sis_memory_heap_used_bytes ${memUsage.heapUsed}`,
+      "",
+      "# HELP sis_csrf_origin_blocked_total CSRF origin blocked count",
+      "# TYPE sis_csrf_origin_blocked_total counter",
+      `sis_csrf_origin_blocked_total ${metrics.security.csrfOriginBlocked}`,
+      "",
+      "# HELP sis_csrf_token_invalid_total CSRF token invalid count",
+      "# TYPE sis_csrf_token_invalid_total counter",
+      `sis_csrf_token_invalid_total ${metrics.security.csrfTokenInvalid}`,
+      "",
+      "# HELP sis_login_rate_limited_total Login rate limited count",
+      "# TYPE sis_login_rate_limited_total counter",
+      `sis_login_rate_limited_total ${metrics.security.loginRateLimited}`,
+    ];
+
+    lines.push("", "# HELP sis_route_requests_total Requests per route", "# TYPE sis_route_requests_total counter");
+    for (const [route, count] of metrics.byRoute.entries()) {
+      const safeRoute = route.replace(/"/g, '\\"');
+      lines.push(`sis_route_requests_total{route="${safeRoute}"} ${count}`);
+    }
+
+    lines.push("", "# HELP sis_status_code_total Responses per HTTP status code", "# TYPE sis_status_code_total counter");
+    for (const [code, count] of metrics.byStatusCode.entries()) {
+      lines.push(`sis_status_code_total{code="${code}"} ${count}`);
+    }
+
+    res.set("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
+    res.send(lines.join("\n") + "\n");
+  });
+
   const port = Number(process.env.API_PORT || 4000);
   await app.listen(port);
   console.log(`API running at http://localhost:${port}`);

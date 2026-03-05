@@ -1,0 +1,48 @@
+groups:
+  - name: sis.rules
+    interval: 30s
+    rules:
+      - alert: SISHighErrorRate
+        expr: rate(sis_errors_total[5m]) / rate(sis_requests_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SIS API error rate high"
+          description: "Error rate is above 10% for 2 minutes."
+
+      - alert: SISAPIDown
+        expr: up{job="sis-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SIS API is down"
+          description: "The SIS API has been unreachable for 1 minute."
+
+      - alert: SISHighCSRFAttacks
+        expr: rate(sis_csrf_token_invalid_total[5m]) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Possible CSRF attack"
+          description: "High CSRF token invalid rate detected."
+
+      - alert: SISLoginRateLimitHigh
+        expr: rate(sis_login_rate_limited_total[5m]) > 0.3
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High login rate limiting"
+          description: "Many login attempts are being rate limited."
+
+      - alert: SISHighMemoryUsage
+        expr: sis_memory_heap_used_bytes > 512 * 1024 * 1024
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SIS API high memory usage"
+          description: "Heap usage exceeds 512MB for 5 minutes."

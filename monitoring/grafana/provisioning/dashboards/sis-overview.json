@@ -1,0 +1,72 @@
+{
+  "title": "地平线 SIS — Overview",
+  "uid": "sis-overview-v1",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "API Requests/sec",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [{
+        "expr": "rate(sis_requests_total[1m])",
+        "legendFormat": "req/s"
+      }]
+    },
+    {
+      "id": 2,
+      "title": "Error Rate %",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [{
+        "expr": "rate(sis_errors_total[1m]) / rate(sis_requests_total[1m]) * 100",
+        "legendFormat": "error %"
+      }]
+    },
+    {
+      "id": 3,
+      "title": "Heap Memory (MB)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [{
+        "expr": "sis_memory_heap_used_bytes / 1024 / 1024",
+        "legendFormat": "heap MB"
+      }]
+    },
+    {
+      "id": 4,
+      "title": "Security Events/min",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "rate(sis_csrf_token_invalid_total[1m])*60", "legendFormat": "CSRF invalid/min" },
+        { "expr": "rate(sis_login_rate_limited_total[1m])*60", "legendFormat": "login limited/min" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "API Uptime (hours)",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 16, "w": 6, "h": 4 },
+      "targets": [{
+        "expr": "sis_process_uptime_seconds / 3600",
+        "legendFormat": "hours"
+      }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 6,
+      "title": "Total Requests",
+      "type": "stat",
+      "gridPos": { "x": 6, "y": 16, "w": 6, "h": 4 },
+      "targets": [{
+        "expr": "sis_requests_total",
+        "legendFormat": "total"
+      }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    }
+  ]
+}
