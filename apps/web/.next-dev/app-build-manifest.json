@@ -120,6 +120,21 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/admin/dashboard/page.js"
+    ],
+    "/admin/audit-logs/error": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/audit-logs/error.js"
+    ],
+    "/admin/audit-logs/loading": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/audit-logs/loading.js"
+    ],
+    "/admin/audit-logs/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/audit-logs/page.js"
     ]
   }
 }

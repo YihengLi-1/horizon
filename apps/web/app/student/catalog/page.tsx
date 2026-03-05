@@ -519,6 +519,7 @@ export default function StudentCatalogPage() {
     }
     return { openCount, fullCount, approvalCount, prereqBlockedCount, conflictCount };
   }, [filteredSections, cartSectionIds, cartMeetingTimes, passedCourseCodeSet]);
+  const isFilteredView = filteredSections.length !== sections.length;
 
   const addToCart = async (section: Section) => {
     if (!termId) return;
@@ -569,7 +570,18 @@ export default function StudentCatalogPage() {
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {activeTerm ? <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{activeTerm.name}</span> : null}
               {activeTerm ? <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Max {activeTerm.maxCredits} credits</span> : null}
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{sections.length} sections</span>
+              <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-700">{sections.length} sections</span>
+              <span className="campus-chip border-blue-300 bg-blue-50 text-blue-700">In cart {cartItems.length}</span>
+              {catalogStats.conflictCount > 0 ? (
+                <span className="campus-chip border-red-300 bg-red-50 text-red-700">
+                  Conflicts {catalogStats.conflictCount}
+                </span>
+              ) : null}
+              {isFilteredView ? (
+                <span className="campus-chip border-amber-300 bg-amber-50 text-amber-700">
+                  Visible {filteredSections.length}
+                </span>
+              ) : null}
             </div>
           </div>
           <div className="flex w-full flex-col items-start gap-2 sm:w-auto sm:items-end">
@@ -791,9 +803,23 @@ export default function StudentCatalogPage() {
             ))
           : null}
 
-        {!loading && filteredSections.length === 0 && termId ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">
-            No sections match your filters.
+        {!loading && termId && sections.length === 0 ? (
+          <div className="py-12 text-center">
+            <p className="text-3xl">📚</p>
+            <p className="mt-2 text-sm font-medium text-slate-600">No sections available</p>
+            <p className="mt-1 text-xs text-slate-400">
+              Check back when registration opens for the current term.
+            </p>
+          </div>
+        ) : !loading && filteredSections.length === 0 && termId ? (
+          <div className="py-12 text-center">
+            <p className="text-3xl">🔍</p>
+            <p className="mt-2 text-sm font-medium text-slate-600">
+              No sections match your filters
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              Try adjusting your search, term, or modality filter.
+            </p>
           </div>
         ) : null}
 
@@ -812,7 +838,8 @@ export default function StudentCatalogPage() {
             const prereqs = getPrerequisiteCodes(section);
             const missingPrereqs = prereqs.filter((code) => !passedCourseCodeSet.has(code));
             const prereqBlocked = missingPrereqs.length > 0;
-            const seatPct = section.capacity > 0 ? Math.round((enrolledCount / section.capacity) * 100) : 0;
+            const hasCapacityData =
+              Number.isFinite(enrolledCount) && Number.isFinite(section.capacity) && section.capacity > 0;
             // Whether this student is already enrolled in this exact section or another section of the same course
             const alreadyEnrolledHere   = enrolledSectionIdSet.has(section.id);
             const alreadyEnrolledCourse = !alreadyEnrolledHere && enrolledCourseCodeSet.has(section.course.code);
@@ -868,17 +895,26 @@ export default function StudentCatalogPage() {
                     </div>
 
                     {prereqs.length > 0 ? (
-                      <p className={`text-sm ${prereqBlocked ? "text-red-700" : "text-slate-600"}`}>
-                        <span className="font-semibold uppercase tracking-wide">Prerequisites:</span>{" "}
-                        {prereqs.join(", ")}
-                        {prereqBlocked ? (
-                          <span className="ml-1">
-                            · Missing: {missingPrereqs.join(", ")}
-                          </span>
-                        ) : (
-                          <span className="ml-1 text-emerald-700">· Met</span>
-                        )}
-                      </p>
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Prerequisites</p>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {prereqs.map((prereqCode, index) => (
+                            <span
+                              key={`${prereqCode}-${index}`}
+                              className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700"
+                            >
+                              {prereqCode}
+                            </span>
+                          ))}
+                          {prereqBlocked ? (
+                            <span className="ml-1 text-xs font-medium text-red-700">
+                              Missing: {missingPrereqs.join(", ")}
+                            </span>
+                          ) : (
+                            <span className="ml-1 text-xs font-medium text-emerald-700">Met</span>
+                          )}
+                        </div>
+                      </div>
                     ) : null}
 
                     {cartConflict ? (
@@ -898,12 +934,20 @@ export default function StudentCatalogPage() {
                         Enrolled {enrolledCount}/{section.capacity}
                         {waitlistCount > 0 ? ` · Waitlist ${waitlistCount}` : ""}
                       </p>
-                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-                        <div
-                          className={`h-full rounded-full ${seatPct >= 95 ? "bg-red-500" : seatPct >= 80 ? "bg-amber-500" : "bg-emerald-500"}`}
-                          style={{ width: `${Math.min(100, seatPct)}%` }}
-                        />
-                      </div>
+                      {hasCapacityData ? (
+                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              enrolledCount >= section.capacity
+                                ? "bg-red-500"
+                                : enrolledCount / section.capacity >= 0.85
+                                  ? "bg-amber-400"
+                                  : "bg-emerald-400"
+                            }`}
+                            style={{ width: `${Math.min(100, Math.round((enrolledCount / section.capacity) * 100))}%` }}
+                          />
+                        </div>
+                      ) : null}
                     </div>
 
                     <div className="flex flex-col gap-2">
