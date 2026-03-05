@@ -63,6 +63,17 @@ type PrecheckResponse = {
   issues: SubmitIssue[];
 };
 
+type NextAction = {
+  title: string;
+  detail: string;
+  tone: "slate" | "amber" | "red" | "emerald";
+  buttonLabel?: string;
+  buttonTone?: "primary" | "neutral" | "danger";
+  href?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+};
+
 const statusOrder = ["ENROLLED", "PENDING_APPROVAL", "WAITLISTED"];
 
 function statusBadgeClass(status: string): string {
@@ -458,6 +469,72 @@ export default function StudentCartPage() {
     }
   };
 
+  const catalogHref = `/student/catalog${termId ? `?termId=${termId}` : ""}`;
+  const nextAction: NextAction = (() => {
+    if (terms.length === 0 || !termId) {
+      return {
+        title: "Select a term",
+        detail: "Choose an active term first. Cart and submit actions unlock after term selection.",
+        tone: "slate"
+      };
+    }
+    if (items.length === 0) {
+      return {
+        title: "Add courses to cart",
+        detail: "Your cart is empty. Start from catalog and add at least one section.",
+        tone: "slate",
+        buttonLabel: "Browse Catalog",
+        buttonTone: "neutral",
+        href: catalogHref
+      };
+    }
+    if (!registrationWindow.isOpen) {
+      return {
+        title: "Registration window is closed",
+        detail: registrationWindow.message || "Registration actions are currently unavailable.",
+        tone: "amber"
+      };
+    }
+    if (!precheckRan) {
+      return {
+        title: "Run precheck first",
+        detail: "Precheck catches prerequisites, time conflicts, and credit limits before submit.",
+        tone: "slate",
+        buttonLabel: prechecking ? "Checking" : "Run Precheck",
+        buttonTone: "primary",
+        onClick: () => void runPrecheck(),
+        disabled: precheckDisabled || prechecking
+      };
+    }
+    if (hasBlockingIssues) {
+      if (invalidCartItemIds.length > 0) {
+        return {
+          title: "Clean invalid rows",
+          detail: `${invalidCartItemIds.length} item(s) currently fail precheck and can be removed in one click.`,
+          tone: "red",
+          buttonLabel: removingInvalid ? "Cleaning" : "Remove Invalid Rows",
+          buttonTone: "danger",
+          onClick: () => void removeInvalidItems(),
+          disabled: removingInvalid || submitting
+        };
+      }
+      return {
+        title: "Resolve precheck issues",
+        detail: "Review issue cards below, adjust sections, then rerun precheck.",
+        tone: "red"
+      };
+    }
+    return {
+      title: "Ready to submit",
+      detail: "Precheck passed. You can submit this cart now.",
+      tone: "emerald",
+      buttonLabel: submitting ? "Submitting" : "Submit",
+      buttonTone: "primary",
+      onClick: () => void submit(),
+      disabled: submitDisabled || submitting
+    };
+  })();
+
   return (
     <div className="campus-page">
       <section className="campus-hero">
@@ -632,6 +709,49 @@ export default function StudentCartPage() {
               Precheck found blocking issues. Resolve or remove invalid rows before submitting.
             </p>
           ) : null}
+        </section>
+
+        <section className="campus-card p-4 lg:col-span-2" aria-live="polite">
+          <h2 className="text-sm font-semibold text-slate-900">Next Step</h2>
+          <div
+            className={`mt-2 rounded-lg border px-3 py-3 text-sm ${
+              nextAction.tone === "emerald"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                : nextAction.tone === "amber"
+                  ? "border-amber-200 bg-amber-50 text-amber-900"
+                  : nextAction.tone === "red"
+                    ? "border-red-200 bg-red-50 text-red-900"
+                    : "border-slate-200 bg-slate-50 text-slate-800"
+            }`}
+          >
+            <p className="font-semibold">{nextAction.title}</p>
+            <p className="mt-1 text-xs">{nextAction.detail}</p>
+            {nextAction.buttonLabel ? (
+              nextAction.href ? (
+                <Link
+                  href={nextAction.href}
+                  className="mt-3 inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 no-underline transition hover:bg-slate-50"
+                >
+                  {nextAction.buttonLabel}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={nextAction.onClick}
+                  disabled={nextAction.disabled}
+                  className={`mt-3 inline-flex h-9 items-center rounded-lg px-3 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                    nextAction.buttonTone === "danger"
+                      ? "border border-red-200 bg-white text-red-700 hover:bg-red-50"
+                      : nextAction.buttonTone === "neutral"
+                        ? "border border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
+                        : "bg-slate-900 text-white hover:bg-slate-800"
+                  }`}
+                >
+                  {nextAction.buttonLabel}
+                </button>
+              )
+            ) : null}
+          </div>
         </section>
       </section>
 
