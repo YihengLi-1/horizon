@@ -211,13 +211,13 @@ export class AdminController {
   }
 
   @Get("announcements")
-  @RequireAdminPermissions("dashboard:read")
+  @RequireAdminPermissions("announcements:read")
   async getAnnouncements() {
     return ok(await this.adminService.getAnnouncements());
   }
 
   @Post("announcements")
-  @RequireAdminPermissions("dashboard:write")
+  @RequireAdminPermissions("announcements:write")
   async createAnnouncement(
     @Body() body: { title: string; body: string; audience?: string; pinned?: boolean; expiresAt?: string }
   ) {
@@ -225,7 +225,7 @@ export class AdminController {
   }
 
   @Delete("announcements/:id")
-  @RequireAdminPermissions("dashboard:write")
+  @RequireAdminPermissions("announcements:write")
   async deleteAnnouncement(@Param("id") id: string) {
     return ok(await this.adminService.deleteAnnouncement(id));
   }

@@ -8,12 +8,22 @@ type Student = {
   email: string;
   studentId: string;
   gpa?: number | null;
+  role?: string;
   studentProfile?: {
     legalName?: string;
     programMajor?: string;
     enrollmentStatus?: string;
     academicStatus?: string;
   };
+  enrollments?: Array<{
+    id: string;
+    status: string;
+    section?: {
+      course?: {
+        code?: string;
+      };
+    };
+  }>;
 };
 
 type EditForm = {
@@ -64,6 +74,8 @@ export default function AdminStudentsPage() {
     enrollmentStatus: "New", academicStatus: "Active"
   });
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [detailStudent, setDetailStudent] = useState<Student | null>(null);
+  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
 
   const loadStudents = async () => {
     try {
@@ -157,6 +169,18 @@ export default function AdminStudentsPage() {
       await loadStudents();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed");
+    }
+  };
+
+  const openDetails = async (id: string) => {
+    try {
+      setDetailLoadingId(id);
+      const student = await apiFetch<Student>(`/students/${id}`);
+      setDetailStudent(student);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load student details");
+    } finally {
+      setDetailLoadingId(null);
     }
   };
 
@@ -581,6 +605,14 @@ export default function AdminStudentsPage() {
                       <div className="flex gap-2">
                         <button
                           type="button"
+                          disabled={detailLoadingId === student.id}
+                          onClick={() => void openDetails(student.id)}
+                          className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          {detailLoadingId === student.id ? "Loading…" : "Details"}
+                        </button>
+                        <button
+                          type="button"
                           disabled={savingId === student.id}
                           onClick={() => editingId === student.id ? cancelEdit() : startEdit(student)}
                           className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
@@ -654,6 +686,82 @@ export default function AdminStudentsPage() {
           </div>
         ) : null}
       </section>
+
+      {detailStudent ? (
+        <div className="fixed inset-0 z-50 flex" onClick={() => setDetailStudent(null)}>
+          <div className="flex-1 bg-black/30" />
+          <div
+            className="relative h-full w-full max-w-md overflow-y-auto bg-white shadow-2xl dark:bg-slate-900"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
+              <p className="text-base font-semibold text-slate-800 dark:text-slate-100">
+                {detailStudent.studentProfile?.legalName ?? "Student"}
+              </p>
+              <button onClick={() => setDetailStudent(null)} className="text-xl text-slate-400 hover:text-slate-600">
+                ✕
+              </button>
+            </div>
+            <div className="space-y-5 p-6">
+              <div className="campus-card space-y-2 p-4">
+                <p className="text-xs font-semibold uppercase text-slate-400">Profile</p>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-xs text-slate-500">Email</p>
+                    <p className="break-all font-medium text-slate-800 dark:text-slate-100">{detailStudent.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Student ID</p>
+                    <p className="font-mono font-medium text-slate-800 dark:text-slate-100">{detailStudent.studentId ?? "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">GPA</p>
+                    <p
+                      className={`font-bold ${
+                        (detailStudent.gpa ?? 0) >= 3.7 ? "text-emerald-600" : (detailStudent.gpa ?? 0) >= 3 ? "text-blue-600" : "text-amber-600"
+                      }`}
+                    >
+                      {detailStudent.gpa?.toFixed(2) ?? "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Role</p>
+                    <p className="font-medium text-slate-800 dark:text-slate-100">{detailStudent.role ?? "STUDENT"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {detailStudent.enrollments?.length ? (
+                <div className="campus-card p-4">
+                  <p className="mb-3 text-xs font-semibold uppercase text-slate-400">
+                    Enrollments ({detailStudent.enrollments.length})
+                  </p>
+                  <div className="space-y-2">
+                    {detailStudent.enrollments.map((enrollment) => (
+                      <div key={enrollment.id} className="flex items-center justify-between text-sm">
+                        <span className="font-mono text-xs font-semibold text-slate-600">
+                          {enrollment.section?.course?.code ?? "—"}
+                        </span>
+                        <span
+                          className={`campus-chip text-xs ${
+                            enrollment.status === "ENROLLED"
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : enrollment.status === "WAITLISTED"
+                                ? "border-amber-200 bg-amber-50 text-amber-700"
+                                : "border-slate-200 bg-slate-50 text-slate-600"
+                          }`}
+                        >
+                          {enrollment.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

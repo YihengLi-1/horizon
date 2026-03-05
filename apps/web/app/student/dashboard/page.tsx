@@ -68,6 +68,15 @@ type GradeItem = {
   section: { credits: number };
 };
 
+type Announcement = {
+  id: string;
+  title: string;
+  body: string;
+  audience: string;
+  pinned: boolean;
+  expiresAt?: string | null;
+};
+
 const GRADE_POINTS: Record<string, number> = {
   "A+": 4.0, A: 4.0, "A-": 3.7,
   "B+": 3.3, B: 3.0, "B-": 2.7,
@@ -182,10 +191,11 @@ function issueTitle(reasonCode: string): string {
 }
 
 export default async function StudentDashboardPage() {
-  const [terms, me, grades] = await Promise.all([
+  const [terms, me, grades, announcements] = await Promise.all([
     serverApi<Term[]>("/academics/terms").catch(() => [] as Term[]),
     requireRole("STUDENT"),
-    serverApi<GradeItem[]>("/registration/grades").catch(() => [] as GradeItem[])
+    serverApi<GradeItem[]>("/registration/grades").catch(() => [] as GradeItem[]),
+    serverApi<Announcement[]>("/students/announcements").catch(() => [] as Announcement[])
   ]);
 
   const term = terms[0] ?? null;
@@ -463,6 +473,13 @@ export default async function StudentDashboardPage() {
           </div>
         )}
       </section>
+
+      {announcements.slice(0, 3).map((announcement) => (
+        <div key={announcement.id} className={`campus-card p-4 ${announcement.pinned ? "border-l-4 border-l-amber-400" : ""}`}>
+          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{announcement.title}</p>
+          <p className="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{announcement.body}</p>
+        </div>
+      ))}
 
       <QuickCoursesPanel enrollments={enrollments ?? []} />
 

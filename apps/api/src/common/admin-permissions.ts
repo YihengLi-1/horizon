@@ -12,6 +12,8 @@ export const ADMIN_PERMISSIONS = [
   "waitlist:promote",
   "invite-codes:read",
   "invite-codes:write",
+  "announcements:read",
+  "announcements:write",
   "audit:read",
   "students:read",
   "students:write",
