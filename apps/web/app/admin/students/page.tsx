@@ -87,6 +87,7 @@ export default function AdminStudentsPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [detailStudent, setDetailStudent] = useState<Student | null>(null);
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
+  const [roleSaving, setRoleSaving] = useState(false);
 
   const loadStudents = async () => {
     try {
@@ -192,6 +193,26 @@ export default function AdminStudentsPage() {
       setError(err instanceof Error ? err.message : "Failed to load student details");
     } finally {
       setDetailLoadingId(null);
+    }
+  };
+
+  const updateRole = async (role: "STUDENT" | "ADMIN") => {
+    if (!detailStudent) return;
+    try {
+      setRoleSaving(true);
+      setError("");
+      setNotice("");
+      await apiFetch(`/admin/users/${detailStudent.id}/role`, {
+        method: "PATCH",
+        body: JSON.stringify({ role })
+      });
+      setDetailStudent((prev) => (prev ? { ...prev, role } : prev));
+      setNotice(`Role updated to ${role}.`);
+      await loadStudents();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update role");
+    } finally {
+      setRoleSaving(false);
     }
   };
 
@@ -769,6 +790,27 @@ export default function AdminStudentsPage() {
                   </div>
                 </div>
               ) : null}
+
+              <div className="border-t border-slate-100 pt-4 dark:border-slate-700">
+                <p className="mb-2 text-xs font-semibold uppercase text-slate-400">Role Management</p>
+                <div className="flex gap-2">
+                  {(["STUDENT", "ADMIN"] as const).map((role) => (
+                    <button
+                      key={role}
+                      type="button"
+                      disabled={roleSaving}
+                      onClick={() => void updateRole(role)}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        detailStudent.role === role
+                          ? "border-slate-900 bg-slate-900 text-white dark:border-white dark:bg-white dark:text-slate-900"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      } disabled:opacity-50`}
+                    >
+                      {roleSaving && detailStudent.role !== role ? "Updating…" : role}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>

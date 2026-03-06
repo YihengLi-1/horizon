@@ -213,6 +213,10 @@ export default async function AdminDashboardPage() {
   const daysToRegEnd = activeTerm?.registrationCloseAt
     ? Math.ceil((new Date(activeTerm.registrationCloseAt).getTime() - now) / (1000 * 60 * 60 * 24))
     : null;
+  const dropDeadline = activeTerm?.dropDeadline ? new Date(activeTerm.dropDeadline) : null;
+  const daysToDropDeadline = dropDeadline
+    ? Math.ceil((dropDeadline.getTime() - now) / (1000 * 60 * 60 * 24))
+    : null;
   const last7Days = Array.from({ length: 7 }, (_, index) => {
     const date = new Date();
     date.setDate(date.getDate() - 6 + index);
@@ -369,6 +373,35 @@ export default async function AdminDashboardPage() {
           <a href="/admin/terms" className="text-xs font-medium text-blue-600 hover:underline">
             Manage →
           </a>
+        </div>
+      ) : null}
+
+      {dropDeadline && daysToDropDeadline !== null ? (
+        <div
+          className={`flex items-center gap-3 rounded-xl border p-3 ${
+            daysToDropDeadline <= 3
+              ? "border-red-200 bg-red-50"
+              : daysToDropDeadline <= 7
+                ? "border-amber-200 bg-amber-50"
+                : "border-slate-200 bg-slate-50"
+          }`}
+        >
+          <span className="text-xl">{daysToDropDeadline <= 3 ? "🚨" : daysToDropDeadline <= 7 ? "⚠️" : "📅"}</span>
+          <div>
+            <p className="text-sm font-semibold text-slate-800">Drop Deadline</p>
+            <p
+              className={`text-xs font-medium ${
+                daysToDropDeadline <= 3
+                  ? "text-red-600"
+                  : daysToDropDeadline <= 7
+                    ? "text-amber-600"
+                    : "text-slate-500"
+              }`}
+            >
+              {daysToDropDeadline > 0 ? `${daysToDropDeadline} day${daysToDropDeadline !== 1 ? "s" : ""} remaining` : "Deadline has passed"}{" "}
+              ({dropDeadline.toLocaleDateString()})
+            </p>
+          </div>
         </div>
       ) : null}
 

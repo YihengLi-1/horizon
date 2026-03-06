@@ -45,6 +45,15 @@ const COOKIE_BASE_OPTIONS: Pick<CookieOptions, "sameSite" | "secure" | "domain" 
   path: "/"
 };
 
+export const activeSessions = new Map<string, { userId: string; email: string; loginAt: Date; ip?: string }>();
+export function isSessionActive(sessionId?: string | null) {
+  return sessionId ? activeSessions.has(sessionId) : false;
+}
+export function revokeActiveSession(sessionId?: string | null) {
+  if (!sessionId) return;
+  activeSessions.delete(sessionId);
+}
+
 type LoginAttemptState = {
   count: number;
   firstAttemptAt: number;
@@ -323,12 +332,20 @@ export class AuthService {
     }
 
     this.clearLoginAttempts(loginAttemptKey);
+    const sessionId = Math.random().toString(36).slice(2);
 
     const token = await this.jwtService.signAsync({
       sub: user.id,
-      role: user.role
+      role: user.role,
+      sid: sessionId
     }, {
       expiresIn: `${ACCESS_EXPIRES_SECONDS}s`
+    });
+    activeSessions.set(sessionId, {
+      userId: user.id,
+      email: user.email,
+      loginAt: new Date(),
+      ip: this.getClientIp(req)
     });
 
     this.setAuthCookie(res, token);
@@ -348,12 +365,14 @@ export class AuthService {
       email: user.email,
       studentId: user.studentId,
       role: user.role,
+      sessionId,
       profile: user.studentProfile
     };
   }
 
-  async logout(userId: string, req: Request, res: Response) {
+  async logout(userId: string, sessionId: string | undefined, req: Request, res: Response) {
     this.clearAuthCookies(res);
+    revokeActiveSession(sessionId);
     await this.auditService.log({
       actorUserId: userId,
       action: "logout",
@@ -363,6 +382,18 @@ export class AuthService {
     });
 
     return { message: "Logged out" };
+  }
+
+  getSessions() {
+    return [...activeSessions.entries()].map(([id, session]) => ({
+      id,
+      ...session
+    }));
+  }
+
+  revokeSession(sessionId: string) {
+    activeSessions.delete(sessionId);
+    return { revoked: true };
   }
 
   async issueCsrfToken(res: Response) {

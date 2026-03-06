@@ -174,6 +174,15 @@ export class AdminController {
     return ok(await this.adminService.updateEnrollmentGrade(body.studentId, body.sectionId, body.grade, user.userId));
   }
 
+  @Post("enrollments/bulk-approve")
+  @RequireAdminPermissions("enrollments:write")
+  async bulkApprove(
+    @Body() body: { ids: string[] },
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(await this.adminService.bulkApproveEnrollments(body.ids, user.userId));
+  }
+
   @Get("waitlist")
   @RequireAdminPermissions("waitlist:read")
   async listWaitlist(@Query("sectionId") sectionId?: string) {
@@ -228,6 +237,16 @@ export class AdminController {
   @RequireAdminPermissions("announcements:write")
   async deleteAnnouncement(@Param("id") id: string) {
     return ok(await this.adminService.deleteAnnouncement(id));
+  }
+
+  @Patch("users/:id/role")
+  @RequireAdminPermissions("students:write")
+  async updateRole(
+    @Param("id") id: string,
+    @Body() body: { role: "STUDENT" | "ADMIN" },
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(await this.adminService.updateUserRole(id, body.role, user.userId));
   }
 
   @Get("audit-logs")

@@ -1,4 +1,5 @@
 import { serverApi } from "@/lib/server-api";
+import DeptStats from "./DeptStats";
 
 export const dynamic = "force-dynamic";
 
@@ -196,6 +197,8 @@ export default async function ReportsPage() {
           </tbody>
         </table>
       </div>
+
+      <DeptStats sections={sections} />
     </div>
   );
 }

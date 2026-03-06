@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { PrismaService } from "../common/prisma.service";
+import { isSessionActive } from "./auth.service";
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -22,7 +23,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: { sub: string; role: "STUDENT" | "ADMIN" }) {
+  async validate(payload: { sub: string; role: "STUDENT" | "ADMIN"; sid?: string }) {
+    if (payload.sid && !isSessionActive(payload.sid)) {
+      throw new UnauthorizedException({ code: "SESSION_REVOKED", message: "Session has been revoked" });
+    }
     const user = await this.prisma.user.findFirst({
       where: { id: payload.sub, deletedAt: null },
       select: { id: true, role: true }
@@ -30,6 +34,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) {
       throw new UnauthorizedException({ code: "USER_NOT_FOUND", message: "User not found" });
     }
-    return { userId: user.id, role: user.role };
+    return { userId: user.id, role: user.role, sid: payload.sid };
   }
 }

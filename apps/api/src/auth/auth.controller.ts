@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { Request, Response } from "express";
 import {
@@ -13,6 +13,8 @@ import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { ok } from "../common/response";
 import { JwtAuthGuard } from "../common/jwt-auth.guard";
 import { CurrentUser } from "../common/current-user.decorator";
+import { Roles } from "../common/roles.decorator";
+import { RolesGuard } from "../common/roles.guard";
 
 @Controller("auth")
 export class AuthController {
@@ -42,8 +44,12 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Post("logout")
-  async logout(@CurrentUser() user: { userId: string }, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    return ok(await this.authService.logout(user.userId, req, res));
+  async logout(
+    @CurrentUser() user: { userId: string; sid?: string },
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    return ok(await this.authService.logout(user.userId, user.sid, req, res));
   }
 
   @Post("forgot-password")
@@ -68,5 +74,19 @@ export class AuthController {
   @Get("csrf-token")
   async csrfToken(@Res({ passthrough: true }) res: Response) {
     return ok(await this.authService.issueCsrfToken(res));
+  }
+
+  @Get("sessions")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("ADMIN")
+  getSessions() {
+    return ok(this.authService.getSessions());
+  }
+
+  @Delete("sessions/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("ADMIN")
+  revokeSession(@Param("id") id: string) {
+    return ok(this.authService.revokeSession(id));
   }
 }

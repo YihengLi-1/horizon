@@ -222,17 +222,21 @@ export default function EnrollmentsPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pagedRows = visibleRows;
-
-  const selectedVisibleIds = useMemo(
-    () => visibleRows.map((row) => row.id).filter((id) => selectedById[id]),
-    [visibleRows, selectedById]
+  const pendingVisibleRows = useMemo(
+    () => visibleRows.filter((row) => (statusState[row.id] ?? row.status) === "PENDING_APPROVAL"),
+    [statusState, visibleRows]
   );
-  const allVisibleSelected = visibleRows.length > 0 && selectedVisibleIds.length === visibleRows.length;
+
+  const selectedPendingIds = useMemo(
+    () => pendingVisibleRows.map((row) => row.id).filter((id) => selectedById[id]),
+    [pendingVisibleRows, selectedById]
+  );
+  const allVisibleSelected = pendingVisibleRows.length > 0 && selectedPendingIds.length === pendingVisibleRows.length;
 
   const toggleSelectVisible = (checked: boolean) => {
     setSelectedById((prev) => {
       const next = { ...prev };
-      for (const row of visibleRows) {
+      for (const row of pendingVisibleRows) {
         if (checked) next[row.id] = true;
         else delete next[row.id];
       }
@@ -241,6 +245,8 @@ export default function EnrollmentsPage() {
   };
 
   const toggleRow = (id: string, checked: boolean) => {
+    const row = rows.find((item) => item.id === id);
+    if ((statusState[id] ?? row?.status) !== "PENDING_APPROVAL") return;
     setSelectedById((prev) => {
       const next = { ...prev };
       if (checked) next[id] = true;
@@ -250,6 +256,26 @@ export default function EnrollmentsPage() {
   };
 
   const clearSelection = () => setSelectedById({});
+
+  const bulkApproveSelected = async () => {
+    if (selectedPendingIds.length === 0) return;
+    try {
+      setBulkSaving(true);
+      setError("");
+      setNotice("");
+      const result = await apiFetch<{ approved: number }>("/admin/enrollments/bulk-approve", {
+        method: "POST",
+        body: JSON.stringify({ ids: selectedPendingIds })
+      });
+      setNotice(`Approved ${result.approved} pending enrollment(s).`);
+      await load();
+      clearSelection();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Bulk approve failed");
+    } finally {
+      setBulkSaving(false);
+    }
+  };
 
   const exportCsv = () => {
     const source = rows;
@@ -279,9 +305,9 @@ export default function EnrollmentsPage() {
   };
 
   const bulkSetStatus = async (nextStatus: string, allowedCurrentStatuses: string[]) => {
-    if (selectedVisibleIds.length === 0) return;
+    if (selectedPendingIds.length === 0) return;
     const allowed = new Set(allowedCurrentStatuses);
-    const targetIds = selectedVisibleIds.filter((id) => {
+    const targetIds = selectedPendingIds.filter((id) => {
       const current = statusState[id] ?? rows.find((row) => row.id === id)?.status ?? "";
       return allowed.has(current);
     });
@@ -464,17 +490,25 @@ export default function EnrollmentsPage() {
           <div className="flex flex-wrap items-end gap-2">
             <button
               type="button"
-              onClick={() => void bulkSetStatus("ENROLLED", ["PENDING_APPROVAL"])}
-              disabled={bulkSaving || selectedVisibleIds.length === 0}
+              onClick={() => toggleSelectVisible(true)}
+              disabled={bulkSaving || pendingVisibleRows.length === 0}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Select All Pending
+            </button>
+            <button
+              type="button"
+              onClick={() => void bulkApproveSelected()}
+              disabled={bulkSaving || selectedPendingIds.length === 0}
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {bulkSaving ? <span className="size-3.5 animate-spin rounded-full border-2 border-blue-300 border-t-blue-700" /> : null}
-              Batch Approve
+              Approve Selected
             </button>
             <button
               type="button"
               onClick={() => void bulkSetStatus("DROPPED", ["ENROLLED", "PENDING_APPROVAL", "WAITLISTED"])}
-              disabled={bulkSaving || selectedVisibleIds.length === 0}
+              disabled={bulkSaving || selectedPendingIds.length === 0}
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-3 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {bulkSaving ? <span className="size-3.5 animate-spin rounded-full border-2 border-red-300 border-t-red-700" /> : null}
@@ -483,7 +517,7 @@ export default function EnrollmentsPage() {
             <button
               type="button"
               onClick={clearSelection}
-              disabled={selectedVisibleIds.length === 0}
+              disabled={selectedPendingIds.length === 0}
               className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Clear
@@ -491,7 +525,7 @@ export default function EnrollmentsPage() {
           </div>
         </div>
         <p className="mt-2 text-xs text-slate-500">
-          Showing {rows.length} of {total} · Selected: {selectedVisibleIds.length}
+          Showing {rows.length} of {total} · Pending selected: {selectedPendingIds.length}
         </p>
       </section>
 
@@ -508,8 +542,9 @@ export default function EnrollmentsPage() {
                     type="checkbox"
                     checked={allVisibleSelected}
                     onChange={(event) => toggleSelectVisible(event.target.checked)}
+                    disabled={pendingVisibleRows.length === 0}
                     className="size-4 accent-slate-900"
-                    aria-label="Select all visible enrollments"
+                    aria-label="Select all visible pending enrollments"
                   />
                 </th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Student</th>
@@ -551,6 +586,7 @@ export default function EnrollmentsPage() {
                         type="checkbox"
                         checked={Boolean(selectedById[row.id])}
                         onChange={(event) => toggleRow(row.id, event.target.checked)}
+                        disabled={(statusState[row.id] ?? row.status) !== "PENDING_APPROVAL"}
                         className="size-4 accent-slate-900"
                         aria-label={`Select enrollment ${row.id}`}
                       />

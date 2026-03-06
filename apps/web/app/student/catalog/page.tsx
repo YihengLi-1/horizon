@@ -4,6 +4,7 @@ import Link from "next/link";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { RegistrationStepper } from "@/components/registration-stepper";
 import { apiFetch } from "@/lib/api";
+import BookmarkButton from "./BookmarkButton";
 import RecommendedCourses from "./RecommendedCourses";
 
 type MeetingTime = {
@@ -932,6 +933,7 @@ export default function StudentCatalogPage() {
                         </h3>
                       </div>
                       <div className="flex flex-wrap justify-end gap-2">
+                        <BookmarkButton sectionId={section.id} />
                         <Badge>§{section.sectionCode}</Badge>
                         <Badge>{section.credits} cr</Badge>
                         <Badge modality={section.modality}>{section.modality.replace("_", " ")}</Badge>

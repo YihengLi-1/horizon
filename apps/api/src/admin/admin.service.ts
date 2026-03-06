@@ -887,6 +887,32 @@ export class AdminService {
     };
   }
 
+  async bulkApproveEnrollments(ids: string[], actorUserId: string) {
+    const targetIds = Array.from(new Set((ids ?? []).filter(Boolean)));
+    if (targetIds.length === 0) {
+      return { approved: 0 };
+    }
+
+    const result = await this.prisma.enrollment.updateMany({
+      where: {
+        id: { in: targetIds },
+        deletedAt: null,
+        status: "PENDING_APPROVAL"
+      },
+      data: { status: "ENROLLED" }
+    });
+
+    await this.auditService.log({
+      actorUserId,
+      action: "BULK_APPROVE",
+      entityType: "enrollment",
+      entityId: "multiple",
+      metadata: { count: result.count, ids: targetIds }
+    });
+
+    return { approved: result.count };
+  }
+
   async updateEnrollment(id: string, input: { status?: string; finalGrade?: string }, actorUserId: string) {
     const enrollment = await this.prisma.enrollment.findFirst({
       where: { id, deletedAt: null }
@@ -1208,6 +1234,23 @@ export class AdminService {
       entityType: "invite_code",
       entityId: id,
       metadata: { op: "update" }
+    });
+
+    return updated;
+  }
+
+  async updateUserRole(userId: string, role: "STUDENT" | "ADMIN", actorUserId: string) {
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { role }
+    });
+
+    await this.auditService.log({
+      actorUserId,
+      action: "ROLE_UPDATE",
+      entityType: "user",
+      entityId: userId,
+      metadata: { role }
     });
 
     return updated;

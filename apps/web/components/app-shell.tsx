@@ -6,6 +6,7 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
   AlignJustify,
   BookCopy,
+  Bookmark,
   BookOpen,
   BarChart3,
   CalendarDays,
@@ -13,11 +14,13 @@ import {
   Clock,
   GraduationCap,
   Home,
+  History,
   KeyRound,
   LayoutDashboard,
   ListChecks,
   Megaphone,
   ScrollText,
+  Shield,
   ShoppingCart,
   Upload,
   X,
@@ -53,6 +56,8 @@ const studentItems: NavItem[] = [
   { href: "/student/schedule", label: "Schedule", icon: <CalendarDays className={iconClass} /> },
   { href: "/student/grades", label: "Grades", icon: <GraduationCap className={iconClass} /> },
   { href: "/student/calendar", label: "Calendar", icon: <CalendarRange className={iconClass} /> },
+  { href: "/student/history", label: "History", icon: <History className={iconClass} /> },
+  { href: "/student/bookmarks", label: "Bookmarks", icon: <Bookmark className={iconClass} /> },
   { href: "/student/profile", label: "Profile", icon: <User className={iconClass} /> }
 ];
 
@@ -63,6 +68,7 @@ const adminItems: NavItem[] = [
   { href: "/admin/courses", label: "Courses", icon: <BookCopy className={iconClass} /> },
   { href: "/admin/students", label: "Students", icon: <Users className={iconClass} /> },
   { href: "/admin/enrollments", label: "Enrollments", icon: <GraduationCap className={iconClass} /> },
+  { href: "/admin/sessions", label: "Sessions", icon: <Shield className={iconClass} /> },
   { href: "/admin/waitlist", label: "Waitlist", icon: <Clock className={iconClass} /> },
   { href: "/admin/invite-codes", label: "Invite Codes", icon: <KeyRound className={iconClass} /> },
   { href: "/admin/announcements", label: "Announcements", icon: <Megaphone className={iconClass} /> },
@@ -120,13 +126,13 @@ export function AppShell({
         ? [
             { label: "Overview", hrefs: ["/admin/dashboard"] },
             { label: "Data", hrefs: ["/admin/students", "/admin/courses", "/admin/sections", "/admin/terms"] },
-            { label: "Operations", hrefs: ["/admin/enrollments", "/admin/waitlist"] },
+            { label: "Operations", hrefs: ["/admin/enrollments", "/admin/sessions", "/admin/waitlist"] },
             { label: "Tools", hrefs: ["/admin/invite-codes", "/admin/announcements", "/admin/import", "/admin/audit-logs", "/admin/reports"] }
           ]
         : [
             { label: "Overview", hrefs: ["/student/dashboard"] },
             { label: "Registration", hrefs: ["/student/catalog", "/student/cart", "/student/schedule"] },
-            { label: "Academic", hrefs: ["/student/grades", "/student/calendar", "/student/profile"] }
+            { label: "Academic", hrefs: ["/student/grades", "/student/calendar", "/student/history", "/student/bookmarks", "/student/profile"] }
           ];
 
     return groups
