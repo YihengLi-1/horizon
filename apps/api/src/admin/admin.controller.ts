@@ -15,6 +15,7 @@ import { JwtAuthGuard } from "../common/jwt-auth.guard";
 import { Roles } from "../common/roles.decorator";
 import { RolesGuard } from "../common/roles.guard";
 import { ok } from "../common/response";
+import { getWebhooks, registerWebhook, removeWebhook } from "../common/webhook";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { AdminService } from "./admin.service";
 
@@ -237,6 +238,28 @@ export class AdminController {
   @RequireAdminPermissions("announcements:write")
   async deleteAnnouncement(@Param("id") id: string) {
     return ok(await this.adminService.deleteAnnouncement(id));
+  }
+
+  @Get("webhooks")
+  @RequireAdminPermissions("audit:read")
+  async listWebhooks() {
+    return ok({ webhooks: getWebhooks() });
+  }
+
+  @Post("webhooks")
+  @RequireAdminPermissions("audit:write")
+  async createWebhook(@Body() body: { url: string; events: string[]; secret?: string }) {
+    return ok({
+      id: registerWebhook(body.url, body.events, body.secret ?? ""),
+      message: "Webhook registered"
+    });
+  }
+
+  @Delete("webhooks/:id")
+  @RequireAdminPermissions("audit:write")
+  async deleteWebhook(@Param("id") id: string) {
+    removeWebhook(id);
+    return ok({ removed: true });
   }
 
   @Patch("users/:id/role")

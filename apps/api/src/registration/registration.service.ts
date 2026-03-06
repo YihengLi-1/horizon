@@ -6,6 +6,7 @@ import { z } from "zod";
 import { AuditService } from "../audit/audit.service";
 import { isPassingGrade } from "../common/grade.utils";
 import { PrismaService } from "../common/prisma.service";
+import { dispatch } from "../common/webhook";
 import { NotificationsService } from "../notifications/notifications.service";
 
 type AddCartInput = z.infer<typeof addCartItemSchema>;
@@ -765,6 +766,19 @@ export class RegistrationService {
       });
     }
 
+    await Promise.allSettled(
+      created.map((item) =>
+        dispatch({
+          type: "enrollment.created",
+          payload: {
+            studentId,
+            sectionId: item.sectionId,
+            status: item.status
+          }
+        })
+      )
+    );
+
     return created;
   }
 
@@ -872,6 +886,15 @@ export class RegistrationService {
         req
       });
 
+      void dispatch({
+        type: "enrollment.updated",
+        payload: {
+          id: droppedResult.dropped.id,
+          oldStatus: previousStatus,
+          newStatus: "DROPPED"
+        }
+      }).catch(() => {});
+
       return {
         dropped: droppedResult.dropped,
         seatFreed: false
@@ -910,6 +933,15 @@ export class RegistrationService {
       },
       req
     });
+
+    void dispatch({
+      type: "enrollment.updated",
+      payload: {
+        id: dropped.id,
+        oldStatus: previousStatus,
+        newStatus: "DROPPED"
+      }
+    }).catch(() => {});
 
     if (seatFreed) {
       const nextWaiting = await this.prisma.enrollment.findFirst({
@@ -979,6 +1011,15 @@ export class RegistrationService {
           },
           req
         });
+
+        void dispatch({
+          type: "enrollment.updated",
+          payload: {
+            id: nextWaiting.id,
+            oldStatus: "WAITLISTED",
+            newStatus: "ENROLLED"
+          }
+        }).catch(() => {});
 
         try {
           await this.notificationsService.sendMail({

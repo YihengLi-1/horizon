@@ -15,6 +15,7 @@ import { z } from "zod";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../common/prisma.service";
 import { apiCache } from "../common/cache";
+import { dispatch } from "../common/webhook";
 import { NotificationsService } from "../notifications/notifications.service";
 
 type CreateTermInput = z.infer<typeof createTermSchema>;
@@ -1269,7 +1270,7 @@ export class AdminService {
     pinned?: boolean;
     expiresAt?: string;
   }) {
-    return this.prisma.announcement.create({
+    const result = await this.prisma.announcement.create({
       data: {
         title: data.title,
         body: data.body,
@@ -1278,6 +1279,11 @@ export class AdminService {
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : null
       }
     });
+    void dispatch({
+      type: "announcement.created",
+      payload: { id: result.id, title: result.title, audience: result.audience }
+    }).catch(() => {});
+    return result;
   }
 
   async deleteAnnouncement(id: string) {

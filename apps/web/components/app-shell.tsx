@@ -13,6 +13,7 @@ import {
   CalendarRange,
   Clock,
   GraduationCap,
+  HelpCircle,
   Home,
   History,
   KeyRound,
@@ -20,6 +21,7 @@ import {
   ListChecks,
   Megaphone,
   ScrollText,
+  Settings,
   Shield,
   ShoppingCart,
   Upload,
@@ -33,6 +35,7 @@ import NotificationBell from "@/components/NotificationBell";
 import { LogoutButton } from "@/components/logout-button";
 import SessionExpiryBanner from "@/components/SessionExpiryBanner";
 import StudentMobileNav from "@/components/StudentMobileNav";
+import { apiFetch } from "@/lib/api";
 
 type AppArea = "student" | "admin";
 
@@ -58,7 +61,8 @@ const studentItems: NavItem[] = [
   { href: "/student/calendar", label: "Calendar", icon: <CalendarRange className={iconClass} /> },
   { href: "/student/history", label: "History", icon: <History className={iconClass} /> },
   { href: "/student/bookmarks", label: "Bookmarks", icon: <Bookmark className={iconClass} /> },
-  { href: "/student/profile", label: "Profile", icon: <User className={iconClass} /> }
+  { href: "/student/profile", label: "Profile", icon: <User className={iconClass} /> },
+  { href: "/student/help", label: "Help", icon: <HelpCircle className={iconClass} /> }
 ];
 
 const adminItems: NavItem[] = [
@@ -74,7 +78,8 @@ const adminItems: NavItem[] = [
   { href: "/admin/announcements", label: "Announcements", icon: <Megaphone className={iconClass} /> },
   { href: "/admin/audit-logs", label: "Audit Logs", icon: <ScrollText className={iconClass} /> },
   { href: "/admin/reports", label: "Reports", icon: <BarChart3 className={iconClass} /> },
-  { href: "/admin/import", label: "Import CSV", icon: <Upload className={iconClass} /> }
+  { href: "/admin/import", label: "Import CSV", icon: <Upload className={iconClass} /> },
+  { href: "/admin/settings", label: "Settings", icon: <Settings className={iconClass} /> }
 ];
 
 const areaMeta: Record<AppArea, { label: string; items: NavItem[]; subtitle: string }> = {
@@ -101,6 +106,7 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [announcementCount, setAnnouncementCount] = useState(0);
   const navMeta = areaMeta[area];
   const sidebarId = "sidebar";
 
@@ -127,12 +133,12 @@ export function AppShell({
             { label: "Overview", hrefs: ["/admin/dashboard"] },
             { label: "Data", hrefs: ["/admin/students", "/admin/courses", "/admin/sections", "/admin/terms"] },
             { label: "Operations", hrefs: ["/admin/enrollments", "/admin/sessions", "/admin/waitlist"] },
-            { label: "Tools", hrefs: ["/admin/invite-codes", "/admin/announcements", "/admin/import", "/admin/audit-logs", "/admin/reports"] }
+            { label: "Tools", hrefs: ["/admin/invite-codes", "/admin/announcements", "/admin/import", "/admin/audit-logs", "/admin/reports", "/admin/settings"] }
           ]
         : [
             { label: "Overview", hrefs: ["/student/dashboard"] },
             { label: "Registration", hrefs: ["/student/catalog", "/student/cart", "/student/schedule"] },
-            { label: "Academic", hrefs: ["/student/grades", "/student/calendar", "/student/history", "/student/bookmarks", "/student/profile"] }
+            { label: "Academic", hrefs: ["/student/grades", "/student/calendar", "/student/history", "/student/bookmarks", "/student/profile", "/student/help"] }
           ];
 
     return groups
@@ -166,6 +172,25 @@ export function AppShell({
     };
   }, [sidebarOpen]);
 
+  useEffect(() => {
+    if (area !== "admin") return;
+    let alive = true;
+    void apiFetch<Array<{ expiresAt?: string | null }>>("/admin/announcements")
+      .then((items) => {
+        if (!alive) return;
+        const now = Date.now();
+        setAnnouncementCount(
+          (items ?? []).filter((item) => !item.expiresAt || new Date(item.expiresAt).getTime() > now).length
+        );
+      })
+      .catch(() => {
+        if (alive) setAnnouncementCount(0);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [area]);
+
   const renderNavItem = (item: NavItem) => {
     const active = isActive(item.href);
     return (
@@ -190,6 +215,11 @@ export function AppShell({
           {item.icon}
         </span>
         <span className="font-medium">{item.label}</span>
+        {item.href === "/admin/announcements" && announcementCount > 0 ? (
+          <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-violet-500 px-1.5 text-[10px] font-bold text-white">
+            {announcementCount}
+          </span>
+        ) : null}
       </Link>
     );
   };

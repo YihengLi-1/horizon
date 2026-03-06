@@ -138,6 +138,29 @@ function avgRating(ratings: Array<{ rating: number }> | undefined): string {
   return `⭐ ${(ratings.reduce((sum, item) => sum + item.rating, 0) / ratings.length).toFixed(1)} (${ratings.length})`;
 }
 
+function detectConflicts(sections: Section[]): Map<string, string[]> {
+  const conflicts = new Map<string, string[]>();
+  for (let i = 0; i < sections.length; i += 1) {
+    for (let j = i + 1; j < sections.length; j += 1) {
+      const a = sections[i];
+      const b = sections[j];
+      if (!a.meetingTimes?.length || !b.meetingTimes?.length) continue;
+      const hasOverlap = a.meetingTimes.some((mt1) =>
+        b.meetingTimes.some(
+          (mt2) =>
+            mt1.weekday === mt2.weekday &&
+            mt1.startMinutes < mt2.endMinutes &&
+            mt2.startMinutes < mt1.endMinutes
+        )
+      );
+      if (!hasOverlap) continue;
+      conflicts.set(a.id, [...(conflicts.get(a.id) ?? []), b.id]);
+      conflicts.set(b.id, [...(conflicts.get(b.id) ?? []), a.id]);
+    }
+  }
+  return conflicts;
+}
+
 const PAGE_SIZE = 25;
 
 export default function AdminSectionsPage() {
@@ -287,6 +310,7 @@ export default function AdminSectionsPage() {
     () => actionableSections.reduce((sum, section) => sum + promotableCount(section), 0),
     [actionableSections]
   );
+  const conflicts = useMemo(() => detectConflicts(sections), [sections]);
 
   const loadSections = async () => {
     try {
@@ -1400,6 +1424,14 @@ export default function AdminSectionsPage() {
                             {waitlisted > 0 && seats > 0 ? (
                               <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
                                 Can promote
+                              </span>
+                            ) : null}
+                            {(conflicts.get(section.id)?.length ?? 0) > 0 ? (
+                              <span
+                                className="campus-chip border-red-200 bg-red-50 px-2 py-0.5 text-[11px] text-red-700"
+                                title={`Conflicts with ${conflicts.get(section.id)!.length} section(s)`}
+                              >
+                                ⚠️ Conflict
                               </span>
                             ) : null}
                           </div>
