@@ -18,6 +18,7 @@ type Student = {
   enrollments?: Array<{
     id: string;
     status: string;
+    finalGrade?: string | null;
     section?: {
       course?: {
         code?: string;
@@ -88,6 +89,7 @@ export default function AdminStudentsPage() {
   const [detailStudent, setDetailStudent] = useState<Student | null>(null);
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
   const [roleSaving, setRoleSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<"profile" | "grades">("profile");
 
   const loadStudents = async () => {
     try {
@@ -187,6 +189,7 @@ export default function AdminStudentsPage() {
   const openDetails = async (id: string) => {
     try {
       setDetailLoadingId(id);
+      setActiveTab("profile");
       const student = await apiFetch<Student>(`/students/${id}`);
       setDetailStudent(student);
     } catch (err) {
@@ -584,7 +587,7 @@ export default function AdminStudentsPage() {
       <section className="campus-card overflow-hidden">
         <p className="px-4 pt-4 text-xs text-slate-500 md:hidden">Tip: Swipe horizontally to view all columns.</p>
         <div className="max-h-[560px] overflow-auto rounded-3xl">
-          <table className="min-w-[760px] w-full border-collapse text-sm">
+          <table className="hidden min-w-[760px] w-full border-collapse text-sm md:table">
             <thead className="sticky top-0 z-10 bg-slate-50">
               <tr className="border-b border-slate-200 text-left">
                 <th className="px-4 py-3 font-semibold text-slate-700">Name</th>
@@ -670,6 +673,55 @@ export default function AdminStudentsPage() {
           </table>
         </div>
 
+        <div className="space-y-3 p-4 md:hidden">
+          {loading ? (
+            <div className="campus-card p-4 text-sm text-slate-500">Loading students...</div>
+          ) : visibleStudents.length === 0 ? (
+            <div className="campus-card p-4 text-sm text-slate-500">No students found.</div>
+          ) : (
+            pagedStudents.map((student) => (
+              <div key={student.id} className="campus-card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                      {student.studentProfile?.legalName ?? "—"}
+                    </p>
+                    <p className="break-all text-xs text-slate-500">{student.email}</p>
+                    <p className="mt-1 font-mono text-xs text-slate-400">{student.studentId ?? "—"}</p>
+                  </div>
+                  <span
+                    className={`campus-chip text-xs ${
+                      (student.gpa ?? 0) >= 3.7
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : (student.gpa ?? 0) >= 3
+                          ? "border-blue-200 bg-blue-50 text-blue-700"
+                          : "border-slate-200 bg-slate-50 text-slate-500"
+                    }`}
+                  >
+                    GPA {student.gpa?.toFixed(2) ?? "—"}
+                  </span>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void openDetails(student.id)}
+                    className="flex-1 rounded-lg border border-slate-200 bg-white py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Details
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => (editingId === student.id ? cancelEdit() : startEdit(student))}
+                    className="flex-1 rounded-lg border border-blue-200 bg-blue-50 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                  >
+                    {editingId === student.id ? "Cancel" : "Edit"}
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
         {/* Pagination */}
         {visibleStudents.length > PAGE_SIZE ? (
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-3 text-sm text-slate-600">
@@ -735,82 +787,130 @@ export default function AdminStudentsPage() {
               </button>
             </div>
             <div className="space-y-5 p-6">
-              <div className="campus-card space-y-2 p-4">
-                <p className="text-xs font-semibold uppercase text-slate-400">Profile</p>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <p className="text-xs text-slate-500">Email</p>
-                    <p className="break-all font-medium text-slate-800 dark:text-slate-100">{detailStudent.email}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Student ID</p>
-                    <p className="font-mono font-medium text-slate-800 dark:text-slate-100">{detailStudent.studentId ?? "—"}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">GPA</p>
-                    <p
-                      className={`font-bold ${
-                        (detailStudent.gpa ?? 0) >= 3.7 ? "text-emerald-600" : (detailStudent.gpa ?? 0) >= 3 ? "text-blue-600" : "text-amber-600"
-                      }`}
-                    >
-                      {detailStudent.gpa?.toFixed(2) ?? "—"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Role</p>
-                    <p className="font-medium text-slate-800 dark:text-slate-100">{detailStudent.role ?? "STUDENT"}</p>
-                  </div>
-                </div>
+              <div className="mb-4 flex border-b border-slate-100 dark:border-slate-700">
+                {(["profile", "grades"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-4 py-2 text-sm font-medium capitalize transition-colors ${
+                      activeTab === tab ? "border-b-2 border-blue-500 text-blue-600" : "text-slate-500 hover:text-slate-700"
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
               </div>
 
-              {detailStudent.enrollments?.length ? (
-                <div className="campus-card p-4">
-                  <p className="mb-3 text-xs font-semibold uppercase text-slate-400">
-                    Enrollments ({detailStudent.enrollments.length})
-                  </p>
-                  <div className="space-y-2">
-                    {detailStudent.enrollments.map((enrollment) => (
-                      <div key={enrollment.id} className="flex items-center justify-between text-sm">
-                        <span className="font-mono text-xs font-semibold text-slate-600">
-                          {enrollment.section?.course?.code ?? "—"}
-                        </span>
-                        <span
-                          className={`campus-chip text-xs ${
-                            enrollment.status === "ENROLLED"
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : enrollment.status === "WAITLISTED"
-                                ? "border-amber-200 bg-amber-50 text-amber-700"
-                                : "border-slate-200 bg-slate-50 text-slate-600"
+              {activeTab === "profile" ? (
+                <>
+                  <div className="campus-card space-y-2 p-4">
+                    <p className="text-xs font-semibold uppercase text-slate-400">Profile</p>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="text-xs text-slate-500">Email</p>
+                        <p className="break-all font-medium text-slate-800 dark:text-slate-100">{detailStudent.email}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Student ID</p>
+                        <p className="font-mono font-medium text-slate-800 dark:text-slate-100">{detailStudent.studentId ?? "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">GPA</p>
+                        <p
+                          className={`font-bold ${
+                            (detailStudent.gpa ?? 0) >= 3.7 ? "text-emerald-600" : (detailStudent.gpa ?? 0) >= 3 ? "text-blue-600" : "text-amber-600"
                           }`}
                         >
-                          {enrollment.status}
-                        </span>
+                          {detailStudent.gpa?.toFixed(2) ?? "—"}
+                        </p>
                       </div>
-                    ))}
+                      <div>
+                        <p className="text-xs text-slate-500">Role</p>
+                        <p className="font-medium text-slate-800 dark:text-slate-100">{detailStudent.role ?? "STUDENT"}</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ) : null}
 
-              <div className="border-t border-slate-100 pt-4 dark:border-slate-700">
-                <p className="mb-2 text-xs font-semibold uppercase text-slate-400">Role Management</p>
-                <div className="flex gap-2">
-                  {(["STUDENT", "ADMIN"] as const).map((role) => (
-                    <button
-                      key={role}
-                      type="button"
-                      disabled={roleSaving}
-                      onClick={() => void updateRole(role)}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                        detailStudent.role === role
-                          ? "border-slate-900 bg-slate-900 text-white dark:border-white dark:bg-white dark:text-slate-900"
-                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                      } disabled:opacity-50`}
-                    >
-                      {roleSaving && detailStudent.role !== role ? "Updating…" : role}
-                    </button>
-                  ))}
+                  {detailStudent.enrollments?.length ? (
+                    <div className="campus-card p-4">
+                      <p className="mb-3 text-xs font-semibold uppercase text-slate-400">
+                        Enrollments ({detailStudent.enrollments.length})
+                      </p>
+                      <div className="space-y-2">
+                        {detailStudent.enrollments.map((enrollment) => (
+                          <div key={enrollment.id} className="flex items-center justify-between text-sm">
+                            <span className="font-mono text-xs font-semibold text-slate-600">
+                              {enrollment.section?.course?.code ?? "—"}
+                            </span>
+                            <span
+                              className={`campus-chip text-xs ${
+                                enrollment.status === "ENROLLED"
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  : enrollment.status === "WAITLISTED"
+                                    ? "border-amber-200 bg-amber-50 text-amber-700"
+                                    : "border-slate-200 bg-slate-50 text-slate-600"
+                              }`}
+                            >
+                              {enrollment.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="border-t border-slate-100 pt-4 dark:border-slate-700">
+                    <p className="mb-2 text-xs font-semibold uppercase text-slate-400">Role Management</p>
+                    <div className="flex gap-2">
+                      {(["STUDENT", "ADMIN"] as const).map((role) => (
+                        <button
+                          key={role}
+                          type="button"
+                          disabled={roleSaving}
+                          onClick={() => void updateRole(role)}
+                          className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                            detailStudent.role === role
+                              ? "border-slate-900 bg-slate-900 text-white dark:border-white dark:bg-white dark:text-slate-900"
+                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                          } disabled:opacity-50`}
+                        >
+                          {roleSaving && detailStudent.role !== role ? "Updating…" : role}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  {(detailStudent.enrollments ?? []).filter((enrollment) => enrollment.finalGrade).length === 0 ? (
+                    <p className="text-sm text-slate-400">No grades recorded.</p>
+                  ) : (
+                    (detailStudent.enrollments ?? [])
+                      .filter((enrollment) => enrollment.finalGrade)
+                      .map((enrollment) => (
+                        <div key={enrollment.id} className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 dark:border-slate-700">
+                          <span className="font-mono text-xs font-semibold text-slate-600">
+                            {enrollment.section?.course?.code ?? "—"}
+                          </span>
+                          <span
+                            className={`text-lg font-bold ${
+                              enrollment.finalGrade === "A" || enrollment.finalGrade === "A+"
+                                ? "text-emerald-600"
+                                : enrollment.finalGrade === "B"
+                                  ? "text-blue-600"
+                                  : enrollment.finalGrade === "C"
+                                    ? "text-amber-600"
+                                    : "text-red-600"
+                            }`}
+                          >
+                            {enrollment.finalGrade}
+                          </span>
+                        </div>
+                      ))
+                  )}
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>

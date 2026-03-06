@@ -71,6 +71,23 @@ function statusClass(value: string | null | undefined) {
   return "border-blue-200 bg-blue-50 text-blue-700";
 }
 
+const AVATAR_GRADIENTS = [
+  "from-blue-400 to-blue-600",
+  "from-emerald-400 to-emerald-600",
+  "from-violet-400 to-violet-600",
+  "from-amber-400 to-amber-600",
+  "from-red-400 to-red-600",
+  "from-pink-400 to-pink-600"
+];
+
+function getGradient(name: string): string {
+  let hash = 0;
+  for (const char of name) {
+    hash = (hash * 31 + char.charCodeAt(0)) & 0xffffffff;
+  }
+  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
+}
+
 function ChangePasswordCard() {
   const [form, setForm] = useState({ currentPassword: "", newPassword: "", confirm: "" });
   const [showCurrent, setShowCurrent] = useState(false);
@@ -280,6 +297,10 @@ export default function StudentProfilePage() {
         .toUpperCase() || "?"
     );
   }, [form.legalName]);
+  const gradient = useMemo(
+    () => getGradient(form.legalName || profile?.user.email || "U"),
+    [form.legalName, profile?.user.email]
+  );
 
   return (
     <div className="campus-page">
@@ -287,13 +308,16 @@ export default function StudentProfilePage() {
         <div className="relative border-b border-slate-200 bg-slate-50 px-5 py-6 md:px-7">
           <div className="relative flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="flex size-16 items-center justify-center rounded-full border border-slate-300 bg-white text-xl font-bold text-slate-900">
+              <div className={`mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br ${gradient} text-3xl font-bold text-white shadow-lg`}>
                 {initials}
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Student Profile</p>
                 <h1 className="font-heading text-3xl font-bold text-slate-900">{form.legalName || "Student"}</h1>
                 <p className="text-sm text-slate-600">{profile?.user.email || "—"}</p>
+                <button className="mt-2 cursor-not-allowed text-xs font-medium text-blue-600 opacity-50 hover:underline" disabled>
+                  Change Avatar (Coming Soon)
+                </button>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">

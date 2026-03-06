@@ -534,7 +534,7 @@ export default function EnrollmentsPage() {
 
       <section className="campus-card overflow-hidden">
         <div className="max-h-[600px] overflow-auto rounded-3xl">
-          <table className="w-full border-collapse text-sm">
+          <table className="hidden w-full border-collapse text-sm md:table">
             <thead className="sticky top-0 z-10 bg-slate-50">
               <tr className="border-b border-slate-200 text-left">
                 <th className="px-4 py-3 font-semibold text-slate-700">
@@ -669,6 +669,95 @@ export default function EnrollmentsPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="space-y-3 p-4 md:hidden">
+          {loading ? (
+            <div className="campus-card p-4 text-sm text-slate-500">Loading enrollments...</div>
+          ) : rows.length === 0 ? (
+            <div className="campus-card p-4 text-sm text-slate-500">
+              {hasActiveFilters ? "No enrollments match your filters." : "No enrollments yet."}
+            </div>
+          ) : (
+            pagedRows.map((row) => (
+              <div key={row.id} className="campus-card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                      {row.student.studentProfile?.legalName || "-"}
+                    </p>
+                    <p className="text-xs text-slate-500">{row.student.studentId || "No ID"}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {row.section.course.code} · {row.section.sectionCode}
+                    </p>
+                    {!selectedTermId ? (
+                      <p className="text-[11px] text-slate-400">{row.term?.name ?? "—"}</p>
+                    ) : null}
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(selectedById[row.id])}
+                    onChange={(event) => toggleRow(row.id, event.target.checked)}
+                    disabled={(statusState[row.id] ?? row.status) !== "PENDING_APPROVAL"}
+                    className="mt-1 size-4 accent-slate-900"
+                    aria-label={`Select enrollment ${row.id}`}
+                  />
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${STATUS_COLORS[statusState[row.id] ?? row.status] ?? "border-slate-200 bg-slate-100 text-slate-700"}`}>
+                    {statusState[row.id] ?? row.status}
+                  </span>
+                  {gradeBadgeClass(row.finalGrade) ? (
+                    <span className={gradeBadgeClass(row.finalGrade) || ""}>
+                      {row.finalGrade?.trim().toUpperCase()}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-300">No grade</span>
+                  )}
+                </div>
+
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <select
+                    className="campus-select h-9 text-xs"
+                    value={statusState[row.id] || row.status}
+                    onChange={(e) => setStatusState((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                  >
+                    {STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    className="campus-input h-9 text-sm"
+                    placeholder="A, B+…"
+                    value={gradeState[row.id] || ""}
+                    onChange={(e) => setGradeState((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                  />
+                </div>
+
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void updateStatus(row.id)}
+                    disabled={savingStatusId === row.id}
+                    className="flex-1 rounded-lg border border-slate-300 bg-white py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    {savingStatusId === row.id ? "Saving…" : "Save Status"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void updateGrade(row.id)}
+                    disabled={savingGradeId === row.id || !(gradeState[row.id] || "").trim()}
+                    className="flex-1 rounded-lg bg-primary py-1.5 text-xs font-semibold text-white transition hover:bg-primary/90 disabled:opacity-60"
+                  >
+                    {savingGradeId === row.id ? "Saving…" : "Save Grade"}
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Pagination */}

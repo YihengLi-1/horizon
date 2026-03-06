@@ -1,13 +1,28 @@
 import { serverApi } from "@/lib/server-api";
+import AllTranscriptsExport from "./AllTranscriptsExport";
 import DeptStats from "./DeptStats";
+import PrintButton from "@/app/student/schedule/PrintButton";
 
 export const dynamic = "force-dynamic";
 
 type EnrollmentRow = {
   id: string;
   status: "ENROLLED" | "WAITLISTED" | "PENDING_APPROVAL" | "DROPPED" | "COMPLETED";
+  finalGrade?: string | null;
+  student?: {
+    email?: string;
+    studentProfile?: {
+      legalName?: string;
+    };
+  };
+  term?: {
+    name?: string;
+  };
   section?: {
+    sectionCode?: string;
     course?: {
+      code?: string;
+      title?: string;
       credits?: number;
     };
   };
@@ -27,6 +42,11 @@ type SectionRow = {
 
 type StudentRow = {
   id: string;
+};
+
+type RegistrationStats = {
+  total: number;
+  byStatus: Record<string, number>;
 };
 
 type PaginatedResponse<T> = {
@@ -55,10 +75,11 @@ async function fetchAllEnrollments(): Promise<EnrollmentRow[]> {
 }
 
 export default async function ReportsPage() {
-  const [enrollments, sections, students] = await Promise.all([
+  const [enrollments, sections, students, registrationStats] = await Promise.all([
     fetchAllEnrollments(),
     serverApi<SectionRow[]>("/admin/sections").catch(() => []),
     serverApi<StudentRow[]>("/students").catch(() => []),
+    serverApi<RegistrationStats>("/admin/stats/registration").catch(() => ({ total: 0, byStatus: {} }))
   ]);
 
   const statusCounts = { ENROLLED: 0, WAITLISTED: 0, PENDING_APPROVAL: 0, DROPPED: 0, COMPLETED: 0 };
@@ -108,8 +129,26 @@ export default async function ReportsPage() {
   return (
     <div className="campus-page space-y-6">
       <div className="campus-hero">
-        <h1 className="text-2xl font-bold text-slate-900">Reports</h1>
-        <p className="mt-1 text-sm text-slate-500">Enrollment statistics and section utilization</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="reports-title text-2xl font-bold text-slate-900">Reports</h1>
+            <p className="mt-1 text-sm text-slate-500">Enrollment statistics and section utilization</p>
+          </div>
+          <div className="no-print flex flex-wrap gap-2">
+            <AllTranscriptsExport
+              enrollments={enrollments.map((enrollment) => ({
+                studentName: enrollment.student?.studentProfile?.legalName ?? "",
+                studentEmail: enrollment.student?.email ?? "",
+                termName: enrollment.term?.name ?? "",
+                courseCode: enrollment.section?.course?.code ?? "",
+                courseTitle: enrollment.section?.course?.title ?? "",
+                credits: enrollment.section?.course?.credits ?? 0,
+                finalGrade: enrollment.finalGrade ?? ""
+              }))}
+            />
+            <PrintButton />
+          </div>
+        </div>
         <div className="mt-3 flex flex-wrap gap-2">
           <span className="campus-chip border-slate-200 bg-white text-slate-600">
             {students?.length ?? 0} Students
@@ -118,14 +157,14 @@ export default async function ReportsPage() {
             {sections?.length ?? 0} Sections
           </span>
           <span className="campus-chip border-slate-200 bg-white text-slate-600">
-            {enrollments?.length ?? 0} Enrollments
+            {registrationStats.total || enrollments?.length || 0} Enrollments
           </span>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {(Object.entries(statusCounts) as [string, number][]).map(([status, count]) => (
-          <div key={status} className="campus-kpi">
+          <div key={status} className="campus-kpi reports-kpi">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               {STATUS_LABEL[status] ?? status}
             </p>

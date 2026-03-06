@@ -821,6 +821,59 @@ export class AdminService {
     return { sent, failed, total: results.length };
   }
 
+  async cloneSection(sectionId: string, actorUserId: string, targetTermId?: string) {
+    const src = await this.prisma.section.findUnique({
+      where: { id: sectionId },
+      include: { meetingTimes: true }
+    });
+    if (!src) {
+      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
+    }
+
+    const clone = await this.prisma.section.create({
+      data: {
+        courseId: src.courseId,
+        termId: targetTermId ?? src.termId,
+        instructorName: src.instructorName,
+        location: src.location,
+        capacity: src.capacity,
+        modality: src.modality,
+        credits: src.credits,
+        requireApproval: src.requireApproval,
+        startDate: src.startDate,
+        sectionCode: `${src.sectionCode}-COPY-${Date.now().toString().slice(-4)}`,
+        meetingTimes: {
+          create: src.meetingTimes.map((mt) => ({
+            weekday: mt.weekday,
+            startMinutes: mt.startMinutes,
+            endMinutes: mt.endMinutes
+          }))
+        }
+      },
+      include: {
+        term: true,
+        course: true,
+        meetingTimes: true,
+        ratings: {
+          select: { rating: true }
+        },
+        enrollments: {
+          where: { deletedAt: null }
+        }
+      }
+    });
+
+    await this.auditService.log({
+      actorUserId,
+      action: "admin_crud",
+      entityType: "section",
+      entityId: clone.id,
+      metadata: { op: "clone", sourceSectionId: sectionId }
+    });
+
+    return clone;
+  }
+
   async listEnrollments(params: {
     termId?: string;
     sectionId?: string;
@@ -1288,6 +1341,54 @@ export class AdminService {
 
   async deleteAnnouncement(id: string) {
     return this.prisma.announcement.delete({ where: { id } });
+  }
+
+  async getRegistrationStats() {
+    const [total, byStatus, byTerm, topSections] = await this.prisma.$transaction([
+      this.prisma.enrollment.count({ where: { deletedAt: null } }),
+      this.prisma.enrollment.groupBy({
+        by: ["status"],
+        where: { deletedAt: null },
+        _count: { id: true },
+        orderBy: { status: "asc" }
+      }),
+      this.prisma.enrollment.groupBy({
+        by: ["termId"],
+        where: { deletedAt: null },
+        _count: { id: true },
+        take: 10,
+        orderBy: { _count: { id: "desc" } }
+      }),
+      this.prisma.section.findMany({
+        take: 5,
+        include: {
+          course: { select: { code: true, title: true } },
+          _count: { select: { enrollments: true } }
+        },
+        orderBy: { enrollments: { _count: "desc" } }
+      })
+    ]);
+
+    return {
+      total,
+      byStatus: Object.fromEntries(
+        byStatus.map((item) => [
+          item.status,
+          typeof item._count === "object" && item._count ? item._count.id ?? 0 : 0
+        ])
+      ),
+      byTerm: byTerm.map((item) => ({
+        termId: item.termId,
+        count:
+          typeof item._count === "object" && item._count ? item._count.id ?? 0 : 0
+      })),
+      topSections: topSections.map((section) => ({
+        id: section.id,
+        code: section.course.code,
+        title: section.course.title,
+        count: section._count.enrollments
+      }))
+    };
   }
 
   async listAuditLogs(params?: {

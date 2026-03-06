@@ -9,6 +9,7 @@ import {
   Bookmark,
   BookOpen,
   BarChart3,
+  Bell,
   CalendarDays,
   CalendarRange,
   Clock,
@@ -19,6 +20,7 @@ import {
   KeyRound,
   LayoutDashboard,
   ListChecks,
+  Mail,
   Megaphone,
   ScrollText,
   Settings,
@@ -54,6 +56,7 @@ const iconClass = "size-4";
 
 const studentItems: NavItem[] = [
   { href: "/student/dashboard", label: "Dashboard", icon: <Home className={iconClass} /> },
+  { href: "/student/notifications", label: "Notifications", icon: <Bell className={iconClass} /> },
   { href: "/student/catalog", label: "Catalog", icon: <BookOpen className={iconClass} /> },
   { href: "/student/cart", label: "Cart", icon: <ShoppingCart className={iconClass} /> },
   { href: "/student/schedule", label: "Schedule", icon: <CalendarDays className={iconClass} /> },
@@ -61,6 +64,7 @@ const studentItems: NavItem[] = [
   { href: "/student/calendar", label: "Calendar", icon: <CalendarRange className={iconClass} /> },
   { href: "/student/history", label: "History", icon: <History className={iconClass} /> },
   { href: "/student/bookmarks", label: "Bookmarks", icon: <Bookmark className={iconClass} /> },
+  { href: "/student/contact", label: "Contact", icon: <Mail className={iconClass} /> },
   { href: "/student/profile", label: "Profile", icon: <User className={iconClass} /> },
   { href: "/student/help", label: "Help", icon: <HelpCircle className={iconClass} /> }
 ];
@@ -136,9 +140,9 @@ export function AppShell({
             { label: "Tools", hrefs: ["/admin/invite-codes", "/admin/announcements", "/admin/import", "/admin/audit-logs", "/admin/reports", "/admin/settings"] }
           ]
         : [
-            { label: "Overview", hrefs: ["/student/dashboard"] },
+            { label: "Overview", hrefs: ["/student/dashboard", "/student/notifications"] },
             { label: "Registration", hrefs: ["/student/catalog", "/student/cart", "/student/schedule"] },
-            { label: "Academic", hrefs: ["/student/grades", "/student/calendar", "/student/history", "/student/bookmarks", "/student/profile", "/student/help"] }
+            { label: "Academic", hrefs: ["/student/grades", "/student/calendar", "/student/history", "/student/bookmarks", "/student/contact", "/student/profile", "/student/help"] }
           ];
 
     return groups

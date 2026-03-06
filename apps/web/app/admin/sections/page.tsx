@@ -584,6 +584,21 @@ export default function AdminSectionsPage() {
     }
   };
 
+  const cloneSection = async (sectionId: string) => {
+    try {
+      setCreateError("");
+      setCreateSuccess("");
+      await apiFetch(`/admin/sections/${sectionId}/clone`, {
+        method: "POST",
+        body: JSON.stringify({})
+      });
+      setCreateSuccess("Section cloned successfully.");
+      await loadSections();
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Clone failed");
+    }
+  };
+
   const exportCsv = () => {
     const rows = [
       ["Term", "Course", "Section", "Modality", "Capacity", "Enrolled", "Waitlisted", "Available", "Instructor", "Location", "Req Approval", "Schedule"],
@@ -1544,6 +1559,13 @@ export default function AdminSectionsPage() {
                               className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
                             >
                               {exportingRosterId === section.id ? "Exporting..." : "📋 Roster"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void cloneSection(section.id)}
+                              className="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
+                            >
+                              📋 Clone
                             </button>
                             <button
                               type="button"

@@ -125,6 +125,16 @@ export class AdminController {
     return ok(await this.adminService.notifySection(id, body.subject, body.message, user.userId));
   }
 
+  @Post("sections/:id/clone")
+  @RequireAdminPermissions("sections:write")
+  async cloneSection(
+    @Param("id") id: string,
+    @Body() body: { targetTermId?: string },
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(await this.adminService.cloneSection(id, user.userId, body.targetTermId));
+  }
+
   @Get("enrollments")
   @RequireAdminPermissions("enrollments:read")
   async listEnrollments(
@@ -270,6 +280,12 @@ export class AdminController {
     @CurrentUser() user: { userId: string }
   ) {
     return ok(await this.adminService.updateUserRole(id, body.role, user.userId));
+  }
+
+  @Get("stats/registration")
+  @RequireAdminPermissions("dashboard:read")
+  async getRegistrationStats() {
+    return ok(await this.adminService.getRegistrationStats());
   }
 
   @Get("audit-logs")

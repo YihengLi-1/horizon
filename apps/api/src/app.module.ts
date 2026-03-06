@@ -18,8 +18,9 @@ import { HealthModule } from "./health/health.module";
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([
       {
-        ttl: 60_000,
-        limit: 60
+        name: "default",
+        ttl: Number(process.env.THROTTLE_TTL ?? 60) * 1000,
+        limit: Number(process.env.THROTTLE_LIMIT ?? 100)
       }
     ]),
     AuthzModule,
