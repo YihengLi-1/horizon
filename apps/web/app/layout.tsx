@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Merriweather, Source_Sans_3 } from "next/font/google";
 import { ToastProvider } from "@/components/Toast";
 import "./globals.css";
@@ -18,8 +18,11 @@ export const metadata: Metadata = {
   title: "University SIS",
   description: "Student Information System — academic planning, course registration, and enrollment management",
   manifest: "/manifest.json",
-  themeColor: "#0f172a",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "地平线 SIS" }
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0f172a"
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
