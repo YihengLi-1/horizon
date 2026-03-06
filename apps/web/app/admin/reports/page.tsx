@@ -158,7 +158,7 @@ export default async function ReportsPage() {
                 finalGrade: enrollment.finalGrade ?? ""
               }))}
             />
-            <PrintButton />
+            <PrintButton label="Print Report" />
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">

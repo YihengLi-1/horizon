@@ -205,6 +205,15 @@ export class RegistrationService {
     );
   }
 
+  private async getEffectiveMaxCredits(defaultMaxCredits: number): Promise<number> {
+    const setting = await this.prisma.systemSetting.findUnique({
+      where: { key: "max_credits_per_term" },
+      select: { value: true }
+    });
+    const parsed = Number(setting?.value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultMaxCredits;
+  }
+
   private buildEnrollmentPlan(params: {
     studentId: string;
     termId: string;
@@ -300,7 +309,7 @@ export class RegistrationService {
       let status: EnrollmentStatus;
       let waitlistPosition: number | undefined;
 
-      if (activeCount >= section.capacity) {
+      if (section.capacity > 0 && activeCount >= section.capacity) {
         status = "WAITLISTED";
         const basePosition = waitlistNextPositionBySection.get(section.id) ?? 0;
         waitlistPosition = basePosition + 1;
@@ -446,6 +455,8 @@ export class RegistrationService {
       });
     }
 
+    const effectiveMaxCredits = await this.getEffectiveMaxCredits(term.maxCredits);
+
     const cartItems: CartItemWithSection[] = await this.prisma.cartItem.findMany({
       where: { studentId, termId: input.termId },
       include: {
@@ -510,7 +521,7 @@ export class RegistrationService {
       termId: input.termId,
       term: {
         startDate: term.startDate,
-        maxCredits: term.maxCredits
+        maxCredits: effectiveMaxCredits
       },
       now,
       cartItems,
@@ -542,6 +553,8 @@ export class RegistrationService {
         message: "Registration window is closed"
       });
     }
+
+    const effectiveMaxCredits = await this.getEffectiveMaxCredits(term.maxCredits);
 
     const cartItems: CartItemWithSection[] = await this.prisma.cartItem.findMany({
       where: { studentId, termId: input.termId },
@@ -608,7 +621,7 @@ export class RegistrationService {
       termId: input.termId,
       term: {
         startDate: term.startDate,
-        maxCredits: term.maxCredits
+        maxCredits: effectiveMaxCredits
       },
       now,
       cartItems,
@@ -692,7 +705,7 @@ export class RegistrationService {
         termId: input.termId,
         term: {
           startDate: term.startDate,
-          maxCredits: term.maxCredits
+          maxCredits: effectiveMaxCredits
         },
         now,
         cartItems: txCartItems,

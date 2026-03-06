@@ -5,22 +5,24 @@ import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 
 const COMMANDS = [
-  { label: "Dashboard", href: "/student/dashboard", group: "Student", icon: "🏠" },
-  { label: "Course Catalog", href: "/student/catalog", group: "Student", icon: "📚" },
-  { label: "My Cart", href: "/student/cart", group: "Student", icon: "🛒" },
-  { label: "My Schedule", href: "/student/schedule", group: "Student", icon: "📅" },
-  { label: "My Grades", href: "/student/grades", group: "Student", icon: "📊" },
-  { label: "My Profile", href: "/student/profile", group: "Student", icon: "👤" },
-  { label: "Bookmarks", href: "/student/bookmarks", group: "Student", icon: "🔖" },
-  { label: "Help", href: "/student/help", group: "Student", icon: "❓" },
-  { label: "Admin Dashboard", href: "/admin/dashboard", group: "Admin", icon: "⚙️" },
-  { label: "Students", href: "/admin/students", group: "Admin", icon: "👥" },
-  { label: "Courses", href: "/admin/courses", group: "Admin", icon: "📖" },
-  { label: "Sections", href: "/admin/sections", group: "Admin", icon: "🗂" },
-  { label: "Enrollments", href: "/admin/enrollments", group: "Admin", icon: "📋" },
-  { label: "Reports", href: "/admin/reports", group: "Admin", icon: "📈" },
-  { label: "Announcements", href: "/admin/announcements", group: "Admin", icon: "📢" },
-  { label: "Settings", href: "/admin/settings", group: "Admin", icon: "🔧" }
+  { id: "student-dashboard", label: "Dashboard", path: "/student/dashboard", group: "Student", role: "student", icon: "🏠" },
+  { id: "student-catalog", label: "Course Catalog", path: "/student/catalog", group: "Student", role: "student", icon: "📚" },
+  { id: "student-cart", label: "My Cart", path: "/student/cart", group: "Student", role: "student", icon: "🛒" },
+  { id: "student-schedule", label: "My Schedule", path: "/student/schedule", group: "Student", role: "student", icon: "📅" },
+  { id: "student-grades", label: "My Grades", path: "/student/grades", group: "Student", role: "student", icon: "📊" },
+  { id: "student-profile", label: "My Profile", path: "/student/profile", group: "Student", role: "student", icon: "👤" },
+  { id: "bookmarks", label: "My Bookmarks", path: "/student/bookmarks", group: "Student", role: "student", icon: "🔖" },
+  { id: "calendar", label: "Academic Calendar", path: "/student/calendar", group: "Student", role: "student", icon: "🗓️" },
+  { id: "history", label: "Enrollment History", path: "/student/history", group: "Student", role: "student", icon: "🕘" },
+  { id: "help", label: "Help", path: "/student/help", group: "Student", role: "student", icon: "❓" },
+  { id: "admin-dashboard", label: "Admin Dashboard", path: "/admin/dashboard", group: "Admin", role: "admin", icon: "⚙️" },
+  { id: "admin-students", label: "Students", path: "/admin/students", group: "Admin", role: "admin", icon: "👥" },
+  { id: "admin-courses", label: "Courses", path: "/admin/courses", group: "Admin", role: "admin", icon: "📖" },
+  { id: "admin-sections", label: "Sections", path: "/admin/sections", group: "Admin", role: "admin", icon: "🗂" },
+  { id: "admin-enrollments", label: "Enrollments", path: "/admin/enrollments", group: "Admin", role: "admin", icon: "📋" },
+  { id: "reports", label: "Admin Reports", path: "/admin/reports", group: "Admin", role: "admin", icon: "📈" },
+  { id: "announcements", label: "Announcements", path: "/admin/announcements", group: "Admin", role: "admin", icon: "📢" },
+  { id: "settings", label: "System Settings", path: "/admin/settings", group: "Admin", role: "admin", icon: "🔧" }
 ];
 
 export default function CommandPalette() {
@@ -58,8 +60,8 @@ export default function CommandPalette() {
       )
     : COMMANDS.slice(0, 8);
 
-  function go(href: string) {
-    router.push(href);
+  function go(path: string) {
+    router.push(path);
     setOpen(false);
     setQuery("");
   }
@@ -94,9 +96,9 @@ export default function CommandPalette() {
           ) : (
             filtered.map((command) => (
               <button
-                key={command.href}
+                key={command.id}
                 type="button"
-                onClick={() => go(command.href)}
+                onClick={() => go(command.path)}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
               >
                 <span className="text-lg">{command.icon}</span>

@@ -780,6 +780,24 @@ async function main() {
     }
   });
 
+  await Promise.all([
+    prisma.systemSetting.upsert({
+      where: { key: "maintenance_mode" },
+      update: { value: "false" },
+      create: { key: "maintenance_mode", value: "false" }
+    }),
+    prisma.systemSetting.upsert({
+      where: { key: "max_credits_per_term" },
+      update: { value: "18" },
+      create: { key: "max_credits_per_term", value: "18" }
+    }),
+    prisma.systemSetting.upsert({
+      where: { key: "registration_message" },
+      update: { value: "" },
+      create: { key: "registration_message", value: "" }
+    })
+  ]);
+
   console.log("Demo accounts:", {
     admin: "admin@sis.edu / Admin@2026!",
     student1: "student1@sis.edu / Student@2026!",

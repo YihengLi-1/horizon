@@ -1,3 +1,5 @@
+import SystemSettingsEditor from "./SystemSettingsEditor";
+
 export default function SettingsPage() {
   const settings = [
     {
@@ -67,6 +69,8 @@ export default function SettingsPage() {
           </div>
         </div>
       ))}
+
+      <SystemSettingsEditor />
 
       <p className="text-center text-xs text-slate-400">
         To modify settings, update <code>.env</code> and restart the service.

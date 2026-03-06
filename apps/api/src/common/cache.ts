@@ -15,6 +15,16 @@ export class TtlCache<T = unknown> {
     return entry.value;
   }
 
+  async getOrSet<R = T>(key: string, ttlMs: number, fn: () => Promise<R>): Promise<R> {
+    const cached = this.get(key);
+    if (cached !== undefined) {
+      return cached as R;
+    }
+    const value = await fn();
+    this.set(key, value as unknown as T, ttlMs);
+    return value;
+  }
+
   del(key: string) {
     this.store.delete(key);
   }

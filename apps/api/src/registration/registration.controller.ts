@@ -1,12 +1,13 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { Request } from "express";
-import { addCartItemSchema, dropEnrollmentSchema, submitCartSchema } from "@sis/shared";
+import { dropEnrollmentSchema, submitCartSchema } from "@sis/shared";
 import { CurrentUser } from "../common/current-user.decorator";
 import { JwtAuthGuard } from "../common/jwt-auth.guard";
 import { Roles } from "../common/roles.decorator";
 import { RolesGuard } from "../common/roles.guard";
 import { ok } from "../common/response";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
+import { EnrollDto } from "./dto/enroll.dto";
 import { RegistrationService } from "./registration.service";
 
 @Controller("registration")
@@ -21,8 +22,8 @@ export class RegistrationController {
   }
 
   @Post("cart")
-  async addToCart(@CurrentUser() user: { userId: string }, @Body(new ZodValidationPipe(addCartItemSchema)) body: unknown) {
-    return ok(await this.registrationService.addToCart(user.userId, body as never));
+  async addToCart(@CurrentUser() user: { userId: string }, @Body() body: EnrollDto) {
+    return ok(await this.registrationService.addToCart(user.userId, body));
   }
 
   @Delete("cart/:id")

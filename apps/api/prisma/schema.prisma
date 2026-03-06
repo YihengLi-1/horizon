@@ -41,6 +41,7 @@ model User {
   issuedInviteCodes       InviteCode[]             @relation("InviteIssuer")
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
+  refreshTokens           RefreshToken[]
   enrollments             Enrollment[]             @relation("StudentEnrollments")
   cartItems               CartItem[]               @relation("StudentCartItems")
   ratings                 CourseRating[]
@@ -94,6 +95,20 @@ model PasswordResetToken {
   usedAt    DateTime?
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Term {
@@ -120,6 +135,7 @@ model Course {
   title                 String
   description           String?
   credits               Int
+  deletedAt             DateTime?
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
   sections              Section[]
@@ -159,6 +175,8 @@ model Section {
   ratings         CourseRating[]
 
   @@unique([termId, sectionCode])
+  @@index([courseId])
+  @@index([termId])
 }
 
 model MeetingTime {
@@ -188,6 +206,10 @@ model Enrollment {
 
   @@index([studentId, termId, deletedAt])
   @@index([sectionId, status, deletedAt])
+  @@index([studentId])
+  @@index([sectionId])
+  @@index([status])
+  @@index([studentId, status])
   @@unique([sectionId, waitlistPosition])
 }
 
@@ -219,6 +241,9 @@ model AuditLog {
   actor       User?    @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([action, createdAt])
+  @@index([createdAt])
+  @@index([actorUserId])
+  @@index([action])
 }
 
 model CourseRating {
@@ -233,6 +258,7 @@ model CourseRating {
   section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, sectionId])
+  @@index([sectionId])
 }
 
 model Announcement {
@@ -243,4 +269,13 @@ model Announcement {
   pinned    Boolean  @default(false)
   createdAt DateTime @default(now())
   expiresAt DateTime?
+
+  @@index([expiresAt])
+  @@index([audience])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }

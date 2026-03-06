@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { serverApi } from "@/lib/server-api";
 import { requireRole } from "@/lib/server-auth";
@@ -541,7 +542,9 @@ export default async function StudentDashboardPage() {
         </div>
       ) : null}
 
-      <QuickCoursesPanel enrollments={enrollments ?? []} />
+      <Suspense fallback={<div className="campus-card h-32 animate-pulse" />}>
+        <QuickCoursesPanel enrollments={enrollments ?? []} />
+      </Suspense>
 
       {term ? (
         <section className="campus-card p-4">

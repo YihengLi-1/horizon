@@ -55,37 +55,71 @@ export class StudentsService {
   }
 
   async getNotifications(studentId: string) {
-    const enrollments = await this.prisma.enrollment.findMany({
-      where: { studentId, deletedAt: null },
-      include: { section: { include: { course: true } } },
-      orderBy: { updatedAt: "desc" },
-      take: 20
-    });
+    try {
+      const enrollments = await this.prisma.enrollment.findMany({
+        where: { studentId, deletedAt: null },
+        include: { section: { include: { course: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 50
+      });
 
-    return enrollments
-      .filter((enrollment) => ["ENROLLED", "WAITLISTED", "PENDING_APPROVAL"].includes(enrollment.status))
-      .slice(0, 10)
-      .map((enrollment) => ({
-        id: enrollment.id,
-        type:
-          enrollment.status === "ENROLLED"
-            ? "success"
-            : enrollment.status === "WAITLISTED"
-              ? "warning"
-              : "info",
-        title:
-          enrollment.status === "ENROLLED"
-            ? `已选课：${enrollment.section.course.code}`
-            : enrollment.status === "WAITLISTED"
-              ? `候补队列：${enrollment.section.course.code}`
-              : `待审批：${enrollment.section.course.code}`,
-        body:
-          enrollment.status === "ENROLLED"
-            ? enrollment.section.course.title
-            : enrollment.status === "WAITLISTED"
-              ? "候补中"
-              : "等待管理员审批"
-      }));
+      return enrollments
+        .filter((enrollment) => ["ENROLLED", "WAITLISTED", "PENDING_APPROVAL"].includes(enrollment.status))
+        .slice(0, 10)
+        .map((enrollment) => ({
+          id: enrollment.id,
+          type:
+            enrollment.status === "ENROLLED"
+              ? "success"
+              : enrollment.status === "WAITLISTED"
+                ? "warning"
+                : "info",
+          title:
+            enrollment.status === "ENROLLED"
+              ? `已选课：${enrollment.section.course.code}`
+              : enrollment.status === "WAITLISTED"
+                ? `候补队列：${enrollment.section.course.code}`
+                : `待审批：${enrollment.section.course.code}`,
+          body:
+            enrollment.status === "ENROLLED"
+              ? enrollment.section.course.title
+              : enrollment.status === "WAITLISTED"
+                ? "候补中"
+                : "等待管理员审批"
+        }));
+    } catch {
+      return [];
+    }
+  }
+
+  async getTranscript(userId: string) {
+    try {
+      const student = await this.prisma.user.findFirst({
+        where: { id: userId, role: "STUDENT", deletedAt: null },
+        select: { id: true }
+      });
+
+      if (!student) return [];
+
+      return await this.prisma.enrollment.findMany({
+        where: {
+          studentId: student.id,
+          deletedAt: null,
+          finalGrade: { not: null }
+        },
+        include: {
+          term: true,
+          section: {
+            include: {
+              course: true
+            }
+          }
+        },
+        orderBy: [{ term: { startDate: "desc" } }, { updatedAt: "desc" }]
+      });
+    } catch {
+      return [];
+    }
   }
 
   async getMyRatings(userId: string) {

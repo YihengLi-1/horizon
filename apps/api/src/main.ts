@@ -8,12 +8,13 @@ import { randomUUID } from "crypto";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AuditService } from "./audit/audit.service";
 import { AppModule } from "./app.module";
-import { AllExceptionsFilter } from "./common/exception.filter";
+import { AllExceptionsFilter } from "./common/global-exception.filter";
 import { StructuredLogger } from "./common/logger";
 import { NotificationsService } from "./notifications/notifications.service";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { logger: new StructuredLogger() });
+  const logger = new StructuredLogger();
+  const app = await NestFactory.create(AppModule, { logger });
   const auditService = app.get(AuditService);
   const notificationsService = app.get(NotificationsService);
   app.use(compression({ threshold: 1024 }));
@@ -233,12 +234,21 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
+      forbidNonWhitelisted: true,
       transform: true,
       forbidUnknownValues: false
     })
   );
 
   app.useGlobalFilters(new AllExceptionsFilter());
+
+  process.on("unhandledRejection", (reason) => {
+    logger.error("unhandledRejection", JSON.stringify({ reason }));
+  });
+  process.on("uncaughtException", (err) => {
+    logger.error("uncaughtException", err instanceof Error ? err.stack : JSON.stringify({ err }));
+    process.exit(1);
+  });
 
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.get("/ops/metrics", (_req: any, res: any) => {

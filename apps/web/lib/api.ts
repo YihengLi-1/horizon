@@ -130,3 +130,12 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 
   return body.data;
 }
+
+export async function refreshSession(): Promise<void> {
+  const data = await apiFetch<{ ok: boolean; expiresAt?: string | number }>("/auth/refresh", {
+    method: "POST"
+  });
+  if (typeof window !== "undefined" && data?.expiresAt !== undefined) {
+    window.localStorage.setItem("sis_session_exp", String(Number(data.expiresAt)));
+  }
+}

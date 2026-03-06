@@ -1,5 +1,6 @@
 export const ADMIN_PERMISSIONS = [
   "dashboard:read",
+  "dashboard:write",
   "terms:read",
   "terms:write",
   "courses:read",

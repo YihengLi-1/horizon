@@ -2,7 +2,7 @@ import { BadRequestException, HttpException, HttpStatus, Injectable, Unauthorize
 import { JwtService } from "@nestjs/jwt";
 import { Role } from "@prisma/client";
 import argon2 from "argon2";
-import { randomBytes } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 import { CookieOptions, Request, Response } from "express";
 import {
   ForgotPasswordSchema,
@@ -17,8 +17,10 @@ import { NotificationsService } from "../notifications/notifications.service";
 import { verifyPasswordHash } from "../common/password-hash";
 
 const ACCESS_COOKIE = "access_token";
+const REFRESH_COOKIE = "sis-refresh";
 const CSRF_COOKIE = (process.env.CSRF_COOKIE_NAME || "sis-csrf").trim() || "sis-csrf";
 const ACCESS_EXPIRES_SECONDS = 60 * 60 * 2;
+const REFRESH_EXPIRES_MS = 30 * 24 * 60 * 60 * 1000;
 const LOGIN_RATE_LIMIT_WINDOW_MS = Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS || 10 * 60 * 1000);
 const LOGIN_RATE_LIMIT_MAX_ATTEMPTS = Number(process.env.LOGIN_RATE_LIMIT_MAX_ATTEMPTS || 8);
 const LOGIN_RATE_LIMIT_LOCK_MS = Number(process.env.LOGIN_RATE_LIMIT_LOCK_MS || 15 * 60 * 1000);
@@ -190,8 +192,17 @@ export class AuthService {
     });
   }
 
+  private setRefreshCookie(res: Response, token: string) {
+    res.cookie(REFRESH_COOKIE, token, {
+      httpOnly: true,
+      ...COOKIE_BASE_OPTIONS,
+      maxAge: REFRESH_EXPIRES_MS
+    });
+  }
+
   private clearAuthCookies(res: Response) {
     res.clearCookie(ACCESS_COOKIE, COOKIE_BASE_OPTIONS);
+    res.clearCookie(REFRESH_COOKIE, COOKIE_BASE_OPTIONS);
     res.clearCookie(CSRF_COOKIE, COOKIE_BASE_OPTIONS);
   }
 
@@ -333,6 +344,8 @@ export class AuthService {
 
     this.clearLoginAttempts(loginAttemptKey);
     const sessionId = Math.random().toString(36).slice(2);
+    const refreshToken = `${sessionId}.${randomUUID()}`;
+    const accessExpiresAt = Date.now() + ACCESS_EXPIRES_SECONDS * 1000;
 
     const token = await this.jwtService.signAsync({
       sub: user.id,
@@ -349,7 +362,15 @@ export class AuthService {
     });
 
     this.setAuthCookie(res, token);
+    this.setRefreshCookie(res, refreshToken);
     this.setCsrfCookie(res, randomBytes(32).toString("hex"));
+    await this.prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        token: refreshToken,
+        expiresAt: new Date(Date.now() + REFRESH_EXPIRES_MS)
+      }
+    });
 
     await this.auditService.log({
       actorUserId: user.id,
@@ -366,6 +387,7 @@ export class AuthService {
       studentId: user.studentId,
       role: user.role,
       sessionId,
+      expiresAt: accessExpiresAt,
       profile: user.studentProfile
     };
   }
@@ -373,6 +395,15 @@ export class AuthService {
   async logout(userId: string, sessionId: string | undefined, req: Request, res: Response) {
     this.clearAuthCookies(res);
     revokeActiveSession(sessionId);
+    const refreshToken = req.cookies?.[REFRESH_COOKIE];
+    if (typeof refreshToken === "string" && refreshToken.length > 0) {
+      await this.prisma.refreshToken.deleteMany({
+        where: {
+          userId,
+          token: refreshToken
+        }
+      });
+    }
     await this.auditService.log({
       actorUserId: userId,
       action: "logout",
@@ -382,6 +413,64 @@ export class AuthService {
     });
 
     return { message: "Logged out" };
+  }
+
+  async refresh(req: Request, res: Response) {
+    const refreshToken = req.cookies?.[REFRESH_COOKIE];
+    if (typeof refreshToken !== "string" || refreshToken.length === 0) {
+      throw new UnauthorizedException({ code: "REFRESH_TOKEN_MISSING", message: "Refresh token missing" });
+    }
+
+    const tokenRecord = await this.prisma.refreshToken.findUnique({
+      where: { token: refreshToken },
+      include: {
+        user: {
+          include: { studentProfile: true }
+        }
+      }
+    });
+
+    if (!tokenRecord || tokenRecord.expiresAt <= new Date() || tokenRecord.user.deletedAt) {
+      throw new UnauthorizedException({ code: "REFRESH_TOKEN_INVALID", message: "Refresh token invalid or expired" });
+    }
+
+    const sessionId = refreshToken.split(".")[0] || Math.random().toString(36).slice(2);
+    const rotatedRefreshToken = `${sessionId}.${randomUUID()}`;
+    const accessExpiresAt = Date.now() + ACCESS_EXPIRES_SECONDS * 1000;
+    const token = await this.jwtService.signAsync(
+      {
+        sub: tokenRecord.userId,
+        role: tokenRecord.user.role,
+        sid: sessionId
+      },
+      {
+        expiresIn: `${ACCESS_EXPIRES_SECONDS}s`
+      }
+    );
+
+    activeSessions.set(sessionId, {
+      userId: tokenRecord.userId,
+      email: tokenRecord.user.email,
+      loginAt: activeSessions.get(sessionId)?.loginAt ?? new Date(),
+      ip: activeSessions.get(sessionId)?.ip ?? this.getClientIp(req)
+    });
+
+    await this.prisma.$transaction([
+      this.prisma.refreshToken.delete({ where: { token: refreshToken } }),
+      this.prisma.refreshToken.create({
+        data: {
+          userId: tokenRecord.userId,
+          token: rotatedRefreshToken,
+          expiresAt: new Date(Date.now() + REFRESH_EXPIRES_MS)
+        }
+      })
+    ]);
+
+    this.setAuthCookie(res, token);
+    this.setRefreshCookie(res, rotatedRefreshToken);
+    this.setCsrfCookie(res, randomBytes(32).toString("hex"));
+
+    return { ok: true, expiresAt: accessExpiresAt };
   }
 
   getSessions() {

@@ -1,8 +1,8 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
-  "/admin/dashboard/page": "app/admin/dashboard/page.js",
   "/student/schedule/page": "app/student/schedule/page.js",
-  "/student/catalog/page": "app/student/catalog/page.js",
+  "/student/dashboard/page": "app/student/dashboard/page.js",
+  "/admin/dashboard/page": "app/admin/dashboard/page.js",
   "/student/history/page": "app/student/history/page.js",
-  "/student/dashboard/page": "app/student/dashboard/page.js"
+  "/student/catalog/page": "app/student/catalog/page.js"
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { RegistrationStepper } from "@/components/registration-stepper";
 import { apiFetch } from "@/lib/api";
 import BookmarkButton from "./BookmarkButton";
@@ -196,6 +196,7 @@ export default function StudentCatalogPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterModality, setFilterModality] = useState("ALL");
   const [filterCredits, setFilterCredits] = useState("ALL");
+  const [filterDept, setFilterDept] = useState("ALL");
   const [filterAvailable, setFilterAvailable] = useState(false);
   const [filterPrereqReady, setFilterPrereqReady] = useState(false);
   const [filterApprovalOnly, setFilterApprovalOnly] = useState(false);
@@ -352,6 +353,7 @@ export default function StudentCatalogPage() {
         const querySearch = query?.get("q") ?? "";
         const queryModality = query?.get("modality") ?? "ALL";
         const queryCredits = query?.get("credits") ?? "ALL";
+        const queryDept = (query?.get("dept") ?? "ALL").toUpperCase();
         const querySort = query?.get("sort") ?? "RELEVANCE";
 
         setSearch(querySearch);
@@ -360,6 +362,7 @@ export default function StudentCatalogPage() {
           ["ALL", "ON_CAMPUS", "ONLINE", "HYBRID"].includes(queryModality) ? queryModality : "ALL"
         );
         setFilterCredits(queryCredits === "ALL" ? "ALL" : queryCredits);
+        setFilterDept(queryDept.length >= 2 ? queryDept : "ALL");
         setSortBy(
           ["RELEVANCE", "SEATS_DESC", "CODE_ASC", "TITLE_ASC", "CREDITS_ASC", "CREDITS_DESC"].includes(querySort)
             ? querySort
@@ -417,6 +420,9 @@ export default function StudentCatalogPage() {
     if (filterCredits !== "ALL") url.searchParams.set("credits", filterCredits);
     else url.searchParams.delete("credits");
 
+    if (filterDept !== "ALL") url.searchParams.set("dept", filterDept);
+    else url.searchParams.delete("dept");
+
     if (sortBy !== "RELEVANCE") url.searchParams.set("sort", sortBy);
     else url.searchParams.delete("sort");
 
@@ -439,6 +445,7 @@ export default function StudentCatalogPage() {
     debouncedSearch,
     filterModality,
     filterCredits,
+    filterDept,
     filterAvailable,
     filterPrereqReady,
     filterApprovalOnly,
@@ -450,6 +457,7 @@ export default function StudentCatalogPage() {
     setSearch("");
     setFilterModality("ALL");
     setFilterCredits("ALL");
+    setFilterDept("ALL");
     setFilterAvailable(false);
     setFilterPrereqReady(false);
     setFilterApprovalOnly(false);
@@ -475,6 +483,7 @@ export default function StudentCatalogPage() {
     if (debouncedSearch.trim()) labels.push(`Search: ${debouncedSearch.trim()}`);
     if (filterModality !== "ALL") labels.push(`Modality: ${filterModality.replace("_", " ")}`);
     if (filterCredits !== "ALL") labels.push(`Credits: ${filterCredits}`);
+    if (filterDept !== "ALL") labels.push(`Dept: ${filterDept}`);
     if (filterAvailable) labels.push("Seats available");
     if (filterPrereqReady) labels.push("Prerequisites met");
     if (filterApprovalOnly) labels.push("Approval required");
@@ -485,6 +494,7 @@ export default function StudentCatalogPage() {
     debouncedSearch,
     filterModality,
     filterCredits,
+    filterDept,
     filterAvailable,
     filterPrereqReady,
     filterApprovalOnly,
@@ -513,6 +523,7 @@ export default function StudentCatalogPage() {
       }
       if (filterModality !== "ALL" && s.modality !== filterModality) return false;
       if (filterCredits !== "ALL" && s.credits !== Number(filterCredits)) return false;
+      if (filterDept !== "ALL" && !s.course.code.toUpperCase().startsWith(filterDept)) return false;
       if (filterAvailable && enrolledCount >= s.capacity) return false;
       if (filterPrereqReady && prereqCodes.some((code) => !passedCourseCodeSet.has(code))) return false;
       if (filterApprovalOnly && !s.requireApproval) return false;
@@ -546,6 +557,7 @@ export default function StudentCatalogPage() {
     debouncedSearch,
     filterModality,
     filterCredits,
+    filterDept,
     filterAvailable,
     filterPrereqReady,
     filterApprovalOnly,
@@ -560,7 +572,7 @@ export default function StudentCatalogPage() {
   useEffect(() => {
     if (!hydratedFilters) return;
     setPage(1);
-  }, [hydratedFilters, debouncedSearch, filterModality, filterCredits, filterAvailable, filterPrereqReady, filterApprovalOnly, filterNoConflict, sortBy]);
+  }, [hydratedFilters, debouncedSearch, filterModality, filterCredits, filterDept, filterAvailable, filterPrereqReady, filterApprovalOnly, filterNoConflict, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filteredSections.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -1105,7 +1117,9 @@ export default function StudentCatalogPage() {
       </section>
 
       {!loading && filteredSections.length > 0 ? (
-        <RecommendedCourses allCourses={allCourses} enrolledCourseCodes={Array.from(enrolledCourseCodeSet)} />
+        <Suspense fallback={<div className="campus-card h-32 animate-pulse" />}>
+          <RecommendedCourses allCourses={allCourses} enrolledCourseCodes={Array.from(enrolledCourseCodeSet)} />
+        </Suspense>
       ) : null}
 
       {/* Pagination */}

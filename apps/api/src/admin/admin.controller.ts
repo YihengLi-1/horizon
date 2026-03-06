@@ -1,12 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from "@nestjs/common";
 import {
   createCourseSchema,
   createInviteCodeSchema,
   createSectionSchema,
   createTermSchema,
   csvImportSchema,
-  promoteWaitlistSchema,
-  updateGradeSchema
+  promoteWaitlistSchema
 } from "@sis/shared";
 import { CurrentUser } from "../common/current-user.decorator";
 import { AdminPermissionGuard } from "../common/admin-permission.guard";
@@ -17,6 +16,9 @@ import { RolesGuard } from "../common/roles.guard";
 import { ok } from "../common/response";
 import { getWebhooks, registerWebhook, removeWebhook } from "../common/webhook";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
+import { BulkNotifyDto } from "./dto/bulk-notify.dto";
+import { CreateAnnouncementDto } from "./dto/create-announcement.dto";
+import { UpdateGradeDto } from "./dto/update-grade.dto";
 import { AdminService } from "./admin.service";
 
 @Controller("admin")
@@ -29,6 +31,24 @@ export class AdminController {
   @RequireAdminPermissions("dashboard:read")
   async dashboard() {
     return ok(await this.adminService.dashboard());
+  }
+
+  @Get("reports")
+  @RequireAdminPermissions("dashboard:read")
+  async reports() {
+    return ok(await this.adminService.getReportsSummary());
+  }
+
+  @Get("students")
+  @RequireAdminPermissions("students:read")
+  async listStudents(@Query("page") page?: string, @Query("pageSize") pageSize?: string, @Query("search") search?: string) {
+    return ok(
+      await this.adminService.getPaginatedStudents({
+        page: page ? Number(page) : undefined,
+        pageSize: pageSize ? Number(pageSize) : undefined,
+        search
+      })
+    );
   }
 
   @Get("terms")
@@ -119,7 +139,7 @@ export class AdminController {
   @RequireAdminPermissions("sections:write")
   async notifySection(
     @Param("id") id: string,
-    @Body() body: { subject: string; message: string },
+    @Body() body: BulkNotifyDto,
     @CurrentUser() user: { userId: string }
   ) {
     return ok(await this.adminService.notifySection(id, body.subject, body.message, user.userId));
@@ -170,10 +190,10 @@ export class AdminController {
   @Post("enrollments/grade")
   @RequireAdminPermissions("enrollments:write")
   async updateGrade(
-    @Body(new ZodValidationPipe(updateGradeSchema)) body: unknown,
+    @Body() body: UpdateGradeDto,
     @CurrentUser() user: { userId: string }
   ) {
-    return ok(await this.adminService.updateGrade(body as never, user.userId));
+    return ok(await this.adminService.updateGrade(body, user.userId));
   }
 
   @Patch("enrollments/grade")
@@ -236,11 +256,24 @@ export class AdminController {
     return ok(await this.adminService.getAnnouncements());
   }
 
+  @Get("settings/system")
+  @RequireAdminPermissions("dashboard:read")
+  async getSystemSettings() {
+    return ok(await this.adminService.getSystemSettings());
+  }
+
+  @Put("settings/system")
+  @RequireAdminPermissions("dashboard:write")
+  async updateSystemSetting(
+    @Body() body: { key: string; value: string },
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(await this.adminService.updateSystemSetting(body.key, body.value, user.userId));
+  }
+
   @Post("announcements")
   @RequireAdminPermissions("announcements:write")
-  async createAnnouncement(
-    @Body() body: { title: string; body: string; audience?: string; pinned?: boolean; expiresAt?: string }
-  ) {
+  async createAnnouncement(@Body() body: CreateAnnouncementDto) {
     return ok(await this.adminService.createAnnouncement(body));
   }
 

@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { apiCache } from "../common/cache";
 import { PrismaService } from "../common/prisma.service";
 
 @Injectable()
@@ -6,7 +7,9 @@ export class AcademicsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async listTerms() {
-    return this.prisma.term.findMany({ orderBy: { startDate: "desc" } });
+    return apiCache.getOrSet("academics:terms", 30_000, async () =>
+      this.prisma.term.findMany({ orderBy: { startDate: "desc" } })
+    );
   }
 
   async listCourses() {

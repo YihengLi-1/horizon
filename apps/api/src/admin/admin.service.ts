@@ -15,6 +15,7 @@ import { z } from "zod";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../common/prisma.service";
 import { apiCache } from "../common/cache";
+import { sanitizeHtml } from "../common/sanitize";
 import { dispatch } from "../common/webhook";
 import { NotificationsService } from "../notifications/notifications.service";
 
@@ -88,6 +89,11 @@ type AuditIntegrityCheckResult = {
   checked: number;
   brokenAtId: string | null;
   reason: string | null;
+};
+
+type StudentGpaEnrollment = {
+  finalGrade: string | null;
+  section: { credits: number };
 };
 
 function parseCsvRows(csv: string): string[][] {
@@ -308,6 +314,37 @@ export class AdminService {
     return message.includes("isolation") && message.includes("not supported");
   }
 
+  private computeStudentGpa(enrollments: StudentGpaEnrollment[]): number | null {
+    const gradePoints: Record<string, number> = {
+      "A+": 4.0,
+      A: 4.0,
+      "A-": 3.7,
+      "B+": 3.3,
+      B: 3.0,
+      "B-": 2.7,
+      "C+": 2.3,
+      C: 2.0,
+      "C-": 1.7,
+      "D+": 1.3,
+      D: 1.0,
+      "D-": 0.7,
+      F: 0.0
+    };
+
+    let weighted = 0;
+    let credits = 0;
+    for (const enrollment of enrollments) {
+      if (!enrollment.finalGrade) continue;
+      const points = gradePoints[enrollment.finalGrade];
+      if (points === undefined) continue;
+      weighted += points * enrollment.section.credits;
+      credits += enrollment.section.credits;
+    }
+
+    if (credits === 0) return null;
+    return Math.round((weighted / credits) * 100) / 100;
+  }
+
   private async runAdminTransactionWithRetry<T>(
     fn: (tx: Prisma.TransactionClient) => Promise<T>
   ): Promise<T> {
@@ -422,6 +459,63 @@ export class AdminService {
         actorRole: log.actor?.role ?? "SYSTEM",
         createdAt: log.createdAt
       }))
+    };
+  }
+
+  async getPaginatedStudents(params?: { page?: number; pageSize?: number; search?: string }) {
+    const paging = this.normalizePagination({
+      page: params?.page,
+      pageSize: params?.pageSize
+    });
+    const q = params?.search?.trim();
+
+    const where: Prisma.UserWhereInput = {
+      role: "STUDENT",
+      deletedAt: null,
+      ...(q
+        ? {
+            OR: [
+              { email: { contains: q, mode: "insensitive" } },
+              { studentId: { contains: q, mode: "insensitive" } },
+              { studentProfile: { is: { legalName: { contains: q, mode: "insensitive" } } } }
+            ]
+          }
+        : {})
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.user.findMany({
+        where,
+        skip: paging.skip,
+        take: paging.pageSize,
+        orderBy: { createdAt: "desc" },
+        include: {
+          studentProfile: true,
+          enrollments: {
+            where: {
+              deletedAt: null,
+              status: "COMPLETED",
+              finalGrade: { not: null }
+            },
+            include: {
+              section: {
+                select: { credits: true }
+              }
+            }
+          }
+        }
+      }),
+      this.prisma.user.count({ where })
+    ]);
+
+    return {
+      data: data.map(({ enrollments, ...student }) => ({
+        ...student,
+        gpa: this.computeStudentGpa(enrollments)
+      })),
+      total,
+      page: paging.page,
+      pageSize: paging.pageSize
     };
   }
 
@@ -628,7 +722,8 @@ export class AdminService {
   }
 
   async listSections() {
-    return this.prisma.section.findMany({
+    const rows = await this.prisma.section.findMany({
+      take: 500,
       include: {
         term: true,
         course: true,
@@ -642,6 +737,14 @@ export class AdminService {
       },
       orderBy: [{ term: { startDate: "desc" } }, { sectionCode: "asc" }]
     });
+
+    return rows.map((section) => ({
+      ...section,
+      avgRating:
+        section.ratings.length > 0
+          ? section.ratings.reduce((sum, item) => sum + item.rating, 0) / section.ratings.length
+          : null
+    }));
   }
 
   async createSection(input: CreateSectionInput, actorUserId: string) {
@@ -1316,6 +1419,30 @@ export class AdminService {
     });
   }
 
+  async getSystemSettings() {
+    return this.prisma.systemSetting.findMany({
+      orderBy: { key: "asc" }
+    });
+  }
+
+  async updateSystemSetting(key: string, value: string, actorUserId: string) {
+    const setting = await this.prisma.systemSetting.upsert({
+      where: { key },
+      update: { value },
+      create: { key, value }
+    });
+
+    await this.auditService.log({
+      actorUserId,
+      action: "SYSTEM_SETTING_UPDATE",
+      entityType: "system_setting",
+      entityId: key,
+      metadata: { value }
+    });
+
+    return setting;
+  }
+
   async createAnnouncement(data: {
     title: string;
     body: string;
@@ -1323,10 +1450,12 @@ export class AdminService {
     pinned?: boolean;
     expiresAt?: string;
   }) {
+    const title = sanitizeHtml(data.title);
+    const body = sanitizeHtml(data.body);
     const result = await this.prisma.announcement.create({
       data: {
-        title: data.title,
-        body: data.body,
+        title,
+        body,
         audience: data.audience ?? "ALL",
         pinned: data.pinned ?? false,
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : null
@@ -1391,6 +1520,16 @@ export class AdminService {
     };
   }
 
+  async getReportsSummary() {
+    const [students, sections, enrollments] = await this.prisma.$transaction([
+      this.prisma.user.count({ where: { role: "STUDENT", deletedAt: null } }),
+      this.prisma.section.count(),
+      this.prisma.enrollment.count({ where: { deletedAt: null } })
+    ]);
+
+    return { students, sections, enrollments };
+  }
+
   async listAuditLogs(params?: {
     limit?: number;
     page?: number;
@@ -1414,9 +1553,10 @@ export class AdminService {
     const action = params?.action?.trim();
     const entityType = params?.entityType?.trim();
 
+    const requestedPageSize = params?.limit ?? params?.pageSize;
     const paging = this.normalizePagination({
       page: params?.page,
-      pageSize: params?.limit ?? params?.pageSize
+      pageSize: requestedPageSize !== undefined ? Math.min(200, requestedPageSize) : 50
     });
 
     const where: Prisma.AuditLogWhereInput = {

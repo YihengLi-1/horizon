@@ -8,6 +8,7 @@ import { Roles } from "../common/roles.decorator";
 import { RolesGuard } from "../common/roles.guard";
 import { ok } from "../common/response";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
+import { RateSectionDto } from "../registration/dto/rate-section.dto";
 import { StudentsService } from "./students.service";
 
 @Controller("students")
@@ -27,6 +28,12 @@ export class StudentsController {
     return ok(await this.studentsService.getNotifications(user.userId));
   }
 
+  @Roles("STUDENT")
+  @Get("transcript")
+  async getTranscript(@CurrentUser() user: { userId: string }) {
+    return ok(await this.studentsService.getTranscript(user.userId));
+  }
+
   @Roles("STUDENT", "ADMIN")
   @Get("announcements")
   async getAnnouncements(@CurrentUser() user: { role: "STUDENT" | "ADMIN" }) {
@@ -41,10 +48,7 @@ export class StudentsController {
 
   @Roles("STUDENT")
   @Post("rate-section")
-  async rateSection(
-    @CurrentUser() user: { userId: string },
-    @Body() body: { sectionId: string; rating: number; comment?: string }
-  ) {
+  async rateSection(@CurrentUser() user: { userId: string }, @Body() body: RateSectionDto) {
     return ok(await this.studentsService.rateSection(user.userId, body.sectionId, body.rating, body.comment));
   }
 
