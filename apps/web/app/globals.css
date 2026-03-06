@@ -192,3 +192,88 @@ h1 {
     break-inside: avoid;
   }
 }
+
+*:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.not-sr-only {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+.dark .campus-card {
+  background-color: #1e1e2e;
+  border-color: #313244;
+  color: #cdd6f4;
+}
+
+.dark .campus-hero {
+  background: linear-gradient(135deg, #1e1e2e 0%, #181825 100%);
+  border-color: #313244;
+}
+
+.dark .campus-kpi {
+  background-color: #1e1e2e;
+  border-color: #313244;
+  color: #cdd6f4;
+}
+
+.dark .campus-chip {
+  background-color: #313244;
+  color: #cdd6f4;
+}
+
+.dark .campus-toolbar {
+  background-color: #181825;
+  border-color: #313244;
+}
+
+.dark .campus-input,
+.dark .campus-select {
+  background-color: #1e1e2e;
+  border-color: #45475a;
+  color: #cdd6f4;
+}
+
+.dark table th {
+  background-color: #181825;
+  color: #a6adc8;
+  border-color: #313244;
+}
+
+.dark table td {
+  border-color: #313244;
+  color: #cdd6f4;
+}
+
+.dark table tr:hover {
+  background-color: #181825;
+}

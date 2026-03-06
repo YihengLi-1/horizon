@@ -638,15 +638,15 @@ export default function AdminStudentsPage() {
       <section className="campus-card overflow-hidden">
         <p className="px-4 pt-4 text-xs text-slate-500 md:hidden">Tip: Swipe horizontally to view all columns.</p>
         <div className="max-h-[560px] overflow-auto rounded-3xl">
-          <table className="hidden min-w-[760px] w-full border-collapse text-sm md:table">
+          <table role="grid" aria-label="学生列表" className="hidden min-w-[760px] w-full border-collapse text-sm md:table">
             <thead className="sticky top-0 z-10 bg-slate-50">
-              <tr className="border-b border-slate-200 text-left">
-                <th className="px-4 py-3 font-semibold text-slate-700">Name</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Student ID</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Email</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Major</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Status</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Actions</th>
+              <tr role="row" className="border-b border-slate-200 text-left">
+                <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Name</th>
+                <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Student ID</th>
+                <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Email</th>
+                <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Major</th>
+                <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Status</th>
+                <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -665,6 +665,7 @@ export default function AdminStudentsPage() {
               ) : (
                 pagedStudents.map((student) => (
                   <tr
+                    role="row"
                     key={student.id}
                     className={`border-b border-slate-100 hover:bg-slate-100/60 ${editingId === student.id ? "bg-blue-50/40 outline outline-1 outline-blue-200" : "odd:bg-white even:bg-slate-50/40"}`}
                   >

@@ -80,7 +80,18 @@ export default function LoginPage() {
         <form aria-label="Sign in form" className="space-y-4" onSubmit={onSubmit}>
           <div className="space-y-1">
             <label className="text-sm font-medium">Student ID or Email</label>
-            <Input value={identifier} onChange={(e) => setIdentifier(e.target.value)} required aria-required="true" autoComplete="email" autoFocus />
+            <Input
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              required
+              aria-required="true"
+              autoComplete="email"
+              autoFocus
+              aria-describedby="email-error"
+            />
+            <span id="email-error" className="sr-only" aria-live="polite">
+              {error && !locked ? error : ""}
+            </span>
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium">Password</label>
@@ -93,6 +104,7 @@ export default function LoginPage() {
                 aria-required="true"
                 autoComplete="current-password"
                 className="pr-10"
+                aria-describedby="pw-error"
               />
               <button
                 type="button"
@@ -104,6 +116,9 @@ export default function LoginPage() {
                 {showPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
             </div>
+            <span id="pw-error" className="sr-only" aria-live="polite">
+              {error}
+            </span>
           </div>
           {error ? (
             <div

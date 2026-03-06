@@ -62,11 +62,11 @@ services:
     networks:
       - sis-net
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:4000/ops/ready"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/ops/ready >/dev/null || exit 1"]
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 3
-      start_period: 15s
+      start_period: 40s
 
   # ── Next.js Web ──────────────────────────────────────────────────────────
   web:
@@ -88,6 +88,12 @@ services:
       - "${WEB_PORT:-3000}:3000"
     networks:
       - sis-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # ── PostgreSQL 自动备份（每日 pg_dump） ───────────────────────────────────
   postgres-backup:

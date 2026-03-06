@@ -35,6 +35,7 @@ import DarkModeToggle from "@/components/DarkModeToggle";
 import CommandPalette from "@/components/CommandPalette";
 import KeyboardShortcutsModal from "@/components/KeyboardShortcutsModal";
 import NotificationBell from "@/components/NotificationBell";
+import { SkipLink } from "@/components/SkipLink";
 import { LogoutButton } from "@/components/logout-button";
 import SessionExpiryBanner from "@/components/SessionExpiryBanner";
 import StudentMobileNav from "@/components/StudentMobileNav";
@@ -232,12 +233,7 @@ export function AppShell({
   return (
     <div data-area={area} className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <SessionExpiryBanner />
-      <a
-        href="#main-content"
-        className="sr-only z-[70] rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
-      >
-        Skip to main content
-      </a>
+      <SkipLink />
       <div
         className={`fixed inset-0 z-40 bg-slate-950/45 transition md:hidden ${
           sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"

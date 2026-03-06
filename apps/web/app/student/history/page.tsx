@@ -1,4 +1,5 @@
 import { serverApi } from "@/lib/server-api";
+import TermReportButton from "./TermReportButton";
 
 export const dynamic = "force-dynamic";
 
@@ -7,12 +8,16 @@ type HistoryEnrollment = {
   status: string;
   finalGrade?: string | null;
   term?: { id?: string; name?: string };
-  section?: { course?: { code?: string; title?: string } };
+  section?: { credits?: number; course?: { code?: string; title?: string } };
 };
 
 export default async function HistoryPage() {
-  const enrollments = await serverApi<HistoryEnrollment[]>("/registration/enrollments").catch(() => []);
+  const [enrollments, me] = await Promise.all([
+    serverApi<HistoryEnrollment[]>("/registration/enrollments").catch(() => []),
+    serverApi<{ legalName?: string; user?: { email?: string } }>("/students/me").catch(() => null)
+  ]);
   const byTerm = new Map<string, { name: string; items: HistoryEnrollment[] }>();
+  const studentName = me?.legalName ?? me?.user?.email ?? "Student";
 
   for (const enrollment of enrollments ?? []) {
     const key = enrollment.term?.id ?? "unknown";
@@ -44,6 +49,7 @@ export default async function HistoryPage() {
             <div className="flex items-center gap-3">
               <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
               <span className="text-xs font-bold uppercase tracking-widest text-slate-400">{name}</span>
+              <TermReportButton studentName={studentName} termName={name} items={items} />
               <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
             </div>
             <div className="space-y-2">

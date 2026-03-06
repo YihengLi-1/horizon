@@ -3,8 +3,8 @@ import { Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { serverApi } from "@/lib/server-api";
 import { requireRole } from "@/lib/server-auth";
-import RecommendedCourses from "../catalog/RecommendedCourses";
 import QuickCoursesPanel from "./QuickCoursesPanel";
+import RecommendedCourses from "./RecommendedCourses";
 
 type Term = {
   id: string;
@@ -77,13 +77,6 @@ type Announcement = {
   audience: string;
   pinned: boolean;
   expiresAt?: string | null;
-};
-
-type CourseSummary = {
-  id: string;
-  code: string;
-  title: string;
-  credits: number;
 };
 
 const GRADE_POINTS: Record<string, number> = {
@@ -242,12 +235,11 @@ function getNextAction(enrollments: Enrollment[], cartItems: CartItem[], term: T
 }
 
 export default async function StudentDashboardPage() {
-  const [terms, me, grades, announcements, catalogCourses] = await Promise.all([
+  const [terms, me, grades, announcements] = await Promise.all([
     serverApi<Term[]>("/academics/terms").catch(() => [] as Term[]),
     requireRole("STUDENT"),
     serverApi<GradeItem[]>("/registration/grades").catch(() => [] as GradeItem[]),
-    serverApi<Announcement[]>("/students/announcements").catch(() => [] as Announcement[]),
-    serverApi<CourseSummary[]>("/academics/courses").catch(() => [] as CourseSummary[])
+    serverApi<Announcement[]>("/students/announcements").catch(() => [] as Announcement[])
   ]);
 
   const term = terms[0] ?? null;
@@ -556,10 +548,7 @@ export default async function StudentDashboardPage() {
       </Suspense>
 
       <Suspense fallback={<div className="campus-card h-32 animate-pulse" />}>
-        <RecommendedCourses
-          allCourses={catalogCourses}
-          enrolledCourseCodes={Array.from(new Set(enrollments.map((item) => item.section.course?.code).filter(Boolean))) as string[]}
-        />
+        <RecommendedCourses />
       </Suspense>
 
       {term ? (

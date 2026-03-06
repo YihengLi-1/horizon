@@ -50,6 +50,27 @@ type RegistrationStats = {
   byStatus: Record<string, number>;
 };
 
+type DeptBreakdownRow = {
+  dept: string;
+  enrolled: number;
+  waitlisted: number;
+  dropped: number;
+};
+
+type TopSectionRow = {
+  sectionId: string;
+  courseCode: string;
+  title: string;
+  enrolled: number;
+  capacity: number;
+  fillRate: number;
+};
+
+type GpaDistributionRow = {
+  tier: string;
+  count: number;
+};
+
 type PaginatedResponse<T> = {
   data: T[];
   total: number;
@@ -82,11 +103,14 @@ async function fetchStudents(): Promise<StudentRow[]> {
 }
 
 export default async function ReportsPage() {
-  const [enrollments, sections, students, registrationStats] = await Promise.all([
+  const [enrollments, sections, students, registrationStats, deptBreakdown, topSections, gpaDistribution] = await Promise.all([
     fetchAllEnrollments(),
     serverApi<SectionRow[]>("/admin/sections").catch(() => []),
     fetchStudents(),
-    serverApi<RegistrationStats>("/admin/stats/registration").catch(() => ({ total: 0, byStatus: {} }))
+    serverApi<RegistrationStats>("/admin/stats/registration").catch(() => ({ total: 0, byStatus: {} })),
+    serverApi<DeptBreakdownRow[]>("/admin/stats/dept-breakdown").catch(() => []),
+    serverApi<TopSectionRow[]>("/admin/stats/top-sections").catch(() => []),
+    serverApi<GpaDistributionRow[]>("/admin/stats/gpa-distribution").catch(() => [])
   ]);
 
   const statusCounts = { ENROLLED: 0, WAITLISTED: 0, PENDING_APPROVAL: 0, DROPPED: 0, COMPLETED: 0 };
@@ -137,6 +161,8 @@ export default async function ReportsPage() {
   const noGradeCompleted = (enrollments ?? []).filter(
     (enrollment) => enrollment.status === "COMPLETED" && !enrollment.finalGrade
   ).length;
+  const maxGpaTierCount = Math.max(...gpaDistribution.map((item) => item.count), 1);
+  const sortedDeptBreakdown = [...deptBreakdown].sort((a, b) => b.enrolled - a.enrolled);
 
   return (
     <div className="campus-page space-y-6">
@@ -250,6 +276,122 @@ export default async function ReportsPage() {
       </div>
 
       <DeptStats sections={sections} />
+
+      <div className="campus-card overflow-hidden">
+        <div className="border-b border-slate-100 px-4 py-3">
+          <p className="text-sm font-semibold text-slate-700">Department Breakdown</p>
+        </div>
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50">
+            <tr>
+              {["Dept", "Enrolled", "Waitlisted", "Dropped", "Total"].map((heading) => (
+                <th key={heading} scope="col" className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {heading}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sortedDeptBreakdown.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-slate-400">No department stats available.</td>
+              </tr>
+            ) : (
+              sortedDeptBreakdown.map((row) => (
+                <tr key={row.dept} className="border-t border-slate-50">
+                  <td className="px-4 py-2 font-mono font-semibold text-slate-700">{row.dept}</td>
+                  <td className="px-4 py-2 text-slate-700">{row.enrolled}</td>
+                  <td className="px-4 py-2 text-amber-700">{row.waitlisted}</td>
+                  <td className="px-4 py-2 text-red-700">{row.dropped}</td>
+                  <td className="px-4 py-2 font-semibold text-slate-800">{row.enrolled + row.waitlisted + row.dropped}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="campus-card overflow-hidden">
+        <div className="border-b border-slate-100 px-4 py-3">
+          <p className="text-sm font-semibold text-slate-700">热门课程 Top 10</p>
+        </div>
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50">
+            <tr>
+              {["Course", "Code", "Enrolled", "Capacity", "Fill Rate"].map((heading) => (
+                <th key={heading} scope="col" className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {heading}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {topSections.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-slate-400">No section demand data available.</td>
+              </tr>
+            ) : (
+              topSections.map((section) => (
+                <tr key={section.sectionId} className="border-t border-slate-50">
+                  <td className="px-4 py-2 text-slate-700">{section.title}</td>
+                  <td className="px-4 py-2 font-mono text-xs font-semibold text-slate-700">{section.courseCode}</td>
+                  <td className="px-4 py-2 text-slate-700">{section.enrolled}</td>
+                  <td className="px-4 py-2 text-slate-700">{section.capacity}</td>
+                  <td className="px-4 py-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-28 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          style={{ width: `${section.fillRate}%` }}
+                          className={`h-full rounded-full ${
+                            section.fillRate > 90 ? "bg-red-500" : section.fillRate > 70 ? "bg-amber-500" : "bg-emerald-500"
+                          }`}
+                        />
+                      </div>
+                      <span className="text-xs font-semibold text-slate-600">{section.fillRate}%</span>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="campus-card p-4 space-y-3">
+        <p className="text-sm font-semibold text-slate-700">GPA Distribution</p>
+        {gpaDistribution.length === 0 ? (
+          <p className="text-sm text-slate-400">No GPA distribution available.</p>
+        ) : (
+          gpaDistribution.map((row) => {
+            const width = Math.round((row.count / maxGpaTierCount) * 100);
+            const barClass =
+              row.tier === "4.0"
+                ? "bg-emerald-500"
+                : row.tier === "3.7-3.9"
+                  ? "bg-blue-500"
+                  : row.tier === "3.3-3.6"
+                    ? "bg-sky-500"
+                    : row.tier === "3.0-3.2"
+                      ? "bg-indigo-500"
+                      : row.tier === "2.0-2.9"
+                        ? "bg-amber-500"
+                        : row.tier === "<2.0"
+                          ? "bg-red-500"
+                          : "bg-slate-400";
+            return (
+              <div key={row.tier} className="space-y-1">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium text-slate-700">{row.tier}</span>
+                  <span className="text-slate-500">{row.count}</span>
+                </div>
+                <div className="h-4 overflow-hidden rounded-full bg-slate-100">
+                  <div className={`h-full rounded-full ${barClass}`} style={{ width: `${width}%` }} />
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
 
       <div className="campus-card p-4 space-y-3">
         <p className="text-sm font-semibold text-slate-700">Data Quality Report</p>

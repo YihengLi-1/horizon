@@ -278,24 +278,6 @@ export default function StudentCatalogPage() {
     ),
     [termEnrollments]
   );
-  const allCourses = useMemo(
-    () =>
-      Array.from(
-        new Map(
-          sections.map((section) => [
-            section.course.code,
-            {
-              id: section.course.code,
-              code: section.course.code,
-              title: section.course.title,
-              credits: section.credits
-            }
-          ])
-        ).values()
-      ),
-    [sections]
-  );
-
   const updateUrlTerm = (nextTermId: string) => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
@@ -927,6 +909,7 @@ export default function StudentCatalogPage() {
             const prereqs = getPrerequisiteCodes(section);
             const missingPrereqs = prereqs.filter((code) => !passedCourseCodeSet.has(code));
             const prereqBlocked = missingPrereqs.length > 0;
+            const alreadyCompleted = passedCourseCodeSet.has(section.course.code);
             const hasCapacityData =
               Number.isFinite(enrolledCount) && Number.isFinite(section.capacity) && section.capacity > 0;
             // Whether this student is already enrolled in this exact section or another section of the same course
@@ -936,6 +919,8 @@ export default function StudentCatalogPage() {
             return (
               <article
                 key={section.id}
+                role="article"
+                aria-label={`${section.course.code} ${section.course.title}`}
                 className={`campus-card overflow-hidden p-0 transition hover:shadow-md ${
                   cartConflict ? "border-amber-300" : "border-slate-200"
                 }`}
@@ -956,6 +941,7 @@ export default function StudentCatalogPage() {
                         <Badge>§{section.sectionCode}</Badge>
                         <Badge>{section.credits} cr</Badge>
                         <Badge modality={section.modality}>{section.modality.replace("_", " ")}</Badge>
+                        {alreadyCompleted ? <Badge color="slate">已修</Badge> : null}
                         {section.requireApproval ? <Badge color="blue">Approval Required</Badge> : null}
                       </div>
                     </div>
@@ -1045,7 +1031,11 @@ export default function StudentCatalogPage() {
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      {alreadyEnrolledHere ? (
+                      {alreadyCompleted ? (
+                        <span className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-slate-100 px-4 text-sm font-semibold text-slate-600 opacity-80">
+                          已修课
+                        </span>
+                      ) : alreadyEnrolledHere ? (
                         <span className="inline-flex h-10 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-100 px-4 text-sm font-semibold text-emerald-800">
                           ✓ Enrolled
                         </span>
@@ -1079,7 +1069,9 @@ export default function StudentCatalogPage() {
                         <button
                           type="button"
                           onClick={() => void addToCart(section)}
-                          disabled={addingSectionId === section.id}
+                          disabled={addingSectionId === section.id || alreadyCompleted}
+                          aria-label={`加选 ${section.course.title}`}
+                          aria-disabled={addingSectionId === section.id || alreadyCompleted}
                           className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-70 ${
                             cartConflict
                               ? "bg-amber-600 hover:bg-amber-700"
@@ -1125,7 +1117,7 @@ export default function StudentCatalogPage() {
 
       {!loading && filteredSections.length > 0 ? (
         <Suspense fallback={<div className="campus-card h-32 animate-pulse" />}>
-          <RecommendedCourses allCourses={allCourses} enrolledCourseCodes={Array.from(enrolledCourseCodeSet)} />
+          <RecommendedCourses />
         </Suspense>
       ) : null}
 
@@ -1192,10 +1184,11 @@ function Badge({
 }: {
   children: ReactNode;
   modality?: string;
-  color?: "blue";
+  color?: "blue" | "slate";
 }) {
   let cls = "bg-slate-100 text-slate-700";
   if (color === "blue") cls = "bg-blue-50 text-blue-700 border border-blue-200";
+  else if (color === "slate") cls = "border border-slate-200 bg-slate-100 text-slate-600";
   else if (modality === "ONLINE") cls = "bg-emerald-50 text-emerald-700";
   else if (modality === "HYBRID") cls = "bg-indigo-50 text-indigo-700";
 

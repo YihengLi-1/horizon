@@ -194,6 +194,26 @@ check_contains "apps/api/src/main.ts" "unhandledRejection" "unhandledRejection h
 check_contains "apps/api/src/common/cache.ts" "getOrSet" "getOrSet cache helper exists"
 check_contains "apps/api/src/registration/registration.service.ts" "Credit limit|max_credits" "credit limit check in registration service"
 
+check_contains "apps/api/src/admin/admin.controller.ts" "enrollment-trend" "Enrollment trend endpoint in admin controller"
+check_contains "apps/api/src/admin/admin.controller.ts" "dept-breakdown" "Dept breakdown endpoint in admin controller"
+check_contains "apps/api/src/admin/admin.controller.ts" "top-sections" "Top sections endpoint in admin controller"
+check_contains "apps/api/src/admin/admin.controller.ts" "gpa-distribution" "GPA distribution endpoint in admin controller"
+check_contains "apps/api/src/students/students.controller.ts" "recommended" "Recommended sections endpoint in students controller"
+check_exists "apps/web/components/SkipLink.tsx" "SkipLink component"
+check_exists "apps/web/app/api/health/route.ts" "Next.js health API route"
+check_exists ".github/workflows/ci.yml" "GitHub Actions CI workflow"
+check_exists "scripts/db-seed-check.sh" "DB seed check script"
+check_contains "apps/web/app/globals.css" "focus-visible" "focus-visible styles in globals.css"
+check_contains "apps/web/components/NotificationBell.tsx" "aria-live" "aria-live on NotificationBell"
+check_contains "apps/web/components/app-shell.tsx" "SkipLink" "SkipLink used in app-shell"
+check_contains "apps/web/app/globals.css" "\\.dark \\.campus-card|dark.*campus-card" "Dark mode campus-card style"
+check_contains "apps/api/src/main.ts" "ops/version" "/ops/version endpoint"
+check_exists "apps/web/app/admin/sections/[id]/roster/page.tsx" "Section roster page"
+check_contains "apps/web/app/student/schedule/page.tsx" "ics|iCal|VCALENDAR" "iCal export in schedule page"
+check_contains "apps/web/app/student/cart/page.tsx" "waitlist-position|候补" "Waitlist position shown in cart"
+check_contains "apps/web/app/student/profile/page.tsx" "completedCredits|Enrollment Summary|已修学分" "Enrollment summary in profile"
+check_contains "apps/web/app/student/dashboard/RecommendedCourses.tsx" "recommended|/students/recommended" "Recommended sections in student dashboard"
+
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"
 else

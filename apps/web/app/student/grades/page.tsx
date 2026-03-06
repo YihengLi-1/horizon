@@ -49,18 +49,18 @@ function gradePoints(grade: string): number | null {
 
 function gradeColor(grade: string): string {
   const pts = gradePoints(grade);
-  if (pts === null) return "text-slate-700";
-  if (pts >= 3.7) return "text-emerald-700";
-  if (pts >= 2.7) return "text-blue-700";
-  if (pts >= 1.7) return "text-amber-700";
-  return "text-red-700";
+  if (pts === null) return "text-slate-700 dark:text-slate-300";
+  if (pts >= 3.7) return "text-emerald-700 dark:text-emerald-400";
+  if (pts >= 2.7) return "text-blue-700 dark:text-blue-400";
+  if (pts >= 1.7) return "text-amber-700 dark:text-amber-400";
+  return "text-red-700 dark:text-red-400";
 }
 
 function gpaTone(gpa: number): string {
-  if (gpa >= 3.5) return "text-emerald-700";
-  if (gpa >= 2.5) return "text-blue-700";
-  if (gpa >= 1.5) return "text-amber-700";
-  return "text-red-700";
+  if (gpa >= 3.5) return "text-emerald-700 dark:text-emerald-400";
+  if (gpa >= 2.5) return "text-blue-700 dark:text-blue-400";
+  if (gpa >= 1.5) return "text-amber-700 dark:text-amber-400";
+  return "text-red-700 dark:text-red-400";
 }
 
 function gpaTier(gpa: number): { label: string; cls: string } {

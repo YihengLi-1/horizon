@@ -143,7 +143,7 @@ export default function AuditLogsPage() {
   }, [logs]);
 
   return (
-    <div className="campus-page">
+    <div className="campus-page dark:bg-gray-900">
       <section className="campus-hero">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
@@ -248,15 +248,15 @@ export default function AuditLogsPage() {
 
       {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
-      <section className="campus-card overflow-hidden">
+      <section className="campus-card overflow-hidden dark:border-gray-700">
         <table className="w-full border-collapse text-sm">
-          <thead className="bg-slate-50">
+          <thead className="bg-slate-50 dark:bg-gray-800">
             <tr className="border-b border-slate-200 text-left">
-              <th className="px-4 py-3 font-semibold text-slate-700">Time</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">Actor</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">Action</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">Entity</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">Entity ID</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:border-gray-700 dark:text-gray-100">Time</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:border-gray-700 dark:text-gray-100">Actor</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:border-gray-700 dark:text-gray-100">Action</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:border-gray-700 dark:text-gray-100">Entity</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:border-gray-700 dark:text-gray-100">Entity ID</th>
             </tr>
           </thead>
           <tbody>

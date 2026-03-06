@@ -52,6 +52,12 @@ export class StudentsController {
     return ok(await this.studentsService.getMyRatings(user.userId));
   }
 
+  @Roles("STUDENT", "ADMIN")
+  @Get("recommended")
+  async getRecommended(@CurrentUser() user: { userId: string }) {
+    return ok(await this.studentsService.getRecommendedSections(user.userId));
+  }
+
   @Roles("STUDENT")
   @Post("rate-section")
   async rateSection(@CurrentUser() user: { userId: string }, @Body() body: RateSectionDto) {

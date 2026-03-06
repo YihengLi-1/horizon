@@ -42,7 +42,7 @@ export default function NotificationBell({ apiBase }: { apiBase: string }) {
     void load();
     const timer = window.setInterval(() => {
       void load();
-    }, 60_000);
+    }, 30_000);
 
     return () => {
       alive = false;
@@ -74,13 +74,16 @@ export default function NotificationBell({ apiBase }: { apiBase: string }) {
       >
         <BellIcon className="h-4 w-4" />
         {unread > 0 ? (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+          <span
+            aria-live="polite"
+            className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white"
+          >
             {unread > 9 ? "9+" : unread}
           </span>
         ) : null}
       </button>
       {open ? (
-        <div className="absolute right-0 top-10 z-50 w-80 rounded-xl border border-slate-200 bg-white shadow-xl">
+        <div role="menu" className="absolute right-0 top-10 z-50 w-80 rounded-xl border border-slate-200 bg-white shadow-xl">
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <p className="text-sm font-semibold text-slate-700">Notifications</p>
             <span className="text-xs text-slate-400">{items.length} total</span>
@@ -90,7 +93,7 @@ export default function NotificationBell({ apiBase }: { apiBase: string }) {
               <div className="px-4 py-8 text-center text-sm text-slate-400">🔔 No notifications</div>
             ) : (
               items.map((item) => (
-                <div key={item.id} className={`border-l-4 px-4 py-3 ${TYPE_CLS[item.type]}`}>
+                <div key={item.id} role="menuitem" className={`border-l-4 px-4 py-3 ${TYPE_CLS[item.type]}`}>
                   <p className="text-xs font-semibold">{item.title}</p>
                   <p className="mt-0.5 text-xs opacity-80">{item.body}</p>
                 </div>

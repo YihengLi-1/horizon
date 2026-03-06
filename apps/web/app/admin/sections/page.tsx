@@ -1548,6 +1548,12 @@ export default function AdminSectionsPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
+                            <a
+                              href={`/admin/sections/${section.id}/roster`}
+                              className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                            >
+                              Roster →
+                            </a>
                             <button
                               type="button"
                               onClick={() => openNotify(section.id)}

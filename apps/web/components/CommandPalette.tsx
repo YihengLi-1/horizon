@@ -28,6 +28,7 @@ const COMMANDS = [
 export default function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -60,6 +61,10 @@ export default function CommandPalette() {
       )
     : COMMANDS.slice(0, 8);
 
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [query, open]);
+
   function go(path: string) {
     router.push(path);
     setOpen(false);
@@ -70,6 +75,9 @@ export default function CommandPalette() {
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="命令面板"
       className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 pt-[15vh] backdrop-blur-sm"
       onClick={() => setOpen(false)}
     >
@@ -90,15 +98,18 @@ export default function CommandPalette() {
             Esc
           </kbd>
         </div>
-        <div className="max-h-72 overflow-y-auto py-2">
+        <div role="listbox" className="max-h-72 overflow-y-auto py-2">
           {filtered.length === 0 ? (
             <div className="px-4 py-6 text-center text-sm text-slate-400">No results for "{query}"</div>
           ) : (
-            filtered.map((command) => (
+            filtered.map((command, index) => (
               <button
                 key={command.id}
                 type="button"
                 onClick={() => go(command.path)}
+                onMouseEnter={() => setActiveIndex(index)}
+                role="option"
+                aria-selected={index === activeIndex}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
               >
                 <span className="text-lg">{command.icon}</span>

@@ -164,6 +164,66 @@ export class StudentsService {
     });
   }
 
+  async getRecommendedSections(userId: string) {
+    const existing = await this.prisma.enrollment.findMany({
+      where: {
+        studentId: userId,
+        deletedAt: null,
+        status: { in: ["ENROLLED", "WAITLISTED", "COMPLETED"] }
+      },
+      include: {
+        section: {
+          include: {
+            course: true
+          }
+        }
+      }
+    });
+
+    const deptCounts = new Map<string, number>();
+    const seenCourseIds = new Set<string>();
+    for (const enrollment of existing) {
+      seenCourseIds.add(enrollment.section.courseId);
+      const dept = enrollment.section.course.code.slice(0, 2).toUpperCase();
+      deptCounts.set(dept, (deptCounts.get(dept) ?? 0) + 1);
+    }
+
+    const primaryDept = [...deptCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    if (!primaryDept) return [];
+
+    const sections = await this.prisma.section.findMany({
+      where: {
+        course: {
+          deletedAt: null,
+          code: {
+            startsWith: primaryDept,
+            mode: "insensitive"
+          }
+        },
+        enrollments: {
+          none: {
+            studentId: userId,
+            deletedAt: null,
+            status: { in: ["ENROLLED", "WAITLISTED", "COMPLETED"] }
+          }
+        }
+      },
+      include: {
+        course: true,
+        meetingTimes: true,
+        enrollments: {
+          where: {
+            deletedAt: null,
+            status: "ENROLLED"
+          }
+        }
+      },
+      take: 6
+    });
+
+    return sections.filter((section) => !seenCourseIds.has(section.courseId)).slice(0, 6);
+  }
+
   async rateSection(userId: string, sectionId: string, rating: number, comment?: string) {
     const student = await this.prisma.user.findFirstOrThrow({
       where: { id: userId, role: "STUDENT", deletedAt: null },

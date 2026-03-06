@@ -339,6 +339,30 @@ export class AdminController {
     return ok(await this.adminService.getRegistrationStats());
   }
 
+  @Get("stats/enrollment-trend")
+  @RequireAdminPermissions("dashboard:read")
+  async getEnrollmentTrend(@Query("days") days = "14") {
+    return ok(await this.adminService.getEnrollmentTrend(Math.min(parseInt(days, 10) || 14, 90)));
+  }
+
+  @Get("stats/dept-breakdown")
+  @RequireAdminPermissions("dashboard:read")
+  async getDeptBreakdown() {
+    return ok(await this.adminService.getDeptBreakdown());
+  }
+
+  @Get("stats/top-sections")
+  @RequireAdminPermissions("dashboard:read")
+  async getTopSections() {
+    return ok(await this.adminService.getTopSections());
+  }
+
+  @Get("stats/gpa-distribution")
+  @RequireAdminPermissions("dashboard:read")
+  async getGpaDistribution() {
+    return ok(await this.adminService.getGpaDistribution());
+  }
+
   @Get("audit-logs")
   @RequireAdminPermissions("audit:read")
   async listAuditLogs(

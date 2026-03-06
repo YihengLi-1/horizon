@@ -10,6 +10,9 @@ export default function DarkModeToggle() {
     const saved = window.localStorage.getItem("sis-theme");
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const isDark = saved ? saved === "dark" : prefersDark;
+    if (!saved) {
+      window.localStorage.setItem("sis-theme", isDark ? "dark" : "light");
+    }
     setDark(isDark);
     document.documentElement.classList.toggle("dark", isDark);
   }, []);

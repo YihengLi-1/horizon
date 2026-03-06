@@ -51,6 +51,20 @@
 - 恢复演练：`pnpm backup:restore:drill`
 - 备份文件位置：Docker volume `pgbackups`
 
+## CI/CD (GitHub Actions)
+
+The workflow at `.github/workflows/ci.yml` runs on every push/PR:
+- TypeScript typecheck (web)
+- NestJS build (api)
+- Prisma client generation
+- Static readiness checks
+
+### Required GitHub Secrets
+Set these in repo Settings → Secrets → Actions:
+- `DATABASE_URL` — PostgreSQL connection string
+- `JWT_SECRET` — JWT signing secret (min 32 chars)
+- `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` — SMTP credentials
+
 ## Smoke Test
 ```bash
 # After docker compose up:

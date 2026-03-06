@@ -16,6 +16,8 @@ const SCHEDULE_H = ((DAY_END - DAY_START) / 60) * HOUR_H;
 type Term = {
   id: string;
   name: string;
+  startDate: string;
+  endDate: string;
   dropDeadline: string;
   registrationOpenAt: string;
   registrationCloseAt: string;
@@ -64,6 +66,47 @@ function statusBadge(status: string) {
   if (status === "WAITLISTED") return "border-amber-200 bg-amber-50 text-amber-700";
   if (status === "PENDING_APPROVAL") return "border-blue-200 bg-blue-50 text-blue-700";
   return "border-slate-200 bg-slate-50 text-slate-600";
+}
+
+function toIcsDate(value: Date): string {
+  return value.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+}
+
+function firstOccurrence(termStart: string, weekday: number, minutes: number): Date {
+  const start = new Date(termStart);
+  const result = new Date(start);
+  const delta = (weekday - result.getDay() + 7) % 7;
+  result.setDate(result.getDate() + delta);
+  result.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+  return result;
+}
+
+function buildIcs(term: Term | null, enrollments: Enrollment[]): string {
+  if (!term) return "";
+  const byDay = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//SIS//Schedule//EN"];
+
+  for (const enrollment of enrollments) {
+    if (enrollment.status !== "ENROLLED" && enrollment.status !== "PENDING_APPROVAL") continue;
+    for (const meetingTime of enrollment.section.meetingTimes ?? []) {
+      const start = firstOccurrence(term.startDate, meetingTime.weekday, meetingTime.startMinutes);
+      const end = firstOccurrence(term.startDate, meetingTime.weekday, meetingTime.endMinutes);
+      lines.push("BEGIN:VEVENT");
+      lines.push(`UID:${enrollment.id}-${meetingTime.weekday}-${meetingTime.startMinutes}@sis`);
+      lines.push(`DTSTAMP:${toIcsDate(new Date())}`);
+      lines.push(`DTSTART:${toIcsDate(start)}`);
+      lines.push(`DTEND:${toIcsDate(end)}`);
+      lines.push(`RRULE:FREQ=WEEKLY;BYDAY=${byDay[meetingTime.weekday]};UNTIL=${toIcsDate(new Date(term.endDate))}`);
+      lines.push(`SUMMARY:${enrollment.section.course.code} ${enrollment.section.course.title}`);
+      if (enrollment.section.location) {
+        lines.push(`LOCATION:${enrollment.section.location}`);
+      }
+      lines.push("END:VEVENT");
+    }
+  }
+
+  lines.push("END:VCALENDAR");
+  return lines.join("\r\n");
 }
 
 export default function SchedulePage() {
@@ -247,6 +290,16 @@ export default function SchedulePage() {
         : "border-emerald-300 bg-emerald-100 text-emerald-900";
 
   const dropDaysLeft = activeTerm && !dropDeadlinePassed ? daysUntil(activeTerm.dropDeadline) : 0;
+  const downloadIcs = () => {
+    const ics = buildIcs(activeTerm, visibleEnrollments);
+    if (!ics) return;
+    const link = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(new Blob([ics], { type: "text/calendar;charset=utf-8" })),
+      download: "schedule.ics"
+    });
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
 
   return (
     <div className="campus-page">
@@ -286,6 +339,13 @@ export default function SchedulePage() {
             </div>
             <div className="flex gap-2">
               <PrintButton />
+              <button
+                type="button"
+                onClick={downloadIcs}
+                className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 transition hover:bg-white"
+              >
+                iCal 导出
+              </button>
               <Link
                 href={termId ? `/student/catalog?termId=${termId}` : "/student/catalog"}
                 className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 no-underline transition hover:bg-white"

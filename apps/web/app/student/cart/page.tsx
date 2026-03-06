@@ -31,8 +31,11 @@ type CartItem = {
 
 type SubmitResult = {
   id: string;
+  sectionId: string;
   status: string;
+  waitlistPosition?: number | null;
   section: {
+    id?: string;
     sectionCode: string;
     course?: {
       code: string;
@@ -152,6 +155,7 @@ export default function StudentCartPage() {
   const [submitting, setSubmitting] = useState(false);
   const [removingInvalid, setRemovingInvalid] = useState(false);
   const [removingItemId, setRemovingItemId] = useState("");
+  const [waitlistPositions, setWaitlistPositions] = useState<Record<string, number>>({});
   const errorSummaryRef = useRef<HTMLDivElement | null>(null);
   const toast = useToast();
 
@@ -251,6 +255,37 @@ export default function StudentCartPage() {
     errorSummaryRef.current.focus();
     errorSummaryRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [summaryIssues]);
+
+  useEffect(() => {
+    const waitlistedSectionIds = submitResults
+      .filter((item) => item.status === "WAITLISTED")
+      .map((item) => item.sectionId || item.section.id)
+      .filter((value): value is string => Boolean(value));
+
+    if (waitlistedSectionIds.length === 0) {
+      setWaitlistPositions({});
+      return;
+    }
+
+    let alive = true;
+    void Promise.all(
+      waitlistedSectionIds.map(async (sectionId) => {
+        const result = await apiFetch<{ position: number; ahead: number }>(`/registration/waitlist-position/${sectionId}`).catch(
+          () => null
+        );
+        return [sectionId, result?.position ?? null] as const;
+      })
+    ).then((entries) => {
+      if (!alive) return;
+      setWaitlistPositions(
+        Object.fromEntries(entries.filter((entry): entry is readonly [string, number] => entry[1] !== null))
+      );
+    });
+
+    return () => {
+      alive = false;
+    };
+  }, [submitResults]);
 
   const groupedPreview = useMemo(() => {
     const map = new Map<string, PrecheckPreviewItem[]>();
@@ -1180,7 +1215,7 @@ export default function StudentCartPage() {
                     <div key={`${item.sectionId}-${item.status}`} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-1.5 text-xs">
                       <span className="font-medium text-slate-800">{item.courseCode} §{item.sectionCode}</span>
                       {item.status === "WAITLISTED" && item.waitlistPosition ? (
-                        <span className="text-amber-600">Queue position {item.waitlistPosition}</span>
+                        <span className="text-amber-600">候补第 {item.waitlistPosition} 位</span>
                       ) : null}
                     </div>
                   ))}
@@ -1215,12 +1250,18 @@ export default function StudentCartPage() {
                 <div className="mt-2 grid gap-1">
                   {group.items.map((item) => (
                     <div key={item.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-1.5 text-xs">
-                      <span className="font-medium text-slate-800">
-                        {item.section.course?.code ? `${item.section.course.code} §` : "§"}{item.section.sectionCode}
-                      </span>
-                      {item.section.course?.title ? (
-                        <span className="text-slate-500 truncate ml-2">{item.section.course.title}</span>
-                      ) : null}
+                      <div className="min-w-0">
+                        <span className="font-medium text-slate-800">
+                          {item.section.course?.code ? `${item.section.course.code} §` : "§"}
+                          {item.section.sectionCode}
+                        </span>
+                        {item.status === "WAITLISTED" ? (
+                          <span className="ml-2 text-amber-600">
+                            候补第 {waitlistPositions[item.sectionId] ?? item.waitlistPosition ?? "—"} 位
+                          </span>
+                        ) : null}
+                      </div>
+                      {item.section.course?.title ? <span className="ml-2 truncate text-slate-500">{item.section.course.title}</span> : null}
                     </div>
                   ))}
                 </div>

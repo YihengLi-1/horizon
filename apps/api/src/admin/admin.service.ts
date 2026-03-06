@@ -1789,6 +1789,200 @@ export class AdminService {
     };
   }
 
+  async getEnrollmentTrend(days: number) {
+    const safeDays = Math.max(1, Math.min(days, 90));
+    const since = new Date(Date.now() - safeDays * 86_400_000);
+    const logs = await this.prisma.auditLog.findMany({
+      where: {
+        createdAt: { gte: since },
+        OR: [
+          { action: "ENROLL" },
+          { action: { contains: "enroll", mode: "insensitive" } }
+        ]
+      },
+      select: { createdAt: true }
+    });
+
+    const counts: Record<string, number> = {};
+    for (let index = 0; index < safeDays; index += 1) {
+      const day = new Date(Date.now() - (safeDays - 1 - index) * 86_400_000);
+      counts[day.toISOString().slice(0, 10)] = 0;
+    }
+
+    for (const log of logs) {
+      const key = log.createdAt.toISOString().slice(0, 10);
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+
+    return Object.entries(counts).map(([date, count]) => ({ date, count }));
+  }
+
+  async getDeptBreakdown() {
+    return this.prisma.$queryRaw<Array<{ dept: string; enrolled: number; waitlisted: number; dropped: number }>>`
+      SELECT
+        LEFT(c.code, 2) AS dept,
+        COUNT(CASE WHEN e.status = 'ENROLLED' THEN 1 END)::int AS enrolled,
+        COUNT(CASE WHEN e.status = 'WAITLISTED' THEN 1 END)::int AS waitlisted,
+        COUNT(CASE WHEN e.status = 'DROPPED' THEN 1 END)::int AS dropped
+      FROM "Enrollment" e
+      JOIN "Section" s ON e."sectionId" = s.id
+      JOIN "Course" c ON s."courseId" = c.id
+      WHERE c."deletedAt" IS NULL
+      GROUP BY LEFT(c.code, 2)
+      ORDER BY enrolled DESC, dept ASC
+    `;
+  }
+
+  async getTopSections() {
+    const sections = await this.prisma.section.findMany({
+      where: {
+        course: {
+          deletedAt: null
+        }
+      },
+      include: {
+        course: true,
+        enrollments: {
+          where: {
+            deletedAt: null,
+            status: "ENROLLED"
+          }
+        }
+      }
+    });
+
+    return sections
+      .map((section) => ({
+        sectionId: section.id,
+        courseCode: section.course.code,
+        title: section.course.title,
+        enrolled: section.enrollments.length,
+        capacity: section.capacity,
+        fillRate: section.capacity > 0 ? Math.round((section.enrollments.length / section.capacity) * 100) : 0
+      }))
+      .sort((a, b) => b.enrolled - a.enrolled)
+      .slice(0, 10);
+  }
+
+  async getGpaDistribution() {
+    const students = await this.prisma.user.findMany({
+      where: {
+        role: "STUDENT",
+        deletedAt: null
+      },
+      include: {
+        enrollments: {
+          where: {
+            deletedAt: null,
+            status: "COMPLETED",
+            finalGrade: { not: null }
+          },
+          include: {
+            section: {
+              select: { credits: true }
+            }
+          }
+        }
+      }
+    });
+
+    const tiers = {
+      "4.0": 0,
+      "3.7-3.9": 0,
+      "3.3-3.6": 0,
+      "3.0-3.2": 0,
+      "2.0-2.9": 0,
+      "<2.0": 0,
+      "N/A": 0
+    };
+
+    for (const student of students) {
+      const gpa = this.computeStudentGpa(student.enrollments as StudentGpaEnrollment[]);
+      if (gpa === null) {
+        tiers["N/A"] += 1;
+      } else if (gpa >= 4.0) {
+        tiers["4.0"] += 1;
+      } else if (gpa >= 3.7) {
+        tiers["3.7-3.9"] += 1;
+      } else if (gpa >= 3.3) {
+        tiers["3.3-3.6"] += 1;
+      } else if (gpa >= 3.0) {
+        tiers["3.0-3.2"] += 1;
+      } else if (gpa >= 2.0) {
+        tiers["2.0-2.9"] += 1;
+      } else {
+        tiers["<2.0"] += 1;
+      }
+    }
+
+    return Object.entries(tiers).map(([tier, count]) => ({ tier, count }));
+  }
+
+  async getRecommendedSections(studentId: string) {
+    const completed = await this.prisma.enrollment.findMany({
+      where: {
+        studentId,
+        deletedAt: null,
+        status: { in: ["ENROLLED", "COMPLETED"] }
+      },
+      include: {
+        section: {
+          include: {
+            course: true
+          }
+        }
+      }
+    });
+
+    const deptFrequency = new Map<string, number>();
+    const enrolledCourseIds = new Set<string>();
+    for (const enrollment of completed) {
+      const course = enrollment.section.course;
+      enrolledCourseIds.add(course.id);
+      const dept = course.code.slice(0, 2).toUpperCase();
+      deptFrequency.set(dept, (deptFrequency.get(dept) ?? 0) + 1);
+    }
+
+    const primaryDept =
+      [...deptFrequency.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+    const sections = await this.prisma.section.findMany({
+      where: {
+        course: {
+          deletedAt: null,
+          ...(primaryDept
+            ? {
+                code: {
+                  startsWith: primaryDept,
+                  mode: "insensitive"
+                }
+              }
+            : {})
+        },
+        enrollments: {
+          none: {
+            studentId,
+            deletedAt: null,
+            status: { in: ["ENROLLED", "WAITLISTED", "COMPLETED"] }
+          }
+        }
+      },
+      include: {
+        course: true,
+        meetingTimes: true,
+        enrollments: {
+          where: {
+            deletedAt: null,
+            status: "ENROLLED"
+          }
+        }
+      },
+      take: 6
+    });
+
+    return sections.filter((section) => !enrolledCourseIds.has(section.courseId)).slice(0, 6);
+  }
+
   async getReportsSummary() {
     const [students, sections, enrollments] = await this.prisma.$transaction([
       this.prisma.user.count({ where: { role: "STUDENT", deletedAt: null } }),

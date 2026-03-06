@@ -28,6 +28,20 @@ type FormState = {
   emergencyContact: string;
 };
 
+type TranscriptRow = {
+  finalGrade?: string | null;
+  section?: {
+    credits?: number;
+  };
+};
+
+type EnrollmentRow = {
+  status: string;
+  section?: {
+    credits?: number;
+  };
+};
+
 function Field({
   label,
   value,
@@ -249,6 +263,9 @@ export default function StudentProfilePage() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [completedCredits, setCompletedCredits] = useState(0);
+  const [enrolledCredits, setEnrolledCredits] = useState(0);
+  const [currentGpa, setCurrentGpa] = useState<number | null>(null);
 
   useEffect(() => {
     apiFetch<ProfileResponse>("/students/me")
@@ -263,6 +280,54 @@ export default function StudentProfilePage() {
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load profile"))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    void Promise.all([
+      apiFetch<TranscriptRow[]>("/students/transcript").catch(() => [] as TranscriptRow[]),
+      apiFetch<EnrollmentRow[]>("/registration/enrollments").catch(() => [] as EnrollmentRow[])
+    ]).then(([transcript, enrollments]) => {
+      if (!alive) return;
+
+      const gradePoints: Record<string, number> = {
+        "A+": 4,
+        A: 4,
+        "A-": 3.7,
+        "B+": 3.3,
+        B: 3,
+        "B-": 2.7,
+        "C+": 2.3,
+        C: 2,
+        "C-": 1.7,
+        "D+": 1.3,
+        D: 1,
+        "D-": 0.7,
+        F: 0
+      };
+
+      const completed = transcript.reduce((sum, row) => sum + (row.section?.credits ?? 0), 0);
+      const enrolled = enrollments
+        .filter((row) => row.status === "ENROLLED")
+        .reduce((sum, row) => sum + (row.section?.credits ?? 0), 0);
+
+      let weighted = 0;
+      let credits = 0;
+      for (const row of transcript) {
+        const points = row.finalGrade ? gradePoints[row.finalGrade] : undefined;
+        if (points === undefined) continue;
+        weighted += points * (row.section?.credits ?? 0);
+        credits += row.section?.credits ?? 0;
+      }
+
+      setCompletedCredits(completed);
+      setEnrolledCredits(enrolled);
+      setCurrentGpa(credits > 0 ? Math.round((weighted / credits) * 1000) / 1000 : null);
+    });
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const onSubmit = async (event: FormEvent) => {
@@ -304,6 +369,8 @@ export default function StudentProfilePage() {
     () => getGradient(form.legalName || profile?.user.email || "U"),
     [form.legalName, profile?.user.email]
   );
+  const expectedTerms = Math.max(0, Math.ceil((120 - completedCredits) / 15));
+  const expectedGraduation = expectedTerms === 0 ? "Eligible now" : `${expectedTerms} term(s)`;
 
   return (
     <div className="campus-page">
@@ -405,6 +472,28 @@ export default function StudentProfilePage() {
           </form>
 
           <aside className="space-y-4">
+            <section className="campus-card p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Enrollment Summary</h3>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="campus-kpi">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">总已修学分</p>
+                  <p className="mt-1 text-2xl font-semibold text-slate-900">{completedCredits}</p>
+                </div>
+                <div className="campus-kpi">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">总在读学分</p>
+                  <p className="mt-1 text-2xl font-semibold text-slate-900">{enrolledCredits}</p>
+                </div>
+                <div className="campus-kpi">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">当前 GPA</p>
+                  <p className="mt-1 text-2xl font-semibold text-slate-900">{currentGpa != null ? currentGpa.toFixed(2) : "—"}</p>
+                </div>
+                <div className="campus-kpi">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">预计毕业</p>
+                  <p className="mt-1 text-2xl font-semibold text-slate-900">{expectedGraduation}</p>
+                </div>
+              </div>
+            </section>
+
             <section className="campus-card p-4">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Profile Checklist</h3>
               <div className="mt-2 space-y-2 text-sm">
