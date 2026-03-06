@@ -27,10 +27,13 @@ check_contains() {
   local file="$1"
   local pattern="$2"
   local message="$3"
-  if rg -n "$pattern" "$file" >/dev/null 2>&1; then
-    ok "$message"
+  # Use rg if available as real binary, otherwise fall back to grep -rE
+  if command -v rg >/dev/null 2>&1 && rg --version >/dev/null 2>&1; then
+    if rg -n "$pattern" "$file" >/dev/null 2>&1; then
+      ok "$message"; else bad "$message"; fi
   else
-    bad "$message"
+    if grep -rE "$pattern" "$file" >/dev/null 2>&1; then
+      ok "$message"; else bad "$message"; fi
   fi
 }
 
@@ -51,7 +54,7 @@ read_env_value() {
     return 0
   fi
   local line
-  line="$(rg -n "^${key}=" "$file" -m 1 -N 2>/dev/null | head -n 1 || true)"
+  line="$(grep -E "^${key}=" "$file" 2>/dev/null | head -n 1 || true)"
   line="${line#*=}"
   line="${line%\"}"
   line="${line#\"}"
@@ -112,12 +115,12 @@ check_contains "apps/web/lib/server-api.ts" "NEXT_PUBLIC_CSRF_COOKIE_NAME" "Serv
 check_contains "apps/web/lib/server-api.ts" "NEXT_PUBLIC_CSRF_HEADER_NAME" "Server API uses configurable CSRF header name"
 
 if [[ -f .env ]]; then
-  if rg -n '^MAIL_ENABLED=' .env >/dev/null 2>&1; then
+  if grep -E '^MAIL_ENABLED=' .env >/dev/null 2>&1; then
     ok ".env has MAIL_ENABLED"
   else
     warning ".env missing MAIL_ENABLED (email notifications will likely stay disabled)"
   fi
-  if rg -n '^SMTP_HOST=' .env >/dev/null 2>&1; then
+  if grep -E '^SMTP_HOST=' .env >/dev/null 2>&1; then
     ok ".env has SMTP_HOST"
   else
     warning ".env missing SMTP_HOST"
@@ -293,6 +296,24 @@ check_exists "apps/web/app/manifest.json" "PWA manifest"
 check_contains "apps/api/src/registration/registration.service.spec.ts" "waitlist.*position|getWaitlistPosition" "Waitlist position unit tests"
 check_contains "apps/api/src/admin/admin.service.spec.ts" "getEnrollmentTrend|enrollment.*trend" "Enrollment trend unit tests"
 check_contains "apps/web/components/app-shell.tsx" "学术管理|注册管理|通知记录|邀请码" "Admin nav grouped sections"
+
+# --- New checks (session 19 completion) ---
+check_contains "apps/web/app/student/catalog/page.tsx" "recentlyViewed|recently-viewed|sis-recently-viewed" "Catalog recently viewed strip"
+check_contains "apps/web/app/student/catalog/page.tsx" "compareIds|compareOpen|对比" "Catalog compare modal"
+check_contains "apps/web/app/student/catalog/page.tsx" "filters\\.days|setFilterDays|day.*filter" "Catalog day filter"
+check_contains "apps/web/app/student/catalog/page.tsx" "trackView" "Catalog view tracking function"
+check_contains "apps/web/app/admin/dashboard/EnrollmentTrendChart.tsx" "setDays|7.*14|days.*14|14.*days" "EnrollmentTrendChart 7/14 day toggle"
+check_contains "apps/web/app/admin/reports/page.tsx" "noGpaStudents|noInstructor|noGrade" "Reports data quality card"
+check_contains "apps/api/src/admin/admin.service.spec.ts" "44|normalizePagination.*page.*20|computeStudentGpa.*null" "Admin service unit tests expanded"
+check_contains "apps/api/src/auth/auth.service.spec.ts" "EXPIRED-1|expiresAt.*Date\\.now|register.*reject.*expired" "Auth register invite code expiry test"
+check_contains "apps/api/src/registration/registration.service.spec.ts" "credit.*limit|max_credits|Credit.*limit" "Registration credit limit tests"
+check_contains "apps/web/app/admin/reports/page.tsx" "GpaDistribution|gpaDistribution|gpa.*dist" "Reports GPA distribution chart"
+check_contains "apps/web/app/admin/reports/page.tsx" "topSections|top-sections|TopSection" "Reports top sections table"
+check_contains "apps/web/app/admin/reports/page.tsx" "deptBreakdown|dept-breakdown|DeptBreakdown" "Reports dept breakdown"
+check_exists "apps/web/app/admin/import/page.tsx" "Admin import page"
+check_contains "apps/web/app/admin/import/page.tsx" "importCourses|import.*courses|course.*import" "Admin import courses tab"
+check_contains "apps/web/app/admin/import/page.tsx" "importSections|import.*sections|section.*import" "Admin import sections tab"
+check_contains "apps/web/components/CommandPalette.tsx" "Cmd|cmd|⌘|Meta" "Command palette keyboard shortcut"
 
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"

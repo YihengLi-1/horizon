@@ -29,6 +29,7 @@ type Section = {
   credits: number;
   modality: string;
   capacity: number;
+  ratings?: Array<{ rating: number }>;
   instructorName: string;
   location: string | null;
   requireApproval: boolean;
@@ -194,16 +195,19 @@ export default function StudentCatalogPage() {
   const [termId, setTermId] = useState("");
   const [sections, setSections] = useState<Section[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState({
+    dept: "ALL",
+    modality: "ALL",
+    credits: "ALL",
+    days: [] as number[],
+    availableOnly: false,
+    search: "",
+    sort: "RELEVANCE"
+  });
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [filterModality, setFilterModality] = useState("ALL");
-  const [filterCredits, setFilterCredits] = useState("ALL");
-  const [filterDept, setFilterDept] = useState("ALL");
-  const [filterAvailable, setFilterAvailable] = useState(false);
   const [filterPrereqReady, setFilterPrereqReady] = useState(false);
   const [filterApprovalOnly, setFilterApprovalOnly] = useState(false);
   const [filterNoConflict, setFilterNoConflict] = useState(false);
-  const [sortBy, setSortBy] = useState("RELEVANCE");
   const [termEnrollments, setTermEnrollments] = useState<StudentEnrollment[]>([]);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -214,7 +218,26 @@ export default function StudentCatalogPage() {
   const [hydratedFilters, setHydratedFilters] = useState(false);
   const [page, setPage] = useState(1);
   const [alerts, setAlerts] = useState<Set<string>>(new Set());
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [recentlyViewed, setRecentlyViewed] = useState<Array<{ sectionId: string; code: string; title: string }>>([]);
   const searchRef = useRef<HTMLInputElement>(null);
+  const search = filters.search;
+  const filterModality = filters.modality;
+  const filterCredits = filters.credits;
+  const filterDept = filters.dept;
+  const availableOnly = filters.availableOnly;
+  const filterAvailable = filters.availableOnly;
+  const sortBy = filters.sort;
+
+  // Wrapper setters for backward-compat with all existing JSX/handlers
+  const setSearch = (v: string) => setFilters(p => ({ ...p, search: v }));
+  const setFilterModality = (v: string) => setFilters(p => ({ ...p, modality: v }));
+  const setFilterCredits = (v: string) => setFilters(p => ({ ...p, credits: v }));
+  const setFilterDept = (v: string) => setFilters(p => ({ ...p, dept: v }));
+  const setFilterAvailable = (v: boolean) => setFilters(p => ({ ...p, availableOnly: v }));
+  const setSortBy = (v: string) => setFilters(p => ({ ...p, sort: v }));
+  const setFilterDays = (v: number[]) => setFilters(p => ({ ...p, days: v }));
 
   // Press "/" to focus search
   useEffect(() => {
@@ -242,6 +265,27 @@ export default function StudentCatalogPage() {
       setAlerts(new Set());
     }
   }, []);
+
+  // Load recently viewed from sessionStorage on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = JSON.parse(window.sessionStorage.getItem("sis-recently-viewed") || "[]");
+      if (Array.isArray(saved)) setRecentlyViewed(saved.slice(0, 5));
+    } catch { /* ignore */ }
+  }, []);
+
+  const trackView = (section: Section) => {
+    setRecentlyViewed(prev => {
+      const entry = { sectionId: section.id, code: section.course.code, title: section.course.title };
+      const filtered = prev.filter(x => x.sectionId !== section.id);
+      const next = [entry, ...filtered].slice(0, 5);
+      if (typeof window !== "undefined") {
+        try { window.sessionStorage.setItem("sis-recently-viewed", JSON.stringify(next)); } catch { /* ignore */ }
+      }
+      return next;
+    });
+  };
 
   const activeTerm = useMemo(() => terms.find((t) => t.id === termId) ?? null, [terms, termId]);
 
@@ -376,14 +420,10 @@ export default function StudentCatalogPage() {
   const onTermChange = async (nextTermId: string) => {
     setTermId(nextTermId);
     updateUrlTerm(nextTermId);
-    setSearch("");
-    setFilterModality("ALL");
-    setFilterCredits("ALL");
-    setFilterAvailable(false);
+    setFilters({ dept: "ALL", modality: "ALL", credits: "ALL", days: [], availableOnly: false, search: "", sort: "RELEVANCE" });
     setFilterPrereqReady(false);
     setFilterApprovalOnly(false);
     setFilterNoConflict(false);
-    setSortBy("RELEVANCE");
     setNotice("");
     setError("");
     await Promise.all([loadSections(nextTermId), loadCart(nextTermId), loadEnrollments(nextTermId)]);
@@ -438,15 +478,10 @@ export default function StudentCatalogPage() {
   ]);
 
   const clearFilters = () => {
-    setSearch("");
-    setFilterModality("ALL");
-    setFilterCredits("ALL");
-    setFilterDept("ALL");
-    setFilterAvailable(false);
+    setFilters({ dept: "ALL", modality: "ALL", credits: "ALL", days: [], availableOnly: false, search: "", sort: "RELEVANCE" });
     setFilterPrereqReady(false);
     setFilterApprovalOnly(false);
     setFilterNoConflict(false);
-    setSortBy("RELEVANCE");
     setPage(1);
   };
 
@@ -512,6 +547,8 @@ export default function StudentCatalogPage() {
       if (filterPrereqReady && prereqCodes.some((code) => !passedCourseCodeSet.has(code))) return false;
       if (filterApprovalOnly && !s.requireApproval) return false;
       if (filterNoConflict && hasConflict) return false;
+      // Day filter: section must have at least one meeting on a selected weekday
+      if (filters.days.length > 0 && !sectionMeetingTimes.some(mt => filters.days.includes(mt.weekday))) return false;
       return true;
     });
 
@@ -543,6 +580,7 @@ export default function StudentCatalogPage() {
     filterCredits,
     filterDept,
     filterAvailable,
+    filters.days,
     filterPrereqReady,
     filterApprovalOnly,
     filterNoConflict,
@@ -785,6 +823,31 @@ export default function StudentCatalogPage() {
           </label>
         </div>
 
+        {/* Day filter */}
+        <div className="mt-3">
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Meeting Days</p>
+          <div className="flex flex-wrap gap-1.5">
+            {[{d:1,label:"Mon"},{d:2,label:"Tue"},{d:3,label:"Wed"},{d:4,label:"Thu"},{d:5,label:"Fri"},{d:6,label:"Sat"}].map(({ d, label }) => {
+              const active = filters.days.includes(d);
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setFilterDays(active ? filters.days.filter(x => x !== d) : [...filters.days, d])}
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${active ? "border-blue-500 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"}`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+            {filters.days.length > 0 && (
+              <button type="button" onClick={() => setFilterDays([])} className="text-xs text-slate-400 underline hover:text-slate-600">
+                clear
+              </button>
+            )}
+          </div>
+        </div>
+
         {activeFilterLabels.length > 0 ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {activeFilterLabels.map((label) => (
@@ -831,6 +894,25 @@ export default function StudentCatalogPage() {
         ) : null}
         {!termId ? <Alert type="info" message="Select a term to view available sections." /> : null}
       </div>
+
+      {/* Recently Viewed strip */}
+      {recentlyViewed.length > 0 ? (
+        <section aria-label="Recently viewed sections">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Recently Viewed</p>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {recentlyViewed.map(item => (
+              <a
+                key={item.sectionId}
+                href={`#section-${item.sectionId}`}
+                className="flex-shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 no-underline shadow-sm hover:bg-slate-50 hover:border-slate-300 transition"
+              >
+                <span className="font-semibold text-slate-900">{item.code}</span>
+                <span className="ml-1 text-slate-500 max-w-[120px] inline-block truncate align-middle">{item.title}</span>
+              </a>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* Results count */}
       {!loading && termId ? (
@@ -918,13 +1000,33 @@ export default function StudentCatalogPage() {
 
             return (
               <article
+                id={`section-${section.id}`}
                 key={section.id}
                 role="article"
                 aria-label={`${section.course.code} ${section.course.title}`}
-                className={`campus-card overflow-hidden p-0 transition hover:shadow-md ${
-                  cartConflict ? "border-amber-300" : "border-slate-200"
+                onClick={() => trackView(section)}
+                className={`relative campus-card overflow-hidden p-0 transition hover:shadow-md ${
+                  cartConflict ? "border-amber-300" : compareIds.includes(section.id) ? "border-blue-400 ring-2 ring-blue-200" : "border-slate-200"
                 }`}
               >
+                {/* Compare checkbox */}
+                <label className="absolute top-3 right-3 z-10 flex cursor-pointer items-center gap-1 rounded-md border border-slate-200 bg-white/90 px-2 py-1 text-xs text-slate-600 shadow-sm hover:bg-blue-50">
+                  <input
+                    type="checkbox"
+                    className="size-3.5 accent-blue-600"
+                    checked={compareIds.includes(section.id)}
+                    onChange={() => {
+                      if (compareIds.includes(section.id)) {
+                        setCompareIds(prev => prev.filter(x => x !== section.id));
+                      } else if (compareIds.length >= 3) {
+                        toast("最多对比 3 门课", "error");
+                      } else {
+                        setCompareIds(prev => [...prev, section.id]);
+                      }
+                    }}
+                  />
+                  对比
+                </label>
                 <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_240px]">
                   <div className="space-y-4 p-4 md:p-5">
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1173,6 +1275,89 @@ export default function StudentCatalogPage() {
           </div>
         </div>
       ) : null}
+
+      {/* Compare bar */}
+      {compareIds.length >= 1 && (
+        <div className="fixed bottom-16 md:bottom-0 inset-x-0 z-40 border-t border-slate-200 bg-white shadow-lg dark:bg-gray-900 dark:border-gray-700">
+          <div className="campus-page flex items-center gap-3 py-3">
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+              对比 ({compareIds.length}/3):
+            </span>
+            <div className="flex flex-1 flex-wrap gap-2">
+              {compareIds.map(id => {
+                const s = sections.find(x => x.id === id);
+                return s ? (
+                  <span key={id} className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
+                    {s.course.code}
+                    <button type="button" onClick={() => setCompareIds(prev => prev.filter(x => x !== id))} className="ml-1 text-blue-500 hover:text-red-600">×</button>
+                  </span>
+                ) : null;
+              })}
+            </div>
+            <button
+              type="button"
+              disabled={compareIds.length < 2}
+              onClick={() => setCompareOpen(true)}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-40"
+            >
+              对比
+            </button>
+            <button type="button" onClick={() => setCompareIds([])} className="text-sm text-slate-500 underline hover:text-slate-700">
+              清除
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Compare modal */}
+      {compareOpen && compareIds.length >= 2 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setCompareOpen(false)}>
+          <div className="max-h-[80vh] w-full max-w-4xl overflow-auto rounded-2xl bg-white shadow-2xl dark:bg-gray-900" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-gray-700">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">课程对比</h2>
+              <button type="button" onClick={() => setCompareOpen(false)} className="text-slate-400 hover:text-slate-600 text-2xl">×</button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-gray-800">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase w-32">属性</th>
+                    {compareIds.map(id => {
+                      const s = sections.find(x => x.id === id);
+                      return <th key={id} className="px-4 py-3 text-left font-semibold text-slate-800 dark:text-white">{s?.course.code ?? id}</th>;
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { label: "课程名", fn: (s: Section) => s.course.title },
+                    { label: "院系", fn: (s: Section) => s.course.code.replace(/\d+.*/, "") },
+                    { label: "学分", fn: (s: Section) => `${s.credits} cr` },
+                    { label: "授课方式", fn: (s: Section) => s.modality.replace("_", " ") },
+                    { label: "教师", fn: (s: Section) => s.instructorName },
+                    { label: "地点", fn: (s: Section) => s.location ?? "TBA" },
+                    { label: "容量", fn: (s: Section) => `${getEnrolledCount(s)}/${s.capacity}` },
+                    { label: "上课时间", fn: (s: Section) => s.meetingTimes.map(mt => meetingChip(mt)).join("; ") || "异步" },
+                    { label: "平均评分", fn: (s: Section) => {
+                      const ratings = s.ratings ?? [];
+                      if (!ratings.length) return "—";
+                      return (ratings.reduce((a, b) => a + b.rating, 0) / ratings.length).toFixed(1) + " ★";
+                    }},
+                  ].map(({ label, fn }) => (
+                    <tr key={label} className="border-t border-slate-100 dark:border-gray-700 even:bg-slate-50/50 dark:even:bg-gray-800/50">
+                      <td className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">{label}</td>
+                      {compareIds.map(id => {
+                        const s = sections.find(x => x.id === id);
+                        return <td key={id} className="px-4 py-3 text-slate-800 dark:text-slate-200">{s ? fn(s) : "—"}</td>;
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
