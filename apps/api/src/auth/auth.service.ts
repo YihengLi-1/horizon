@@ -277,7 +277,7 @@ export class AuthService {
 
     return {
       message: "Registration successful. Verify email before login.",
-      ...(AUTH_EXPOSE_DEBUG_LINKS ? { activationLink } : {})
+      ...((AUTH_EXPOSE_DEBUG_LINKS || process.env.NODE_ENV !== "production") ? { activationLink } : {})
     };
   }
 

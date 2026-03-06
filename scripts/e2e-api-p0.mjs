@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 
 const BASE = process.env.API_URL ?? 'http://localhost:4000';
-const INVITE_CODE = process.env.SMOKE_INVITE_CODE ?? 'OPEN-2026';
-const ADMIN_IDENTIFIER = process.env.SMOKE_ADMIN_IDENTIFIER ?? 'admin@sis.edu';
-const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD ?? 'Admin@2026!';
+const INVITE_CODE = process.env.SMOKE_INVITE_CODE ?? 'INVITE-2026';
+const ADMIN_IDENTIFIER = process.env.SMOKE_ADMIN_IDENTIFIER ?? 'admin@university.edu';
+const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD ?? 'Admin123!';
 const STUDENT_PASSWORD = process.env.SMOKE_STUDENT_PASSWORD ?? 'Student@2026!';
 const CSRF_COOKIE_NAME = process.env.CSRF_COOKIE_NAME ?? 'sis-csrf';
 const CSRF_HEADER_NAME = process.env.CSRF_HEADER_NAME ?? 'x-csrf-token';
@@ -116,6 +116,7 @@ async function main() {
   const unique = Date.now().toString();
   const email = `smoke.${unique}@sis.test`;
   const studentId = `SMK${unique.slice(-8)}`;
+  let activationLink = null;
 
   await step('1. POST /auth/register → 201', async () => {
     const res = await student.request('/auth/register', {
@@ -129,17 +130,24 @@ async function main() {
       }
     });
     assert.equal(res.status, 201, `Expected 201, got ${res.status}`);
-    unwrapData(res);
+    const data = unwrapData(res);
+    activationLink = typeof data?.activationLink === 'string' ? data.activationLink : null;
   });
 
   await step('2. POST /auth/login → 200', async () => {
+    if (activationLink) {
+      const token = activationLink.split('token=')[1];
+      assert.ok(token, 'Missing verification token in activationLink');
+      const verifyRes = await fetch(`${BASE}/auth/verify-email?token=${encodeURIComponent(token)}`);
+      assert.equal(verifyRes.status, 200, `Email verification failed with ${verifyRes.status}`);
+    }
     const res = await student.request('/auth/login', {
       method: 'POST',
       body: { identifier: email, password: STUDENT_PASSWORD }
     });
     assert.equal(res.status, 200, `Expected 200, got ${res.status}`);
     const data = unwrapData(res);
-    assert.ok(data?.user?.email === email, 'Missing logged-in user payload');
+    assert.equal(data?.email, email, 'Missing logged-in user payload');
     assert.ok(student.cookies.get('access_token'), 'Missing access_token cookie');
   });
 
@@ -187,7 +195,7 @@ async function main() {
     });
     assert.equal(res.status, 200, `Expected 200, got ${res.status}`);
     const data = unwrapData(res);
-    assert.equal(data?.user?.email, ADMIN_IDENTIFIER, 'Admin login payload mismatch');
+    assert.equal(data?.email, ADMIN_IDENTIFIER, 'Admin login payload mismatch');
   });
 
   await step('10. GET /admin/students?page=1 → { data, total }', async () => {
