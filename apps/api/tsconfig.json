@@ -4,7 +4,7 @@
     "outDir": "dist",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "types": ["node"],
+    "types": ["node", "jest"],
     "strictPropertyInitialization": false
   },
   "include": ["src", "prisma"]

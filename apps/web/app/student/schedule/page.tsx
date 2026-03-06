@@ -114,6 +114,7 @@ export default function SchedulePage() {
   const [termId, setTermId] = useState("");
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [dropError, setDropError] = useState<Record<string, string>>({});
   const [dropping, setDropping] = useState<Record<string, boolean>>({});
   const [loadingTerms, setLoadingTerms] = useState(false);
@@ -122,6 +123,7 @@ export default function SchedulePage() {
   const [showPending, setShowPending] = useState(true);
   const [showWaitlisted, setShowWaitlisted] = useState(true);
   const [showMobileWeekView, setShowMobileWeekView] = useState(false);
+  const [sharedView, setSharedView] = useState(false);
 
   const activeTerm = useMemo(() => terms.find((t) => t.id === termId) ?? null, [terms, termId]);
   const dropDeadlinePassed = useMemo(() => {
@@ -174,6 +176,7 @@ export default function SchedulePage() {
     try {
       setLoadingSchedule(true);
       setError("");
+      setNotice("");
       const data = await apiFetch<Enrollment[]>(`/registration/schedule?termId=${tid}`);
       setEnrollments(data);
     } catch (err) {
@@ -186,6 +189,18 @@ export default function SchedulePage() {
   useEffect(() => {
     async function init() {
       try {
+        const shareValue =
+          typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("share") : null;
+        if (shareValue) {
+          const decoded = JSON.parse(decodeURIComponent(atob(shareValue)));
+          setSharedView(true);
+          if (decoded?.term) {
+            setTerms([decoded.term]);
+            setTermId(decoded.term.id);
+          }
+          setEnrollments(Array.isArray(decoded?.enrollments) ? decoded.enrollments : []);
+          return;
+        }
         setLoadingTerms(true);
         const termData = await apiFetch<Term[]>("/academics/terms");
         setTerms(termData);
@@ -300,6 +315,20 @@ export default function SchedulePage() {
     link.click();
     URL.revokeObjectURL(link.href);
   };
+  const shareSchedule = async () => {
+    if (!activeTerm || visibleEnrollments.length === 0 || typeof window === "undefined") return;
+    try {
+      const encoded = btoa(
+        encodeURIComponent(JSON.stringify({ term: activeTerm, enrollments: visibleEnrollments }))
+      );
+      const url = `${window.location.origin}${window.location.pathname}?share=${encoded}`;
+      await navigator.clipboard.writeText(url);
+      setNotice("Share schedule link copied.");
+      setError("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create share link");
+    }
+  };
 
   return (
     <div className="campus-page">
@@ -345,6 +374,14 @@ export default function SchedulePage() {
                 className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 transition hover:bg-white"
               >
                 iCal 导出
+              </button>
+              <button
+                type="button"
+                onClick={shareSchedule}
+                disabled={!activeTerm || visibleEnrollments.length === 0}
+                className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 transition hover:bg-white disabled:opacity-50"
+              >
+                Share Schedule
               </button>
               <Link
                 href={termId ? `/student/catalog?termId=${termId}` : "/student/catalog"}
@@ -419,6 +456,12 @@ export default function SchedulePage() {
       ) : null}
 
       {error ? <div className="no-print rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+      {notice ? <div className="no-print rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{notice}</div> : null}
+      {sharedView ? (
+        <div className="no-print rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          Shared read-only schedule view.
+        </div>
+      ) : null}
 
       <section className="campus-card no-print p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -529,7 +572,9 @@ export default function SchedulePage() {
                       <p className="mt-0.5 text-[10px] text-amber-700">#{enrollment.waitlistPosition} in queue</p>
                     )}
                   </div>
-                  {dropDeadlinePassed && (enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL") ? (
+                  {sharedView ? (
+                    <span className="text-[11px] text-slate-500">Read-only</span>
+                  ) : dropDeadlinePassed && (enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL") ? (
                     <span className="text-[11px] text-amber-700">Drop unavailable after deadline</span>
                   ) : enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL" || enrollment.status === "WAITLISTED" ? (
                     <button
@@ -619,7 +664,9 @@ export default function SchedulePage() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        {dropDeadlinePassed && (enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL") ? (
+                        {sharedView ? (
+                          <span className="text-xs text-slate-400">Read-only</span>
+                        ) : dropDeadlinePassed && (enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL") ? (
                           <div className="space-y-1">
                             <button
                               type="button"

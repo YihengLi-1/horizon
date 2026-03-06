@@ -121,6 +121,8 @@ async function main() {
   const email = `smoke.${unique}@sis.test`;
   const studentId = `SMK${unique.slice(-8)}`;
   let activationLink = null;
+  let selectedTermId = null;
+  let selectedSectionId = null;
 
   await step('1. POST /auth/register → 201', async () => {
     const res = await student.request('/auth/register', {
@@ -159,6 +161,14 @@ async function main() {
     const res = await student.request('/academics/terms');
     const data = unwrapData(res);
     assert.ok(Array.isArray(data), 'Expected array');
+    const now = Date.now();
+    const selectedTerm =
+      data.find((term) => {
+        const openAt = term?.registrationOpenAt ? Date.parse(term.registrationOpenAt) : NaN;
+        const closeAt = term?.registrationCloseAt ? Date.parse(term.registrationCloseAt) : NaN;
+        return Number.isFinite(openAt) && Number.isFinite(closeAt) && openAt <= now && closeAt >= now;
+      }) ?? data[0];
+    selectedTermId = selectedTerm?.id ?? null;
   });
 
   await step('4. GET /students/notifications → array', async () => {
@@ -245,7 +255,81 @@ async function main() {
     assert.equal(typeof res.json?.version, 'string', 'Missing version key');
   });
 
-  process.stdout.write(`\nSummary: ${passed}/16 passed, ${failed} failed\n`);
+  await step('17. POST /registration/cart → 200 or 409', async () => {
+    if (!selectedTermId) {
+      return;
+    }
+    const sectionsRes = await student.request(`/academics/sections?termId=${encodeURIComponent(selectedTermId)}`);
+    const sections = unwrapData(sectionsRes);
+    assert.ok(Array.isArray(sections), 'Expected sections array');
+    selectedSectionId = sections[0]?.id ?? null;
+    if (!selectedSectionId) {
+      return;
+    }
+    const res = await student.request('/registration/cart', {
+      method: 'POST',
+      csrf: true,
+      body: {
+        sectionId: selectedSectionId
+      }
+    });
+    assert.ok([200, 201, 400, 409].includes(res.status), `Expected 200/201/400/409, got ${res.status}`);
+  });
+
+  await step('18. GET /registration/cart → array', async () => {
+    if (!selectedTermId) {
+      return;
+    }
+    const res = await student.request(`/registration/cart?termId=${encodeURIComponent(selectedTermId)}`);
+    const data = unwrapData(res);
+    assert.ok(Array.isArray(data), 'Expected array');
+  });
+
+  await step('19. GET /registration/schedule → array', async () => {
+    if (!selectedTermId) {
+      return;
+    }
+    const res = await student.request(`/registration/schedule?termId=${encodeURIComponent(selectedTermId)}`);
+    const data = unwrapData(res);
+    assert.ok(Array.isArray(data), 'Expected array');
+  });
+
+  await step('20. GET /admin/stats/gpa-distribution → array', async () => {
+    const res = await admin.request('/admin/stats/gpa-distribution');
+    const data = unwrapData(res);
+    assert.ok(Array.isArray(data), 'Expected array');
+    assert.ok(data.every((item) => typeof item?.tier === 'string'), 'Expected tier field');
+  });
+
+  await step('21. GET /admin/stats/dept-breakdown → array', async () => {
+    const res = await admin.request('/admin/stats/dept-breakdown');
+    const data = unwrapData(res);
+    assert.ok(Array.isArray(data), 'Expected array');
+  });
+
+  await step('22. GET /admin/notification-log → { data, total }', async () => {
+    const res = await admin.request('/admin/notification-log');
+    const data = unwrapData(res);
+    assert.ok(Array.isArray(data?.data), 'Expected data array');
+    assert.equal(typeof data?.total, 'number', 'Expected numeric total');
+  });
+
+  await step('23. GET /admin/students?page=1 → { data, total }', async () => {
+    const res = await admin.request('/admin/students?page=1');
+    const data = unwrapData(res);
+    assert.ok(Array.isArray(data?.data), 'Expected data array');
+    assert.equal(typeof data?.total, 'number', 'Expected numeric total');
+  });
+
+  await step('24. GET /ops/version → has version, nodeEnv, uptime', async () => {
+    const res = await admin.request('/ops/version');
+    assert.equal(res.status, 200, `Expected 200, got ${res.status}`);
+    assert.equal(typeof res.json?.version, 'string', 'Missing version key');
+    assert.equal(typeof res.json?.nodeEnv, 'string', 'Missing nodeEnv key');
+    assert.equal(typeof res.json?.uptime, 'number', 'Missing uptime key');
+  });
+
+  process.stdout.write(`\nSummary: ${passed}/24 passed, ${failed} failed\n`);
   if (failed > 0) {
     process.exitCode = 1;
   }

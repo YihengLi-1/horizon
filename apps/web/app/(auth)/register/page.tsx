@@ -40,8 +40,27 @@ export default function RegisterPage() {
   const [result, setResult] = useState<RegisterResult | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [emailExists, setEmailExists] = useState(false);
   const pwMatch = confirmPassword.length > 0 && confirmPassword === form.password;
   const pwMismatch = confirmPassword.length > 0 && confirmPassword !== form.password;
+
+  const checkEmail = async () => {
+    const candidate = form.email.trim();
+    if (!candidate || !candidate.includes("@")) {
+      setEmailExists(false);
+      return;
+    }
+    try {
+      setCheckingEmail(true);
+      const data = await apiFetch<{ exists: boolean }>(`/auth/check-email?email=${encodeURIComponent(candidate)}`);
+      setEmailExists(Boolean(data.exists));
+    } catch {
+      setEmailExists(false);
+    } finally {
+      setCheckingEmail(false);
+    }
+  };
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -117,8 +136,14 @@ export default function RegisterPage() {
               placeholder="student@example.edu"
               value={form.email}
               onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+              onBlur={() => void checkEmail()}
               required
             />
+            {checkingEmail ? (
+              <p className="text-xs text-slate-400">Checking email…</p>
+            ) : emailExists ? (
+              <p className="text-xs font-medium text-amber-600">此邮箱已注册，请直接登录</p>
+            ) : null}
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium text-slate-700">Password</label>

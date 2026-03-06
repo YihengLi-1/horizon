@@ -6,6 +6,7 @@ import { AuthService } from "./auth.service";
 import { ok } from "../common/response";
 import { JwtAuthGuard } from "../common/jwt-auth.guard";
 import { CurrentUser } from "../common/current-user.decorator";
+import { Public } from "../common/public.decorator";
 import { Roles } from "../common/roles.decorator";
 import { RolesGuard } from "../common/roles.guard";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
@@ -56,6 +57,13 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     return ok(await this.authService.refresh(req, res));
+  }
+
+  @Get("check-email")
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  async checkEmail(@Query("email") email?: string) {
+    return ok(await this.authService.checkEmailExists(email ?? ""));
   }
 
   @Post("forgot-password")

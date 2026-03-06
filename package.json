@@ -7,6 +7,7 @@
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "smoke:web": "bash scripts/smoke-web.sh",
+    "test:api": "pnpm --filter @sis/api test --passWithNoTests",
     "test:e2e": "node scripts/e2e-api-p0.mjs",
     "test:smoke": "bash scripts/smoke-docker.sh",
     "test:e2e:web": "pnpm --filter @sis/web test:e2e:critical",

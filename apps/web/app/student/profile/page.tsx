@@ -274,6 +274,8 @@ export default function StudentProfilePage() {
   const [completedCredits, setCompletedCredits] = useState(0);
   const [enrolledCredits, setEnrolledCredits] = useState(0);
   const [currentGpa, setCurrentGpa] = useState<number | null>(null);
+  const [goal, setGoal] = useState("");
+  const [goalDraft, setGoalDraft] = useState("");
 
   useEffect(() => {
     apiFetch<ProfileResponse>("/students/me")
@@ -288,6 +290,17 @@ export default function StudentProfilePage() {
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load profile"))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("sis_goal") || "";
+      setGoal(saved);
+      setGoalDraft(saved);
+    } catch {
+      setGoal("");
+      setGoalDraft("");
+    }
   }, []);
 
   useEffect(() => {
@@ -381,6 +394,15 @@ export default function StudentProfilePage() {
   );
   const expectedTerms = Math.max(0, Math.ceil((120 - completedCredits) / 15));
   const expectedGraduation = expectedTerms === 0 ? "Eligible now" : `${expectedTerms} term(s)`;
+  const saveGoal = () => {
+    const next = goalDraft.trim();
+    setGoal(next);
+    try {
+      window.localStorage.setItem("sis_goal", next);
+    } catch {
+      // Ignore storage errors and keep UI usable.
+    }
+  };
 
   return (
     <div className="campus-page">
@@ -501,6 +523,28 @@ export default function StudentProfilePage() {
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">预计毕业</p>
                   <p className="mt-1 text-2xl font-semibold text-slate-900">{expectedGraduation}</p>
                 </div>
+              </div>
+            </section>
+
+            <section className="campus-card p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">学习目标</h3>
+              <p className="mt-1 text-xs text-slate-500">Set a personal academic goal for this term and keep it visible.</p>
+              <textarea
+                value={goalDraft}
+                onChange={(event) => setGoalDraft(event.target.value)}
+                rows={3}
+                className="campus-input mt-3 w-full"
+                placeholder="例如：Maintain 3.5 GPA this semester"
+              />
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <p className="text-xs text-slate-500">{goal ? `Current goal: ${goal}` : "No goal saved yet."}</p>
+                <button
+                  type="button"
+                  onClick={saveGoal}
+                  className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Save Goal
+                </button>
               </div>
             </section>
 

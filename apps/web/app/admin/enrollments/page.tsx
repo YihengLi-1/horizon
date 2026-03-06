@@ -41,6 +41,7 @@ type PaginatedResponse<T> = {
 };
 
 const STATUS_OPTIONS = ["ENROLLED", "WAITLISTED", "PENDING_APPROVAL", "DROPPED", "COMPLETED"];
+const GRADE_OPTIONS = ["", "A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-", "F"];
 const PAGE_SIZE = 50;
 
 const STATUS_COLORS: Record<string, string> = {
@@ -203,6 +204,24 @@ export default function EnrollmentsPage() {
       setError(err instanceof Error ? err.message : "Grade update failed");
     } finally {
       setSavingGradeId(null);
+    }
+  };
+
+  const forceDrop = async (id: string) => {
+    if (!window.confirm("确认强制退课？")) return;
+    try {
+      setSavingStatusId(id);
+      setError("");
+      setNotice("");
+      await apiFetch(`/admin/enrollments/${id}`, {
+        method: "DELETE"
+      });
+      setNotice("Enrollment force-dropped.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Force drop failed");
+    } finally {
+      setSavingStatusId(null);
     }
   };
 
@@ -621,12 +640,17 @@ export default function EnrollmentsPage() {
                         ) : (
                           <span className="text-slate-300">—</span>
                         )}
-                        <input
-                          className="campus-input h-9 w-24"
-                          placeholder="A, B+…"
+                        <select
+                          className="campus-select h-9 w-24 text-xs"
                           value={gradeState[row.id] || ""}
                           onChange={(e) => setGradeState((prev) => ({ ...prev, [row.id]: e.target.value }))}
-                        />
+                        >
+                          {GRADE_OPTIONS.map((grade) => (
+                            <option key={grade || "blank"} value={grade}>
+                              {grade || "—"}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -661,6 +685,16 @@ export default function EnrollmentsPage() {
                           {savingGradeId === row.id ? (
                             <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                           ) : "Grade"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void forceDrop(row.id)}
+                          disabled={savingStatusId === row.id || row.status === "DROPPED"}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
+                        >
+                          {savingStatusId === row.id ? (
+                            <span className="size-3.5 animate-spin rounded-full border-2 border-red-300 border-t-red-700" />
+                          ) : "Force Drop"}
                         </button>
                       </div>
                     </td>
@@ -729,12 +763,17 @@ export default function EnrollmentsPage() {
                       </option>
                     ))}
                   </select>
-                  <input
-                    className="campus-input h-9 text-sm"
-                    placeholder="A, B+…"
+                  <select
+                    className="campus-select h-9 text-sm"
                     value={gradeState[row.id] || ""}
                     onChange={(e) => setGradeState((prev) => ({ ...prev, [row.id]: e.target.value }))}
-                  />
+                  >
+                    {GRADE_OPTIONS.map((grade) => (
+                      <option key={grade || "blank"} value={grade}>
+                        {grade || "—"}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="mt-3 flex gap-2">
@@ -753,6 +792,14 @@ export default function EnrollmentsPage() {
                     className="flex-1 rounded-lg bg-primary py-1.5 text-xs font-semibold text-white transition hover:bg-primary/90 disabled:opacity-60"
                   >
                     {savingGradeId === row.id ? "Saving…" : "Save Grade"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void forceDrop(row.id)}
+                    disabled={savingStatusId === row.id || row.status === "DROPPED"}
+                    className="flex-1 rounded-lg border border-red-200 bg-red-50 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
+                  >
+                    {savingStatusId === row.id ? "Dropping…" : "Force Drop"}
                   </button>
                 </div>
               </div>

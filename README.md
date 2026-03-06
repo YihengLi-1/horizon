@@ -1,6 +1,6 @@
 # University SIS MVP Monorepo
 
-Minimal full-stack SIS + registration MVP for 10k users.
+University SIS built as a pnpm monorepo with a Next.js 15 frontend, NestJS API, Prisma, and PostgreSQL.
 
 ## Stack
 - `apps/web`: Next.js App Router + TypeScript + Tailwind + shadcn-style UI components
@@ -51,9 +51,16 @@ pnpm dev
 - `pnpm db:migrate` - run Prisma migration
 - `pnpm db:seed` - seed sample data
 - `pnpm db:generate` - generate Prisma client
+- `pnpm readiness:check` - static production-readiness checks
+- `pnpm test:api` - API unit tests
 - `pnpm smoke:web` - route-level smoke check using seeded accounts
 - `pnpm test:e2e:web` - critical UI E2E checks (student + admin flows, runtime error guard)
 - `pnpm test:e2e:api` - P0 API regression checks (registration rules, waitlist promote, drop deadline, CSV fail-fast)
+
+## Monitoring
+- Grafana: [http://localhost:3100](http://localhost:3100)
+- Prometheus: [http://localhost:9090](http://localhost:9090)
+- Alertmanager: [http://localhost:9093](http://localhost:9093)
 
 ## API Documentation
 - See [apps/api/ROUTES.md](apps/api/ROUTES.md)

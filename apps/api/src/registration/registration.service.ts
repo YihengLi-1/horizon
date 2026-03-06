@@ -79,7 +79,7 @@ type CompletedEnrollmentWithCourse = Prisma.EnrollmentGetPayload<{
   };
 }>;
 
-function hasMeetingConflict(a: Meeting[], b: Meeting[]): boolean {
+export function hasMeetingConflict(a: Meeting[], b: Meeting[]): boolean {
   return a.some((m1) =>
     b.some((m2) => m1.weekday === m2.weekday && m1.startMinutes < m2.endMinutes && m2.startMinutes < m1.endMinutes)
   );
@@ -214,6 +214,13 @@ export class RegistrationService {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultMaxCredits;
   }
 
+  /**
+   * @description Returns the current waitlist position for a student in a section.
+   * @param studentId Student user id.
+   * @param sectionId Section id to inspect.
+   * @returns Current waitlist position and number of students ahead, or nulls when not waitlisted.
+   * @throws None. Missing records resolve to null values instead of exceptions.
+   */
   async getWaitlistPosition(studentId: string, sectionId: string) {
     const enrollment = await this.prisma.enrollment.findFirst({
       where: {
@@ -240,6 +247,13 @@ export class RegistrationService {
     };
   }
 
+  /**
+   * @description Builds the final enrollment plan for a cart submission, including
+   * prerequisite checks, meeting conflict checks, waitlist placement, and credit-limit validation.
+   * @param params Registration planning inputs for a single term and student.
+   * @returns The rows to create plus a structured list of blocking issues.
+   * @throws None. Validation failures are reported through the returned issues array.
+   */
   private buildEnrollmentPlan(params: {
     studentId: string;
     termId: string;
@@ -566,6 +580,16 @@ export class RegistrationService {
     };
   }
 
+  /**
+   * @description Executes the student self-enrollment workflow by validating the cart,
+   * locking target sections, creating enrollment rows, clearing the cart, and dispatching notifications.
+   * @param studentId Student user id.
+   * @param input Submit-cart payload for the target term.
+   * @param req Express request for audit logging context.
+   * @returns Newly created enrollment rows for the submitted cart.
+   * @throws BadRequestException When the registration window is closed, cart is empty, or validation fails.
+   * @throws NotFoundException When the requested term does not exist.
+   */
   async submitCart(studentId: string, input: SubmitCartInput, req: Request) {
     const term = await this.prisma.term.findUnique({ where: { id: input.termId } });
     if (!term) {
@@ -821,6 +845,16 @@ export class RegistrationService {
     return created;
   }
 
+  /**
+   * @description Drops an enrollment for the current student, updates waitlist ordering,
+   * and auto-promotes the next waitlisted student when an enrolled seat is freed.
+   * @param studentId Student user id.
+   * @param input Drop payload containing the enrollment id.
+   * @param req Express request for audit logging context.
+   * @returns The dropped enrollment plus whether a seat was freed.
+   * @throws NotFoundException When the enrollment does not belong to the student or does not exist.
+   * @throws BadRequestException When the enrollment is already dropped or the drop deadline has passed.
+   */
   async dropEnrollment(studentId: string, input: DropEnrollmentInput, req: Request) {
     const enrollment = await this.prisma.enrollment.findFirst({
       where: { id: input.enrollmentId, deletedAt: null },

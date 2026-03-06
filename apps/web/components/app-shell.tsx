@@ -59,6 +59,7 @@ const iconClass = "size-4";
 const studentItems: NavItem[] = [
   { href: "/student/dashboard", label: "Dashboard", icon: <Home className={iconClass} /> },
   { href: "/student/notifications", label: "Notifications", icon: <Bell className={iconClass} /> },
+  { href: "/student/announcements", label: "Announcements", icon: <Megaphone className={iconClass} /> },
   { href: "/student/catalog", label: "Catalog", icon: <BookOpen className={iconClass} /> },
   { href: "/student/cart", label: "Cart", icon: <ShoppingCart className={iconClass} /> },
   { href: "/student/schedule", label: "Schedule", icon: <CalendarDays className={iconClass} /> },
@@ -143,7 +144,7 @@ export function AppShell({
             { label: "Tools", hrefs: ["/admin/invite-codes", "/admin/announcements", "/admin/notifications", "/admin/import", "/admin/audit-logs", "/admin/reports", "/admin/settings"] }
           ]
         : [
-            { label: "Overview", hrefs: ["/student/dashboard", "/student/notifications"] },
+            { label: "Overview", hrefs: ["/student/dashboard", "/student/notifications", "/student/announcements"] },
             { label: "Registration", hrefs: ["/student/catalog", "/student/cart", "/student/schedule"] },
             { label: "Academic", hrefs: ["/student/grades", "/student/calendar", "/student/history", "/student/bookmarks", "/student/contact", "/student/profile", "/student/help"] }
           ];

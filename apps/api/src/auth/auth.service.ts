@@ -631,6 +631,23 @@ export class AuthService {
     return { message: "Password updated" };
   }
 
+  async checkEmailExists(email: string) {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) {
+      return { exists: false };
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email: normalized,
+        deletedAt: null
+      },
+      select: { id: true }
+    });
+
+    return { exists: Boolean(user) };
+  }
+
   async unlockAccount(userId: string) {
     await this.prisma.user.update({
       where: { id: userId },

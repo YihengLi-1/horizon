@@ -10,6 +10,7 @@ import { AuditService } from "./audit/audit.service";
 import { AppModule } from "./app.module";
 import { AllExceptionsFilter } from "./common/global-exception.filter";
 import { StructuredLogger } from "./common/logger";
+import { PrismaService } from "./common/prisma.service";
 import { NotificationsService } from "./notifications/notifications.service";
 
 async function bootstrap() {
@@ -17,6 +18,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { logger });
   const auditService = app.get(AuditService);
   const notificationsService = app.get(NotificationsService);
+  const prisma = app.get(PrismaService);
   app.use(compression({ threshold: 1024 }));
   app.use(
     helmet({
@@ -28,6 +30,7 @@ async function bootstrap() {
           imgSrc: ["'self'", "data:", "blob:"],
           connectSrc: ["'self'"],
           objectSrc: ["'none'"],
+          reportUri: ["/ops/csp-report"]
         },
       },
       crossOriginEmbedderPolicy: false,
@@ -485,6 +488,27 @@ async function bootstrap() {
       pid: process.pid,
       buildTime: process.env.BUILD_TIME ?? "dev"
     });
+  });
+
+  expressApp.post("/ops/csp-report", (req: any, res: any) => {
+    logger.warn(`csp-report ${JSON.stringify(req.body ?? {})}`);
+    res.status(204).end();
+  });
+
+  expressApp.get("/ops/db-check", async (_req: any, res: any) => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      res.json({ db: "ok" });
+    } catch (error) {
+      res.status(503).json({
+        db: "error",
+        msg: error instanceof Error ? error.message : "DB query failed"
+      });
+    }
+  });
+
+  expressApp.get("/api/health", (_req: any, res: any) => {
+    res.json({ status: "ok", ts: new Date().toISOString() });
   });
 
   expressApp.get("/ops/ready", async (_req: any, res: any) => {

@@ -43,6 +43,7 @@ export default function WaitlistPage() {
   const [bulkError, setBulkError] = useState("");
   const [messageBySection, setMessageBySection] = useState<Record<string, SectionMessage>>({});
   const [search, setSearch] = useState("");
+  const [sectionFilter, setSectionFilter] = useState("ALL");
   const searchRef = useRef<HTMLInputElement>(null);
 
   // Press "/" to focus search
@@ -130,14 +131,17 @@ export default function WaitlistPage() {
 
   const filteredGroups = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return grouped;
-    return grouped.filter((group) =>
-      `${group.courseCode} ${group.sectionCode} ${group.title}`.toLowerCase().includes(q) ||
-      group.items.some((item) =>
-        `${item.student.studentProfile?.legalName ?? ""} ${item.student.studentId ?? ""}`.toLowerCase().includes(q)
-      )
-    );
-  }, [grouped, search]);
+    return grouped.filter((group) => {
+      const matchesSection = sectionFilter === "ALL" || group.sectionId === sectionFilter;
+      const matchesSearch =
+        !q ||
+        `${group.courseCode} ${group.sectionCode} ${group.title}`.toLowerCase().includes(q) ||
+        group.items.some((item) =>
+          `${item.student.studentProfile?.legalName ?? ""} ${item.student.studentId ?? ""}`.toLowerCase().includes(q)
+        );
+      return matchesSection && matchesSearch;
+    });
+  }, [grouped, search, sectionFilter]);
 
   const totalWaitlisted = rows.length;
   const avgQueueDepth = grouped.length > 0
@@ -315,6 +319,23 @@ export default function WaitlistPage() {
               <option value={10}>10 students</option>
             </select>
           </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Section filter
+            </label>
+            <select
+              className="campus-select w-48"
+              value={sectionFilter}
+              onChange={(e) => setSectionFilter(e.target.value)}
+            >
+              <option value="ALL">All sections</option>
+              {grouped.map((group) => (
+                <option key={group.sectionId} value={group.sectionId}>
+                  {group.courseCode} §{group.sectionCode}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
         {search ? (
           <button
@@ -323,6 +344,15 @@ export default function WaitlistPage() {
             className="mt-2 text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
           >
             Clear search
+          </button>
+        ) : null}
+        {sectionFilter !== "ALL" ? (
+          <button
+            type="button"
+            onClick={() => setSectionFilter("ALL")}
+            className="mt-2 ml-3 text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
+          >
+            Clear section filter
           </button>
         ) : null}
       </section>

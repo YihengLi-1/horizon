@@ -6,6 +6,7 @@
     "dev": "node --watch -r @swc-node/register src/main.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/src/main.js",
+    "test": "jest --runInBand",
     "lint": "echo 'no lint for api'",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -47,9 +48,12 @@
     "@swc/core": "^1.15.18",
     "@types/cookie-parser": "^1.4.8",
     "@types/express": "^5.0.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "^22.13.10",
     "@types/nodemailer": "^7.0.11",
     "@types/passport-jwt": "^4.0.1",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   }
