@@ -27,6 +27,20 @@ type Term = {
   dropDeadline: string;
 };
 
+type TranscriptTerm = {
+  termId: string;
+  termName: string;
+  semesterGpa: number | null;
+  cumulativeGpa: number | null;
+  enrollments: Array<{
+    id: string;
+    finalGrade: string | null;
+    section: {
+      credits: number;
+    };
+  }>;
+};
+
 const GRADE_POINTS: Record<string, number> = {
   "A+": 4.0,
   A: 4.0,
@@ -205,8 +219,9 @@ export default async function GradesPage({
   const sortBy  = (params.sortBy  ?? "code") as SortCol;
   const sortDir = (params.sortDir === "desc" ? "desc" : "asc") as "asc" | "desc";
 
-  const [grades, termsData, me] = await Promise.all([
+  const [grades, transcriptTerms, termsData, me] = await Promise.all([
     serverApi<GradeItem[]>("/registration/grades"),
+    serverApi<TranscriptTerm[]>("/students/transcript").catch(() => [] as TranscriptTerm[]),
     serverApi<Term[]>("/academics/terms").catch(() => [] as Term[]),
     getMeServer().catch(() => null)
   ]);
@@ -218,7 +233,7 @@ export default async function GradesPage({
     byTerm.set(item.term.name, list);
   }
 
-  const terms = Array.from(byTerm.keys());
+  const gradeTerms = Array.from(byTerm.keys());
   const cumulative = calcGPA(grades);
   const completedCredits = grades.reduce((sum, item) => sum + item.section.credits, 0);
   const standing = getStanding(cumulative?.gpa ?? null);
@@ -229,13 +244,9 @@ export default async function GradesPage({
     }) ?? null;
   const dropDeadline = activeTerm?.dropDeadline ? new Date(activeTerm.dropDeadline) : null;
   const daysLeft = dropDeadline ? Math.ceil((dropDeadline.getTime() - Date.now()) / 86_400_000) : null;
-  const trendData = terms
-    .map((termName) => {
-      const items = byTerm.get(termName) ?? [];
-      const termGpa = calcGPA(items);
-      return termGpa ? { term: termName, gpa: termGpa.gpa } : null;
-    })
-    .filter((item): item is { term: string; gpa: number } => Boolean(item));
+  const trendData = transcriptTerms
+    .filter((term) => term.semesterGpa !== null)
+    .map((term) => ({ term: term.termName, gpa: term.semesterGpa as number }));
 
   return (
     <div className="campus-page">
@@ -249,7 +260,7 @@ export default async function GradesPage({
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
               <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{grades.length} graded courses</span>
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{terms.length} term{terms.length === 1 ? "" : "s"}</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{gradeTerms.length} term{gradeTerms.length === 1 ? "" : "s"}</span>
               <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{completedCredits} credits completed</span>
               {cumulative ? (
                 <span className={`campus-chip ${gpaTier(cumulative.gpa).cls}`}>GPA {cumulative.gpa.toFixed(2)} · {gpaTier(cumulative.gpa).label}</span>
@@ -291,23 +302,15 @@ export default async function GradesPage({
         </div>
       </section>
 
-      {daysLeft !== null && daysLeft >= 0 && daysLeft <= 14 ? (
+      {daysLeft !== null && daysLeft >= 0 && daysLeft <= 7 ? (
         <section
-          className={`flex items-center gap-3 rounded-xl border p-4 ${
-            daysLeft <= 3
-              ? "border-red-200 bg-red-50 text-red-800 dark:bg-red-900/20"
-              : daysLeft <= 7
-                ? "border-amber-200 bg-amber-50 text-amber-800 dark:bg-amber-900/20"
-                : "border-blue-200 bg-blue-50 text-blue-800 dark:bg-blue-900/20"
-          }`}
+          className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:bg-amber-900/20"
         >
-          <span className="text-2xl">{daysLeft <= 3 ? "🚨" : daysLeft <= 7 ? "⚠️" : "📅"}</span>
+          <span className="text-2xl">⚠️</span>
           <div>
-            <p className="text-sm font-semibold">Course Drop Deadline</p>
+            <p className="text-sm font-semibold">退课截止日</p>
             <p className="mt-0.5 text-xs">
-              {daysLeft === 0
-                ? "Last day to drop courses without academic penalty!"
-                : `${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining to drop courses (${dropDeadline?.toLocaleDateString()})`}
+              {dropDeadline?.toLocaleDateString()}，还有 {daysLeft} 天
             </p>
           </div>
         </section>
@@ -315,47 +318,64 @@ export default async function GradesPage({
 
       <GpaTrendChart data={trendData} />
 
+      {transcriptTerms.length > 1 ? (
       <section className="campus-card overflow-hidden">
         <div className="border-b border-slate-100 px-4 py-3">
-          <p className="text-sm font-semibold text-slate-700">GPA Breakdown by Term</p>
+          <p className="text-sm font-semibold text-slate-700">Semester vs Cumulative GPA</p>
         </div>
         <table className="w-full text-sm">
           <thead className="bg-slate-50">
             <tr>
               <th scope="col" className="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500">Term</th>
-              <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase text-slate-500">Credits</th>
               <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase text-slate-500">Semester GPA</th>
+              <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase text-slate-500">Cumulative GPA</th>
+              <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase text-slate-500">Credits</th>
             </tr>
           </thead>
           <tbody>
-            {Array.from(byTerm.entries()).map(([termName, items]) => {
-              const gpa = calcGPA(items);
-              const credits = items.filter((item) => item.finalGrade).reduce((sum, item) => sum + (item.section.credits ?? 0), 0);
+            {transcriptTerms.map((term) => {
+              const credits = term.enrollments.reduce((sum, item) => sum + (item.section?.credits ?? 0), 0);
               return (
-                <tr key={termName} className="border-t border-slate-50">
-                  <td className="px-4 py-2 font-medium text-slate-700">{termName}</td>
-                  <td className="px-4 py-2 text-right text-slate-500">{credits}</td>
+                <tr key={term.termId} className="border-t border-slate-50">
+                  <td className="px-4 py-2 font-medium text-slate-700">{term.termName}</td>
                   <td
                     className={`px-4 py-2 text-right font-bold ${
-                      gpa === null
+                      term.semesterGpa === null
                         ? "text-slate-300"
-                        : gpa.gpa >= 3.7
+                        : term.semesterGpa >= 3.7
                           ? "text-emerald-600"
-                          : gpa.gpa >= 3
+                          : term.semesterGpa >= 3
                             ? "text-blue-600"
-                            : gpa.gpa >= 2
+                            : term.semesterGpa >= 2
                               ? "text-amber-600"
                               : "text-red-600"
                     }`}
                   >
-                    {gpa?.gpa.toFixed(3) ?? "—"}
+                    {term.semesterGpa?.toFixed(3) ?? "—"}
                   </td>
+                  <td
+                    className={`px-4 py-2 text-right font-bold ${
+                      term.cumulativeGpa === null
+                        ? "text-slate-300"
+                        : term.cumulativeGpa >= 3.7
+                          ? "text-emerald-600"
+                          : term.cumulativeGpa >= 3
+                            ? "text-blue-600"
+                            : term.cumulativeGpa >= 2
+                              ? "text-amber-600"
+                              : "text-red-600"
+                    }`}
+                  >
+                    {term.cumulativeGpa?.toFixed(3) ?? "—"}
+                  </td>
+                  <td className="px-4 py-2 text-right text-slate-500">{credits}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </section>
+      ) : null}
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-slate-200">
@@ -368,7 +388,7 @@ export default async function GradesPage({
         </div>
         <div className="campus-kpi border-slate-200">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Terms With Grades</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{terms.length}</p>
+          <p className="mt-1 text-2xl font-semibold text-slate-900">{gradeTerms.length}</p>
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50/70">
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Cumulative GPA</p>
@@ -399,7 +419,7 @@ export default async function GradesPage({
         </section>
       ) : null}
 
-      {terms.map((termName) => {
+      {gradeTerms.map((termName) => {
         const rawItems = byTerm.get(termName) ?? [];
         const items = sortItems(rawItems, sortBy, sortDir);
         const termGpa = calcGPA(items);

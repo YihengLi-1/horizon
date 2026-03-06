@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Header, Param, Query, UseGuards } from "@nestjs/common";
 import { CurrentUser } from "../common/current-user.decorator";
 import { JwtAuthGuard } from "../common/jwt-auth.guard";
 import { Roles } from "../common/roles.decorator";
@@ -13,6 +13,7 @@ export class AcademicsController {
   constructor(private readonly academicsService: AcademicsService) {}
 
   @Get("terms")
+  @Header("Cache-Control", "public, max-age=300")
   async listTerms(@CurrentUser() _user: { userId: string }) {
     return ok(await this.academicsService.listTerms());
   }

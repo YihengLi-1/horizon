@@ -50,6 +50,13 @@ type EditForm = {
   academicStatus: string;
 };
 
+type NotificationLogItem = {
+  id: number;
+  type: string;
+  subject: string;
+  sentAt: string;
+};
+
 const ENROLLMENT_STATUSES = ["New", "Continuing", "Returning", "Graduated", "Withdrawn"];
 const ACADEMIC_STATUSES = ["Active", "Probation", "Suspended", "Graduated"];
 const PAGE_SIZE = 50;
@@ -93,8 +100,10 @@ export default function AdminStudentsPage() {
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
   const [roleSaving, setRoleSaving] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
-  const [activeTab, setActiveTab] = useState<"profile" | "grades" | "security">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "grades" | "security" | "notifications">("profile");
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [notificationLog, setNotificationLog] = useState<NotificationLogItem[]>([]);
+  const [notificationLoading, setNotificationLoading] = useState(false);
 
   const loadStudents = async () => {
     try {
@@ -117,6 +126,30 @@ export default function AdminStudentsPage() {
     if (typeof window === "undefined") return;
     setLeaderboardOpen(window.localStorage.getItem("admin_gpa_open") === "true");
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== "notifications" || !detailStudent) return;
+    let alive = true;
+    setNotificationLoading(true);
+    void apiFetch<{ data?: NotificationLogItem[] } | NotificationLogItem[]>(
+      `/admin/notification-log?userId=${encodeURIComponent(detailStudent.id)}`
+    )
+      .then((payload) => {
+        if (!alive) return;
+        const rows = Array.isArray(payload) ? payload : payload.data ?? [];
+        setNotificationLog(rows.slice(0, 20));
+      })
+      .catch(() => {
+        if (alive) setNotificationLog([]);
+      })
+      .finally(() => {
+        if (alive) setNotificationLoading(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [activeTab, detailStudent]);
 
   const onCreate = async (event: FormEvent) => {
     event.preventDefault();
@@ -840,7 +873,7 @@ export default function AdminStudentsPage() {
             </div>
             <div className="space-y-5 p-6">
               <div className="mb-4 flex border-b border-slate-100 dark:border-slate-700">
-                {(["profile", "grades", "security"] as const).map((tab) => (
+                {(["profile", "grades", "security", "notifications"] as const).map((tab) => (
                   <button
                     key={tab}
                     type="button"
@@ -962,7 +995,7 @@ export default function AdminStudentsPage() {
                       ))
                   )}
                 </div>
-              ) : (
+              ) : activeTab === "security" ? (
                 <div className="space-y-4">
                   <div className="campus-card space-y-3 p-4">
                     <div className="flex items-center justify-between gap-3">
@@ -1006,6 +1039,34 @@ export default function AdminStudentsPage() {
                       </button>
                     ) : null}
                   </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {notificationLoading ? (
+                    <p className="text-sm text-slate-400">Loading notification log…</p>
+                  ) : notificationLog.length === 0 ? (
+                    <p className="text-sm text-slate-400">No notification records yet.</p>
+                  ) : (
+                    notificationLog.map((item) => (
+                      <div key={item.id} className="rounded-lg border border-slate-100 px-3 py-2 dark:border-slate-700">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{item.subject || "—"}</p>
+                            <p className="mt-1 text-xs text-slate-400">{new Date(item.sentAt).toLocaleString()}</p>
+                          </div>
+                          <span
+                            className={`campus-chip text-xs ${
+                              item.type === "email"
+                                ? "border-blue-200 bg-blue-50 text-blue-700"
+                                : "border-slate-200 bg-slate-50 text-slate-700"
+                            }`}
+                          >
+                            {item.type}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>

@@ -49,6 +49,7 @@ export default async function HistoryPage() {
             <div className="flex items-center gap-3">
               <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
               <span className="text-xs font-bold uppercase tracking-widest text-slate-400">{name}</span>
+              {/* 下载成绩单按钮在 client island 内使用 window.open + print。 */}
               <TermReportButton studentName={studentName} termName={name} items={items} />
               <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
             </div>

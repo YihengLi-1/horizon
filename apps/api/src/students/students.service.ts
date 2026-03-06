@@ -5,6 +5,7 @@ import { PrismaService } from "../common/prisma.service";
 import { ChangePasswordInput, UpdateProfileInput } from "@sis/shared";
 import { toDateOrNull } from "../common/grade.utils";
 import { AuditService } from "../audit/audit.service";
+import { apiCache } from "../common/cache";
 import { verifyPasswordHash } from "../common/password-hash";
 
 const GRADE_POINTS: Record<string, number> = {
@@ -21,6 +22,26 @@ const GRADE_POINTS: Record<string, number> = {
   D: 1.0,
   "D-": 0.7,
   F: 0.0
+};
+
+type TranscriptEnrollment = Prisma.EnrollmentGetPayload<{
+  include: {
+    term: true;
+    section: {
+      include: {
+        course: true;
+      };
+    };
+  };
+}>;
+
+type TranscriptTermGroup = {
+  termId: string;
+  termName: string;
+  termStartDate: string;
+  enrollments: TranscriptEnrollment[];
+  semesterGpa: number | null;
+  cumulativeGpa: number | null;
 };
 
 @Injectable()
@@ -68,6 +89,7 @@ export class StudentsService {
         .slice(0, 10)
         .map((enrollment) => ({
           id: enrollment.id,
+          createdAt: enrollment.createdAt.toISOString(),
           type:
             enrollment.status === "ENROLLED"
               ? "success"
@@ -101,7 +123,7 @@ export class StudentsService {
 
       if (!student) return [];
 
-      return await this.prisma.enrollment.findMany({
+      const rows = await this.prisma.enrollment.findMany({
         where: {
           studentId: student.id,
           deletedAt: null,
@@ -117,6 +139,48 @@ export class StudentsService {
         },
         orderBy: [{ term: { startDate: "desc" } }, { updatedAt: "desc" }]
       });
+
+      const byTerm = new Map<string, { termName: string; termStartDate: string; enrollments: TranscriptEnrollment[] }>();
+      for (const row of rows) {
+        const bucket = byTerm.get(row.termId) ?? {
+          termName: row.term.name,
+          termStartDate: row.term.startDate.toISOString(),
+          enrollments: []
+        };
+        bucket.enrollments.push(row);
+        byTerm.set(row.termId, bucket);
+      }
+
+      const groups = [...byTerm.entries()]
+        .map(([termId, value]) => ({ termId, ...value }))
+        .sort((a, b) => new Date(a.termStartDate).getTime() - new Date(b.termStartDate).getTime());
+
+      let cumulativeWeighted = 0;
+      let cumulativeCredits = 0;
+
+      const transcript = groups.map<TranscriptTermGroup>((group) => {
+        const semesterGpa = this.computeGpa(group.enrollments);
+
+        for (const enrollment of group.enrollments) {
+          if (!enrollment.finalGrade) continue;
+          const points = GRADE_POINTS[enrollment.finalGrade];
+          if (points === undefined) continue;
+          cumulativeWeighted += points * enrollment.section.credits;
+          cumulativeCredits += enrollment.section.credits;
+        }
+
+        return {
+          termId: group.termId,
+          termName: group.termName,
+          termStartDate: group.termStartDate,
+          enrollments: group.enrollments,
+          semesterGpa,
+          cumulativeGpa:
+            cumulativeCredits > 0 ? Math.round((cumulativeWeighted / cumulativeCredits) * 1000) / 1000 : null
+        };
+      });
+
+      return transcript.reverse();
     } catch {
       return [];
     }
@@ -164,64 +228,78 @@ export class StudentsService {
     });
   }
 
-  async getRecommendedSections(userId: string) {
-    const existing = await this.prisma.enrollment.findMany({
+  async getPublicAnnouncements(audience?: string) {
+    const normalizedAudience = audience?.trim().toUpperCase();
+    return this.prisma.announcement.findMany({
       where: {
-        studentId: userId,
-        deletedAt: null,
-        status: { in: ["ENROLLED", "WAITLISTED", "COMPLETED"] }
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        ...(normalizedAudience ? { audience: { in: [normalizedAudience, "ALL"] } } : {})
       },
-      include: {
-        section: {
-          include: {
-            course: true
+      orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
+      take: 10
+    });
+  }
+
+  async getRecommendedSections(userId: string) {
+    return apiCache.getOrSet(`student:recommended:${userId}`, 120_000, async () => {
+      const existing = await this.prisma.enrollment.findMany({
+        where: {
+          studentId: userId,
+          deletedAt: null,
+          status: { in: ["ENROLLED", "WAITLISTED", "COMPLETED"] }
+        },
+        include: {
+          section: {
+            include: {
+              course: true
+            }
           }
         }
+      });
+
+      const deptCounts = new Map<string, number>();
+      const seenCourseIds = new Set<string>();
+      for (const enrollment of existing) {
+        seenCourseIds.add(enrollment.section.courseId);
+        const dept = enrollment.section.course.code.slice(0, 2).toUpperCase();
+        deptCounts.set(dept, (deptCounts.get(dept) ?? 0) + 1);
       }
-    });
 
-    const deptCounts = new Map<string, number>();
-    const seenCourseIds = new Set<string>();
-    for (const enrollment of existing) {
-      seenCourseIds.add(enrollment.section.courseId);
-      const dept = enrollment.section.course.code.slice(0, 2).toUpperCase();
-      deptCounts.set(dept, (deptCounts.get(dept) ?? 0) + 1);
-    }
+      const primaryDept = [...deptCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+      if (!primaryDept) return [];
 
-    const primaryDept = [...deptCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
-    if (!primaryDept) return [];
-
-    const sections = await this.prisma.section.findMany({
-      where: {
-        course: {
-          deletedAt: null,
-          code: {
-            startsWith: primaryDept,
-            mode: "insensitive"
+      const sections = await this.prisma.section.findMany({
+        where: {
+          course: {
+            deletedAt: null,
+            code: {
+              startsWith: primaryDept,
+              mode: "insensitive"
+            }
+          },
+          enrollments: {
+            none: {
+              studentId: userId,
+              deletedAt: null,
+              status: { in: ["ENROLLED", "WAITLISTED", "COMPLETED"] }
+            }
           }
         },
-        enrollments: {
-          none: {
-            studentId: userId,
-            deletedAt: null,
-            status: { in: ["ENROLLED", "WAITLISTED", "COMPLETED"] }
+        include: {
+          course: true,
+          meetingTimes: true,
+          enrollments: {
+            where: {
+              deletedAt: null,
+              status: "ENROLLED"
+            }
           }
-        }
-      },
-      include: {
-        course: true,
-        meetingTimes: true,
-        enrollments: {
-          where: {
-            deletedAt: null,
-            status: "ENROLLED"
-          }
-        }
-      },
-      take: 6
-    });
+        },
+        take: 6
+      });
 
-    return sections.filter((section) => !seenCourseIds.has(section.courseId)).slice(0, 6);
+      return sections.filter((section) => !seenCourseIds.has(section.courseId)).slice(0, 6);
+    });
   }
 
   async rateSection(userId: string, sectionId: string, rating: number, comment?: string) {

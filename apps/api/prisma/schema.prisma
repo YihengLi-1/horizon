@@ -48,6 +48,7 @@ model User {
   enrollments             Enrollment[]             @relation("StudentEnrollments")
   cartItems               CartItem[]               @relation("StudentCartItems")
   ratings                 CourseRating[]
+  notificationLogs        NotificationLog[]
   auditLogs               AuditLog[]               @relation("AuditActor")
 
   @@index([role, deletedAt])
@@ -276,6 +277,19 @@ model Announcement {
 
   @@index([expiresAt])
   @@index([audience])
+}
+
+model NotificationLog {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  type      String
+  subject   String
+  body      String   @db.Text
+  sentAt    DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sentAt])
 }
 
 model SystemSetting {

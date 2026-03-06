@@ -8,6 +8,7 @@ import {
   buildWaitlistPromotionEmail
 } from "../mail/templates/notification.templates";
 import { StructuredLogger } from "../common/logger";
+import { PrismaService } from "../common/prisma.service";
 
 type MailEnvelope = {
   to: string;
@@ -49,6 +50,10 @@ export class NotificationsService {
     lastFailureReason: null
   };
 
+  constructor(private readonly prisma: PrismaService) {
+    this.health.deliveryActive = Boolean(this.transporter);
+  }
+
   private resolveEnabled(): boolean {
     const raw = (process.env.MAIL_ENABLED || "").trim().toLowerCase();
     if (raw === "true") return true;
@@ -78,10 +83,6 @@ export class NotificationsService {
     });
   }
 
-  constructor() {
-    this.health.deliveryActive = Boolean(this.transporter);
-  }
-
   getHealthSnapshot(): MailHealthSnapshot {
     return { ...this.health };
   }
@@ -108,6 +109,20 @@ export class NotificationsService {
       });
       this.health.sent += 1;
       this.health.lastSuccessAt = new Date().toISOString();
+      const user = await this.prisma.user.findFirst({
+        where: { email: envelope.to, deletedAt: null },
+        select: { id: true }
+      }).catch(() => null);
+      if (user?.id) {
+        await this.prisma.notificationLog.create({
+          data: {
+            userId: user.id,
+            type: "email",
+            subject: envelope.subject ?? "",
+            body: envelope.html || envelope.text || ""
+          }
+        }).catch(() => {});
+      }
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown email error";

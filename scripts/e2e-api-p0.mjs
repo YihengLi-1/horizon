@@ -83,6 +83,7 @@ class ApiClient {
 
 let passed = 0;
 let failed = 0;
+const SHOULD_BAIL = process.argv.includes('--bail');
 
 async function step(label, fn) {
   process.stdout.write(`${C.cyan}→${C.reset} ${label}\n`);
@@ -94,6 +95,9 @@ async function step(label, fn) {
     failed += 1;
     process.stdout.write(`${C.red}✗${C.reset} ${label}\n`);
     process.stdout.write(`${C.yellow}${String(error instanceof Error ? error.message : error)}${C.reset}\n`);
+    if (SHOULD_BAIL) {
+      process.exit(1);
+    }
   }
 }
 
@@ -217,7 +221,31 @@ async function main() {
     assert.ok(res.json?.openapi, 'Missing openapi key');
   });
 
-  process.stdout.write(`\nSummary: ${passed} passed, ${failed} failed\n`);
+  await step('13. GET /students/recommended → array', async () => {
+    const res = await student.request('/students/recommended');
+    const data = unwrapData(res);
+    assert.ok(Array.isArray(data), 'Expected array');
+  });
+
+  await step('14. GET /admin/stats/enrollment-trend?days=7 → array', async () => {
+    const res = await admin.request('/admin/stats/enrollment-trend?days=7');
+    const data = unwrapData(res);
+    assert.ok(Array.isArray(data), 'Expected array');
+  });
+
+  await step('15. GET /admin/stats/top-sections → array', async () => {
+    const res = await admin.request('/admin/stats/top-sections');
+    const data = unwrapData(res);
+    assert.ok(Array.isArray(data), 'Expected array');
+  });
+
+  await step('16. GET /ops/version → has version', async () => {
+    const res = await admin.request('/ops/version');
+    assert.equal(res.status, 200, `Expected 200, got ${res.status}`);
+    assert.equal(typeof res.json?.version, 'string', 'Missing version key');
+  });
+
+  process.stdout.write(`\nSummary: ${passed}/16 passed, ${failed} failed\n`);
   if (failed > 0) {
     process.exitCode = 1;
   }

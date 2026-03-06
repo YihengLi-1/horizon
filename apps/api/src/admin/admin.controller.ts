@@ -18,7 +18,9 @@ import { getWebhooks, registerWebhook, removeWebhook } from "../common/webhook";
 import { ZodValidationPipe } from "../common/zod-validation.pipe";
 import { BulkNotifyDto } from "./dto/bulk-notify.dto";
 import { CreateAnnouncementDto } from "./dto/create-announcement.dto";
+import { UpdateCourseDto } from "./dto/update-course.dto";
 import { UpdateGradeDto } from "./dto/update-grade.dto";
+import { UpdateSectionDto } from "./dto/update-section.dto";
 import { AdminService } from "./admin.service";
 
 @Controller("admin")
@@ -98,7 +100,7 @@ export class AdminController {
 
   @Patch("courses/:id")
   @RequireAdminPermissions("courses:write")
-  async updateCourse(@Param("id") id: string, @Body() body: unknown, @CurrentUser() user: { userId: string }) {
+  async updateCourse(@Param("id") id: string, @Body() body: UpdateCourseDto, @CurrentUser() user: { userId: string }) {
     return ok(await this.adminService.updateCourse(id, body as never, user.userId));
   }
 
@@ -125,7 +127,7 @@ export class AdminController {
 
   @Patch("sections/:id")
   @RequireAdminPermissions("sections:write")
-  async updateSection(@Param("id") id: string, @Body() body: unknown, @CurrentUser() user: { userId: string }) {
+  async updateSection(@Param("id") id: string, @Body() body: UpdateSectionDto, @CurrentUser() user: { userId: string }) {
     return ok(await this.adminService.updateSection(id, body as never, user.userId));
   }
 
@@ -361,6 +363,12 @@ export class AdminController {
   @RequireAdminPermissions("dashboard:read")
   async getGpaDistribution() {
     return ok(await this.adminService.getGpaDistribution());
+  }
+
+  @Get("notification-log")
+  @RequireAdminPermissions("audit:read")
+  async getNotificationLog(@Query("userId") userId?: string, @Query("page") page = "1") {
+    return ok(await this.adminService.getNotificationLog(userId, parseInt(page, 10) || 1));
   }
 
   @Get("audit-logs")

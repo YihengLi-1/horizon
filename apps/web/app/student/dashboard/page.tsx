@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { serverApi } from "@/lib/server-api";
 import { requireRole } from "@/lib/server-auth";
+import PinnedAnnouncements from "./PinnedAnnouncements";
 import QuickCoursesPanel from "./QuickCoursesPanel";
 import RecommendedCourses from "./RecommendedCourses";
 
@@ -520,12 +521,7 @@ export default async function StudentDashboardPage() {
         )}
       </section>
 
-      {announcements.slice(0, 3).map((announcement) => (
-        <div key={announcement.id} className={`campus-card p-4 ${announcement.pinned ? "border-l-4 border-l-amber-400" : ""}`}>
-          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{announcement.title}</p>
-          <p className="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{announcement.body}</p>
-        </div>
-      ))}
+      <PinnedAnnouncements announcements={announcements.slice(0, 3)} />
 
       {nextAction ? (
         <div className="campus-card flex items-center gap-4 p-4">

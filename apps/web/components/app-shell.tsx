@@ -82,6 +82,7 @@ const adminItems: NavItem[] = [
   { href: "/admin/waitlist", label: "Waitlist", icon: <Clock className={iconClass} /> },
   { href: "/admin/invite-codes", label: "Invite Codes", icon: <KeyRound className={iconClass} /> },
   { href: "/admin/announcements", label: "Announcements", icon: <Megaphone className={iconClass} /> },
+  { href: "/admin/notifications", label: "Notifications", icon: <Bell className={iconClass} /> },
   { href: "/admin/audit-logs", label: "Audit Logs", icon: <ScrollText className={iconClass} /> },
   { href: "/admin/reports", label: "Reports", icon: <BarChart3 className={iconClass} /> },
   { href: "/admin/import", label: "Import CSV", icon: <Upload className={iconClass} /> },
@@ -139,7 +140,7 @@ export function AppShell({
             { label: "Overview", hrefs: ["/admin/dashboard"] },
             { label: "Data", hrefs: ["/admin/students", "/admin/courses", "/admin/sections", "/admin/terms"] },
             { label: "Operations", hrefs: ["/admin/enrollments", "/admin/sessions", "/admin/waitlist"] },
-            { label: "Tools", hrefs: ["/admin/invite-codes", "/admin/announcements", "/admin/import", "/admin/audit-logs", "/admin/reports", "/admin/settings"] }
+            { label: "Tools", hrefs: ["/admin/invite-codes", "/admin/announcements", "/admin/notifications", "/admin/import", "/admin/audit-logs", "/admin/reports", "/admin/settings"] }
           ]
         : [
             { label: "Overview", hrefs: ["/student/dashboard", "/student/notifications"] },

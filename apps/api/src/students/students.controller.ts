@@ -4,6 +4,7 @@ import { AdminPermissionGuard } from "../common/admin-permission.guard";
 import { RequireAdminPermissions } from "../common/admin-permission.decorator";
 import { CurrentUser } from "../common/current-user.decorator";
 import { JwtAuthGuard } from "../common/jwt-auth.guard";
+import { Public } from "../common/public.decorator";
 import { Roles } from "../common/roles.decorator";
 import { RolesGuard } from "../common/roles.guard";
 import { ok } from "../common/response";
@@ -44,6 +45,12 @@ export class StudentsController {
   @Get("announcements")
   async getAnnouncements(@CurrentUser() user: { role: "STUDENT" | "ADMIN" }) {
     return ok(await this.studentsService.getAnnouncements(user.role));
+  }
+
+  @Public()
+  @Get("announcements/public")
+  async getPublicAnnouncements(@Query("audience") audience?: string) {
+    return ok(await this.studentsService.getPublicAnnouncements(audience));
   }
 
   @Roles("STUDENT")

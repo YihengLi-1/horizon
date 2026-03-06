@@ -35,6 +35,14 @@ type TranscriptRow = {
   };
 };
 
+type TranscriptTerm = {
+  termId: string;
+  termName: string;
+  semesterGpa: number | null;
+  cumulativeGpa: number | null;
+  enrollments: TranscriptRow[];
+};
+
 type EnrollmentRow = {
   status: string;
   section?: {
@@ -285,10 +293,12 @@ export default function StudentProfilePage() {
   useEffect(() => {
     let alive = true;
     void Promise.all([
-      apiFetch<TranscriptRow[]>("/students/transcript").catch(() => [] as TranscriptRow[]),
+      apiFetch<TranscriptTerm[]>("/students/transcript").catch(() => [] as TranscriptTerm[]),
       apiFetch<EnrollmentRow[]>("/registration/enrollments").catch(() => [] as EnrollmentRow[])
-    ]).then(([transcript, enrollments]) => {
+    ]).then(([transcriptTerms, enrollments]) => {
       if (!alive) return;
+
+      const transcript = transcriptTerms.flatMap((term) => term.enrollments ?? []);
 
       const gradePoints: Record<string, number> = {
         "A+": 4,

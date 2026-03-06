@@ -567,11 +567,19 @@ export default function CoursesPage() {
                     <td className="px-4 py-3">
                       <span className="font-mono text-sm font-semibold text-slate-900">{course.code}</span>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">
+                    <td
+                      className="px-4 py-3 text-slate-700"
+                      onDoubleClick={() => startEdit(course)}
+                      title="Double-click to edit title"
+                    >
                       <p className="font-medium">{course.title}</p>
                       {course.description ? <p className="mt-0.5 text-xs text-slate-400 line-clamp-1">{course.description}</p> : null}
                     </td>
-                    <td className="px-4 py-3">
+                    <td
+                      className="px-4 py-3"
+                      onDoubleClick={() => startEdit(course)}
+                      title="Double-click to edit credits"
+                    >
                       <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${
                         course.credits >= 4
                           ? "border-violet-200 bg-violet-50 text-violet-700"

@@ -8,6 +8,7 @@ interface Notif {
   type: string;
   title: string;
   body: string;
+  createdAt?: string;
 }
 
 const TYPE_CLS: Record<string, string> = {
@@ -20,6 +21,7 @@ export default function NotificationsPage() {
   const [items, setItems] = useState<Notif[]>([]);
 
   useEffect(() => {
+    window.localStorage.setItem("notif_last_seen", String(Date.now()));
     void apiFetch<Notif[]>("/students/notifications")
       .then((data) => setItems(data ?? []))
       .catch(() => {});

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useToast } from "@/components/Toast";
 import { apiFetch } from "@/lib/api";
 
 type Enrollment = {
@@ -165,6 +166,7 @@ function detectConflicts(sections: Section[]): Map<string, string[]> {
 const PAGE_SIZE = 25;
 
 export default function AdminSectionsPage() {
+  const toast = useToast();
   const [sections, setSections] = useState<Section[]>([]);
   const [terms, setTerms] = useState<Term[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -589,14 +591,16 @@ export default function AdminSectionsPage() {
     try {
       setCreateError("");
       setCreateSuccess("");
-      await apiFetch(`/admin/sections/${sectionId}/clone`, {
+      const cloned = await apiFetch<{ id: string }>(`/admin/sections/${sectionId}/clone`, {
         method: "POST",
         body: JSON.stringify({})
       });
       setCreateSuccess("Section cloned successfully.");
+      toast(`已复制 Section，新 ID: ${cloned.id}`, "success");
       await loadSections();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : "Clone failed");
+      toast(err instanceof Error ? err.message : "Clone failed", "error");
     }
   };
 

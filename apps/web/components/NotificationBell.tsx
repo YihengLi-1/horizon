@@ -8,6 +8,7 @@ interface Notif {
   type: "success" | "warning" | "info";
   title: string;
   body: string;
+  createdAt?: string;
 }
 
 const TYPE_CLS = {
@@ -19,8 +20,17 @@ const TYPE_CLS = {
 export default function NotificationBell({ apiBase }: { apiBase: string }) {
   const [items, setItems] = useState<Notif[]>([]);
   const [open, setOpen] = useState(false);
-  const [seen, setSeen] = useState<Set<string>>(new Set());
+  const [lastSeenAt, setLastSeenAt] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      const raw = Number(window.localStorage.getItem("notif_last_seen") ?? "0");
+      setLastSeenAt(Number.isFinite(raw) ? raw : 0);
+    } catch {
+      setLastSeenAt(0);
+    }
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -60,14 +70,24 @@ export default function NotificationBell({ apiBase }: { apiBase: string }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const unread = items.filter((item) => !seen.has(item.id)).length;
+  const unread = items.filter((item) => {
+    const createdAt = item.createdAt ? Date.parse(item.createdAt) : 0;
+    return createdAt > lastSeenAt;
+  }).length;
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => {
-          setOpen((current) => !current);
-          setSeen(new Set(items.map((item) => item.id)));
+          setOpen((current) => {
+            const nextOpen = !current;
+            if (nextOpen) {
+              const ts = Date.now();
+              window.localStorage.setItem("notif_last_seen", String(ts));
+              setLastSeenAt(ts);
+            }
+            return nextOpen;
+          });
         }}
         aria-label={`Notifications${unread ? ` (${unread} unread)` : ""}`}
         className="relative flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
