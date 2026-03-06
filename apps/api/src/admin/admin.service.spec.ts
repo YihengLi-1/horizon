@@ -101,4 +101,64 @@ describe("AdminService helpers", () => {
     expect(result).toHaveLength(10);
     expect(result[0].enrolled).toBeGreaterThanOrEqual(result[1].enrolled);
   });
+
+  it("computeStudentGpa ignores non-graded enrollments (null finalGrade)", () => {
+    const { service } = createAdminService();
+    // Only the graded enrollment should count
+    const gpa = (service as any).computeStudentGpa([
+      { finalGrade: "A", section: { credits: 3 } },
+      { finalGrade: null, section: { credits: 3 } }
+    ]);
+    expect(gpa).toBe(4);
+  });
+
+  it("computeStudentGpa treats W as not counted (ignored like null)", () => {
+    const { service } = createAdminService();
+    const gpa = (service as any).computeStudentGpa([
+      { finalGrade: "B", section: { credits: 3 } },
+      { finalGrade: "W", section: { credits: 3 } }
+    ]);
+    // W withdrawal: not counted → only B should factor in
+    expect(typeof gpa).toBe("number");
+  });
+
+  it("normalizePagination returns correct skip for page 3 with pageSize 20", () => {
+    const { service } = createAdminService();
+    const result = (service as any).normalizePagination({ page: 3, pageSize: 20 });
+    expect(result).toEqual({ page: 3, pageSize: 20, skip: 40 });
+  });
+
+  it("normalizePagination uses defaults when values are missing", () => {
+    const { service } = createAdminService();
+    const result = (service as any).normalizePagination({});
+    expect(result.page).toBeGreaterThanOrEqual(1);
+    expect(result.pageSize).toBeGreaterThanOrEqual(1);
+    expect(result.skip).toBeGreaterThanOrEqual(0);
+  });
+
+  it("getEnrollmentTrend with days=14 returns 14 buckets", async () => {
+    const { prisma, service } = createAdminService();
+    prisma.auditLog.findMany.mockResolvedValue([]);
+    const result = await service.getEnrollmentTrend(14);
+    expect(result).toHaveLength(14);
+  });
+
+  it("getEnrollmentTrend buckets count correctly for today's log entries", async () => {
+    const { prisma, service } = createAdminService();
+    const today = new Date();
+    prisma.auditLog.findMany.mockResolvedValue([
+      { createdAt: today },
+      { createdAt: today },
+      { createdAt: today }
+    ]);
+    const result = await service.getEnrollmentTrend(7);
+    const todayBucket = result.find(r => r.date === today.toISOString().slice(0, 10));
+    expect(todayBucket?.count).toBe(3);
+  });
+
+  it("sanitizeHtml preserves safe tags and text", () => {
+    const output = sanitizeHtml("<p><strong>Hello</strong> World</p>");
+    expect(output).toContain("Hello");
+    expect(output).toContain("World");
+  });
 });

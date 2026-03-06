@@ -300,4 +300,64 @@ describe("AuthService", () => {
       service.refresh({ cookies: { "sis-refresh": "expired-token" } } as any, createResponse())
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
+
+  it("register rejects when invite code is expired by date", async () => {
+    const { prisma, service } = createAuthService();
+    prisma.inviteCode.findUnique.mockResolvedValue({
+      id: "invite-expired",
+      code: "EXPIRED-1",
+      active: true,
+      usedAt: null,
+      expiresAt: new Date(Date.now() - 60_000), // expired
+      maxUses: 5,
+      usedCount: 0
+    });
+
+    await expect(
+      service.register(
+        {
+          email: "new@sis.test",
+          legalName: "New User",
+          studentId: "S2001",
+          password: "CorrectPass1!",
+          inviteCode: "EXPIRED-1"
+        } as never,
+        createRequest()
+      )
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("register rejects when invite code not found", async () => {
+    const { prisma, service } = createAuthService();
+    prisma.inviteCode.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.register(
+        {
+          email: "new@sis.test",
+          legalName: "New User",
+          studentId: "S2002",
+          password: "CorrectPass1!",
+          inviteCode: "NONEXISTENT"
+        } as never,
+        createRequest()
+      )
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("login rejects non-existent user", async () => {
+    const { prisma, service } = createAuthService();
+    prisma.user.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.login({ identifier: "ghost@sis.test", password: "Pass1!" } as never, createRequest(), createResponse())
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it("refresh rejects when no refresh token cookie is provided", async () => {
+    const { service } = createAuthService();
+    await expect(
+      service.refresh({ cookies: {} } as any, createResponse())
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
 });
