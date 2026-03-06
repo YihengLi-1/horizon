@@ -247,7 +247,7 @@ export class AdminController {
   }
 
   @Post("webhooks")
-  @RequireAdminPermissions("audit:write")
+  @RequireAdminPermissions("announcements:write")
   async createWebhook(@Body() body: { url: string; events: string[]; secret?: string }) {
     return ok({
       id: registerWebhook(body.url, body.events, body.secret ?? ""),
@@ -256,7 +256,7 @@ export class AdminController {
   }
 
   @Delete("webhooks/:id")
-  @RequireAdminPermissions("audit:write")
+  @RequireAdminPermissions("announcements:write")
   async deleteWebhook(@Param("id") id: string) {
     removeWebhook(id);
     return ok({ removed: true });

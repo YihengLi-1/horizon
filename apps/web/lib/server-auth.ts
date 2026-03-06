@@ -18,7 +18,18 @@ type Me = {
 };
 
 function getServerApiBaseUrl(): string {
-  return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+  return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+}
+
+function getServerApiBaseUrls(): string[] {
+  const configured = getServerApiBaseUrl().replace(/\/+$/, "");
+  const urls = [configured];
+  if (configured.includes("localhost")) {
+    urls.push(configured.replace("localhost", "127.0.0.1"));
+  } else if (configured.includes("127.0.0.1")) {
+    urls.push(configured.replace("127.0.0.1", "localhost"));
+  }
+  return [...new Set(urls)];
 }
 
 export async function getMeServer(): Promise<Me | null> {
@@ -27,22 +38,31 @@ export async function getMeServer(): Promise<Me | null> {
     .getAll()
     .map((c) => `${c.name}=${c.value}`)
     .join("; ");
-  const res = await fetch(`${getServerApiBaseUrl()}/auth/me`, {
-    method: "GET",
-    headers: cookieHeader ? { cookie: cookieHeader } : undefined,
-    cache: "no-store"
-  });
 
-  if (!res.ok) {
-    return null;
+  for (const baseUrl of getServerApiBaseUrls()) {
+    try {
+      const res = await fetch(`${baseUrl}/auth/me`, {
+        method: "GET",
+        headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+        cache: "no-store"
+      });
+
+      if (!res.ok) {
+        return null;
+      }
+
+      const json = await res.json();
+      if (!json?.success) {
+        return null;
+      }
+
+      return json.data as Me;
+    } catch {
+      continue;
+    }
   }
 
-  const json = await res.json();
-  if (!json?.success) {
-    return null;
-  }
-
-  return json.data as Me;
+  return null;
 }
 
 export async function requireRole(role: "STUDENT" | "ADMIN"): Promise<Me> {
