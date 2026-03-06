@@ -34,6 +34,9 @@ model User {
   passwordHash            String
   role                    Role
   emailVerifiedAt         DateTime?
+  lastLoginAt             DateTime?
+  loginAttempts           Int                      @default(0)
+  lockedUntil             DateTime?
   deletedAt               DateTime?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
@@ -72,6 +75,7 @@ model InviteCode {
   expiresAt      DateTime?
   maxUses        Int?
   usedCount      Int       @default(0)
+  usedAt         DateTime?
   active         Boolean   @default(true)
   createdAt      DateTime  @default(now())
   issuedBy       User?     @relation("InviteIssuer", fields: [issuedByUserId], references: [id])

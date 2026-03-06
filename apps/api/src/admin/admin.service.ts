@@ -1443,6 +1443,25 @@ export class AdminService {
     return setting;
   }
 
+  async getUserLoginHistory(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        role: true,
+        lastLoginAt: true,
+        loginAttempts: true,
+        lockedUntil: true
+      }
+    });
+
+    if (!user) {
+      throw new NotFoundException({ code: "USER_NOT_FOUND", message: "User not found" });
+    }
+
+    return user;
+  }
+
   async createAnnouncement(data: {
     title: string;
     body: string;

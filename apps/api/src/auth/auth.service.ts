@@ -1,4 +1,11 @@
-import { BadRequestException, HttpException, HttpStatus, Injectable, UnauthorizedException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  UnauthorizedException
+} from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Role } from "@prisma/client";
 import argon2 from "argon2";
@@ -211,6 +218,9 @@ export class AuthService {
     if (!invite || !invite.active) {
       throw new BadRequestException({ code: "INVALID_INVITE", message: "Invite code is invalid" });
     }
+    if (invite.usedAt) {
+      throw new BadRequestException({ code: "INVITE_USED", message: "Invite code already used" });
+    }
     if (invite.expiresAt && invite.expiresAt < new Date()) {
       throw new BadRequestException({ code: "INVITE_EXPIRED", message: "Invite code expired" });
     }
@@ -246,7 +256,10 @@ export class AuthService {
 
     await this.prisma.inviteCode.update({
       where: { id: invite.id },
-      data: { usedCount: { increment: 1 } }
+      data: {
+        usedCount: { increment: 1 },
+        usedAt: new Date()
+      }
     });
 
     const token = randomBytes(32).toString("hex");
@@ -329,9 +342,28 @@ export class AuthService {
       throw new UnauthorizedException({ code: "INVALID_CREDENTIALS", message: "Invalid credentials" });
     }
 
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const retryAfterSeconds = Math.ceil((user.lockedUntil.getTime() - now) / 1000);
+      await this.auditLoginFailure(req, input.identifier, "account_locked");
+      throw new ForbiddenException({
+        code: "ACCOUNT_LOCKED",
+        message: "Account locked, try again later",
+        details: { retryAfterSeconds, lockedUntil: user.lockedUntil.toISOString() }
+      });
+    }
+
     const validPassword = await verifyPasswordHash(user.passwordHash, input.password);
     if (!validPassword) {
       this.recordLoginFailure(loginAttemptKey, now);
+      const nextLoginAttempts = (user.loginAttempts ?? 0) + 1;
+      const lockedUntil = nextLoginAttempts >= 5 ? new Date(now + 15 * 60 * 1000) : null;
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          loginAttempts: nextLoginAttempts,
+          lockedUntil
+        }
+      });
       await this.auditLoginFailure(req, input.identifier, "invalid_credentials");
       throw new UnauthorizedException({ code: "INVALID_CREDENTIALS", message: "Invalid credentials" });
     }
@@ -364,13 +396,23 @@ export class AuthService {
     this.setAuthCookie(res, token);
     this.setRefreshCookie(res, refreshToken);
     this.setCsrfCookie(res, randomBytes(32).toString("hex"));
-    await this.prisma.refreshToken.create({
-      data: {
-        userId: user.id,
-        token: refreshToken,
-        expiresAt: new Date(Date.now() + REFRESH_EXPIRES_MS)
-      }
-    });
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          lastLoginAt: new Date(),
+          loginAttempts: 0,
+          lockedUntil: null
+        }
+      }),
+      this.prisma.refreshToken.create({
+        data: {
+          userId: user.id,
+          token: refreshToken,
+          expiresAt: new Date(Date.now() + REFRESH_EXPIRES_MS)
+        }
+      })
+    ]);
 
     await this.auditService.log({
       actorUserId: user.id,
@@ -395,14 +437,11 @@ export class AuthService {
   async logout(userId: string, sessionId: string | undefined, req: Request, res: Response) {
     this.clearAuthCookies(res);
     revokeActiveSession(sessionId);
-    const refreshToken = req.cookies?.[REFRESH_COOKIE];
-    if (typeof refreshToken === "string" && refreshToken.length > 0) {
-      await this.prisma.refreshToken.deleteMany({
-        where: {
-          userId,
-          token: refreshToken
-        }
-      });
+    await this.prisma.refreshToken.deleteMany({ where: { userId } });
+    for (const [activeSessionId, session] of activeSessions.entries()) {
+      if (session.userId === userId) {
+        activeSessions.delete(activeSessionId);
+      }
     }
     await this.auditService.log({
       actorUserId: userId,
@@ -554,6 +593,53 @@ export class AuthService {
     });
 
     return { message: "Password reset successful" };
+  }
+
+  async changePassword(userId: string, oldPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null }
+    });
+    if (!user) {
+      throw new UnauthorizedException({ code: "USER_NOT_FOUND", message: "User not found" });
+    }
+
+    const validPassword = await verifyPasswordHash(user.passwordHash, oldPassword);
+    if (!validPassword) {
+      throw new UnauthorizedException({
+        code: "INVALID_CURRENT_PASSWORD",
+        message: "Current password is incorrect"
+      });
+    }
+
+    const passwordHash = await argon2.hash(newPassword);
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash }
+      }),
+      this.prisma.refreshToken.deleteMany({
+        where: { userId }
+      })
+    ]);
+
+    for (const [activeSessionId, session] of activeSessions.entries()) {
+      if (session.userId === userId) {
+        activeSessions.delete(activeSessionId);
+      }
+    }
+
+    return { message: "Password updated" };
+  }
+
+  async unlockAccount(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        loginAttempts: 0,
+        lockedUntil: null
+      }
+    });
+    return { unlocked: true };
   }
 
   async me(userId: string) {

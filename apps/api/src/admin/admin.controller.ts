@@ -315,6 +315,12 @@ export class AdminController {
     return ok(await this.adminService.updateUserRole(id, body.role, user.userId));
   }
 
+  @Get("users/:id/login-history")
+  @RequireAdminPermissions("students:read")
+  async getUserLoginHistory(@Param("id") id: string) {
+    return ok(await this.adminService.getUserLoginHistory(id));
+  }
+
   @Get("stats/registration")
   @RequireAdminPermissions("dashboard:read")
   async getRegistrationStats() {

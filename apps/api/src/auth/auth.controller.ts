@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { Request, Response } from "express";
 import { verifyEmailSchema } from "@sis/shared";
@@ -9,6 +9,7 @@ import { CurrentUser } from "../common/current-user.decorator";
 import { Roles } from "../common/roles.decorator";
 import { RolesGuard } from "../common/roles.guard";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
+import { ChangePasswordDto } from "./dto/change-password.dto";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
@@ -81,6 +82,19 @@ export class AuthController {
   @Get("csrf-token")
   async csrfToken(@Res({ passthrough: true }) res: Response) {
     return ok(await this.authService.issueCsrfToken(res));
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch("change-password")
+  async changePassword(@CurrentUser() user: { userId: string }, @Body() body: ChangePasswordDto) {
+    return ok(await this.authService.changePassword(user.userId, body.oldPassword, body.newPassword));
+  }
+
+  @Post("unlock-account")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("ADMIN")
+  async unlockAccount(@Body() body: { userId: string }) {
+    return ok(await this.authService.unlockAccount(body.userId));
   }
 
   @Get("sessions")
