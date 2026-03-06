@@ -74,20 +74,20 @@ const studentItems: NavItem[] = [
 
 const adminItems: NavItem[] = [
   { href: "/admin/dashboard", label: "Dashboard", icon: <LayoutDashboard className={iconClass} /> },
-  { href: "/admin/sections", label: "Sections", icon: <ListChecks className={iconClass} /> },
-  { href: "/admin/terms", label: "Terms", icon: <CalendarRange className={iconClass} /> },
-  { href: "/admin/courses", label: "Courses", icon: <BookCopy className={iconClass} /> },
-  { href: "/admin/students", label: "Students", icon: <Users className={iconClass} /> },
-  { href: "/admin/enrollments", label: "Enrollments", icon: <GraduationCap className={iconClass} /> },
-  { href: "/admin/sessions", label: "Sessions", icon: <Shield className={iconClass} /> },
-  { href: "/admin/waitlist", label: "Waitlist", icon: <Clock className={iconClass} /> },
-  { href: "/admin/invite-codes", label: "Invite Codes", icon: <KeyRound className={iconClass} /> },
-  { href: "/admin/announcements", label: "Announcements", icon: <Megaphone className={iconClass} /> },
-  { href: "/admin/notifications", label: "Notifications", icon: <Bell className={iconClass} /> },
-  { href: "/admin/audit-logs", label: "Audit Logs", icon: <ScrollText className={iconClass} /> },
-  { href: "/admin/reports", label: "Reports", icon: <BarChart3 className={iconClass} /> },
-  { href: "/admin/import", label: "Import CSV", icon: <Upload className={iconClass} /> },
-  { href: "/admin/settings", label: "Settings", icon: <Settings className={iconClass} /> }
+  { href: "/admin/students", label: "学生", icon: <Users className={iconClass} /> },
+  { href: "/admin/courses", label: "课程", icon: <BookCopy className={iconClass} /> },
+  { href: "/admin/sections", label: "教学班", icon: <ListChecks className={iconClass} /> },
+  { href: "/admin/terms", label: "学期", icon: <CalendarRange className={iconClass} /> },
+  { href: "/admin/enrollments", label: "注册管理", icon: <GraduationCap className={iconClass} /> },
+  { href: "/admin/waitlist", label: "候补名单", icon: <Clock className={iconClass} /> },
+  { href: "/admin/announcements", label: "公告", icon: <Megaphone className={iconClass} /> },
+  { href: "/admin/invite-codes", label: "邀请码", icon: <KeyRound className={iconClass} /> },
+  { href: "/admin/import", label: "数据导入", icon: <Upload className={iconClass} /> },
+  { href: "/admin/reports", label: "报表", icon: <BarChart3 className={iconClass} /> },
+  { href: "/admin/audit-logs", label: "审计日志", icon: <ScrollText className={iconClass} /> },
+  { href: "/admin/notifications", label: "通知记录", icon: <Bell className={iconClass} /> },
+  { href: "/admin/sessions", label: "会话管理", icon: <Shield className={iconClass} /> },
+  { href: "/admin/settings", label: "系统设置", icon: <Settings className={iconClass} /> }
 ];
 
 const areaMeta: Record<AppArea, { label: string; items: NavItem[]; subtitle: string }> = {
@@ -138,10 +138,10 @@ export function AppShell({
     const groups: NavGroup[] =
       area === "admin"
         ? [
-            { label: "Overview", hrefs: ["/admin/dashboard"] },
-            { label: "Data", hrefs: ["/admin/students", "/admin/courses", "/admin/sections", "/admin/terms"] },
-            { label: "Operations", hrefs: ["/admin/enrollments", "/admin/sessions", "/admin/waitlist"] },
-            { label: "Tools", hrefs: ["/admin/invite-codes", "/admin/announcements", "/admin/notifications", "/admin/import", "/admin/audit-logs", "/admin/reports", "/admin/settings"] }
+            { label: "概览", hrefs: ["/admin/dashboard"] },
+            { label: "学术管理", hrefs: ["/admin/students", "/admin/courses", "/admin/sections", "/admin/terms"] },
+            { label: "注册管理", hrefs: ["/admin/enrollments", "/admin/waitlist"] },
+            { label: "系统", hrefs: ["/admin/announcements", "/admin/invite-codes", "/admin/import", "/admin/reports", "/admin/audit-logs", "/admin/notifications", "/admin/sessions", "/admin/settings"] }
           ]
         : [
             { label: "Overview", hrefs: ["/student/dashboard", "/student/notifications", "/student/announcements"] },
@@ -209,14 +209,14 @@ export function AppShell({
         aria-current={active ? "page" : undefined}
         className={`group flex items-center gap-3 rounded-r-lg border-l-2 px-3 py-2.5 text-sm no-underline transition ${
           active
-            ? "border-primary bg-primary/10 text-primary font-semibold"
+            ? "border-blue-500 bg-blue-50 text-blue-700 font-semibold dark:bg-blue-900/30 dark:text-blue-300"
             : "border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
         }`}
       >
         <span
           className={`inline-flex size-7 items-center justify-center rounded-md border ${
             active
-              ? "border-primary/30 bg-primary/10 text-primary"
+              ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300"
               : "border-slate-200 bg-white text-slate-500 group-hover:border-slate-300 group-hover:text-slate-700"
           }`}
         >

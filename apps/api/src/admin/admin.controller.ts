@@ -264,6 +264,12 @@ export class AdminController {
     return ok(await this.adminService.updateInviteCode(id, body as never, user.userId));
   }
 
+  @Delete("invite-codes/:id")
+  @RequireAdminPermissions("invite-codes:write")
+  async deleteInviteCode(@Param("id") id: string, @CurrentUser() user: { userId: string }) {
+    return ok(await this.adminService.deleteInviteCode(id, user.userId));
+  }
+
   @Get("announcements")
   @RequireAdminPermissions("announcements:read")
   async getAnnouncements() {
@@ -289,6 +295,12 @@ export class AdminController {
   @RequireAdminPermissions("announcements:write")
   async createAnnouncement(@Body() body: CreateAnnouncementDto) {
     return ok(await this.adminService.createAnnouncement(body));
+  }
+
+  @Patch("announcements/:id")
+  @RequireAdminPermissions("announcements:write")
+  async updateAnnouncement(@Param("id") id: string, @Body() body: Partial<CreateAnnouncementDto>) {
+    return ok(await this.adminService.updateAnnouncement(id, body));
   }
 
   @Delete("announcements/:id")
@@ -369,6 +381,18 @@ export class AdminController {
   @RequireAdminPermissions("audit:read")
   async getNotificationLog(@Query("userId") userId?: string, @Query("page") page = "1") {
     return ok(await this.adminService.getNotificationLog(userId, parseInt(page, 10) || 1));
+  }
+
+  @Get("data-quality")
+  @RequireAdminPermissions("dashboard:read")
+  async getDataQuality() {
+    return ok(await this.adminService.getDataQuality());
+  }
+
+  @Get("reports/summary")
+  @RequireAdminPermissions("dashboard:read")
+  async getReportsSummary() {
+    return ok(await this.adminService.getReportsSummary());
   }
 
   @Get("audit-logs")

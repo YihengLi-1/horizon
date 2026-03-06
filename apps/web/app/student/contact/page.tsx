@@ -1,18 +1,34 @@
 "use client";
 
 import { useState } from "react";
+import { useToast } from "@/components/Toast";
+import { apiFetch } from "@/lib/api";
 
 export default function ContactPage() {
-  const [form, setForm] = useState({ subject: "", message: "", category: "general" });
+  const toast = useToast();
+  const [form, setForm] = useState({ subject: "", message: "", category: "registration" });
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    setError("");
     setSending(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    setSent(true);
-    setSending(false);
+    try {
+      await apiFetch("/students/contact", {
+        method: "POST",
+        body: JSON.stringify(form)
+      });
+      setSent(true);
+      toast("您的消息已发送，我们将在 2 个工作日内回复", "success");
+    } catch (ex) {
+      const message = ex instanceof Error ? ex.message : "发送失败";
+      setError(message);
+      toast(message, "error");
+    } finally {
+      setSending(false);
+    }
   }
 
   if (sent) {
@@ -23,7 +39,7 @@ export default function ContactPage() {
             ✉️
           </div>
           <p className="text-lg font-semibold text-slate-800 dark:text-white">Message Sent!</p>
-          <p className="text-sm text-slate-500">Your advisor will respond within 1-2 business days.</p>
+          <p className="text-sm text-slate-500">您的消息已发送，我们将在 2 个工作日内回复。</p>
           <button type="button" onClick={() => setSent(false)} className="text-sm font-medium text-blue-600 hover:underline">
             Send another
           </button>
@@ -46,11 +62,10 @@ export default function ContactPage() {
             onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}
             className="campus-select w-full"
           >
-            <option value="general">General Inquiry</option>
-            <option value="grades">Grades / Appeals</option>
-            <option value="registration">Registration Help</option>
-            <option value="graduation">Graduation Requirements</option>
-            <option value="other">Other</option>
+            <option value="registration">课程注册问题</option>
+            <option value="grades">成绩问题</option>
+            <option value="technical">技术问题</option>
+            <option value="other">其他</option>
           </select>
         </div>
         <div className="space-y-1">
@@ -74,6 +89,7 @@ export default function ContactPage() {
             placeholder="Describe your question or concern in detail…"
           />
         </div>
+        {error ? <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p> : null}
         <button
           type="submit"
           disabled={sending}

@@ -17,7 +17,9 @@ function createAuthService() {
       create: jest.fn()
     },
     refreshToken: {
+      findUnique: jest.fn(),
       create: jest.fn(),
+      delete: jest.fn(),
       deleteMany: jest.fn()
     },
     $transaction: jest.fn()
@@ -269,5 +271,33 @@ describe("AuthService", () => {
       where: { id: "user-1" },
       data: { loginAttempts: 0, lockedUntil: null }
     });
+  });
+
+  it("checkEmailExists returns true for existing emails and false for unknown ones", async () => {
+    const { prisma, service } = createAuthService();
+    prisma.user.findFirst.mockResolvedValueOnce({ id: "user-1" }).mockResolvedValueOnce(null);
+
+    await expect(service.checkEmailExists("student@sis.test")).resolves.toEqual({ exists: true });
+    await expect(service.checkEmailExists("missing@sis.test")).resolves.toEqual({ exists: false });
+  });
+
+  it("refresh rejects expired refresh tokens", async () => {
+    const { prisma, service } = createAuthService();
+    prisma.refreshToken.findUnique.mockResolvedValue({
+      token: "expired-token",
+      expiresAt: new Date(Date.now() - 60_000),
+      userId: "user-1",
+      user: {
+        id: "user-1",
+        email: "student@sis.test",
+        role: "STUDENT",
+        deletedAt: null,
+        studentProfile: null
+      }
+    });
+
+    await expect(
+      service.refresh({ cookies: { "sis-refresh": "expired-token" } } as any, createResponse())
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 });

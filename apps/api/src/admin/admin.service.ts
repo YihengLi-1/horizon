@@ -15,6 +15,7 @@ import { z } from "zod";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../common/prisma.service";
 import { apiCache } from "../common/cache";
+import { maintenanceModeCache } from "../common/maintenance.middleware";
 import { sanitizeHtml } from "../common/sanitize";
 import { dispatch } from "../common/webhook";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -523,7 +524,32 @@ export class AdminService {
     const cached = apiCache.get("terms");
     if (cached) return cached as any;
 
-    const result = await this.prisma.term.findMany({ orderBy: { startDate: "desc" } });
+    const [terms, enrollmentCounts] = await Promise.all([
+      this.prisma.term.findMany({
+        orderBy: { startDate: "desc" },
+        include: {
+          _count: {
+            select: {
+              sections: true
+            }
+          }
+        }
+      }),
+      this.prisma.enrollment.groupBy({
+        by: ["termId"],
+        where: { deletedAt: null },
+        _count: { id: true }
+      })
+    ]);
+
+    const enrollmentCountByTerm = new Map(
+      enrollmentCounts.map((item) => [item.termId, item._count.id ?? 0] as const)
+    );
+    const result = terms.map((term) => ({
+      ...term,
+      sectionCount: term._count.sections,
+      enrollmentCount: enrollmentCountByTerm.get(term.id) ?? 0
+    }));
     apiCache.set("terms", result, 30_000);
     return result;
   }
@@ -537,7 +563,7 @@ export class AdminService {
         endDate: new Date(input.endDate),
         registrationOpenAt: new Date(input.registrationOpenAt),
         registrationCloseAt: new Date(input.registrationCloseAt),
-        registrationOpen: true,
+        registrationOpen: input.registrationOpen ?? true,
         dropDeadline: new Date(input.dropDeadline),
         maxCredits: input.maxCredits,
         timezone: input.timezone
@@ -570,6 +596,7 @@ export class AdminService {
         endDate: input.endDate ? new Date(input.endDate) : term.endDate,
         registrationOpenAt: input.registrationOpenAt ? new Date(input.registrationOpenAt) : term.registrationOpenAt,
         registrationCloseAt: input.registrationCloseAt ? new Date(input.registrationCloseAt) : term.registrationCloseAt,
+        registrationOpen: input.registrationOpen ?? term.registrationOpen,
         dropDeadline: input.dropDeadline ? new Date(input.dropDeadline) : term.dropDeadline,
         maxCredits: input.maxCredits ?? term.maxCredits,
         timezone: input.timezone ?? term.timezone
@@ -589,6 +616,23 @@ export class AdminService {
 
   async deleteTerm(id: string, actorUserId: string) {
     apiCache.del("terms");
+    const activeSectionCount = await this.prisma.section.count({
+      where: {
+        termId: id,
+        enrollments: {
+          some: {
+            deletedAt: null,
+            status: { in: ["ENROLLED", "WAITLISTED"] }
+          }
+        }
+      }
+    });
+    if (activeSectionCount > 0) {
+      throw new ConflictException({
+        code: "TERM_HAS_ACTIVE_ENROLLMENTS",
+        message: "This term still has active student enrollments"
+      });
+    }
     await this.prisma.term.delete({ where: { id } });
     await this.auditService.log({
       actorUserId,
@@ -625,6 +669,7 @@ export class AdminService {
 
   async listCourses() {
     return this.prisma.course.findMany({
+      where: { deletedAt: null },
       include: {
         prerequisiteLinks: { include: { prerequisiteCourse: true } }
       },
@@ -710,7 +755,30 @@ export class AdminService {
   }
 
   async deleteCourse(id: string, actorUserId: string) {
-    await this.prisma.course.delete({ where: { id } });
+    const course = await this.prisma.course.findUnique({
+      where: { id },
+      select: { id: true, deletedAt: true }
+    });
+
+    if (!course || course.deletedAt) {
+      throw new NotFoundException({ code: "COURSE_NOT_FOUND", message: "Course not found" });
+    }
+
+    const sectionCount = await this.prisma.section.count({
+      where: { courseId: id }
+    });
+
+    if (sectionCount > 0) {
+      throw new ConflictException({
+        code: "COURSE_HAS_SECTIONS",
+        message: `此课程有 ${sectionCount} 个教学班，请先删除教学班`
+      });
+    }
+
+    await this.prisma.course.update({
+      where: { id },
+      data: { deletedAt: new Date() }
+    });
     await this.auditService.log({
       actorUserId,
       action: "admin_crud",
@@ -1646,6 +1714,26 @@ export class AdminService {
     return updated;
   }
 
+  async deleteInviteCode(id: string, actorUserId: string) {
+    const invite = await this.prisma.inviteCode.findUnique({ where: { id } });
+    if (!invite) {
+      throw new NotFoundException({ code: "INVITE_NOT_FOUND", message: "Invite code not found" });
+    }
+    if (invite.usedAt || invite.usedCount > 0) {
+      throw new ConflictException({ code: "INVITE_ALREADY_USED", message: "Invite code already used" });
+    }
+
+    await this.prisma.inviteCode.delete({ where: { id } });
+    await this.auditService.log({
+      actorUserId,
+      action: "admin_crud",
+      entityType: "invite_code",
+      entityId: id,
+      metadata: { op: "delete" }
+    });
+    return { id };
+  }
+
   async updateUserRole(userId: string, role: "STUDENT" | "ADMIN", actorUserId: string) {
     const updated = await this.prisma.user.update({
       where: { id: userId },
@@ -1689,6 +1777,10 @@ export class AdminService {
       entityId: key,
       metadata: { value }
     });
+
+    if (key === "maintenance_mode") {
+      maintenanceModeCache.del("maintenance_mode");
+    }
 
     return setting;
   }
@@ -1735,6 +1827,29 @@ export class AdminService {
       payload: { id: result.id, title: result.title, audience: result.audience }
     }).catch(() => {});
     return result;
+  }
+
+  async updateAnnouncement(
+    id: string,
+    data: Partial<{
+      title: string;
+      body: string;
+      audience: string;
+      pinned: boolean;
+      expiresAt: string | null;
+    }>
+  ) {
+    return this.prisma.announcement.update({
+      where: { id },
+      data: {
+        title: data.title !== undefined ? sanitizeHtml(data.title) : undefined,
+        body: data.body !== undefined ? sanitizeHtml(data.body) : undefined,
+        audience: data.audience?.toUpperCase(),
+        pinned: data.pinned,
+        expiresAt:
+          data.expiresAt !== undefined ? (data.expiresAt ? new Date(data.expiresAt) : null) : undefined
+      }
+    });
   }
 
   async deleteAnnouncement(id: string) {
@@ -1990,13 +2105,98 @@ export class AdminService {
   }
 
   async getReportsSummary() {
-    const [students, sections, enrollments] = await this.prisma.$transaction([
-      this.prisma.user.count({ where: { role: "STUDENT", deletedAt: null } }),
-      this.prisma.section.count(),
-      this.prisma.enrollment.count({ where: { deletedAt: null } })
-    ]);
+    const [totalStudents, totalCourses, totalSections, enrollmentGroups, enrolledCreditsRows, topSections, deptBreakdown, gpaDistribution] =
+      await Promise.all([
+        this.prisma.user.count({ where: { role: "STUDENT", deletedAt: null } }),
+        this.prisma.course.count({ where: { deletedAt: null } }),
+        this.prisma.section.count({ where: { course: { deletedAt: null } } }),
+        this.prisma.enrollment.groupBy({
+          by: ["status"],
+          where: { deletedAt: null },
+          _count: { id: true }
+        }),
+        this.prisma.enrollment.findMany({
+          where: {
+            deletedAt: null,
+            status: "ENROLLED"
+          },
+          select: {
+            section: {
+              select: { credits: true }
+            }
+          }
+        }),
+        this.getTopSections(),
+        this.getDeptBreakdown(),
+        this.getGpaDistribution()
+      ]);
 
-    return { students, sections, enrollments };
+    const enrollmentByStatus = Object.fromEntries(
+      enrollmentGroups.map((item) => [item.status, item._count.id ?? 0])
+    );
+    const totalEnrolledCredits = enrolledCreditsRows.reduce((sum, item) => sum + (item.section?.credits ?? 0), 0);
+
+    return {
+      totalStudents,
+      totalCourses,
+      totalSections,
+      enrollmentByStatus,
+      avgCreditsPerStudent: totalStudents > 0 ? Math.round((totalEnrolledCredits / totalStudents) * 10) / 10 : 0,
+      topSections,
+      deptBreakdown,
+      gpaDistribution
+    };
+  }
+
+  async getDataQuality() {
+    const [sectionsNoInstructor, sectionsNoMeetings, enrollmentsNoGrade, studentsNoProfile, coursesNoSections] =
+      await Promise.all([
+        this.prisma.section.findMany({
+          where: {
+            instructorName: "",
+            course: { deletedAt: null }
+          },
+          include: { course: true },
+          take: 20
+        }),
+        this.prisma.section.findMany({
+          where: {
+            meetingTimes: { none: {} },
+            course: { deletedAt: null }
+          },
+          include: { course: true },
+          take: 20
+        }),
+        this.prisma.enrollment.count({
+          where: {
+            deletedAt: null,
+            status: "COMPLETED",
+            finalGrade: null
+          }
+        }),
+        this.prisma.user.count({
+          where: {
+            role: "STUDENT",
+            deletedAt: null,
+            studentProfile: { is: null }
+          }
+        }),
+        this.prisma.course.findMany({
+          where: {
+            deletedAt: null,
+            sections: { none: {} }
+          },
+          take: 20
+        })
+      ]);
+
+    return {
+      sectionsNoInstructor,
+      sectionsNoMeetings,
+      enrollmentsNoGrade,
+      studentsNoProfile,
+      coursesNoSections
+    };
   }
 
   async getNotificationLog(userId?: string, page = 1) {

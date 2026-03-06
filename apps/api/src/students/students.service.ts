@@ -302,6 +302,50 @@ export class StudentsService {
     });
   }
 
+  async submitContactMessage(
+    userId: string,
+    input: { subject?: string; message?: string; category?: string }
+  ) {
+    const subject = input.subject?.trim() || "Contact Form";
+    const message = input.message?.trim() || "";
+    const category = input.category?.trim() || "other";
+
+    if (!message) {
+      throw new BadRequestException({ code: "CONTACT_MESSAGE_REQUIRED", message: "Message is required" });
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, role: "STUDENT", deletedAt: null },
+      select: { id: true, email: true }
+    });
+    if (!user) {
+      throw new NotFoundException({ code: "USER_NOT_FOUND", message: "Student not found" });
+    }
+
+    await this.prisma.notificationLog.create({
+      data: {
+        userId,
+        type: "in-app",
+        subject: "Contact Form",
+        body: JSON.stringify({
+          category,
+          subject,
+          message,
+          email: user.email
+        })
+      }
+    });
+
+    await this.auditService.log({
+      actorUserId: userId,
+      action: "student_contact",
+      entityType: "contact",
+      metadata: { category, subject }
+    });
+
+    return { ok: true };
+  }
+
   async rateSection(userId: string, sectionId: string, rating: number, comment?: string) {
     const student = await this.prisma.user.findFirstOrThrow({
       where: { id: userId, role: "STUDENT", deletedAt: null },

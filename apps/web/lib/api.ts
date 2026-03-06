@@ -28,6 +28,20 @@ export class ApiError extends Error {
   }
 }
 
+export class MaintenanceError extends ApiError {
+  maintenance = true;
+
+  constructor(message = "系统维护中，请稍后再试", options?: { statusCode?: number; requestId?: string; details?: unknown }) {
+    super(message, {
+      statusCode: options?.statusCode ?? 503,
+      code: "MAINTENANCE_MODE",
+      requestId: options?.requestId,
+      details: options?.details
+    });
+    this.name = "MaintenanceError";
+  }
+}
+
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS", "TRACE"]);
 const TOKEN_NAME_PATTERN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
 const resolveTokenName = (raw: string | undefined, fallback: string, kind: "cookie" | "header"): string => {
@@ -105,6 +119,14 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       retryHeaders.set(CSRF_HEADER_NAME, refreshedToken);
     }
     ({ res, body } = await send(retryHeaders));
+  }
+
+  if (res.status === 503 && body && typeof body === "object" && "maintenance" in body) {
+    const raw = body as { message?: string; maintenance?: boolean };
+    throw new MaintenanceError(raw.message ?? "系统维护中，请稍后再试", {
+      statusCode: 503,
+      details: raw
+    });
   }
 
   if (!res.ok || !body?.success) {

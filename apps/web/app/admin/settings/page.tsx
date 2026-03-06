@@ -41,7 +41,10 @@ export default function SettingsPage() {
     <div className="campus-page space-y-6">
       <div className="campus-hero">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">System Settings</h1>
-        <p className="mt-1 text-sm text-slate-500">Environment configuration (read-only)</p>
+        <p className="mt-1 text-sm text-slate-500">
+          Environment configuration (read-only). Use the editor below to manage <code>maintenance_mode</code>,
+          registration messaging, and system limits.
+        </p>
       </div>
 
       {settings.map((group) => (

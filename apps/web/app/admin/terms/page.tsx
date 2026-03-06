@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useToast } from "@/components/Toast";
 import { apiFetch } from "@/lib/api";
 
 type Term = {
@@ -14,6 +15,8 @@ type Term = {
   registrationOpenAt: string;
   registrationCloseAt: string;
   dropDeadline: string;
+  sectionCount?: number;
+  enrollmentCount?: number;
 };
 
 type TermForm = {
@@ -25,7 +28,35 @@ type TermForm = {
   dropDeadline: string;
   maxCredits: number;
   timezone: string;
+  registrationOpen: boolean;
 };
+
+const blankForm: TermForm = {
+  name: "",
+  startDate: "",
+  endDate: "",
+  registrationOpenAt: "",
+  registrationCloseAt: "",
+  dropDeadline: "",
+  maxCredits: 18,
+  timezone: "America/Phoenix",
+  registrationOpen: true
+};
+
+function toLocalInput(iso: string): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function shiftMonths(localValue: string, months: number): string {
+  if (!localValue) return "";
+  const date = new Date(localValue);
+  if (Number.isNaN(date.getTime())) return localValue;
+  date.setMonth(date.getMonth() + months);
+  return toLocalInput(date.toISOString());
+}
 
 function termStatusBadge(term: Term): { label: string; cls: string } {
   const now = Date.now();
@@ -35,23 +66,9 @@ function termStatusBadge(term: Term): { label: string; cls: string } {
   const regClose = new Date(term.registrationCloseAt).getTime();
 
   if (now > end) return { label: "Past", cls: "border-slate-300 bg-slate-100 text-slate-500" };
-  if (now >= start && now <= end) {
-    if (now >= regOpen && now <= regClose) {
-      return { label: "Reg. Open", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" };
-    }
-    return { label: "Active", cls: "border-blue-200 bg-blue-50 text-blue-700" };
-  }
-  if (now >= regOpen && now <= regClose) {
-    return { label: "Reg. Open", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" };
-  }
+  if (now >= regOpen && now <= regClose) return { label: "Reg. Open", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" };
+  if (now >= start && now <= end) return { label: "Active", cls: "border-blue-200 bg-blue-50 text-blue-700" };
   return { label: "Upcoming", cls: "border-amber-200 bg-amber-50 text-amber-700" };
-}
-
-function toLocalInput(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function termToForm(term: Term): TermForm {
@@ -63,84 +80,108 @@ function termToForm(term: Term): TermForm {
     registrationCloseAt: toLocalInput(term.registrationCloseAt),
     dropDeadline: toLocalInput(term.dropDeadline),
     maxCredits: term.maxCredits,
-    timezone: term.timezone
+    timezone: term.timezone,
+    registrationOpen: term.registrationOpen
   };
 }
 
-const blankForm: TermForm = {
-  name: "", startDate: "", endDate: "", registrationOpenAt: "",
-  registrationCloseAt: "", dropDeadline: "", maxCredits: 12, timezone: "America/Phoenix"
-};
-
 function TermFormFields({
-  form, setForm, onSubmit, saving, submitLabel
+  form,
+  setForm,
+  onSubmit,
+  saving,
+  submitLabel,
+  onCancel
 }: {
   form: TermForm;
-  setForm: (f: TermForm) => void;
-  onSubmit: (e: FormEvent) => void;
+  setForm: (next: TermForm) => void;
+  onSubmit: (event: FormEvent) => void;
   saving: boolean;
   submitLabel: string;
+  onCancel?: () => void;
 }) {
-  const f = (key: keyof TermForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm({ ...form, [key]: key === "maxCredits" ? Number(e.target.value) : e.target.value });
+  const onInput =
+    (key: keyof TermForm) => (event: React.ChangeEvent<HTMLInputElement>) => {
+      setForm({
+        ...form,
+        [key]:
+          key === "maxCredits"
+            ? Number(event.target.value)
+            : key === "registrationOpen"
+              ? event.target.checked
+              : event.target.value
+      });
+    };
 
   return (
     <form className="grid gap-3 md:grid-cols-4" onSubmit={onSubmit}>
       <div className="md:col-span-2">
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Term name</label>
-        <input className="campus-input" placeholder="Spring 2027" value={form.name} onChange={f("name")} required />
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">学期名称</label>
+        <input className="campus-input" placeholder="Spring 2027" value={form.name} onChange={onInput("name")} required />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Max credits</label>
-        <input className="campus-input" type="number" min={1} value={form.maxCredits} onChange={f("maxCredits")} required />
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Max Credits</label>
+        <input className="campus-input" type="number" min={1} value={form.maxCredits} onChange={onInput("maxCredits")} required />
       </div>
       <div>
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Timezone</label>
-        <input className="campus-input" value={form.timezone} onChange={f("timezone")} required />
+        <input className="campus-input" value={form.timezone} onChange={onInput("timezone")} required />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Start date</label>
-        <input className="campus-input" type="datetime-local" value={form.startDate} onChange={f("startDate")} required />
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">开始时间</label>
+        <input className="campus-input" type="datetime-local" value={form.startDate} onChange={onInput("startDate")} required />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">End date</label>
-        <input className="campus-input" type="datetime-local" value={form.endDate} onChange={f("endDate")} required />
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">结束时间</label>
+        <input className="campus-input" type="datetime-local" value={form.endDate} onChange={onInput("endDate")} required />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Registration opens</label>
-        <input className="campus-input" type="datetime-local" value={form.registrationOpenAt} onChange={f("registrationOpenAt")} required />
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">开放注册</label>
+        <input className="campus-input" type="datetime-local" value={form.registrationOpenAt} onChange={onInput("registrationOpenAt")} required />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Registration closes</label>
-        <input className="campus-input" type="datetime-local" value={form.registrationCloseAt} onChange={f("registrationCloseAt")} required />
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">关闭注册</label>
+        <input className="campus-input" type="datetime-local" value={form.registrationCloseAt} onChange={onInput("registrationCloseAt")} required />
       </div>
       <div className="md:col-span-2">
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Drop deadline</label>
-        <input className="campus-input" type="datetime-local" value={form.dropDeadline} onChange={f("dropDeadline")} required />
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">退课截止</label>
+        <input className="campus-input" type="datetime-local" value={form.dropDeadline} onChange={onInput("dropDeadline")} required />
       </div>
-      <div className="md:col-span-2 md:flex md:items-end">
+      <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 md:col-span-2">
+        <input type="checkbox" checked={form.registrationOpen} onChange={onInput("registrationOpen")} className="size-4 accent-slate-900" />
+        registrationOpen / 开放中
+      </label>
+      <div className="md:col-span-4 flex flex-wrap items-center gap-2">
         <button
           type="submit"
           disabled={saving}
-          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {saving ? (
-            <><span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />{submitLabel}…</>
-          ) : submitLabel}
+          {saving ? <><span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />Saving…</> : submitLabel}
         </button>
+        {onCancel ? (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+        ) : null}
       </div>
     </form>
   );
 }
 
 export default function TermsPage() {
+  const toast = useToast();
   const [terms, setTerms] = useState<Term[]>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createForm, setCreateForm] = useState<TermForm>(blankForm);
-
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<TermForm>(blankForm);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -152,7 +193,7 @@ export default function TermsPage() {
       setLoading(true);
       setError("");
       const data = await apiFetch<Term[]>("/admin/terms");
-      setTerms(data);
+      setTerms([...data].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load terms");
     } finally {
@@ -160,7 +201,30 @@ export default function TermsPage() {
     }
   };
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const stats = useMemo(() => {
+    if (terms.length === 0) {
+      return { total: 0, active: 0, totalSections: 0, totalEnrollments: 0 };
+    }
+    return {
+      total: terms.length,
+      active: terms.filter((term) => term.registrationOpen).length,
+      totalSections: terms.reduce((sum, term) => sum + (term.sectionCount ?? 0), 0),
+      totalEnrollments: terms.reduce((sum, term) => sum + (term.enrollmentCount ?? 0), 0)
+    };
+  }, [terms]);
+
+  const toPayload = (form: TermForm) => ({
+    ...form,
+    startDate: new Date(form.startDate).toISOString(),
+    endDate: new Date(form.endDate).toISOString(),
+    registrationOpenAt: new Date(form.registrationOpenAt).toISOString(),
+    registrationCloseAt: new Date(form.registrationCloseAt).toISOString(),
+    dropDeadline: new Date(form.dropDeadline).toISOString()
+  });
 
   const onCreate = async (event: FormEvent) => {
     event.preventDefault();
@@ -168,22 +232,16 @@ export default function TermsPage() {
     setNotice("");
     try {
       setCreating(true);
-      await apiFetch("/admin/terms", {
-        method: "POST",
-        body: JSON.stringify({
-          ...createForm,
-          startDate: new Date(createForm.startDate).toISOString(),
-          endDate: new Date(createForm.endDate).toISOString(),
-          registrationOpenAt: new Date(createForm.registrationOpenAt).toISOString(),
-          registrationCloseAt: new Date(createForm.registrationCloseAt).toISOString(),
-          dropDeadline: new Date(createForm.dropDeadline).toISOString()
-        })
-      });
+      await apiFetch("/admin/terms", { method: "POST", body: JSON.stringify(toPayload(createForm)) });
       setCreateForm(blankForm);
+      setShowCreateForm(false);
       setNotice("Term created successfully.");
+      toast("学期已创建", "success");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Create failed");
+      const message = err instanceof Error ? err.message : "Create failed";
+      setError(message);
+      toast(message, "error");
     } finally {
       setCreating(false);
     }
@@ -196,8 +254,6 @@ export default function TermsPage() {
     setNotice("");
   };
 
-  const cancelEdit = () => setEditingId(null);
-
   const onSaveEdit = async (event: FormEvent) => {
     event.preventDefault();
     if (!editingId) return;
@@ -205,76 +261,74 @@ export default function TermsPage() {
     setNotice("");
     try {
       setSavingEdit(true);
-      await apiFetch(`/admin/terms/${editingId}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          ...editForm,
-          startDate: new Date(editForm.startDate).toISOString(),
-          endDate: new Date(editForm.endDate).toISOString(),
-          registrationOpenAt: new Date(editForm.registrationOpenAt).toISOString(),
-          registrationCloseAt: new Date(editForm.registrationCloseAt).toISOString(),
-          dropDeadline: new Date(editForm.dropDeadline).toISOString()
-        })
-      });
+      await apiFetch(`/admin/terms/${editingId}`, { method: "PATCH", body: JSON.stringify(toPayload(editForm)) });
       setEditingId(null);
       setNotice("Term updated successfully.");
+      toast("学期已更新", "success");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Update failed");
+      const message = err instanceof Error ? err.message : "Update failed";
+      setError(message);
+      toast(message, "error");
     } finally {
       setSavingEdit(false);
     }
   };
 
   const onDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Delete term "${name}"? This cannot be undone and will remove all associated enrollments.`)) return;
-    setError("");
-    setNotice("");
+    if (!window.confirm(`Delete term \"${name}\"?`)) return;
     try {
       setDeletingId(id);
+      setError("");
       await apiFetch(`/admin/terms/${id}`, { method: "DELETE" });
-      setNotice(`Term "${name}" deleted.`);
-      if (editingId === id) setEditingId(null);
+      toast(`已删除学期 ${name}`, "success");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      const message = err instanceof Error ? err.message : "Delete failed";
+      setError(message);
+      toast(message.includes("active") ? "此学期有学生在读，无法删除" : message, "error");
     } finally {
       setDeletingId(null);
     }
   };
 
-  const onToggleRegistration = async (id: string) => {
+  const onToggleRegistration = async (term: Term) => {
+    const previous = terms;
+    setTerms((current) => current.map((item) => (item.id === term.id ? { ...item, registrationOpen: !item.registrationOpen } : item)));
     try {
-      setTogglingId(id);
-      setError("");
-      setNotice("");
-      await apiFetch(`/admin/terms/${id}/toggle-registration`, { method: "PATCH" });
-      setNotice("Registration status updated.");
+      setTogglingId(term.id);
+      await apiFetch(`/admin/terms/${term.id}/toggle-registration`, { method: "PATCH" });
+      toast(term.registrationOpen ? "注册已关闭" : "注册已开放", "success");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Toggle failed");
+      setTerms(previous);
+      const message = err instanceof Error ? err.message : "Toggle failed";
+      setError(message);
+      toast(message, "error");
     } finally {
       setTogglingId(null);
     }
   };
 
-  const stats = useMemo(() => {
-    if (terms.length === 0) return { total: 0, latest: "-", active: 0, regOpen: 0, upcoming: 0, past: 0 };
-    const sorted = [...terms].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
-    let active = 0, regOpen = 0, upcoming = 0, past = 0;
-    for (const t of terms) {
-      const badge = termStatusBadge(t).label;
-      if (badge === "Active") active++;
-      else if (badge === "Reg. Open") regOpen++;
-      else if (badge === "Upcoming") upcoming++;
-      else if (badge === "Past") past++;
-    }
-    return { total: terms.length, latest: sorted[0].name, active, regOpen, upcoming, past };
-  }, [terms]);
+  const copyTerm = (term: Term) => {
+    const base = termToForm(term);
+    setCreateForm({
+      ...base,
+      name: `${term.name} (Copy)`,
+      startDate: shiftMonths(base.startDate, 6),
+      endDate: shiftMonths(base.endDate, 6),
+      registrationOpenAt: shiftMonths(base.registrationOpenAt, 6),
+      registrationCloseAt: shiftMonths(base.registrationCloseAt, 6),
+      dropDeadline: shiftMonths(base.dropDeadline, 6),
+      registrationOpen: false
+    });
+    setShowCreateForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const exportCsv = () => {
     const rows = [
-      ["Name", "Start Date", "End Date", "Reg Open", "Reg Close", "Drop Deadline", "Max Credits", "Timezone"],
+      ["Name", "Start Date", "End Date", "Reg Open", "Reg Close", "Drop Deadline", "Max Credits", "Timezone", "Sections", "Enrollments"],
       ...terms.map((term) => [
         term.name,
         new Date(term.startDate).toLocaleDateString(),
@@ -283,16 +337,18 @@ export default function TermsPage() {
         new Date(term.registrationCloseAt).toLocaleString(),
         new Date(term.dropDeadline).toLocaleString(),
         String(term.maxCredits),
-        term.timezone
+        term.timezone,
+        String(term.sectionCount ?? 0),
+        String(term.enrollmentCount ?? 0)
       ])
     ];
-    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `terms-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const link = Object.assign(document.createElement("a"), {
+      href: url,
+      download: `terms-${new Date().toISOString().slice(0, 10)}.csv`
+    });
+    link.click();
     URL.revokeObjectURL(url);
   };
 
@@ -303,29 +359,27 @@ export default function TermsPage() {
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">Academic Calendar Control</p>
             <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">Terms</h1>
-            <p className="text-sm text-slate-600 md:text-base">
-              Create and manage registration windows, drop deadlines, and per-term credit caps.
-            </p>
+            <p className="text-sm text-slate-600 md:text-base">Create, copy, and manage registration windows, drop deadlines, and per-term credit caps.</p>
             <div className="flex flex-wrap gap-2 pt-1">
               <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{stats.total} term(s)</span>
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Latest: {stats.latest}</span>
+              <span className="campus-chip border-emerald-200 bg-emerald-50 text-emerald-700">{stats.active} active</span>
             </div>
           </div>
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={exportCsv}
-              disabled={terms.length === 0}
-              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:-translate-y-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => setShowCreateForm((prev) => !prev)}
+              className="inline-flex h-10 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-white transition hover:bg-primary/90"
             >
-              Export CSV
+              {showCreateForm ? "收起" : "新增学期"}
             </button>
             <button
               type="button"
-              onClick={() => void load()}
-              className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
+              onClick={exportCsv}
+              disabled={terms.length === 0}
+              className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Refresh
+              Export CSV
             </button>
           </div>
         </div>
@@ -337,23 +391,30 @@ export default function TermsPage() {
           <p className="mt-1 text-2xl font-semibold text-slate-900">{stats.total}</p>
         </div>
         <div className="campus-kpi border-emerald-200 bg-emerald-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Reg. Open</p>
-          <p className="mt-1 text-2xl font-semibold text-emerald-900">{stats.regOpen}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Active Terms</p>
+          <p className="mt-1 text-2xl font-semibold text-emerald-900">{stats.active}</p>
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Active</p>
-          <p className="mt-1 text-2xl font-semibold text-blue-900">{stats.active}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Total Sections</p>
+          <p className="mt-1 text-2xl font-semibold text-blue-900">{stats.totalSections}</p>
         </div>
         <div className="campus-kpi border-amber-200 bg-amber-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Upcoming</p>
-          <p className="mt-1 text-2xl font-semibold text-amber-900">{stats.upcoming}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Total Enrollments</p>
+          <p className="mt-1 text-2xl font-semibold text-amber-900">{stats.totalEnrollments}</p>
         </div>
       </section>
 
-      <section className="campus-card p-5 md:p-6">
-        <h2 className="mb-3 text-base font-semibold text-slate-900">Create New Term</h2>
-        <TermFormFields form={createForm} setForm={setCreateForm} onSubmit={onCreate} saving={creating} submitLabel="Create term" />
-      </section>
+      {showCreateForm ? (
+        <section className="campus-card p-5 md:p-6">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold text-slate-900">新增学期</h2>
+            <button type="button" onClick={() => { setShowCreateForm(false); setCreateForm(blankForm); }} className="text-xs font-medium text-slate-500 hover:text-slate-700">
+              Reset
+            </button>
+          </div>
+          <TermFormFields form={createForm} setForm={setCreateForm} onSubmit={onCreate} saving={creating} submitLabel="Create term" />
+        </section>
+      ) : null}
 
       {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
       {notice ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{notice}</div> : null}
@@ -361,12 +422,10 @@ export default function TermsPage() {
       {editingId ? (
         <section className="campus-card border-blue-200 bg-blue-50/60 p-5 md:p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-blue-900">Editing: {editForm.name}</h2>
-            <button type="button" onClick={cancelEdit} className="text-sm font-medium text-blue-700 underline underline-offset-2">
-              Cancel
-            </button>
+            <h2 className="text-base font-semibold text-blue-900">编辑学期</h2>
+            <button type="button" onClick={() => setEditingId(null)} className="text-sm font-medium text-blue-700 underline underline-offset-2">Cancel</button>
           </div>
-          <TermFormFields form={editForm} setForm={setEditForm} onSubmit={onSaveEdit} saving={savingEdit} submitLabel="Save changes" />
+          <TermFormFields form={editForm} setForm={setEditForm} onSubmit={onSaveEdit} saving={savingEdit} submitLabel="Save changes" onCancel={() => setEditingId(null)} />
         </section>
       ) : null}
 
@@ -377,87 +436,52 @@ export default function TermsPage() {
               <tr className="border-b border-slate-200 text-left">
                 <th className="px-4 py-3 font-semibold text-slate-700">Term</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Status</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Date Range</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Registration Window</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Drop Deadline</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Max Cr.</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">Sections</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">Enrollments</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Registration</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-slate-500">Loading terms...</td>
-                </tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">Loading terms...</td></tr>
               ) : terms.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-slate-500">No terms yet. Create one above.</td>
-                </tr>
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-500">No terms yet.</td></tr>
               ) : (
                 terms.map((term) => {
-                  const { label: statusLabel, cls: statusCls } = termStatusBadge(term);
+                  const badge = termStatusBadge(term);
                   return (
-                  <tr
-                    key={term.id}
-                    className={`border-b border-slate-100 hover:bg-slate-100/60 ${editingId === term.id ? "bg-blue-50/40 outline outline-1 outline-blue-200" : "odd:bg-white even:bg-slate-50/40"}`}
-                  >
-                    <td className="px-4 py-3 font-medium text-slate-900">{term.name}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusCls}`}>
-                        {statusLabel}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {new Date(term.startDate).toLocaleDateString()} – {new Date(term.endDate).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">
-                      {new Date(term.registrationOpenAt).toLocaleString()} –{" "}
-                      {new Date(term.registrationCloseAt).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700">{new Date(term.dropDeadline).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-slate-700">{term.maxCredits}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-2">
-                        <span
-                          className={`inline-flex w-fit rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-                            term.registrationOpen
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-red-200 bg-red-50 text-red-700"
-                          }`}
-                        >
-                          {term.registrationOpen ? "🟢 Open" : "🔴 Closed"}
-                        </span>
-                        <button
-                          type="button"
-                          disabled={togglingId === term.id}
-                          onClick={() => void onToggleRegistration(term.id)}
-                          className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-                        >
-                          {togglingId === term.id ? "Updating..." : term.registrationOpen ? "Close Reg" : "Open Reg"}
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => editingId === term.id ? cancelEdit() : startEdit(term)}
-                          className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
-                        >
-                          {editingId === term.id ? "Cancel" : "Edit"}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={deletingId === term.id}
-                          onClick={() => void onDelete(term.id, term.name)}
-                          className="inline-flex h-8 items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
-                        >
-                          {deletingId === term.id ? "…" : "Delete"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                    <tr key={term.id} className={`border-b border-slate-100 ${term.registrationOpen ? "border-l-4 border-l-emerald-400" : ""} hover:bg-slate-50`}>
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-slate-900">{term.name}</p>
+                        <p className="text-xs text-slate-500">{new Date(term.startDate).toLocaleDateString()} – {new Date(term.endDate).toLocaleDateString()}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${badge.cls}`}>{badge.label}</span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">{term.sectionCount ?? 0}</td>
+                      <td className="px-4 py-3 text-slate-700">{term.enrollmentCount ?? 0}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-2">
+                          <button
+                            type="button"
+                            disabled={togglingId === term.id}
+                            onClick={() => void onToggleRegistration(term)}
+                            className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-semibold ${term.registrationOpen ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-600"}`}
+                          >
+                            {togglingId === term.id ? "Updating..." : term.registrationOpen ? "开放中" : "已关闭"}
+                          </button>
+                          <span className="text-xs text-slate-500">dropDeadline: {new Date(term.dropDeadline).toLocaleDateString()}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => startEdit(term)} className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50">编辑</button>
+                          <button type="button" onClick={() => copyTerm(term)} className="inline-flex h-8 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-700 transition hover:bg-blue-100">复制学期</button>
+                          <button type="button" disabled={deletingId === term.id} onClick={() => void onDelete(term.id, term.name)} className="inline-flex h-8 items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50">{deletingId === term.id ? "…" : "删除"}</button>
+                        </div>
+                      </td>
+                    </tr>
                   );
                 })
               )}

@@ -11,6 +11,7 @@ type InviteCode = {
   maxUses: number | null;
   expiresAt: string | null;
   active: boolean;
+  createdAt: string;
 };
 
 function isExpired(item: InviteCode): boolean {
@@ -84,8 +85,10 @@ export default function InviteCodesPage() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [bulkCount, setBulkCount] = useState(5);
   const [bulkMaxUses, setBulkMaxUses] = useState<number | "">(10);
+  const [bulkRole, setBulkRole] = useState<"STUDENT" | "ADMIN">("STUDENT");
   const [bulkGenerating, setBulkGenerating] = useState(false);
   const [lastGenerated, setLastGenerated] = useState<string[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
 
@@ -177,12 +180,16 @@ export default function InviteCodesPage() {
     if (filterStatus === "ACTIVE") filtered = filtered.filter((item) => item.active && !isExpired(item) && (item.maxUses === null || item.usedCount < item.maxUses));
     else if (filterStatus === "DISABLED") filtered = filtered.filter((item) => !item.active);
     else if (filterStatus === "EXPIRED") filtered = filtered.filter(isExpired);
+    else if (filterStatus === "USED") filtered = filtered.filter((item) => item.usedCount > 0);
+    else if (filterStatus === "UNUSED") filtered = filtered.filter((item) => item.usedCount === 0);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       filtered = filtered.filter((item) => item.code.toLowerCase().includes(q));
     }
     return filtered;
   }, [codes, filterStatus, search]);
+
+  const unusedCodes = useMemo(() => visibleCodes.filter((item) => item.usedCount === 0), [visibleCodes]);
 
   const exportCsv = () => {
     const rows = [
@@ -219,7 +226,8 @@ export default function InviteCodesPage() {
           const response = await apiFetch<InviteCode>("/admin/invite-codes", {
             method: "POST",
             body: JSON.stringify({
-              maxUses: bulkMaxUses || null
+              maxUses: bulkMaxUses || null,
+              role: bulkRole
             })
           });
           if (response?.code) generated.push(response.code);
@@ -237,6 +245,38 @@ export default function InviteCodesPage() {
       await load();
     } finally {
       setBulkGenerating(false);
+    }
+  };
+
+  const deleteCode = async (item: InviteCode) => {
+    if (item.usedCount > 0) {
+      toast("邀请码已使用，无法撤销。", "error");
+      return;
+    }
+    if (!window.confirm(`确认撤销邀请码 ${item.code}？`)) return;
+
+    try {
+      setDeletingId(item.id);
+      await apiFetch(`/admin/invite-codes/${item.id}`, { method: "DELETE" });
+      toast("邀请码已撤销。", "success");
+      setCodes((prev) => prev.filter((code) => code.id !== item.id));
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "撤销失败", "error");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const copyAllUnused = async () => {
+    if (unusedCodes.length === 0) {
+      toast("没有可复制的邀请码。", "info");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(unusedCodes.map((item) => item.code).join("\n"));
+      toast(`已复制 ${unusedCodes.length} 个邀请码`, "success");
+    } catch {
+      toast("复制失败。", "error");
     }
   };
 
@@ -258,6 +298,14 @@ export default function InviteCodesPage() {
             </div>
           </div>
           <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void copyAllUnused()}
+              disabled={unusedCodes.length === 0}
+              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Copy All Unused
+            </button>
             <button
               type="button"
               onClick={exportCsv}
@@ -341,6 +389,17 @@ export default function InviteCodesPage() {
         <summary className="cursor-pointer select-none text-sm font-semibold text-slate-700">⚡ Bulk Generate Codes</summary>
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-500">Role</label>
+            <select
+              value={bulkRole}
+              onChange={(event) => setBulkRole(event.target.value as "STUDENT" | "ADMIN")}
+              className="campus-select text-sm"
+            >
+              <option value="STUDENT">Student</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+          </div>
+          <div className="space-y-1">
             <label className="text-xs font-medium text-slate-500">Count (1–20)</label>
             <input
               type="number"
@@ -404,7 +463,7 @@ export default function InviteCodesPage() {
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {(["ALL", "ACTIVE", "DISABLED", "EXPIRED"] as const).map((status) => (
+            {(["ALL", "UNUSED", "USED", "ACTIVE", "DISABLED", "EXPIRED"] as const).map((status) => (
               <button
                 key={status}
                 type="button"
@@ -443,6 +502,7 @@ export default function InviteCodesPage() {
               <tr className="border-b border-slate-200 text-left">
                 <th className="px-4 py-3 font-semibold text-slate-700">Code</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Usage</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">Created</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Expires</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Status</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Action</th>
@@ -451,13 +511,13 @@ export default function InviteCodesPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
                     Loading invite codes...
                   </td>
                 </tr>
               ) : visibleCodes.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
+                  <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
                     {codes.length === 0 ? "No invite codes available." : "No codes match current filter."}
                   </td>
                 </tr>
@@ -478,6 +538,9 @@ export default function InviteCodesPage() {
                       <td className="px-4 py-3">
                         <UsageBar used={item.usedCount} max={item.maxUses} />
                       </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {new Date(item.createdAt).toLocaleDateString()}
+                      </td>
                       <td className="px-4 py-3">
                         {item.expiresAt ? (
                           <span className={muted ? "text-slate-400 line-through" : "text-slate-700"}>
@@ -494,18 +557,30 @@ export default function InviteCodesPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <button
-                          type="button"
-                          disabled={togglingId === item.id}
-                          onClick={() => void toggleActive(item)}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {togglingId === item.id ? (
-                            <><span className="size-3.5 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />Working</>
-                          ) : (
-                            item.active ? "Disable" : "Enable"
-                          )}
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            disabled={togglingId === item.id}
+                            onClick={() => void toggleActive(item)}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {togglingId === item.id ? (
+                              <><span className="size-3.5 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />Working</>
+                            ) : (
+                              item.active ? "Disable" : "Enable"
+                            )}
+                          </button>
+                          {item.usedCount === 0 ? (
+                            <button
+                              type="button"
+                              disabled={deletingId === item.id}
+                              onClick={() => void deleteCode(item)}
+                              className="inline-flex h-8 items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {deletingId === item.id ? "撤销中…" : "撤销"}
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   );

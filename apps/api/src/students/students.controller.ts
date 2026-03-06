@@ -89,6 +89,15 @@ export class StudentsController {
     return ok(await this.studentsService.changePassword(user.userId, body as never));
   }
 
+  @Roles("STUDENT")
+  @Post("contact")
+  async contact(
+    @CurrentUser() user: { userId: string },
+    @Body() body: { subject?: string; message?: string; category?: string }
+  ) {
+    return ok(await this.studentsService.submitContactMessage(user.userId, body));
+  }
+
   @Roles("ADMIN")
   @RequireAdminPermissions("students:read")
   @Get()

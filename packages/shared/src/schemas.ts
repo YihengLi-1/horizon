@@ -70,7 +70,8 @@ export const createTermSchema = z.object({
   registrationCloseAt: z.string().datetime(),
   dropDeadline: z.string().datetime(),
   maxCredits: z.number().int().positive(),
-  timezone: z.string().min(2)
+  timezone: z.string().min(2),
+  registrationOpen: z.boolean().optional().default(true)
 });
 
 export const createCourseSchema = z.object({

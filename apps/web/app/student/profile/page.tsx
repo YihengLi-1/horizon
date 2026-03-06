@@ -276,6 +276,10 @@ export default function StudentProfilePage() {
   const [currentGpa, setCurrentGpa] = useState<number | null>(null);
   const [goal, setGoal] = useState("");
   const [goalDraft, setGoalDraft] = useState("");
+  const [currentTermId, setCurrentTermId] = useState("current");
+  const [semesterNotes, setSemesterNotes] = useState("");
+  const [allowRecommendations, setAllowRecommendations] = useState(true);
+  const [receiveMailNotifications, setReceiveMailNotifications] = useState(true);
 
   useEffect(() => {
     apiFetch<ProfileResponse>("/students/me")
@@ -310,6 +314,8 @@ export default function StudentProfilePage() {
       apiFetch<EnrollmentRow[]>("/registration/enrollments").catch(() => [] as EnrollmentRow[])
     ]).then(([transcriptTerms, enrollments]) => {
       if (!alive) return;
+
+      setCurrentTermId(transcriptTerms[0]?.termId ?? "current");
 
       const transcript = transcriptTerms.flatMap((term) => term.enrollments ?? []);
 
@@ -352,6 +358,27 @@ export default function StudentProfilePage() {
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    try {
+      const recommendations = window.localStorage.getItem("sis_privacy_allow_recommendations");
+      const mail = window.localStorage.getItem("sis_privacy_email_notifications");
+      setAllowRecommendations(recommendations !== "false");
+      setReceiveMailNotifications(mail !== "false");
+    } catch {
+      setAllowRecommendations(true);
+      setReceiveMailNotifications(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const key = `sis_semester_notes_${currentTermId}`;
+      setSemesterNotes(window.localStorage.getItem(key) ?? "");
+    } catch {
+      setSemesterNotes("");
+    }
+  }, [currentTermId]);
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -401,6 +428,26 @@ export default function StudentProfilePage() {
       window.localStorage.setItem("sis_goal", next);
     } catch {
       // Ignore storage errors and keep UI usable.
+    }
+  };
+  const saveSemesterNotes = (next: string) => {
+    setSemesterNotes(next);
+    try {
+      window.localStorage.setItem(`sis_semester_notes_${currentTermId}`, next);
+    } catch {
+      // ignore storage failures
+    }
+  };
+  const updatePrivacy = (key: "recommendations" | "email", value: boolean) => {
+    if (key === "recommendations") setAllowRecommendations(value);
+    if (key === "email") setReceiveMailNotifications(value);
+    try {
+      window.localStorage.setItem(
+        key === "recommendations" ? "sis_privacy_allow_recommendations" : "sis_privacy_email_notifications",
+        String(value)
+      );
+    } catch {
+      // ignore storage failures
     }
   };
 
@@ -545,6 +592,44 @@ export default function StudentProfilePage() {
                 >
                   Save Goal
                 </button>
+              </div>
+            </section>
+
+            <section className="campus-card p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">学期总结</h3>
+              <p className="mt-1 text-xs text-slate-500">Notes saved locally for the current term.</p>
+              <textarea
+                value={semesterNotes}
+                onChange={(event) => saveSemesterNotes(event.target.value.slice(0, 500))}
+                rows={4}
+                className="campus-input mt-3 w-full"
+                placeholder="记录本学期的反思、计划和关键事项"
+              />
+              <div className="mt-1 text-right text-[11px] text-slate-400">{semesterNotes.length}/500</div>
+            </section>
+
+            <section className="campus-card p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">隐私设置</h3>
+              <div className="mt-3 space-y-3 text-sm">
+                <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2">
+                  <span>允许推荐课程</span>
+                  <input
+                    type="checkbox"
+                    checked={allowRecommendations}
+                    onChange={(event) => updatePrivacy("recommendations", event.target.checked)}
+                    className="size-4 accent-slate-900"
+                  />
+                </label>
+                <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2">
+                  <span>接收邮件通知</span>
+                  <input
+                    type="checkbox"
+                    checked={receiveMailNotifications}
+                    onChange={(event) => updatePrivacy("email", event.target.checked)}
+                    className="size-4 accent-slate-900"
+                  />
+                </label>
+                <p className="text-xs text-slate-500">当前仅保存在本地浏览器中，用于控制推荐与通知偏好。</p>
               </div>
             </section>
 

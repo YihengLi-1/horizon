@@ -276,4 +276,24 @@ describe("RegistrationService", () => {
       ahead: 2
     });
   });
+
+  it("returns position 1 for the first waitlisted student", async () => {
+    const { prisma, service } = createRegistrationService();
+    prisma.enrollment.findFirst.mockResolvedValue({ waitlistPosition: 1 });
+
+    await expect(service.getWaitlistPosition("student-1", "section-1")).resolves.toEqual({
+      position: 1,
+      ahead: 0
+    });
+  });
+
+  it("returns position 2 for the second waitlisted student", async () => {
+    const { prisma, service } = createRegistrationService();
+    prisma.enrollment.findFirst.mockResolvedValue({ waitlistPosition: 2 });
+
+    await expect(service.getWaitlistPosition("student-2", "section-1")).resolves.toEqual({
+      position: 2,
+      ahead: 1
+    });
+  });
 });

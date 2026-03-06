@@ -22,10 +22,17 @@ type EditForm = {
 
 const PAGE_SIZE = 50;
 
+function getDept(code: string): string {
+  const match = code.trim().toUpperCase().match(/^[A-Z]+/);
+  return match?.[0] ?? "OTHER";
+}
+
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [form, setForm] = useState({ code: "", title: "", credits: 3, description: "", prerequisiteCourseIds: [] as string[] });
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filterDept, setFilterDept] = useState("ALL");
   const [filterCredits, setFilterCredits] = useState("ALL");
   const [filterPrereq, setFilterPrereq] = useState("ALL"); // ALL | WITH | WITHOUT
   const [sortCol, setSortCol] = useState<"code" | "title" | "credits" | "prereqs">("code");
@@ -35,6 +42,7 @@ export default function CoursesPage() {
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(true);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const toggleSort = (col: typeof sortCol) => {
@@ -74,6 +82,11 @@ export default function CoursesPage() {
   useEffect(() => {
     void load();
   }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   const onCreate = async (event: FormEvent) => {
     event.preventDefault();
@@ -155,12 +168,18 @@ export default function CoursesPage() {
       if (editingId === id) setEditingId(null);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      const message = err instanceof Error ? err.message : "Delete failed";
+      setError(message);
     }
   };
 
   const creditOptions = useMemo(
     () => Array.from(new Set(courses.map((c) => c.credits))).sort((a, b) => a - b),
+    [courses]
+  );
+
+  const deptOptions = useMemo(
+    () => Array.from(new Set(courses.map((c) => getDept(c.code)))).sort((a, b) => a.localeCompare(b)),
     [courses]
   );
 
@@ -178,9 +197,10 @@ export default function CoursesPage() {
   }, [courses, creditOptions]);
 
   const visibleCourses = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     let list = courses.filter((c) => {
       if (q && !`${c.code} ${c.title} ${c.description ?? ""}`.toLowerCase().includes(q)) return false;
+      if (filterDept !== "ALL" && getDept(c.code) !== filterDept) return false;
       if (filterCredits !== "ALL" && c.credits !== Number(filterCredits)) return false;
       const hasPre = (c.prerequisiteLinks ?? []).length > 0;
       if (filterPrereq === "WITH"    && !hasPre) return false;
@@ -199,10 +219,10 @@ export default function CoursesPage() {
     });
 
     return list;
-  }, [courses, search, filterCredits, filterPrereq, sortCol, sortDir]);
+  }, [courses, debouncedSearch, filterDept, filterCredits, filterPrereq, sortCol, sortDir]);
 
   // Reset page when filters change
-  useEffect(() => { setPage(1); }, [search, filterCredits, filterPrereq, sortCol, sortDir]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, filterDept, filterCredits, filterPrereq, sortCol, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(visibleCourses.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -303,7 +323,17 @@ export default function CoursesPage() {
       </section>
 
       <section className="campus-card p-5 md:p-6">
-        <h2 className="mb-3 text-base font-semibold text-slate-900">Create New Course</h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold text-slate-900">新增课程</h2>
+          <button
+            type="button"
+            onClick={() => setShowCreateForm((prev) => !prev)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            {showCreateForm ? "收起" : "展开"}
+          </button>
+        </div>
+        {showCreateForm ? (
         <form className="grid gap-3 md:grid-cols-5" onSubmit={onCreate}>
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Code</label>
@@ -383,6 +413,7 @@ export default function CoursesPage() {
             <p className="mt-1 text-[11px] text-slate-400">Hold Cmd/Ctrl to select multiple</p>
           </div>
         </form>
+        ) : null}
       </section>
 
       {editingId ? (
@@ -485,6 +516,13 @@ export default function CoursesPage() {
             />
           </label>
           <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Dept</span>
+            <select className="campus-select" value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
+              <option value="ALL">All depts</option>
+              {deptOptions.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
+            </select>
+          </label>
+          <label className="block">
             <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Credits</span>
             <select className="campus-select" value={filterCredits} onChange={(e) => setFilterCredits(e.target.value)}>
               <option value="ALL">All credits</option>
@@ -500,12 +538,12 @@ export default function CoursesPage() {
             </select>
           </label>
         </div>
-        {(search || filterCredits !== "ALL" || filterPrereq !== "ALL") ? (
+        {(search || filterDept !== "ALL" || filterCredits !== "ALL" || filterPrereq !== "ALL") ? (
           <div className="mt-2 flex items-center gap-2">
             <p className="text-xs text-slate-500">{visibleCourses.length} of {courses.length} shown</p>
             <button
               type="button"
-              onClick={() => { setSearch(""); setFilterCredits("ALL"); setFilterPrereq("ALL"); }}
+              onClick={() => { setSearch(""); setDebouncedSearch(""); setFilterDept("ALL"); setFilterCredits("ALL"); setFilterPrereq("ALL"); }}
               className="text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
             >
               Clear filters
@@ -573,6 +611,17 @@ export default function CoursesPage() {
                       title="Double-click to edit title"
                     >
                       <p className="font-medium">{course.title}</p>
+                      <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                        {getDept(course.code)}
+                      </p>
+                      {(course.prerequisiteLinks ?? []).length > 0 ? (
+                        <p className="mt-1 text-xs text-slate-400">
+                          先修: {(course.prerequisiteLinks ?? [])
+                            .map((item) => item.prerequisiteCourse?.code)
+                            .filter((code): code is string => Boolean(code))
+                            .join(", ")}
+                        </p>
+                      ) : null}
                       {course.description ? <p className="mt-0.5 text-xs text-slate-400 line-clamp-1">{course.description}</p> : null}
                     </td>
                     <td

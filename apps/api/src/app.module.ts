@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { MiddlewareConsumer, Module, type NestModule, RequestMethod } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerModule } from "@nestjs/throttler";
@@ -12,6 +12,7 @@ import { RegistrationModule } from "./registration/registration.module";
 import { AdminModule } from "./admin/admin.module";
 import { AuditModule } from "./audit/audit.module";
 import { HealthModule } from "./health/health.module";
+import { MaintenanceMiddleware } from "./common/maintenance.middleware";
 
 @Module({
   imports: [
@@ -40,4 +41,8 @@ import { HealthModule } from "./health/health.module";
     }
   ]
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(MaintenanceMiddleware).forRoutes({ path: "students/*", method: RequestMethod.ALL });
+  }
+}
