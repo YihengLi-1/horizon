@@ -32,6 +32,7 @@ import {
   Users
 } from "lucide-react";
 import DarkModeToggle from "@/components/DarkModeToggle";
+import CommandPalette from "@/components/CommandPalette";
 import KeyboardShortcutsModal from "@/components/KeyboardShortcutsModal";
 import NotificationBell from "@/components/NotificationBell";
 import { LogoutButton } from "@/components/logout-button";
@@ -342,6 +343,7 @@ export function AppShell({
       </div>
       {area === "student" ? <StudentMobileNav /> : null}
       <KeyboardShortcutsModal />
+      <CommandPalette />
     </div>
   );
 }

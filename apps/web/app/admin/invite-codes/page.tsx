@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useToast } from "@/components/Toast";
 import { apiFetch } from "@/lib/api";
 
 type InviteCode = {
@@ -86,6 +87,7 @@ export default function InviteCodesPage() {
   const [bulkGenerating, setBulkGenerating] = useState(false);
   const [lastGenerated, setLastGenerated] = useState<string[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
 
   // Press "/" to focus search
   useEffect(() => {
@@ -133,9 +135,11 @@ export default function InviteCodesPage() {
       });
       setForm({ code: "", maxUses: 100, expiresAt: "", active: true });
       setNotice("Invite code created.");
+      toast("Invite code created.", "success");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Create failed");
+      toast("Failed to create invite code.", "error");
     } finally {
       setCreating(false);
     }
@@ -151,9 +155,11 @@ export default function InviteCodesPage() {
         body: JSON.stringify({ active: !item.active })
       });
       setNotice(`Invite code ${item.active ? "disabled" : "enabled"}.`);
+      toast(`Invite code ${item.active ? "disabled" : "enabled"}.`, "success");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Update failed");
+      toast("Failed to update invite code.", "error");
     } finally {
       setTogglingId(null);
     }
@@ -223,6 +229,11 @@ export default function InviteCodesPage() {
       }
       setLastGenerated(generated);
       setNotice(generated.length > 0 ? `Generated ${generated.length} code(s).` : "No codes were generated.");
+      if (generated.length > 0) {
+        toast(`Generated ${generated.length} code(s).`, "success");
+      } else {
+        toast("No codes were generated.", "info");
+      }
       await load();
     } finally {
       setBulkGenerating(false);

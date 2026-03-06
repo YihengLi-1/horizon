@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useToast } from "@/components/Toast";
 
 interface GradeRow {
   studentId: string;
@@ -33,6 +34,7 @@ export default function GradeImport({ apiUrl }: { apiUrl: string }) {
   const [result, setResult] = useState<{ ok: number; failed: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
 
   function onFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -68,6 +70,12 @@ export default function GradeImport({ apiUrl }: { apiUrl: string }) {
     } finally {
       setResult({ ok, failed });
       setBusy(false);
+      if (ok > 0) {
+        toast(`Updated ${ok} grade row${ok === 1 ? "" : "s"}.`, "success");
+      }
+      if (failed > 0) {
+        toast(`${failed} grade row${failed === 1 ? "" : "s"} failed.`, "error");
+      }
     }
   }
 

@@ -42,6 +42,7 @@ type SectionRow = {
 
 type StudentRow = {
   id: string;
+  gpa?: number | null;
 };
 
 type RegistrationStats = {
@@ -74,11 +75,17 @@ async function fetchAllEnrollments(): Promise<EnrollmentRow[]> {
   return rows;
 }
 
+async function fetchStudents(): Promise<StudentRow[]> {
+  const result = await serverApi<{ items?: StudentRow[] } | StudentRow[]>("/admin/students?page=1&pageSize=500").catch(() => []);
+  if (Array.isArray(result)) return result;
+  return result.items ?? [];
+}
+
 export default async function ReportsPage() {
   const [enrollments, sections, students, registrationStats] = await Promise.all([
     fetchAllEnrollments(),
     serverApi<SectionRow[]>("/admin/sections").catch(() => []),
-    serverApi<StudentRow[]>("/students").catch(() => []),
+    fetchStudents(),
     serverApi<RegistrationStats>("/admin/stats/registration").catch(() => ({ total: 0, byStatus: {} }))
   ]);
 
@@ -125,6 +132,11 @@ export default async function ReportsPage() {
     DROPPED: "text-red-700",
     COMPLETED: "text-slate-700",
   };
+  const noGpaStudents = (students ?? []).filter((student) => student.gpa == null).length;
+  const noInstructorSections = (sections ?? []).filter((section: any) => !section.instructor).length;
+  const noGradeCompleted = (enrollments ?? []).filter(
+    (enrollment) => enrollment.status === "COMPLETED" && !enrollment.finalGrade
+  ).length;
 
   return (
     <div className="campus-page space-y-6">
@@ -238,6 +250,27 @@ export default async function ReportsPage() {
       </div>
 
       <DeptStats sections={sections} />
+
+      <div className="campus-card p-4 space-y-3">
+        <p className="text-sm font-semibold text-slate-700">Data Quality Report</p>
+        {[
+          { label: "Students without GPA", count: noGpaStudents, ok: noGpaStudents === 0 },
+          { label: "Sections without instructor", count: noInstructorSections, ok: noInstructorSections === 0 },
+          { label: "Completed enrollments without grade", count: noGradeCompleted, ok: noGradeCompleted === 0 }
+        ].map((item) => (
+          <div
+            key={item.label}
+            className={`flex items-center justify-between rounded-lg border px-3 py-2 ${
+              item.ok ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"
+            }`}
+          >
+            <span className={`text-sm ${item.ok ? "text-emerald-700" : "text-amber-700"}`}>{item.label}</span>
+            <span className={`text-sm font-bold ${item.ok ? "text-emerald-600" : "text-amber-700"}`}>
+              {item.ok ? "✓ All good" : `${item.count} issue${item.count !== 1 ? "s" : ""}`}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

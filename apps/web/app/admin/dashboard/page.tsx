@@ -1,6 +1,8 @@
 import Link from "next/link";
 import AdminDataExport from "@/components/AdminDataExport";
 import { serverApi } from "@/lib/server-api";
+import QuickSearch from "./QuickSearch";
+import RefreshButton from "./RefreshButton";
 
 type Breakdown = {
   enrolled: number;
@@ -77,6 +79,12 @@ type OpsMetrics = {
     loginRateLimited: number;
     loginFailed: number;
   };
+  history: Array<{
+    ts: number;
+    requestsTotal: number;
+    errorResponsesTotal: number;
+    rss: number;
+  }>;
   alerts: Array<{
     level: "warning" | "critical";
     code: string;
@@ -92,6 +100,66 @@ type OpsMetrics = {
     mailDeliveryFailed: number;
   };
 };
+
+function DonutChart({
+  data
+}: {
+  data: Array<{ label: string; value: number; color: string }>;
+}) {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+  if (!total) return null;
+  const radius = 40;
+  const cx = 50;
+  const cy = 50;
+  const stroke = 12;
+  let offset = -Math.PI / 2;
+  const segments = data
+    .filter((item) => item.value > 0)
+    .map((item) => {
+      const angle = (item.value / total) * Math.PI * 2;
+      const x1 = cx + radius * Math.cos(offset);
+      const y1 = cy + radius * Math.sin(offset);
+      offset += angle;
+      const x2 = cx + radius * Math.cos(offset);
+      const y2 = cy + radius * Math.sin(offset);
+      return {
+        ...item,
+        path: `M${x1.toFixed(2)},${y1.toFixed(2)} A${radius},${radius} 0 ${angle > Math.PI ? 1 : 0},1 ${x2.toFixed(2)},${y2.toFixed(2)}`
+      };
+    });
+
+  return (
+    <div className="flex items-center gap-4">
+      <svg width={100} height={100} viewBox="0 0 100 100">
+        {segments.map((segment) => (
+          <path
+            key={segment.label}
+            d={segment.path}
+            fill="none"
+            stroke={segment.color}
+            strokeWidth={stroke}
+            strokeLinecap="butt"
+          />
+        ))}
+        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" fontSize="14" fontWeight="bold" fill="#1e293b">
+          {total}
+        </text>
+        <text x={cx} y={cy + 13} textAnchor="middle" fontSize="7" fill="#94a3b8">
+          total
+        </text>
+      </svg>
+      <div className="space-y-1">
+        {segments.map((segment) => (
+          <div key={segment.label} className="flex items-center gap-2 text-xs">
+            <div className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: segment.color }} />
+            <span className="text-slate-600 dark:text-slate-400">{segment.label}</span>
+            <span className="ml-auto font-semibold text-slate-800 dark:text-slate-100">{segment.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function StatCard({
   label,
@@ -149,6 +217,8 @@ const nodeEnv = process.env.NODE_ENV ?? "development";
 const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? "v1.0.0";
 const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME ?? "—";
 const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_URL ?? "http://localhost:3001";
+const prometheusUrl = "http://localhost:9090";
+const alertmanagerUrl = "http://localhost:9093";
 
 export default async function AdminDashboardPage() {
   const [data, opsMetrics, enrollmentFeed] = await Promise.all([
@@ -238,6 +308,24 @@ export default async function AdminDashboardPage() {
     point: item
   }));
   const trendPath = trendPoints.map((point, index) => `${index === 0 ? "M" : "L"}${point.x},${point.y}`).join(" ");
+  const metricsHistory = opsMetrics?.history ?? [];
+  const metricsHistoryWidth = 280;
+  const metricsHistoryHeight = 72;
+  const metricsHistoryPad = 16;
+  const maxHistoryRequests = Math.max(...metricsHistory.map((item) => item.requestsTotal), 1);
+  const historyPoints = metricsHistory.map((item, index) => ({
+    x:
+      metricsHistoryPad +
+      (index * (metricsHistoryWidth - metricsHistoryPad * 2)) / Math.max(1, metricsHistory.length - 1),
+    y:
+      metricsHistoryHeight -
+      metricsHistoryPad -
+      (item.requestsTotal / maxHistoryRequests) * (metricsHistoryHeight - metricsHistoryPad * 2),
+    value: item
+  }));
+  const historyPath = historyPoints
+    .map((point, index) => `${index === 0 ? "M" : "L"}${point.x},${point.y}`)
+    .join(" ");
 
   function relativeDate(dateStr: string): string {
     const d = new Date(dateStr);
@@ -277,6 +365,10 @@ export default async function AdminDashboardPage() {
                 {breakdown.pendingApproval} Pending Approval
               </span>
             )}
+          </div>
+          <div className="flex w-full max-w-xl flex-wrap items-center justify-end gap-2">
+            <QuickSearch />
+            <RefreshButton />
           </div>
         </div>
       </section>
@@ -453,34 +545,49 @@ export default async function AdminDashboardPage() {
       </div>
 
       <div className="campus-card p-4">
-        <p className="mb-3 text-xs font-semibold uppercase text-slate-400">Enrollment Trend (7 days)</p>
-        <svg width={trendWidth} height={trendHeight} viewBox={`0 0 ${trendWidth} ${trendHeight}`} className="w-full overflow-visible">
-          <defs>
-            <linearGradient id="trend-grad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6366f1" stopOpacity="0.6" />
-              <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path
-            d={`${trendPath} L${trendPoints[trendPoints.length - 1]?.x ?? trendPad},${trendHeight - trendPad} L${trendPoints[0]?.x ?? trendPad},${trendHeight - trendPad} Z`}
-            fill="url(#trend-grad)"
-            opacity="0.4"
-          />
-          <path d={trendPath} fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          {trendPoints.map((point) => (
-            <g key={point.point.day}>
-              <circle cx={point.x} cy={point.y} r={3} fill="#6366f1" />
-              <text x={point.x} y={trendHeight - 4} textAnchor="middle" fontSize="8" fill="#94a3b8">
-                {point.point.day}
-              </text>
-              {point.point.count > 0 ? (
-                <text x={point.x} y={point.y - 6} textAnchor="middle" fontSize="8" fill="#4f46e5" fontWeight="600">
-                  {point.point.count}
-                </text>
-              ) : null}
-            </g>
-          ))}
-        </svg>
+        <div className="grid gap-4 lg:grid-cols-[1.35fr_0.9fr]">
+          <div>
+            <p className="mb-3 text-xs font-semibold uppercase text-slate-400">Enrollment Trend (7 days)</p>
+            <svg width={trendWidth} height={trendHeight} viewBox={`0 0 ${trendWidth} ${trendHeight}`} className="w-full overflow-visible">
+              <defs>
+                <linearGradient id="trend-grad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6366f1" stopOpacity="0.6" />
+                  <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path
+                d={`${trendPath} L${trendPoints[trendPoints.length - 1]?.x ?? trendPad},${trendHeight - trendPad} L${trendPoints[0]?.x ?? trendPad},${trendHeight - trendPad} Z`}
+                fill="url(#trend-grad)"
+                opacity="0.4"
+              />
+              <path d={trendPath} fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              {trendPoints.map((point) => (
+                <g key={point.point.day}>
+                  <circle cx={point.x} cy={point.y} r={3} fill="#6366f1" />
+                  <text x={point.x} y={trendHeight - 4} textAnchor="middle" fontSize="8" fill="#94a3b8">
+                    {point.point.day}
+                  </text>
+                  {point.point.count > 0 ? (
+                    <text x={point.x} y={point.y - 6} textAnchor="middle" fontSize="8" fill="#4f46e5" fontWeight="600">
+                      {point.point.count}
+                    </text>
+                  ) : null}
+                </g>
+              ))}
+            </svg>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-3 text-xs font-semibold uppercase text-slate-400">Enrollment Status</p>
+            <DonutChart
+              data={[
+                { label: "Enrolled", value: breakdown.enrolled, color: "#10b981" },
+                { label: "Waitlisted", value: breakdown.waitlisted, color: "#f59e0b" },
+                { label: "Pending", value: breakdown.pendingApproval, color: "#6366f1" },
+                { label: "Dropped", value: breakdown.dropped, color: "#ef4444" }
+              ]}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -614,6 +721,31 @@ export default async function AdminDashboardPage() {
                   </div>
                 ) : null}
 
+                {metricsHistory.length > 1 ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Metrics History</p>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                      <svg
+                        width={metricsHistoryWidth}
+                        height={metricsHistoryHeight}
+                        viewBox={`0 0 ${metricsHistoryWidth} ${metricsHistoryHeight}`}
+                        className="w-full overflow-visible"
+                      >
+                        <path d={historyPath} fill="none" stroke="#0f172a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        {historyPoints.map((point, index) => (
+                          <g key={index}>
+                            <circle cx={point.x} cy={point.y} r={2.5} fill="#0f172a" />
+                            <text x={point.x} y={metricsHistoryHeight - 2} textAnchor="middle" fontSize="7" fill="#94a3b8">
+                              {new Date(point.value.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </text>
+                          </g>
+                        ))}
+                      </svg>
+                      <p className="mt-2 text-[11px] text-slate-500">Recent request-count snapshots captured every 5 minutes.</p>
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="mt-4 border-t border-slate-100 pt-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Deployment Info</p>
                   <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
@@ -642,6 +774,29 @@ export default async function AdminDashboardPage() {
                   </div>
                   <div className="mt-3">
                     <AdminDataExport apiUrl={process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"} />
+                  </div>
+                </div>
+
+                <div className="campus-card p-4">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Monitoring</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: "Grafana", url: grafanaUrl, color: "text-orange-600", bg: "bg-orange-50 border-orange-200", icon: "📊" },
+                      { label: "Prometheus", url: prometheusUrl, color: "text-red-600", bg: "bg-red-50 border-red-200", icon: "🔥" },
+                      { label: "Alertmanager", url: alertmanagerUrl, color: "text-blue-600", bg: "bg-blue-50 border-blue-200", icon: "🔔" }
+                    ].map((item) => (
+                      <a
+                        key={item.label}
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`flex flex-col items-center gap-1 rounded-xl border p-3 text-center transition-opacity hover:opacity-80 ${item.bg}`}
+                      >
+                        <span className="text-xl">{item.icon}</span>
+                        <span className={`text-xs font-semibold ${item.color}`}>{item.label}</span>
+                        <span className="text-[10px] text-slate-400">↗ Open</span>
+                      </a>
+                    ))}
                   </div>
                 </div>
               </div>

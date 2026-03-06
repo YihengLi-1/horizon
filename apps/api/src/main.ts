@@ -47,6 +47,24 @@ async function bootstrap() {
       loginRateLimited: 0
     }
   };
+  const metricsHistory: Array<{
+    ts: number;
+    requestsTotal: number;
+    errorResponsesTotal: number;
+    rss: number;
+  }> = [];
+  const metricsHistoryTimer = setInterval(() => {
+    metricsHistory.push({
+      ts: Date.now(),
+      requestsTotal: metrics.requestsTotal,
+      errorResponsesTotal: metrics.errorResponsesTotal,
+      rss: process.memoryUsage().rss
+    });
+    if (metricsHistory.length > 10) {
+      metricsHistory.shift();
+    }
+  }, 5 * 60 * 1000);
+  metricsHistoryTimer.unref?.();
   const parseNumberEnv = (name: string, fallback: number): number => {
     const raw = Number(process.env[name]);
     return Number.isFinite(raw) && raw >= 0 ? raw : fallback;
@@ -344,6 +362,7 @@ async function bootstrap() {
           loginRateLimited: metrics.security.loginRateLimited,
           loginFailed
         },
+        history: metricsHistory,
         alerts,
         thresholds: securityAlertThresholds
       }

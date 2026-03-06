@@ -11,7 +11,7 @@ const SHORTCUTS = [
   { key: "G P", description: "Go to Profile (student)" },
   { key: "Esc", description: "Close modal / Cancel" },
   { key: "/", description: "Focus search (if available)" },
-  { key: "Ctrl+K", description: "Command palette (future)" }
+  { key: "Ctrl+K", description: "Open Command Palette" }
 ];
 
 export default function KeyboardShortcutsModal() {

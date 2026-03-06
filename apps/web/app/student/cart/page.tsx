@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RegistrationStepper } from "@/components/registration-stepper";
+import { useToast } from "@/components/Toast";
 import { ApiError, apiFetch } from "@/lib/api";
 import { enrollmentStatusLabel, reasonCodeLabel } from "@/lib/labels";
 
@@ -137,6 +138,7 @@ export default function StudentCartPage() {
   const [removingInvalid, setRemovingInvalid] = useState(false);
   const [removingItemId, setRemovingItemId] = useState("");
   const errorSummaryRef = useRef<HTMLDivElement | null>(null);
+  const toast = useToast();
 
   const activeTerm = useMemo(() => terms.find((t) => t.id === termId), [terms, termId]);
   const cartItemIdBySectionId = useMemo(
@@ -417,9 +419,11 @@ export default function StudentCartPage() {
       resetPrecheck();
       setSubmitIssues([]);
       setMessage(`Removed ${invalidCartItemIds.length} invalid item(s) from cart.`);
+      toast(`Removed ${invalidCartItemIds.length} invalid item(s).`, "success");
       await loadCart(termId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to remove invalid items");
+      toast("Failed to remove invalid items.", "error");
     } finally {
       setRemovingInvalid(false);
     }
@@ -466,6 +470,7 @@ export default function StudentCartPage() {
 
       setSubmitResults(result);
       setMessage(`Submitted ${result.length} item(s).`);
+      toast(`Submitted ${result.length} item(s).`, "success");
       resetPrecheck();
       await loadCart(termId);
     } catch (err) {
@@ -476,8 +481,10 @@ export default function StudentCartPage() {
       ) {
         setSubmitIssues(err.details as SubmitIssue[]);
         setError("Some sections could not be submitted. See reasons below.");
+        toast("Some sections could not be submitted.", "error");
       } else {
         setError(err instanceof Error ? err.message : "Submit failed");
+        toast("Submit failed.", "error");
       }
     } finally {
       setSubmitting(false);

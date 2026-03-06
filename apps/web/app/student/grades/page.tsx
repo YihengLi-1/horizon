@@ -1,5 +1,7 @@
+import { getMeServer } from "@/lib/server-auth";
 import Link from "next/link";
 import { serverApi } from "@/lib/server-api";
+import CertificateButton from "./CertificateButton";
 import GpaCalculator from "./GpaCalculator";
 import GpaTrendChart from "./GpaTrendChart";
 import StarRating from "./StarRating";
@@ -203,9 +205,10 @@ export default async function GradesPage({
   const sortBy  = (params.sortBy  ?? "code") as SortCol;
   const sortDir = (params.sortDir === "desc" ? "desc" : "asc") as "asc" | "desc";
 
-  const [grades, termsData] = await Promise.all([
+  const [grades, termsData, me] = await Promise.all([
     serverApi<GradeItem[]>("/registration/grades"),
-    serverApi<Term[]>("/academics/terms").catch(() => [] as Term[])
+    serverApi<Term[]>("/academics/terms").catch(() => [] as Term[]),
+    getMeServer().catch(() => null)
   ]);
 
   const byTerm = new Map<string, GradeItem[]>();
@@ -255,6 +258,15 @@ export default async function GradesPage({
           </div>
           <div className="flex flex-wrap gap-2">
             <TranscriptExportButton grades={grades} />
+            <CertificateButton
+              studentName={me?.profile?.legalName ?? me?.email ?? "Student"}
+              completedCourses={grades.map((item) => ({
+                code: item.section.course.code,
+                title: item.section.course.title,
+                credits: item.section.credits,
+                grade: item.finalGrade
+              }))}
+            />
             <Link
               href="/student/schedule"
               className="inline-flex h-10 items-center rounded-lg border border-white/35 bg-white/90 px-4 text-sm font-semibold text-slate-800 no-underline transition hover:bg-white"
