@@ -100,13 +100,21 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   }
 
   const send = async (headers: Headers): Promise<{ res: Response; body: ApiResponse<T> | null }> => {
-    const res = await fetch(`${API_URL}${path}`, {
-      ...init,
-      method,
-      credentials: "include",
-      headers
-    });
-    return { res, body: await parseResponse<T>(res) };
+    try {
+      const res = await fetch(`${API_URL}${path}`, {
+        ...init,
+        method,
+        credentials: "include",
+        headers
+      });
+      return { res, body: await parseResponse<T>(res) };
+    } catch (error) {
+      throw new ApiError("无法连接到服务器，请确认 API 和数据库已启动", {
+        statusCode: 0,
+        code: "API_UNAVAILABLE",
+        details: error
+      });
+    }
   };
 
   let { res, body } = await send(baseHeaders);

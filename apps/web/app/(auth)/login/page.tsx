@@ -46,9 +46,15 @@ export default function LoginPage() {
       });
       router.push(data.role === "ADMIN" ? "/admin/dashboard" : "/student/dashboard");
     } catch (err) {
-      if (err instanceof ApiError && err.code === "ACCOUNT_LOCKED") {
-        setLocked(true);
-        setError("账号已锁定，请 15 分钟后重试或联系管理员");
+      if (err instanceof ApiError) {
+        if (err.code === "ACCOUNT_LOCKED") {
+          setLocked(true);
+          setError("账号已锁定，请 15 分钟后重试或联系管理员");
+        } else if (err.code === "API_UNAVAILABLE") {
+          setError("当前无法连接到后端服务。请先启动 API 和数据库，再重试登录。");
+        } else {
+          setError(err.message);
+        }
       } else {
         setError(err instanceof Error ? err.message : "Login failed");
       }
