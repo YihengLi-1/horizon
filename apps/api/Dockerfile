@@ -33,7 +33,7 @@ RUN cp -r apps/api/prisma /deploy/prisma
 RUN cp -r packages/shared/dist /deploy/node_modules/@sis/shared/dist
 
 # Sanity checks
-RUN test -f /deploy/dist/src/main.js       || (echo "❌ dist/src/main.js missing" && exit 1)
+RUN test -f /deploy/dist/apps/api/src/main.js || (echo "❌ dist/apps/api/src/main.js missing" && exit 1)
 RUN test -f /deploy/node_modules/.bin/prisma || (echo "❌ prisma binary missing" && exit 1)
 
 # ── Stage 3: minimal production runtime ──────────────────────────────────────
@@ -49,4 +49,4 @@ EXPOSE 4000
 CMD ["sh", "-c", \
   "node_modules/.bin/prisma generate && \
    node_modules/.bin/prisma migrate deploy && \
-   node dist/src/main.js"]
+   node dist/apps/api/src/main.js"]
