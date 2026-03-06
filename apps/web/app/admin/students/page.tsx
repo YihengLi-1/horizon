@@ -9,6 +9,9 @@ type Student = {
   studentId: string;
   gpa?: number | null;
   role?: string;
+  lastLoginAt?: string | null;
+  loginAttempts?: number;
+  lockedUntil?: string | null;
   studentProfile?: {
     legalName?: string;
     programMajor?: string;
@@ -89,7 +92,8 @@ export default function AdminStudentsPage() {
   const [detailStudent, setDetailStudent] = useState<Student | null>(null);
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
   const [roleSaving, setRoleSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<"profile" | "grades">("profile");
+  const [unlocking, setUnlocking] = useState(false);
+  const [activeTab, setActiveTab] = useState<"profile" | "grades" | "security">("profile");
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
 
   const loadStudents = async () => {
@@ -196,8 +200,11 @@ export default function AdminStudentsPage() {
     try {
       setDetailLoadingId(id);
       setActiveTab("profile");
-      const student = await apiFetch<Student>(`/students/${id}`);
-      setDetailStudent(student);
+      const [student, loginHistory] = await Promise.all([
+        apiFetch<Student>(`/students/${id}`),
+        apiFetch<Pick<Student, "lastLoginAt" | "loginAttempts" | "lockedUntil" | "role">>(`/admin/users/${id}/login-history`)
+      ]);
+      setDetailStudent({ ...student, ...loginHistory });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load student details");
     } finally {
@@ -222,6 +229,34 @@ export default function AdminStudentsPage() {
       setError(err instanceof Error ? err.message : "Failed to update role");
     } finally {
       setRoleSaving(false);
+    }
+  };
+
+  const unlockAccount = async () => {
+    if (!detailStudent) return;
+    try {
+      setUnlocking(true);
+      setError("");
+      setNotice("");
+      await apiFetch("/auth/unlock-account", {
+        method: "POST",
+        body: JSON.stringify({ userId: detailStudent.id })
+      });
+      setDetailStudent((prev) =>
+        prev
+          ? {
+              ...prev,
+              loginAttempts: 0,
+              lockedUntil: null
+            }
+          : prev
+      );
+      setNotice("Account unlocked.");
+      await loadStudents();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to unlock account");
+    } finally {
+      setUnlocking(false);
     }
   };
 
@@ -286,6 +321,8 @@ export default function AdminStudentsPage() {
         .slice(0, 5),
     [students]
   );
+  const detailLocked =
+    detailStudent?.lockedUntil != null && new Date(detailStudent.lockedUntil).getTime() > Date.now();
 
   return (
     <div className="campus-page">
@@ -802,7 +839,7 @@ export default function AdminStudentsPage() {
             </div>
             <div className="space-y-5 p-6">
               <div className="mb-4 flex border-b border-slate-100 dark:border-slate-700">
-                {(["profile", "grades"] as const).map((tab) => (
+                {(["profile", "grades", "security"] as const).map((tab) => (
                   <button
                     key={tab}
                     type="button"
@@ -895,7 +932,7 @@ export default function AdminStudentsPage() {
                     </div>
                   </div>
                 </>
-              ) : (
+              ) : activeTab === "grades" ? (
                 <div className="space-y-2">
                   {(detailStudent.enrollments ?? []).filter((enrollment) => enrollment.finalGrade).length === 0 ? (
                     <p className="text-sm text-slate-400">No grades recorded.</p>
@@ -923,6 +960,51 @@ export default function AdminStudentsPage() {
                         </div>
                       ))
                   )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="campus-card space-y-3 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold uppercase text-slate-400">Security Info</p>
+                      {detailLocked ? (
+                        <span className="campus-chip border-amber-200 bg-amber-50 text-amber-700">Locked</span>
+                      ) : (
+                        <span className="campus-chip border-emerald-200 bg-emerald-50 text-emerald-700">Normal</span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 text-sm">
+                      <div>
+                        <p className="text-xs text-slate-500">Last Login</p>
+                        <p className="font-medium text-slate-800 dark:text-slate-100">
+                          {detailStudent.lastLoginAt ? new Date(detailStudent.lastLoginAt).toLocaleString() : "Never"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Failed Attempts</p>
+                        <p className="font-medium text-slate-800 dark:text-slate-100">{detailStudent.loginAttempts ?? 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Locked Until</p>
+                        <p className="font-medium text-slate-800 dark:text-slate-100">
+                          {detailStudent.lockedUntil ? new Date(detailStudent.lockedUntil).toLocaleString() : "Not locked"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500">Role</p>
+                        <p className="font-medium text-slate-800 dark:text-slate-100">{detailStudent.role ?? "STUDENT"}</p>
+                      </div>
+                    </div>
+                    {detailLocked ? (
+                      <button
+                        type="button"
+                        disabled={unlocking}
+                        onClick={() => void unlockAccount()}
+                        className="inline-flex h-9 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-4 text-xs font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
+                      >
+                        {unlocking ? "Unlocking…" : "Unlock Account"}
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               )}
             </div>

@@ -214,6 +214,32 @@ export class RegistrationService {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultMaxCredits;
   }
 
+  async getWaitlistPosition(studentId: string, sectionId: string) {
+    const enrollment = await this.prisma.enrollment.findFirst({
+      where: {
+        deletedAt: null,
+        studentId,
+        sectionId,
+        status: "WAITLISTED"
+      },
+      select: {
+        waitlistPosition: true
+      }
+    });
+
+    if (!enrollment?.waitlistPosition) {
+      return {
+        position: null,
+        ahead: null
+      };
+    }
+
+    return {
+      position: enrollment.waitlistPosition,
+      ahead: Math.max(enrollment.waitlistPosition - 1, 0)
+    };
+  }
+
   private buildEnrollmentPlan(params: {
     studentId: string;
     termId: string;

@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useToast } from "@/components/Toast";
 import { apiFetch } from "@/lib/api";
 
 type ProfileResponse = {
@@ -89,19 +91,19 @@ function getGradient(name: string): string {
 }
 
 function ChangePasswordCard() {
-  const [form, setForm] = useState({ currentPassword: "", newPassword: "", confirm: "" });
+  const router = useRouter();
+  const toast = useToast();
+  const [form, setForm] = useState({ oldPassword: "", newPassword: "", confirmNewPassword: "" });
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setMsg("");
     setErr("");
-    if (form.newPassword !== form.confirm) {
+    if (form.newPassword !== form.confirmNewPassword) {
       setErr("New passwords do not match.");
       return;
     }
@@ -111,14 +113,18 @@ function ChangePasswordCard() {
     }
     setSaving(true);
     try {
-      await apiFetch("/students/me/change-password", {
-        method: "POST",
-        body: JSON.stringify({ currentPassword: form.currentPassword, newPassword: form.newPassword })
+      await apiFetch("/auth/change-password", {
+        method: "PATCH",
+        body: JSON.stringify({ oldPassword: form.oldPassword, newPassword: form.newPassword })
       });
-      setMsg("Password changed successfully.");
-      setForm({ currentPassword: "", newPassword: "", confirm: "" });
+      window.localStorage.removeItem("sis_session_exp");
+      toast("密码已更新，请重新登录", "success");
+      setForm({ oldPassword: "", newPassword: "", confirmNewPassword: "" });
+      router.push("/login");
     } catch (ex) {
-      setErr(ex instanceof Error ? ex.message : "Failed to change password");
+      const message = ex instanceof Error ? ex.message : "Failed to change password";
+      setErr(message);
+      toast(message, "error");
     } finally {
       setSaving(false);
     }
@@ -135,9 +141,9 @@ function ChangePasswordCard() {
           <div className="relative">
             <input
               type={showCurrent ? "text" : "password"}
-              value={form.currentPassword}
+              value={form.oldPassword}
               required
-              onChange={(e) => setForm((p) => ({ ...p, currentPassword: e.target.value }))}
+              onChange={(e) => setForm((p) => ({ ...p, oldPassword: e.target.value }))}
               className="campus-input pr-10"
               autoComplete="current-password"
             />
@@ -202,9 +208,9 @@ function ChangePasswordCard() {
           <div className="relative">
             <input
               type={showConfirm ? "text" : "password"}
-              value={form.confirm}
+              value={form.confirmNewPassword}
               required
-              onChange={(e) => setForm((p) => ({ ...p, confirm: e.target.value }))}
+              onChange={(e) => setForm((p) => ({ ...p, confirmNewPassword: e.target.value }))}
               className="campus-input pr-10"
               autoComplete="new-password"
             />
@@ -219,9 +225,6 @@ function ChangePasswordCard() {
             </button>
           </div>
         </div>
-        {msg ? (
-          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">{msg}</p>
-        ) : null}
         {err ? (
           <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-800">{err}</p>
         ) : null}

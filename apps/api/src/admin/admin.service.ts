@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { EnrollmentStatus, Modality, Prisma } from "@prisma/client";
 import argon2 from "argon2";
 import { createHash } from "crypto";
@@ -838,6 +838,34 @@ export class AdminService {
   }
 
   async deleteSection(id: string, actorUserId: string) {
+    const section = await this.prisma.section.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        _count: {
+          select: {
+            enrollments: {
+              where: {
+                deletedAt: null,
+                status: "ENROLLED"
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!section) {
+      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
+    }
+
+    if (section._count.enrollments > 0) {
+      throw new ConflictException({
+        code: "SECTION_HAS_ACTIVE_ENROLLMENTS",
+        message: "Cannot delete section with active students"
+      });
+    }
+
     await this.prisma.section.delete({ where: { id } });
     await this.auditService.log({
       actorUserId,
@@ -977,6 +1005,43 @@ export class AdminService {
     return clone;
   }
 
+  async listSectionEnrollments(sectionId: string) {
+    const section = await this.prisma.section.findUnique({
+      where: { id: sectionId },
+      select: { id: true }
+    });
+
+    if (!section) {
+      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
+    }
+
+    return this.prisma.enrollment.findMany({
+      where: {
+        deletedAt: null,
+        sectionId,
+        student: {
+          is: {
+            deletedAt: null
+          }
+        }
+      },
+      include: {
+        student: {
+          include: {
+            studentProfile: true
+          }
+        },
+        term: true,
+        section: {
+          include: {
+            course: true
+          }
+        }
+      },
+      orderBy: [{ status: "asc" }, { createdAt: "asc" }]
+    });
+  }
+
   async listEnrollments(params: {
     termId?: string;
     sectionId?: string;
@@ -1068,6 +1133,191 @@ export class AdminService {
     });
 
     return { approved: result.count };
+  }
+
+  async adminDropEnrollment(id: string, actorUserId: string) {
+    const enrollment = await this.prisma.enrollment.findFirst({
+      where: { id, deletedAt: null },
+      include: {
+        term: true,
+        student: {
+          include: {
+            studentProfile: true
+          }
+        },
+        section: {
+          include: {
+            course: true
+          }
+        }
+      }
+    });
+
+    if (!enrollment) {
+      throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "Enrollment not found" });
+    }
+
+    if (enrollment.status === "DROPPED") {
+      return { dropped: enrollment, seatFreed: false };
+    }
+
+    const previousStatus = enrollment.status;
+    const seatFreed = previousStatus === "ENROLLED";
+
+    const dropped = await this.prisma.enrollment.update({
+      where: { id: enrollment.id },
+      data: {
+        status: "DROPPED",
+        droppedAt: new Date(),
+        waitlistPosition: null
+      }
+    });
+
+    if (previousStatus === "WAITLISTED" && enrollment.waitlistPosition !== null) {
+      await this.prisma.$transaction([
+        this.prisma.enrollment.updateMany({
+          where: {
+            deletedAt: null,
+            sectionId: enrollment.sectionId,
+            status: "WAITLISTED",
+            waitlistPosition: { gt: enrollment.waitlistPosition }
+          },
+          data: {
+            waitlistPosition: { increment: 10000 }
+          }
+        }),
+        this.prisma.enrollment.updateMany({
+          where: {
+            deletedAt: null,
+            sectionId: enrollment.sectionId,
+            status: "WAITLISTED",
+            waitlistPosition: { gt: enrollment.waitlistPosition + 10000 }
+          },
+          data: {
+            waitlistPosition: { decrement: 9999 }
+          }
+        })
+      ]);
+    }
+
+    await this.auditService.log({
+      actorUserId,
+      action: "ADMIN_DROP",
+      entityType: "enrollment",
+      entityId: enrollment.id,
+      metadata: {
+        previousStatus,
+        sectionId: enrollment.sectionId,
+        studentId: enrollment.studentId,
+        seatFreed
+      }
+    });
+
+    void dispatch({
+      type: "enrollment.updated",
+      payload: {
+        id: enrollment.id,
+        oldStatus: previousStatus,
+        newStatus: "DROPPED"
+      }
+    }).catch(() => {});
+
+    if (!seatFreed) {
+      return { dropped, seatFreed };
+    }
+
+    const nextWaiting = await this.prisma.enrollment.findFirst({
+      where: {
+        deletedAt: null,
+        sectionId: enrollment.sectionId,
+        status: "WAITLISTED"
+      },
+      orderBy: { waitlistPosition: "asc" },
+      include: {
+        student: {
+          include: {
+            studentProfile: true
+          }
+        },
+        section: {
+          include: {
+            course: true,
+            term: true
+          }
+        }
+      }
+    });
+
+    if (!nextWaiting) {
+      return { dropped, seatFreed };
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.enrollment.update({
+        where: { id: nextWaiting.id },
+        data: {
+          status: "ENROLLED",
+          waitlistPosition: null
+        }
+      });
+
+      if (nextWaiting.waitlistPosition !== null) {
+        await tx.enrollment.updateMany({
+          where: {
+            deletedAt: null,
+            sectionId: nextWaiting.sectionId,
+            status: "WAITLISTED",
+            waitlistPosition: { gt: nextWaiting.waitlistPosition }
+          },
+          data: {
+            waitlistPosition: { increment: 10000 }
+          }
+        });
+
+        await tx.enrollment.updateMany({
+          where: {
+            deletedAt: null,
+            sectionId: nextWaiting.sectionId,
+            status: "WAITLISTED",
+            waitlistPosition: { gt: nextWaiting.waitlistPosition + 10000 }
+          },
+          data: {
+            waitlistPosition: { decrement: 9999 }
+          }
+        });
+      }
+    });
+
+    await this.auditService.log({
+      actorUserId,
+      action: "AUTO_PROMOTE_WAITLIST",
+      entityType: "enrollment",
+      entityId: nextWaiting.id,
+      metadata: {
+        studentId: nextWaiting.studentId,
+        sectionId: nextWaiting.sectionId,
+        courseCode: nextWaiting.section.course.code
+      }
+    });
+
+    void dispatch({
+      type: "enrollment.updated",
+      payload: {
+        id: nextWaiting.id,
+        oldStatus: "WAITLISTED",
+        newStatus: "ENROLLED"
+      }
+    }).catch(() => {});
+
+    await this.notificationsService.sendWaitlistPromotionEmail({
+      to: nextWaiting.student.email,
+      legalName: nextWaiting.student.studentProfile?.legalName ?? null,
+      termName: nextWaiting.section.term.name,
+      courseCode: nextWaiting.section.course.code,
+      sectionCode: nextWaiting.section.sectionCode
+    });
+
+    return { dropped, seatFreed, promotedEnrollmentId: nextWaiting.id };
   }
 
   async updateEnrollment(id: string, input: { status?: string; finalGrade?: string }, actorUserId: string) {

@@ -259,10 +259,14 @@ async function bootstrap() {
   app.useGlobalFilters(new AllExceptionsFilter());
 
   process.on("unhandledRejection", (reason) => {
-    logger.error("unhandledRejection", JSON.stringify({ reason }));
+    logger.error(
+      `unhandledRejection: ${
+        reason instanceof Error ? reason.stack ?? reason.message : JSON.stringify(reason)
+      }`
+    );
   });
   process.on("uncaughtException", (err) => {
-    logger.error("uncaughtException", err instanceof Error ? err.stack : JSON.stringify({ err }));
+    logger.error(`uncaughtException: ${err instanceof Error ? err.stack ?? err.message : JSON.stringify(err)}`);
     process.exit(1);
   });
 
@@ -509,4 +513,10 @@ async function bootstrap() {
   console.log(`API running at http://localhost:${port}`);
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  const logger = new StructuredLogger();
+  logger.error(
+    `bootstrap_failed: ${error instanceof Error ? error.stack ?? error.message : JSON.stringify(error)}`
+  );
+  process.exit(1);
+});

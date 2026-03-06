@@ -71,4 +71,9 @@ export class RegistrationController {
   async listGrades(@CurrentUser() user: { userId: string }) {
     return ok(await this.registrationService.listMyGrades(user.userId));
   }
+
+  @Get("waitlist-position/:sectionId")
+  async getWaitlistPosition(@CurrentUser() user: { userId: string }, @Param("sectionId") sectionId: string) {
+    return ok(await this.registrationService.getWaitlistPosition(user.userId, sectionId));
+  }
 }

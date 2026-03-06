@@ -7,7 +7,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 
 type LoginResult = {
   role: "STUDENT" | "ADMIN";
@@ -26,6 +26,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
+  const [locked, setLocked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [webOrigin, setWebOrigin] = useState("");
 
@@ -36,6 +37,7 @@ export default function LoginPage() {
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
+    setLocked(false);
     setLoading(true);
     try {
       const data = await apiFetch<LoginResult>("/auth/login", {
@@ -44,7 +46,12 @@ export default function LoginPage() {
       });
       router.push(data.role === "ADMIN" ? "/admin/dashboard" : "/student/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      if (err instanceof ApiError && err.code === "ACCOUNT_LOCKED") {
+        setLocked(true);
+        setError("账号已锁定，请 15 分钟后重试或联系管理员");
+      } else {
+        setError(err instanceof Error ? err.message : "Login failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -99,7 +106,15 @@ export default function LoginPage() {
             </div>
           </div>
           {error ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+            <div
+              className={`rounded-xl border px-3 py-2 text-sm ${
+                locked
+                  ? "border-amber-200 bg-amber-50 text-amber-800"
+                  : "border-red-200 bg-red-50 text-red-700"
+              }`}
+            >
+              {error}
+            </div>
           ) : null}
           <Button disabled={loading} className="h-10 w-full bg-primary text-white hover:bg-primary/90" type="submit">
             {loading ? (

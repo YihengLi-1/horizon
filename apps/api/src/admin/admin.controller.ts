@@ -135,6 +135,12 @@ export class AdminController {
     return ok(await this.adminService.deleteSection(id, user.userId));
   }
 
+  @Get("sections/:id/enrollments")
+  @RequireAdminPermissions("sections:read")
+  async listSectionEnrollments(@Param("id") id: string) {
+    return ok(await this.adminService.listSectionEnrollments(id));
+  }
+
   @Post("sections/:id/notify")
   @RequireAdminPermissions("sections:write")
   async notifySection(
@@ -185,6 +191,12 @@ export class AdminController {
     @CurrentUser() user: { userId: string }
   ) {
     return ok(await this.adminService.updateEnrollment(id, body, user.userId));
+  }
+
+  @Delete("enrollments/:id")
+  @RequireAdminPermissions("enrollments:write")
+  async adminDropEnrollment(@Param("id") id: string, @CurrentUser() user: { userId: string }) {
+    return ok(await this.adminService.adminDropEnrollment(id, user.userId));
   }
 
   @Post("enrollments/grade")

@@ -109,6 +109,21 @@ function formatDateTime(value: string): string {
   }).format(new Date(value));
 }
 
+function buildIssueToastMessage(issues: SubmitIssue[], maxCredits?: number | null): string {
+  if (issues.some((issue) => issue.reasonCode === "TIME_CONFLICT")) {
+    return "时间冲突：有课程时间重叠，无法提交";
+  }
+  if (issues.some((issue) => issue.reasonCode === "CREDIT_LIMIT_EXCEEDED")) {
+    return maxCredits
+      ? `学分上限已达，本学期最多可修 ${maxCredits} 学分`
+      : "学分上限已达，无法提交当前购物车";
+  }
+  if (issues.some((issue) => issue.reasonCode === "PREREQUISITE_NOT_MET")) {
+    return "先修课未满足，请先完成前置课程";
+  }
+  return "Some sections could not be submitted.";
+}
+
 function Alert({ type, message }: { type: "success" | "error" | "info"; message: string }) {
   const styles =
     type === "success"
@@ -445,9 +460,18 @@ export default function StudentCartPage() {
       setPrecheckIssues(result.issues);
       setPrecheckRan(true);
     } catch (err) {
-      setPrecheckError(err instanceof Error ? err.message : "Precheck failed");
+      if (err instanceof ApiError && err.code === "SUBMIT_VALIDATION_FAILED" && Array.isArray(err.details)) {
+        const issues = err.details as SubmitIssue[];
+        setPrecheckIssues(issues);
+        setPrecheckError("Precheck found blocking issues.");
+        toast(buildIssueToastMessage(issues, activeTerm?.maxCredits ?? null), "error");
+      } else {
+        const message = err instanceof Error ? err.message : "Precheck failed";
+        setPrecheckError(message);
+        toast(message, "error");
+        setPrecheckIssues([]);
+      }
       setPrecheckPreview([]);
-      setPrecheckIssues([]);
       setPrecheckRan(true);
     } finally {
       setPrechecking(false);
@@ -479,12 +503,14 @@ export default function StudentCartPage() {
         err.code === "SUBMIT_VALIDATION_FAILED" &&
         Array.isArray(err.details)
       ) {
-        setSubmitIssues(err.details as SubmitIssue[]);
+        const issues = err.details as SubmitIssue[];
+        setSubmitIssues(issues);
         setError("Some sections could not be submitted. See reasons below.");
-        toast("Some sections could not be submitted.", "error");
+        toast(buildIssueToastMessage(issues, activeTerm?.maxCredits ?? null), "error");
       } else {
-        setError(err instanceof Error ? err.message : "Submit failed");
-        toast("Submit failed.", "error");
+        const message = err instanceof Error ? err.message : "Submit failed";
+        setError(message);
+        toast(message, "error");
       }
     } finally {
       setSubmitting(false);
