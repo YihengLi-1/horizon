@@ -1,5 +1,9 @@
 {
   "/manifest.json/route": "app/manifest.json/route.js",
   "/_not-found/page": "app/_not-found/page.js",
-  "/(auth)/login/page": "app/(auth)/login/page.js"
+  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/student/dashboard/page": "app/student/dashboard/page.js",
+  "/student/bookmarks/page": "app/student/bookmarks/page.js",
+  "/student/catalog/page": "app/student/catalog/page.js",
+  "/student/cart/page": "app/student/cart/page.js"
 }

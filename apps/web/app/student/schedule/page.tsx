@@ -7,11 +7,11 @@ import { enrollmentStatusLabel } from "@/lib/labels";
 import PrintButton from "./PrintButton";
 
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const DAY_INDEXES = [1, 2, 3, 4, 5]; // Mon–Fri
-const DAY_START = 8 * 60;
-const DAY_END = 18 * 60;
-const HOUR_H = 56;
-const SCHEDULE_H = ((DAY_END - DAY_START) / 60) * HOUR_H;
+const GRID_DAY_INDEXES = [1, 2, 3, 4, 5, 6, 0];
+const GRID_START = 8 * 60;
+const GRID_END = 21 * 60;
+const GRID_SLOT = 30;
+const GRID_ROW_COUNT = (GRID_END - GRID_START) / GRID_SLOT;
 
 type Term = {
   id: string;
@@ -109,6 +109,36 @@ function buildIcs(term: Term | null, enrollments: Enrollment[]): string {
   return lines.join("\r\n");
 }
 
+function useLocalStorage<T>(key: string, initialValue: T): [T, (next: T | ((value: T) => T)) => void] {
+  const [value, setValue] = useState<T>(initialValue);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(key);
+      if (stored !== null) {
+        setValue(JSON.parse(stored) as T);
+      }
+    } catch {
+      setValue(initialValue);
+    }
+  }, [initialValue, key]);
+
+  const updateValue = (next: T | ((value: T) => T)) => {
+    setValue((current) => {
+      const resolved = typeof next === "function" ? (next as (value: T) => T)(current) : next;
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem(key, JSON.stringify(resolved));
+        } catch {}
+      }
+      return resolved;
+    });
+  };
+
+  return [value, updateValue];
+}
+
 export default function SchedulePage() {
   const [terms, setTerms] = useState<Term[]>([]);
   const [termId, setTermId] = useState("");
@@ -122,7 +152,7 @@ export default function SchedulePage() {
   const [showEnrolled, setShowEnrolled] = useState(true);
   const [showPending, setShowPending] = useState(true);
   const [showWaitlisted, setShowWaitlisted] = useState(true);
-  const [showMobileWeekView, setShowMobileWeekView] = useState(false);
+  const [viewMode, setViewMode] = useLocalStorage<"list" | "grid">("schedule_view_mode", "list");
   const [sharedView, setSharedView] = useState(false);
 
   const activeTerm = useMemo(() => terms.find((t) => t.id === termId) ?? null, [terms, termId]);
@@ -161,6 +191,55 @@ export default function SchedulePage() {
   const hasStatusFiltersApplied = useMemo(
     () => !showEnrolled || !showPending || !showWaitlisted,
     [showEnrolled, showPending, showWaitlisted]
+  );
+  const todayWeekday = new Date().getDay();
+  const todayClasses = useMemo(
+    () =>
+      visibleEnrollments
+        .flatMap((enrollment) =>
+          (enrollment.section.meetingTimes ?? [])
+            .filter((meetingTime) => meetingTime.weekday === todayWeekday)
+            .map((meetingTime) => ({
+              enrollment,
+              meetingTime
+            }))
+        )
+        .sort((a, b) => a.meetingTime.startMinutes - b.meetingTime.startMinutes),
+    [todayWeekday, visibleEnrollments]
+  );
+  const timeSlots = useMemo(() => {
+    const slots: number[] = [];
+    for (let minutes = GRID_START; minutes < GRID_END; minutes += GRID_SLOT) {
+      slots.push(minutes);
+    }
+    return slots;
+  }, []);
+  const gridBlocks = useMemo(
+    () =>
+      visibleEnrollments.flatMap((enrollment, enrollmentIndex) =>
+        (enrollment.section.meetingTimes ?? [])
+          .filter((meetingTime) => meetingTime.endMinutes > GRID_START && meetingTime.startMinutes < GRID_END)
+          .map((meetingTime, meetingIndex) => {
+            const startMinutes = Math.max(meetingTime.startMinutes, GRID_START);
+            const endMinutes = Math.min(meetingTime.endMinutes, GRID_END);
+            const rowStart = Math.floor((startMinutes - GRID_START) / GRID_SLOT) + 2;
+            const rowSpan = Math.max(1, Math.ceil((endMinutes - startMinutes) / GRID_SLOT));
+            const colStart = meetingTime.weekday === 0 ? 8 : meetingTime.weekday + 1;
+            return {
+              key: `${enrollment.id}-${enrollmentIndex}-${meetingIndex}`,
+              enrollment,
+              meetingTime,
+              rowStart,
+              rowSpan,
+              colStart,
+              tone:
+                enrollment.status === "WAITLISTED"
+                  ? "border-amber-500 bg-amber-100 text-amber-900"
+                  : "border-emerald-500 bg-emerald-100 text-emerald-900"
+            };
+          })
+      ),
+    [visibleEnrollments]
   );
 
   const updateUrlTerm = (tid: string) => {
@@ -253,57 +332,6 @@ export default function SchedulePage() {
     }
   };
 
-  // Week grid blocks
-  const blocksByDay = useMemo(() => {
-    const map = new Map<number, Array<{ key: string; code: string; section: string; time: string; top: number; height: number; status: string; label: string }>>();
-    for (const day of DAY_INDEXES) map.set(day, []);
-
-    for (const enrollment of visibleEnrollments) {
-      for (let i = 0; i < enrollment.section.meetingTimes.length; i++) {
-        const mt = enrollment.section.meetingTimes[i];
-        if (!map.has(mt.weekday)) continue;
-        if (mt.endMinutes <= DAY_START || mt.startMinutes >= DAY_END) continue;
-        const cs = Math.max(mt.startMinutes, DAY_START);
-        const ce = Math.min(mt.endMinutes, DAY_END);
-        const baseLabel = `${enrollment.section.course.code} §${enrollment.section.sectionCode}`;
-        const label = enrollment.status === "PENDING_APPROVAL" ? `[Pending Approval] ${baseLabel}` : baseLabel;
-        map.get(mt.weekday)!.push({
-          key: `${enrollment.id}-${i}`,
-          code: enrollment.section.course.code,
-          section: enrollment.section.sectionCode,
-          time: `${fmt(mt.startMinutes)}–${fmt(mt.endMinutes)}`,
-          top: ((cs - DAY_START) / 60) * HOUR_H,
-          height: Math.max(((ce - cs) / 60) * HOUR_H, 20),
-          status: enrollment.status,
-          label
-        });
-      }
-    }
-    return map;
-  }, [visibleEnrollments]);
-
-  const hourMarks = useMemo(() => {
-    const marks: number[] = [];
-    for (let m = DAY_START; m <= DAY_END; m += 60) marks.push(m);
-    return marks;
-  }, []);
-
-  const mobileAgenda = useMemo(
-    () =>
-      DAY_INDEXES.map((day) => {
-        const blocks = [...(blocksByDay.get(day) ?? [])].sort((a, b) => a.top - b.top);
-        return { day, blocks };
-      }).filter((group) => group.blocks.length > 0),
-    [blocksByDay]
-  );
-
-  const blockColor = (status: string) =>
-    status === "WAITLISTED"
-      ? "border-amber-300 bg-amber-100 text-amber-900"
-      : status === "PENDING_APPROVAL"
-        ? "border-blue-300 bg-blue-100 text-blue-900"
-        : "border-emerald-300 bg-emerald-100 text-emerald-900";
-
   const dropDaysLeft = activeTerm && !dropDeadlinePassed ? daysUntil(activeTerm.dropDeadline) : 0;
   const downloadIcs = () => {
     const ics = buildIcs(activeTerm, visibleEnrollments);
@@ -395,6 +423,30 @@ export default function SchedulePage() {
               >
                 Open cart
               </Link>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                className={`inline-flex h-9 items-center rounded-lg px-3 text-xs font-semibold transition ${
+                  viewMode === "list"
+                    ? "bg-blue-600 text-white"
+                    : "campus-chip border-slate-300 bg-white text-slate-700"
+                }`}
+              >
+                列表 📋
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("grid")}
+                className={`inline-flex h-9 items-center rounded-lg px-3 text-xs font-semibold transition ${
+                  viewMode === "grid"
+                    ? "bg-blue-600 text-white"
+                    : "campus-chip border-slate-300 bg-white text-slate-700"
+                }`}
+              >
+                网格 🗓
+              </button>
             </div>
           </div>
         </div>
@@ -524,10 +576,52 @@ export default function SchedulePage() {
         </div>
       </section>
 
+      {viewMode === "list" ? (
+        <section className="campus-card no-print border-blue-200 bg-blue-50/70 p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">📘</span>
+            <div className="w-full">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-blue-900">今日课程</p>
+                <span className="rounded-full border border-blue-200 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">
+                  {WEEKDAY[todayWeekday]} today
+                </span>
+              </div>
+              {todayClasses.length === 0 ? (
+                <p className="mt-1 text-sm text-blue-800">今天没有课程 🎉</p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {todayClasses.map(({ enrollment, meetingTime }) => (
+                    <div
+                      key={`today-${enrollment.id}-${meetingTime.weekday}-${meetingTime.startMinutes}`}
+                      className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-slate-700"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-semibold text-slate-900">
+                          {enrollment.section.course.code} · {enrollment.section.course.title}
+                        </p>
+                        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusBadge(enrollment.status)}`}>
+                          {enrollmentStatusLabel(enrollment.status)}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-600">
+                        {fmt(meetingTime.startMinutes)}-{fmt(meetingTime.endMinutes)}
+                        {enrollment.section.location ? ` · ${enrollment.section.location}` : ""}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {/* List view with drop buttons */}
+      {viewMode === "list" ? (
       <section className="campus-card no-print overflow-hidden">
         <div className="border-b border-slate-100 px-4 py-3">
-          <h2 className="text-sm font-semibold text-slate-900">Section List</h2>
+          <h2 className="text-sm font-semibold text-slate-900">列表视图</h2>
         </div>
         <div className="space-y-3 p-3 md:hidden">
           {loadingSchedule ? (
@@ -704,120 +798,90 @@ export default function SchedulePage() {
           </table>
         </div>
       </section>
+      ) : null}
 
-      {/* Week grid */}
-      <section className="campus-card no-print p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-slate-900">Week View (Mon-Fri, 08:00-18:00)</h2>
-          <div className="flex flex-wrap gap-2 text-xs">
-            <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-emerald-700">{enrollmentStatusLabel("ENROLLED")}</span>
-            <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-blue-700">{enrollmentStatusLabel("PENDING_APPROVAL")}</span>
-            <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-amber-700">{enrollmentStatusLabel("WAITLISTED")}</span>
+      {viewMode === "grid" ? (
+        <section className="campus-card no-print overflow-hidden p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900">网格视图</h2>
+              <p className="text-xs text-slate-500">08:00-21:00 · 30 分钟粒度</p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-emerald-700">
+                {enrollmentStatusLabel("ENROLLED")}
+              </span>
+              <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-amber-700">
+                {enrollmentStatusLabel("WAITLISTED")}
+              </span>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowMobileWeekView((prev) => !prev)}
-            aria-expanded={showMobileWeekView}
-            className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50 md:hidden"
-          >
-            {showMobileWeekView ? "Hide mobile agenda" : "Show mobile agenda"}
-          </button>
-        </div>
-        <div className="space-y-3 md:hidden">
-          {!showMobileWeekView ? (
-            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
-              Mobile agenda is collapsed by default to reduce page density. Use the toggle above to expand.
-            </p>
-          ) : loadingSchedule ? (
-            <p role="status" aria-live="polite" className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
-              Loading week view…
-            </p>
-          ) : mobileAgenda.length === 0 ? (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
-              <p>
-                {visibleEnrollments.length === 0
-                  ? enrollments.length === 0
-                    ? "No schedule items available for this term."
-                    : "No meeting blocks for the selected statuses."
-                  : "No meeting blocks in Mon-Fri 08:00-18:00 for current filters."}
-              </p>
-              {hasStatusFiltersApplied ? (
-                <button
-                  type="button"
-                  onClick={resetStatusFilters}
-                  className="mt-2 inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
-                >
-                  Show all statuses
-                </button>
-              ) : null}
+          {loadingSchedule ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+              Loading grid view…
+            </div>
+          ) : visibleEnrollments.length === 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+              {enrollments.length === 0 ? "本学期暂无课程" : "当前筛选下没有可展示的课程。"}
             </div>
           ) : (
-            mobileAgenda.map((group) => (
-              <div key={group.day} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">{WEEKDAY[group.day]}</p>
-                <ul className="mt-2 space-y-2">
-                  {group.blocks.map((block) => (
-                    <li key={`mobile-${block.key}`} className={`rounded-lg border px-2.5 py-2 text-xs ${blockColor(block.status)}`}>
-                      <p className="font-semibold">{block.code} §{block.section}</p>
-                      <p className="mt-0.5 opacity-85">{block.time}</p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="hidden overflow-x-auto md:block">
-          <div className="grid min-w-[640px] grid-cols-[64px_repeat(5,minmax(0,1fr))]">
-            {/* Header row */}
-            <div className="border-b border-slate-200 bg-slate-50" />
-            {DAY_INDEXES.map((day) => (
-              <div key={`h-${day}`} className="border-b border-l border-slate-200 bg-slate-50 py-2 text-center text-xs font-semibold text-slate-600">
-                {WEEKDAY[day]}
-              </div>
-            ))}
-
-            {/* Time column */}
-            <div className="relative border-r border-slate-200 bg-slate-50" style={{ height: `${SCHEDULE_H}px` }}>
-              {hourMarks.slice(0, -1).map((mark) => (
-                <div
-                  key={mark}
-                  className="absolute left-1 text-[11px] text-slate-500"
-                  style={{ top: `${Math.max(0, ((mark - DAY_START) / 60) * HOUR_H - 6)}px` }}
-                >
-                  {fmt(mark)}
-                </div>
-              ))}
-            </div>
-
-            {/* Day columns */}
-            {DAY_INDEXES.map((day) => (
-              <div key={`col-${day}`} className="relative border-l border-slate-200" style={{ height: `${SCHEDULE_H}px` }}>
-                {hourMarks.map((mark) => (
+            <div className="overflow-x-auto">
+              <div className="grid min-w-[980px] grid-cols-[60px_repeat(7,minmax(0,1fr))] auto-rows-[28px]">
+                <div className="border-b border-r border-slate-200 bg-slate-50" />
+                {GRID_DAY_INDEXES.map((weekday) => (
                   <div
-                    key={`line-${day}-${mark}`}
-                    className="absolute left-0 right-0 border-t border-slate-100"
-                    style={{ top: `${((mark - DAY_START) / 60) * HOUR_H}px` }}
-                  />
-                ))}
-                {(blocksByDay.get(day) ?? []).map((block) => (
-                  <div
-                    key={block.key}
-                    className={`absolute left-1 right-1 overflow-hidden rounded border px-1.5 py-1 text-[11px] leading-tight ${blockColor(block.status)}`}
-                    style={{ top: `${block.top}px`, height: `${block.height}px` }}
-                    title={`${block.label} · ${block.time}`}
+                    key={`header-${weekday}`}
+                    className={`border-b border-r border-slate-200 px-2 py-2 text-center text-xs font-semibold ${
+                      weekday === todayWeekday ? "bg-blue-50 text-blue-700" : "bg-slate-50 text-slate-600"
+                    }`}
                   >
-                    <div className="font-semibold">{block.status === "PENDING_APPROVAL" ? `[Pending Approval] ${block.code}` : block.code}</div>
-                    <div className="opacity-80">§{block.section}</div>
-                    <div className="opacity-70">{block.time}</div>
+                    <div>{WEEKDAY[weekday]}</div>
+                    {weekday === todayWeekday ? (
+                      <span className="mt-1 inline-flex rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                        今天
+                      </span>
+                    ) : null}
+                  </div>
+                ))}
+                {timeSlots.map((minutes, index) => (
+                  <Fragment key={`slot-${minutes}`}>
+                    <div className="border-b border-r border-slate-200 bg-slate-50 px-2 py-1 text-[11px] text-slate-500">
+                      {fmt(minutes)}
+                    </div>
+                    {GRID_DAY_INDEXES.map((weekday) => (
+                      <div
+                        key={`cell-${weekday}-${minutes}`}
+                        className={`border-r border-b border-gray-100 ${
+                          weekday === todayWeekday
+                            ? "bg-blue-50/30"
+                            : index % 2 === 0
+                              ? "bg-gray-50/50"
+                              : "bg-white"
+                        }`}
+                      />
+                    ))}
+                  </Fragment>
+                ))}
+                {gridBlocks.map(({ key, enrollment, meetingTime, rowStart, rowSpan, colStart, tone }) => (
+                  <div
+                    key={key}
+                    title={`${enrollment.section.course.title}\n${enrollment.section.instructorName}\n${enrollment.section.location ?? "TBA"}`}
+                    className={`z-10 mx-1 my-0.5 overflow-hidden rounded-md border-l-4 px-2 py-1 shadow-sm ${tone}`}
+                    style={{
+                      gridColumnStart: colStart,
+                      gridRowStart: rowStart,
+                      gridRowEnd: `span ${rowSpan}`
+                    }}
+                  >
+                    <p className="truncate text-xs font-bold">{enrollment.section.course.code}</p>
+                    <p className="text-[10px] opacity-80">{fmt(meetingTime.startMinutes)}-{fmt(meetingTime.endMinutes)}</p>
                   </div>
                 ))}
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
+            </div>
+          )}
+        </section>
+      ) : null}
 
       <section className="print-only hidden">
         <h2 className="mb-3 text-lg font-semibold text-slate-900">
