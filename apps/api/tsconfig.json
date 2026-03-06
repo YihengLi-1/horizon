@@ -5,7 +5,12 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "types": ["node", "jest"],
-    "strictPropertyInitialization": false
+    "strictPropertyInitialization": false,
+    "paths": {
+      "@sis/shared": [
+        "../../packages/shared/src"
+      ]
+    }
   },
   "include": ["src", "prisma"]
 }

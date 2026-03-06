@@ -24,6 +24,9 @@
       }
     ],
     "paths": {
+      "@sis/shared": [
+        "../../packages/shared/src"
+      ],
       "@/*": [
         "./*"
       ]

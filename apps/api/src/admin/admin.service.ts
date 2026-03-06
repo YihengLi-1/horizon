@@ -644,7 +644,7 @@ export class AdminService {
 
     if (input.prerequisiteCourseIds && input.prerequisiteCourseIds.length > 0) {
       await this.prisma.coursePrerequisite.createMany({
-        data: input.prerequisiteCourseIds.map((prerequisiteCourseId) => ({
+        data: input.prerequisiteCourseIds.map((prerequisiteCourseId: string) => ({
           courseId: course.id,
           prerequisiteCourseId
         })),
@@ -686,7 +686,7 @@ export class AdminService {
       await this.prisma.coursePrerequisite.deleteMany({ where: { courseId: id } });
       if (input.prerequisiteCourseIds.length > 0) {
         await this.prisma.coursePrerequisite.createMany({
-          data: input.prerequisiteCourseIds.map((prerequisiteCourseId) => ({
+          data: input.prerequisiteCourseIds.map((prerequisiteCourseId: string) => ({
             courseId: id,
             prerequisiteCourseId
           })),
