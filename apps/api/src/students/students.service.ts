@@ -122,6 +122,23 @@ export class StudentsService {
     }
   }
 
+  async getCart(userId: string) {
+    return this.prisma.cartItem.findMany({
+      where: { studentId: userId },
+      include: {
+        section: {
+          include: {
+            course: true,
+            term: true,
+            meetingTimes: true
+          }
+        }
+      },
+      orderBy: { createdAt: "asc" },
+      take: 100
+    });
+  }
+
   async getMyRatings(userId: string) {
     const student = await this.prisma.user.findFirst({
       where: { id: userId, role: "STUDENT", deletedAt: null },

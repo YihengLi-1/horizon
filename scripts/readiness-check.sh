@@ -177,6 +177,23 @@ else
   warning "Monitoring stack incomplete ($FILE_COUNT files found, expected ≥6)"
 fi
 
+check_contains "apps/api/src/main.ts" "ValidationPipe" "ValidationPipe configured"
+check_exists "apps/api/src/auth/dto/login.dto.ts" "Login DTO exists"
+check_exists "apps/api/src/registration/dto/enroll.dto.ts" "Enroll DTO exists"
+check_exists "apps/api/src/common/sanitize.ts" "sanitizeHtml util exists"
+check_exists "apps/api/src/common/global-exception.filter.ts" "AllExceptionsFilter exists"
+check_contains "apps/api/prisma/schema.prisma" "RefreshToken" "RefreshToken model in schema"
+check_contains "apps/api/prisma/schema.prisma" "SystemSetting" "SystemSetting model in schema"
+check_contains "apps/api/prisma/schema.prisma" "studentId, status" "Enrollment perf index present"
+check_contains "monitoring/alerts.yml" "HighErrorRate" "HighErrorRate alert defined"
+check_exists "scripts/e2e-api-p0.mjs" "e2e smoke script exists"
+check_exists "scripts/smoke-docker.sh" "smoke-docker script exists"
+check_contains "package.json" "test:e2e" "test:e2e script in package.json"
+check_contains "apps/api/src/auth/auth.controller.ts" "refresh" "refresh endpoint in auth controller"
+check_contains "apps/api/src/main.ts" "unhandledRejection" "unhandledRejection handler in main.ts"
+check_contains "apps/api/src/common/cache.ts" "getOrSet" "getOrSet cache helper exists"
+check_contains "apps/api/src/registration/registration.service.ts" "Credit limit|max_credits" "credit limit check in registration service"
+
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"
 else

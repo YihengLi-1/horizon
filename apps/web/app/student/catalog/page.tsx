@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Suspense, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { RegistrationStepper } from "@/components/registration-stepper";
+import { useToast } from "@/components/Toast";
 import { apiFetch } from "@/lib/api";
 import BookmarkButton from "./BookmarkButton";
 import RecommendedCourses from "./RecommendedCourses";
@@ -188,6 +189,7 @@ function RegistrationWindowBanner({ term }: { term: Term | null }) {
 const PAGE_SIZE = 20;
 
 export default function StudentCatalogPage() {
+  const toast = useToast();
   const [terms, setTerms] = useState<Term[]>([]);
   const [termId, setTermId] = useState("");
   const [sections, setSections] = useState<Section[]>([]);
@@ -614,7 +616,12 @@ export default function StudentCatalogPage() {
       setNotice(`${section.course.code} §${section.sectionCode} added to cart.`);
       await loadCart(termId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add to cart");
+      const message = err instanceof Error ? err.message : "Failed to add to cart";
+      setError(message);
+      if (/credit limit exceeded/i.test(message)) {
+        const maxCredits = activeTerm?.maxCredits ?? 18;
+        toast(`学分上限已达，本学期最多可修 ${maxCredits} 学分`, "error");
+      }
     } finally {
       setAddingSectionId("");
     }

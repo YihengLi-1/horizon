@@ -51,6 +51,15 @@
 - 恢复演练：`pnpm backup:restore:drill`
 - 备份文件位置：Docker volume `pgbackups`
 
+## Smoke Test
+```bash
+# After docker compose up:
+node scripts/e2e-api-p0.mjs
+
+# Full docker smoke:
+bash scripts/smoke-docker.sh
+```
+
 ## 常用运维命令
 - `pnpm readiness:check`：系统健康检查（目标：0 warn / 0 fail）
 - `docker compose logs -f api`：查看 API 日志

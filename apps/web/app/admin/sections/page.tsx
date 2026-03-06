@@ -40,6 +40,7 @@ type Section = {
   term: { id: string; name: string };
   course: { id: string; code: string };
   ratings?: Array<{ rating: number }>;
+  avgRating?: number | null;
   enrollments: Enrollment[];
   meetingTimes: MeetingTime[];
 };
@@ -1374,7 +1375,7 @@ export default function AdminSectionsPage() {
                 <th className="px-4 py-3 font-semibold text-slate-700">Enrolled</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Waitlist</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Available</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Rating</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">Avg Rating ★</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Promote</th>
                 <th className="px-4 py-3 font-semibold text-slate-700">Actions</th>
               </tr>
@@ -1510,7 +1511,9 @@ export default function AdminSectionsPage() {
                             {seats} seats
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-slate-500">{avgRating(section.ratings)}</td>
+                        <td className="px-4 py-3 text-sm text-slate-500">
+                          {section.avgRating != null ? `★ ${section.avgRating.toFixed(1)}` : avgRating(section.ratings)}
+                        </td>
                         <td className="px-4 py-3">
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-2">

@@ -34,6 +34,12 @@ export class StudentsController {
     return ok(await this.studentsService.getTranscript(user.userId));
   }
 
+  @Roles("STUDENT")
+  @Get("cart")
+  async getCart(@CurrentUser() user: { userId: string }) {
+    return ok(await this.studentsService.getCart(user.userId));
+  }
+
   @Roles("STUDENT", "ADMIN")
   @Get("announcements")
   async getAnnouncements(@CurrentUser() user: { role: "STUDENT" | "ADMIN" }) {

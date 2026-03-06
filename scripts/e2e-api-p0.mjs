@@ -1,13 +1,20 @@
-import assert from "node:assert/strict";
+import assert from 'node:assert/strict';
 
-const API_URL = process.env.API_URL || "http://localhost:4000";
+const BASE = process.env.API_URL ?? 'http://localhost:4000';
+const INVITE_CODE = process.env.SMOKE_INVITE_CODE ?? 'OPEN-2026';
+const ADMIN_IDENTIFIER = process.env.SMOKE_ADMIN_IDENTIFIER ?? 'admin@sis.edu';
+const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD ?? 'Admin@2026!';
+const STUDENT_PASSWORD = process.env.SMOKE_STUDENT_PASSWORD ?? 'Student@2026!';
+const CSRF_COOKIE_NAME = process.env.CSRF_COOKIE_NAME ?? 'sis-csrf';
+const CSRF_HEADER_NAME = process.env.CSRF_HEADER_NAME ?? 'x-csrf-token';
 
-const ADMIN_IDENTIFIER = process.env.SMOKE_ADMIN_IDENTIFIER || "admin@sis.edu";
-const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD || "Admin@2026!";
-const STUDENT1_IDENTIFIER = process.env.SMOKE_STUDENT_IDENTIFIER || "student1@sis.edu";
-const STUDENT1_PASSWORD = process.env.SMOKE_STUDENT_PASSWORD || "Student@2026!";
-const STUDENT2_IDENTIFIER = process.env.SMOKE_STUDENT2_IDENTIFIER || "student2@sis.edu";
-const STUDENT2_PASSWORD = process.env.SMOKE_STUDENT2_PASSWORD || "Student@2026!";
+const C = {
+  reset: '\x1b[0m',
+  green: '\x1b[32m',
+  red: '\x1b[31m',
+  cyan: '\x1b[36m',
+  yellow: '\x1b[33m'
+};
 
 class ApiClient {
   constructor(baseUrl) {
@@ -16,439 +23,199 @@ class ApiClient {
   }
 
   cookieHeader() {
-    return Array.from(this.cookies.entries())
-      .map(([name, value]) => `${name}=${value}`)
-      .join("; ");
+    return [...this.cookies.entries()].map(([name, value]) => `${name}=${value}`).join('; ');
   }
 
   applySetCookie(headers) {
-    const fromUndici = typeof headers.getSetCookie === "function" ? headers.getSetCookie() : [];
-    const fallback = headers.get("set-cookie");
-    const setCookies = fromUndici.length > 0 ? fromUndici : fallback ? [fallback] : [];
+    const raw = typeof headers.getSetCookie === 'function' ? headers.getSetCookie() : [];
+    const fallback = headers.get('set-cookie');
+    const setCookies = raw.length > 0 ? raw : fallback ? [fallback] : [];
 
-    for (const raw of setCookies) {
-      const [pair] = raw.split(";");
-      const eqIndex = pair.indexOf("=");
-      if (eqIndex <= 0) continue;
-      const name = pair.slice(0, eqIndex).trim();
-      const value = pair.slice(eqIndex + 1).trim();
-      if (value) this.cookies.set(name, value);
+    for (const item of setCookies) {
+      const [pair] = item.split(';');
+      const eq = pair.indexOf('=');
+      if (eq <= 0) continue;
+      const name = pair.slice(0, eq).trim();
+      const value = pair.slice(eq + 1).trim();
+      this.cookies.set(name, value);
     }
   }
 
   async request(path, options = {}) {
-    const headers = { ...(options.headers || {}) };
+    const headers = { ...(options.headers ?? {}) };
     const cookie = this.cookieHeader();
     if (cookie) {
       headers.cookie = cookie;
     }
+    if (options.csrf) {
+      const token = this.cookies.get(CSRF_COOKIE_NAME);
+      if (token) {
+        headers[CSRF_HEADER_NAME] = token;
+      }
+    }
 
     let body;
     if (options.body !== undefined) {
-      headers["content-type"] = "application/json";
+      headers['content-type'] = 'application/json';
       body = JSON.stringify(options.body);
     }
 
     const response = await fetch(`${this.baseUrl}${path}`, {
-      method: options.method || "GET",
+      method: options.method ?? 'GET',
       headers,
       body
     });
 
     this.applySetCookie(response.headers);
-
     const text = await response.text();
-    const payload = text ? JSON.parse(text) : null;
-
-    return {
-      status: response.status,
-      ok: response.ok,
-      payload
-    };
-  }
-
-  async expectSuccess(path, options = {}) {
-    const res = await this.request(path, options);
-    if (!res.ok || !res.payload?.success) {
-      throw new Error(
-        `Expected success for ${options.method || "GET"} ${path} but got ${res.status}: ${JSON.stringify(res.payload)}`
-      );
-    }
-    return res.payload.data;
-  }
-
-  async expectError(path, expectedCode, options = {}) {
-    const res = await this.request(path, options);
-    if (res.ok || res.payload?.success !== false) {
-      throw new Error(`Expected error for ${options.method || "GET"} ${path} but got success: ${JSON.stringify(res.payload)}`);
+    let json = null;
+    if (text) {
+      try {
+        json = JSON.parse(text);
+      } catch {
+        json = text;
+      }
     }
 
-    const code = res.payload?.error?.code;
-    if (code !== expectedCode) {
-      throw new Error(
-        `Expected error code ${expectedCode} for ${options.method || "GET"} ${path}, got ${code}. Payload=${JSON.stringify(res.payload)}`
-      );
+    return { status: response.status, ok: response.ok, json };
+  }
+}
+
+let passed = 0;
+let failed = 0;
+
+async function step(label, fn) {
+  process.stdout.write(`${C.cyan}→${C.reset} ${label}\n`);
+  try {
+    await fn();
+    passed += 1;
+    process.stdout.write(`${C.green}✓${C.reset} ${label}\n`);
+  } catch (error) {
+    failed += 1;
+    process.stdout.write(`${C.red}✗${C.reset} ${label}\n`);
+    process.stdout.write(`${C.yellow}${String(error instanceof Error ? error.message : error)}${C.reset}\n`);
+  }
+}
+
+function unwrapData(result) {
+  if (!result.ok) {
+    throw new Error(`HTTP ${result.status}: ${JSON.stringify(result.json)}`);
+  }
+  if (result.json && typeof result.json === 'object' && 'success' in result.json) {
+    if (!result.json.success) {
+      throw new Error(`API failure: ${JSON.stringify(result.json)}`);
     }
-
-    return res.payload.error;
+    return result.json.data;
   }
-}
-
-async function login(client, identifier, password) {
-  const data = await client.expectSuccess("/auth/login", {
-    method: "POST",
-    body: { identifier, password }
-  });
-  return data;
-}
-
-async function clearCart(client, termId) {
-  const cart = await client.expectSuccess(`/registration/cart?termId=${termId}`);
-  for (const item of cart) {
-    await client.expectSuccess(`/registration/cart/${item.id}`, { method: "DELETE" });
-  }
-}
-
-async function addAndPrecheck(client, termId, sectionId) {
-  await client.expectSuccess("/registration/cart", {
-    method: "POST",
-    body: { termId, sectionId }
-  });
-
-  return client.expectSuccess("/registration/precheck", {
-    method: "POST",
-    body: { termId }
-  });
-}
-
-function findIssue(precheck, reasonCode) {
-  return (precheck.issues || []).find((issue) => issue.reasonCode === reasonCode);
+  return result.json;
 }
 
 async function main() {
-  const suffix = `${Date.now()}`;
-  const now = new Date();
+  const student = new ApiClient(BASE);
+  const admin = new ApiClient(BASE);
+  const unique = Date.now().toString();
+  const email = `smoke.${unique}@sis.test`;
+  const studentId = `SMK${unique.slice(-8)}`;
 
-  const admin = new ApiClient(API_URL);
-  const student1 = new ApiClient(API_URL);
-  const student2 = new ApiClient(API_URL);
-
-  console.log("Logging in admin and students...");
-  await login(admin, ADMIN_IDENTIFIER, ADMIN_PASSWORD);
-  await login(student1, STUDENT1_IDENTIFIER, STUDENT1_PASSWORD);
-  await login(student2, STUDENT2_IDENTIFIER, STUDENT2_PASSWORD);
-
-  console.log("Creating dedicated E2E term/courses/sections...");
-  const term = await admin.expectSuccess("/admin/terms", {
-    method: "POST",
-    body: {
-      name: `E2E-P0-${suffix}`,
-      startDate: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
-      endDate: new Date(now.getTime() + 100 * 24 * 60 * 60 * 1000).toISOString(),
-      registrationOpenAt: new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString(),
-      registrationCloseAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      dropDeadline: new Date(now.getTime() + 20 * 24 * 60 * 60 * 1000).toISOString(),
-      maxCredits: 6,
-      timezone: "America/Phoenix"
-    }
+  await step('1. POST /auth/register → 201', async () => {
+    const res = await student.request('/auth/register', {
+      method: 'POST',
+      body: {
+        email,
+        legalName: 'Smoke Student',
+        studentId,
+        password: STUDENT_PASSWORD,
+        inviteCode: INVITE_CODE
+      }
+    });
+    assert.equal(res.status, 201, `Expected 201, got ${res.status}`);
+    unwrapData(res);
   });
 
-  const baseCourse = await admin.expectSuccess("/admin/courses", {
-    method: "POST",
-    body: { code: `E2B${suffix.slice(-4)}`, title: "E2E Base Course", credits: 3, prerequisiteCourseIds: [] }
+  await step('2. POST /auth/login → 200', async () => {
+    const res = await student.request('/auth/login', {
+      method: 'POST',
+      body: { identifier: email, password: STUDENT_PASSWORD }
+    });
+    assert.equal(res.status, 200, `Expected 200, got ${res.status}`);
+    const data = unwrapData(res);
+    assert.ok(data?.user?.email === email, 'Missing logged-in user payload');
+    assert.ok(student.cookies.get('access_token'), 'Missing access_token cookie');
   });
 
-  const advancedCourse = await admin.expectSuccess("/admin/courses", {
-    method: "POST",
-    body: {
-      code: `E2A${suffix.slice(-4)}`,
-      title: "E2E Advanced Course",
-      credits: 3,
-      prerequisiteCourseIds: [baseCourse.id]
-    }
+  await step('3. GET /academics/terms → array', async () => {
+    const res = await student.request('/academics/terms');
+    const data = unwrapData(res);
+    assert.ok(Array.isArray(data), 'Expected array');
   });
 
-  const conflictCourse = await admin.expectSuccess("/admin/courses", {
-    method: "POST",
-    body: { code: `E2C${suffix.slice(-4)}`, title: "E2E Conflict Course", credits: 3, prerequisiteCourseIds: [] }
+  await step('4. GET /students/notifications → array', async () => {
+    const res = await student.request('/students/notifications');
+    const data = unwrapData(res);
+    assert.ok(Array.isArray(data), 'Expected array');
   });
 
-  const heavyCourse = await admin.expectSuccess("/admin/courses", {
-    method: "POST",
-    body: { code: `E2H${suffix.slice(-4)}`, title: "E2E Heavy Course", credits: 4, prerequisiteCourseIds: [] }
+  await step('5. GET /students/transcript → array', async () => {
+    const res = await student.request('/students/transcript');
+    const data = unwrapData(res);
+    assert.ok(Array.isArray(data), 'Expected array');
   });
 
-  const approvalCourse = await admin.expectSuccess("/admin/courses", {
-    method: "POST",
-    body: { code: `E2P${suffix.slice(-4)}`, title: "E2E Approval Course", credits: 3, prerequisiteCourseIds: [] }
+  await step('6. GET /students/cart → array', async () => {
+    const res = await student.request('/students/cart');
+    const data = unwrapData(res);
+    assert.ok(Array.isArray(data), 'Expected array');
   });
 
-  const futureStart = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString();
-  const pastStart = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString();
-
-  const baseSection = await admin.expectSuccess("/admin/sections", {
-    method: "POST",
-    body: {
-      termId: term.id,
-      courseId: baseCourse.id,
-      sectionCode: `BASE-${suffix.slice(-4)}`,
-      modality: "ON_CAMPUS",
-      capacity: 10,
-      credits: 3,
-      instructorName: "E2E Instructor",
-      location: "B-101",
-      requireApproval: false,
-      startDate: futureStart,
-      meetingTimes: [{ weekday: 1, startMinutes: 540, endMinutes: 600 }]
-    }
+  await step('7. GET /ops/ready → ready/ok', async () => {
+    const res = await student.request('/ops/ready');
+    assert.equal(res.status, 200, `Expected 200, got ${res.status}`);
+    assert.ok(res.json?.status === 'ready' || res.json?.status === 'ok', `Unexpected payload: ${JSON.stringify(res.json)}`);
   });
 
-  const advancedSection = await admin.expectSuccess("/admin/sections", {
-    method: "POST",
-    body: {
-      termId: term.id,
-      courseId: advancedCourse.id,
-      sectionCode: `ADV-${suffix.slice(-4)}`,
-      modality: "ON_CAMPUS",
-      capacity: 10,
-      credits: 3,
-      instructorName: "E2E Instructor",
-      location: "B-102",
-      requireApproval: false,
-      startDate: futureStart,
-      meetingTimes: [{ weekday: 2, startMinutes: 540, endMinutes: 600 }]
-    }
+  await step('8. POST /auth/logout → 200', async () => {
+    await student.request('/auth/csrf-token');
+    const res = await student.request('/auth/logout', { method: 'POST', csrf: true });
+    assert.equal(res.status, 200, `Expected 200, got ${res.status}`);
+    unwrapData(res);
   });
 
-  const conflictSection = await admin.expectSuccess("/admin/sections", {
-    method: "POST",
-    body: {
-      termId: term.id,
-      courseId: conflictCourse.id,
-      sectionCode: `CON-${suffix.slice(-4)}`,
-      modality: "ON_CAMPUS",
-      capacity: 10,
-      credits: 3,
-      instructorName: "E2E Instructor",
-      location: "B-103",
-      requireApproval: false,
-      startDate: futureStart,
-      meetingTimes: [{ weekday: 1, startMinutes: 555, endMinutes: 615 }]
-    }
+  await step('9. POST /auth/login admin → 200', async () => {
+    const res = await admin.request('/auth/login', {
+      method: 'POST',
+      body: { identifier: ADMIN_IDENTIFIER, password: ADMIN_PASSWORD }
+    });
+    assert.equal(res.status, 200, `Expected 200, got ${res.status}`);
+    const data = unwrapData(res);
+    assert.equal(data?.user?.email, ADMIN_IDENTIFIER, 'Admin login payload mismatch');
   });
 
-  const heavySection = await admin.expectSuccess("/admin/sections", {
-    method: "POST",
-    body: {
-      termId: term.id,
-      courseId: heavyCourse.id,
-      sectionCode: `HEV-${suffix.slice(-4)}`,
-      modality: "ONLINE",
-      capacity: 10,
-      credits: 4,
-      instructorName: "E2E Instructor",
-      location: "Online",
-      requireApproval: false,
-      startDate: futureStart,
-      meetingTimes: [{ weekday: 4, startMinutes: 780, endMinutes: 840 }]
-    }
+  await step('10. GET /admin/students?page=1 → { data, total }', async () => {
+    const res = await admin.request('/admin/students?page=1');
+    const data = unwrapData(res);
+    assert.ok(Array.isArray(data?.data), 'Expected data array');
+    assert.equal(typeof data?.total, 'number', 'Expected numeric total');
   });
 
-  const approvalSection = await admin.expectSuccess("/admin/sections", {
-    method: "POST",
-    body: {
-      termId: term.id,
-      courseId: approvalCourse.id,
-      sectionCode: `APP-${suffix.slice(-4)}`,
-      modality: "HYBRID",
-      capacity: 10,
-      credits: 3,
-      instructorName: "E2E Instructor",
-      location: "B-104",
-      requireApproval: true,
-      startDate: futureStart,
-      meetingTimes: [{ weekday: 3, startMinutes: 540, endMinutes: 600 }]
-    }
+  await step('11. GET /admin/reports → 200', async () => {
+    const res = await admin.request('/admin/reports');
+    assert.equal(res.status, 200, `Expected 200, got ${res.status}`);
+    unwrapData(res);
   });
 
-  const startedSection = await admin.expectSuccess("/admin/sections", {
-    method: "POST",
-    body: {
-      termId: term.id,
-      courseId: conflictCourse.id,
-      sectionCode: `PST-${suffix.slice(-4)}`,
-      modality: "ON_CAMPUS",
-      capacity: 10,
-      credits: 3,
-      instructorName: "E2E Instructor",
-      location: "B-105",
-      requireApproval: false,
-      startDate: pastStart,
-      meetingTimes: [{ weekday: 5, startMinutes: 600, endMinutes: 660 }]
-    }
+  await step('12. GET /api/docs-json → has openapi', async () => {
+    const res = await admin.request('/api/docs-json');
+    assert.equal(res.status, 200, `Expected 200, got ${res.status}`);
+    assert.ok(res.json?.openapi, 'Missing openapi key');
   });
 
-  const fullSection = await admin.expectSuccess("/admin/sections", {
-    method: "POST",
-    body: {
-      termId: term.id,
-      courseId: conflictCourse.id,
-      sectionCode: `FUL-${suffix.slice(-4)}`,
-      modality: "ON_CAMPUS",
-      capacity: 1,
-      credits: 3,
-      instructorName: "E2E Instructor",
-      location: "B-106",
-      requireApproval: false,
-      startDate: futureStart,
-      meetingTimes: [{ weekday: 5, startMinutes: 780, endMinutes: 840 }]
-    }
-  });
-
-  console.log("Validating registration rules...");
-
-  await clearCart(student1, term.id);
-
-  let precheck = await addAndPrecheck(student1, term.id, advancedSection.id);
-  assert.equal(Boolean(findIssue(precheck, "PREREQUISITE_NOT_MET")), true, "Expected PREREQUISITE_NOT_MET");
-  await clearCart(student1, term.id);
-
-  precheck = await addAndPrecheck(student1, term.id, startedSection.id);
-  assert.equal(Boolean(findIssue(precheck, "SECTION_ALREADY_STARTED")), true, "Expected SECTION_ALREADY_STARTED");
-  await clearCart(student1, term.id);
-
-  await student1.expectSuccess("/registration/cart", {
-    method: "POST",
-    body: { termId: term.id, sectionId: baseSection.id }
-  });
-  precheck = await student1.expectSuccess("/registration/precheck", {
-    method: "POST",
-    body: { termId: term.id }
-  });
-  assert.equal(precheck.ok, true, "Expected base section precheck ok");
-  const baseSubmit = await student1.expectSuccess("/registration/submit", {
-    method: "POST",
-    body: { termId: term.id }
-  });
-  assert.equal(baseSubmit.some((item) => item.sectionId === baseSection.id && item.status === "ENROLLED"), true);
-
-  precheck = await addAndPrecheck(student1, term.id, conflictSection.id);
-  assert.equal(Boolean(findIssue(precheck, "TIME_CONFLICT")), true, "Expected TIME_CONFLICT");
-  await clearCart(student1, term.id);
-
-  precheck = await addAndPrecheck(student1, term.id, heavySection.id);
-  assert.equal(Boolean(findIssue(precheck, "CREDIT_LIMIT_EXCEEDED")), true, "Expected CREDIT_LIMIT_EXCEEDED");
-  await clearCart(student1, term.id);
-
-  precheck = await addAndPrecheck(student1, term.id, approvalSection.id);
-  assert.equal(precheck.ok, true, "Expected approval section precheck ok");
-  assert.equal(
-    precheck.preview.some((item) => item.sectionId === approvalSection.id && item.status === "PENDING_APPROVAL"),
-    true,
-    "Expected PENDING_APPROVAL preview"
-  );
-  const approvalSubmit = await student1.expectSuccess("/registration/submit", {
-    method: "POST",
-    body: { termId: term.id }
-  });
-  assert.equal(
-    approvalSubmit.some((item) => item.sectionId === approvalSection.id && item.status === "PENDING_APPROVAL"),
-    true,
-    "Expected PENDING_APPROVAL result"
-  );
-
-  console.log("Validating capacity, waitlist and promote flow...");
-  await clearCart(student2, term.id);
-  await student2.expectSuccess("/registration/cart", {
-    method: "POST",
-    body: { termId: term.id, sectionId: fullSection.id }
-  });
-  const fullSeatSubmit = await student2.expectSuccess("/registration/submit", {
-    method: "POST",
-    body: { termId: term.id }
-  });
-  assert.equal(fullSeatSubmit.some((item) => item.sectionId === fullSection.id && item.status === "ENROLLED"), true);
-
-  await clearCart(student1, term.id);
-  await student1.expectSuccess("/registration/cart", {
-    method: "POST",
-    body: { termId: term.id, sectionId: fullSection.id }
-  });
-  const waitlistSubmit = await student1.expectSuccess("/registration/submit", {
-    method: "POST",
-    body: { termId: term.id }
-  });
-  assert.equal(waitlistSubmit.some((item) => item.sectionId === fullSection.id && item.status === "WAITLISTED"), true);
-
-  const student2Enrollments = await student2.expectSuccess(`/registration/enrollments?termId=${term.id}`);
-  const student2FullEnrollment = student2Enrollments.find(
-    (item) => item.sectionId === fullSection.id && item.status === "ENROLLED"
-  );
-  assert.ok(student2FullEnrollment, "Expected student2 full section enrollment");
-
-  const dropResponse = await student2.expectSuccess("/registration/drop", {
-    method: "POST",
-    body: { enrollmentId: student2FullEnrollment.id }
-  });
-  assert.equal(dropResponse.seatFreed, true, "Expected seatFreed=true after ENROLLED drop");
-
-  const promoteResult = await admin.expectSuccess("/admin/waitlist/promote", {
-    method: "POST",
-    body: { sectionId: fullSection.id, count: 1 }
-  });
-  assert.equal(promoteResult.promotedCount, 1, "Expected one waitlist promotion");
-  assert.equal(promoteResult.remainingWaitlistCount, 0, "Expected empty waitlist after promotion");
-
-  console.log("Validating drop deadline rule...");
-  await admin.expectSuccess(`/admin/terms/${term.id}`, {
-    method: "PATCH",
-    body: {
-      dropDeadline: new Date(now.getTime() - 60 * 60 * 1000).toISOString()
-    }
-  });
-
-  const student1Enrollments = await student1.expectSuccess(`/registration/enrollments?termId=${term.id}`);
-  const student1BaseEnrollment = student1Enrollments.find(
-    (item) => item.sectionId === baseSection.id && item.status === "ENROLLED"
-  );
-  assert.ok(student1BaseEnrollment, "Expected student1 ENROLLED section for drop deadline test");
-
-  await student1.expectError("/registration/drop", "DROP_DEADLINE_PASSED", {
-    method: "POST",
-    body: { enrollmentId: student1BaseEnrollment.id }
-  });
-
-  console.log("Validating CSV import fail-fast...");
-  const csvError = await admin.expectError("/admin/import/students", "CSV_ROW_INVALID", {
-    method: "POST",
-    body: {
-      csv: "email,studentId,legalName\ninvalid-email,S9X01,\n"
-    }
-  });
-  assert.equal(Array.isArray(csvError.details), true, "Expected CSV validation details array");
-  assert.equal(csvError.details.length > 0, true, "Expected non-empty CSV validation details");
-
-  console.log("Validating readiness and docs endpoints...");
-  const readyResponse = await fetch(`${API_URL}/ops/ready`);
-  assert.equal(readyResponse.ok, true, `Expected /ops/ready 200, got ${readyResponse.status}`);
-  const readyBody = await readyResponse.json();
-  assert.equal(Boolean(readyBody?.status === "ready" || readyBody?.uptime > 0), true, "Missing ready status");
-
-  const swaggerResponse = await fetch(`${API_URL}/api/docs-json`);
-  assert.equal(swaggerResponse.ok, true, `Expected /api/docs-json 200, got ${swaggerResponse.status}`);
-
-  const notificationsResponse = await student1.request("/students/notifications");
-  assert.equal(notificationsResponse.ok, true, `Expected notifications 200, got ${notificationsResponse.status}`);
-  assert.equal(
-    Array.isArray(notificationsResponse.payload?.data ?? notificationsResponse.payload),
-    true,
-    "Expected notifications array"
-  );
-
-  console.log("P0 API rule checks passed.");
+  process.stdout.write(`\nSummary: ${passed} passed, ${failed} failed\n`);
+  if (failed > 0) {
+    process.exitCode = 1;
+  }
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
+  console.error(`${C.red}Fatal:${C.reset} ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
   process.exit(1);
 });

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { Request, Response } from "express";
 import { verifyEmailSchema } from "@sis/shared";
@@ -31,6 +31,7 @@ export class AuthController {
 
   @Post("login")
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
   async login(
     @Body() body: LoginDto,
     @Req() req: Request,
@@ -41,6 +42,7 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Post("logout")
+  @HttpCode(HttpStatus.OK)
   async logout(
     @CurrentUser() user: { userId: string; sid?: string },
     @Req() req: Request,
@@ -50,18 +52,21 @@ export class AuthController {
   }
 
   @Post("refresh")
+  @HttpCode(HttpStatus.OK)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     return ok(await this.authService.refresh(req, res));
   }
 
   @Post("forgot-password")
   @Throttle({ default: { limit: 5, ttl: 300_000 } })
+  @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() body: ForgotPasswordDto) {
     return ok(await this.authService.forgotPassword(body));
   }
 
   @Post("reset-password")
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() body: ResetPasswordDto) {
     return ok(await this.authService.resetPassword(body));
   }

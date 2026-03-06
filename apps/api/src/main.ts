@@ -48,6 +48,12 @@ async function bootstrap() {
       loginRateLimited: 0
     }
   };
+  const durationHistogramBounds = [0.1, 0.3, 0.5, 1, 2, 5];
+  const durationHistogramCounts = new Map<string, number>(
+    [...durationHistogramBounds.map((bound) => [bound.toString(), 0] as const), ["+Inf", 0]]
+  );
+  let durationSumSeconds = 0;
+  let durationCount = 0;
   const metricsHistory: Array<{
     ts: number;
     requestsTotal: number;
@@ -188,13 +194,23 @@ async function bootstrap() {
 
     res.on("finish", () => {
       const durationMs = Date.now() - startTime;
+      const durationSeconds = durationMs / 1000;
       const routeKey = `${req.method} ${req.originalUrl || req.url}`;
       const statusCode = String(res.statusCode);
 
       metrics.requestsTotal += 1;
+      durationCount += 1;
+      durationSumSeconds += durationSeconds;
       metrics.byMethod.set(req.method, (metrics.byMethod.get(req.method) ?? 0) + 1);
       metrics.byStatusCode.set(statusCode, (metrics.byStatusCode.get(statusCode) ?? 0) + 1);
       metrics.byRoute.set(routeKey, (metrics.byRoute.get(routeKey) ?? 0) + 1);
+      for (const bound of durationHistogramBounds) {
+        if (durationSeconds <= bound) {
+          const key = bound.toString();
+          durationHistogramCounts.set(key, (durationHistogramCounts.get(key) ?? 0) + 1);
+        }
+      }
+      durationHistogramCounts.set("+Inf", (durationHistogramCounts.get("+Inf") ?? 0) + 1);
       if (res.statusCode >= 400) {
         metrics.errorResponsesTotal += 1;
       }
@@ -379,6 +395,16 @@ async function bootstrap() {
     });
   });
 
+  expressApp.get("/ops/metrics/snapshot", (_req: any, res: any) => {
+    res.json(
+      metricsHistory.slice(-5).map((entry) => ({
+        ts: entry.ts,
+        requests: entry.requestsTotal,
+        memory: entry.rss
+      }))
+    );
+  });
+
   expressApp.get("/ops/metrics/prometheus", (_req: any, res: any) => {
     const uptime = process.uptime();
     const memUsage = process.memoryUsage();
@@ -426,6 +452,22 @@ async function bootstrap() {
     for (const [code, count] of metrics.byStatusCode.entries()) {
       lines.push(`sis_status_code_total{code="${code}"} ${count}`);
     }
+
+    lines.push("", "# HELP http_requests_total Conventional HTTP requests by status", "# TYPE http_requests_total counter");
+    for (const [code, count] of metrics.byStatusCode.entries()) {
+      lines.push(`http_requests_total{status="${code}"} ${count}`);
+    }
+
+    lines.push(
+      "",
+      "# HELP http_request_duration_seconds Request duration histogram",
+      "# TYPE http_request_duration_seconds histogram"
+    );
+    for (const [bucket, count] of durationHistogramCounts.entries()) {
+      lines.push(`http_request_duration_seconds_bucket{le="${bucket}"} ${count}`);
+    }
+    lines.push(`http_request_duration_seconds_sum ${durationSumSeconds}`);
+    lines.push(`http_request_duration_seconds_count ${durationCount}`);
 
     res.set("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
     res.send(lines.join("\n") + "\n");

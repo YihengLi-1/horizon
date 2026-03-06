@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import nodemailer, { type Transporter } from "nodemailer";
 import {
   buildEnrollmentSubmissionEmail,
@@ -7,6 +7,7 @@ import {
   buildVerificationEmail,
   buildWaitlistPromotionEmail
 } from "../mail/templates/notification.templates";
+import { StructuredLogger } from "../common/logger";
 
 type MailEnvelope = {
   to: string;
@@ -30,7 +31,7 @@ type MailHealthSnapshot = {
 
 @Injectable()
 export class NotificationsService {
-  private readonly logger = new Logger(NotificationsService.name);
+  private readonly logger = new StructuredLogger();
   private readonly from = process.env.SMTP_FROM || "noreply@horizon-sis.local";
   private readonly enabled = this.resolveEnabled();
   private readonly smtpConfigured = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
@@ -62,7 +63,7 @@ export class NotificationsService {
     const user = process.env.SMTP_USER;
     const pass = process.env.SMTP_PASS;
     if (!host || !user || !pass) {
-      this.logger.warn("MAIL_ENABLED=true but SMTP_HOST/SMTP_USER/SMTP_PASS missing. Email delivery disabled.");
+      this.logger.warn("MAIL_ENABLED=true but SMTP_HOST/SMTP_USER/SMTP_PASS missing. Email delivery disabled.", NotificationsService.name);
       return null;
     }
 
@@ -93,7 +94,7 @@ export class NotificationsService {
       this.health.lastFailureReason = this.enabled
         ? "mail_enabled_but_smtp_not_configured"
         : "mail_disabled";
-      this.logger.log(`Email skipped (delivery disabled): to=${envelope.to} subject=${envelope.subject}`);
+      this.logger.log(`Email skipped (delivery disabled): to=${envelope.to} subject=${envelope.subject}`, NotificationsService.name);
       return false;
     }
 
@@ -113,7 +114,7 @@ export class NotificationsService {
       this.health.failed += 1;
       this.health.lastFailureAt = new Date().toISOString();
       this.health.lastFailureReason = message;
-      this.logger.error(`Email delivery failed: to=${envelope.to} subject=${envelope.subject} error=${message}`);
+      this.logger.error(`Email delivery failed: to=${envelope.to} subject=${envelope.subject} error=${message}`, undefined, NotificationsService.name);
       return false;
     }
   }

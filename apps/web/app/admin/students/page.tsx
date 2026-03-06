@@ -90,6 +90,7 @@ export default function AdminStudentsPage() {
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
   const [roleSaving, setRoleSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<"profile" | "grades">("profile");
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
 
   const loadStudents = async () => {
     try {
@@ -106,6 +107,11 @@ export default function AdminStudentsPage() {
 
   useEffect(() => {
     void loadStudents();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setLeaderboardOpen(window.localStorage.getItem("admin_gpa_open") === "true");
   }, []);
 
   const onCreate = async (event: FormEvent) => {
@@ -335,7 +341,15 @@ export default function AdminStudentsPage() {
         </div>
       </section>
 
-      <details className="campus-card p-4">
+      <details
+        className="campus-card p-4"
+        open={leaderboardOpen}
+        onToggle={(event) => {
+          const nextOpen = (event.currentTarget as HTMLDetailsElement).open;
+          setLeaderboardOpen(nextOpen);
+          window.localStorage.setItem("admin_gpa_open", String(nextOpen));
+        }}
+      >
         <summary className="cursor-pointer select-none text-sm font-semibold text-slate-700">🏆 Top 5 by GPA</summary>
         <div className="mt-3 space-y-2">
           {topStudents.length === 0 ? (
