@@ -1932,9 +1932,24 @@ export class AdminService {
     return Object.entries(counts).map(([date, count]) => ({ date, count }));
   }
 
-  async getDeptBreakdown() {
-    return apiCache.getOrSet("admin:dept-breakdown", 60_000, async () =>
-      this.prisma.$queryRaw<Array<{ dept: string; enrolled: number; waitlisted: number; dropped: number }>>`
+  async getDeptBreakdown(termId?: string) {
+    return apiCache.getOrSet(`admin:dept-breakdown:${termId ?? "all"}`, 60_000, async () => {
+      if (termId) {
+        return this.prisma.$queryRaw<Array<{ dept: string; enrolled: number; waitlisted: number; dropped: number }>>`
+          SELECT
+            LEFT(c.code, 2) AS dept,
+            COUNT(CASE WHEN e.status = 'ENROLLED' THEN 1 END)::int AS enrolled,
+            COUNT(CASE WHEN e.status = 'WAITLISTED' THEN 1 END)::int AS waitlisted,
+            COUNT(CASE WHEN e.status = 'DROPPED' THEN 1 END)::int AS dropped
+          FROM "Enrollment" e
+          JOIN "Section" s ON e."sectionId" = s.id
+          JOIN "Course" c ON s."courseId" = c.id
+          WHERE c."deletedAt" IS NULL AND s."termId" = ${termId}
+          GROUP BY LEFT(c.code, 2)
+          ORDER BY enrolled DESC, dept ASC
+        `;
+      }
+      return this.prisma.$queryRaw<Array<{ dept: string; enrolled: number; waitlisted: number; dropped: number }>>`
         SELECT
           LEFT(c.code, 2) AS dept,
           COUNT(CASE WHEN e.status = 'ENROLLED' THEN 1 END)::int AS enrolled,
@@ -1946,14 +1961,15 @@ export class AdminService {
         WHERE c."deletedAt" IS NULL
         GROUP BY LEFT(c.code, 2)
         ORDER BY enrolled DESC, dept ASC
-      `
-    );
+      `;
+    });
   }
 
-  async getTopSections() {
-    return apiCache.getOrSet("admin:top-sections", 120_000, async () => {
+  async getTopSections(termId?: string) {
+    return apiCache.getOrSet(`admin:top-sections:${termId ?? "all"}`, 120_000, async () => {
       const sections = await this.prisma.section.findMany({
         where: {
+          ...(termId ? { termId } : {}),
           course: {
             deletedAt: null
           }
@@ -1983,8 +1999,8 @@ export class AdminService {
     });
   }
 
-  async getGpaDistribution() {
-    return apiCache.getOrSet("admin:gpa-dist", 300_000, async () => {
+  async getGpaDistribution(termId?: string) {
+    return apiCache.getOrSet(`admin:gpa-dist:${termId ?? "all"}`, 300_000, async () => {
       const students = await this.prisma.user.findMany({
         where: {
           role: "STUDENT",
@@ -1995,7 +2011,8 @@ export class AdminService {
             where: {
               deletedAt: null,
               status: "COMPLETED",
-              finalGrade: { not: null }
+              finalGrade: { not: null },
+              ...(termId ? { section: { termId } } : {})
             },
             include: {
               section: {
@@ -2104,20 +2121,24 @@ export class AdminService {
     return sections.filter((section) => !enrolledCourseIds.has(section.courseId)).slice(0, 6);
   }
 
-  async getReportsSummary() {
+  async getReportsSummary(termId?: string) {
+    const enrollmentWhere = {
+      deletedAt: null,
+      ...(termId ? { section: { termId } } : {})
+    } as const;
     const [totalStudents, totalCourses, totalSections, enrollmentGroups, enrolledCreditsRows, topSections, deptBreakdown, gpaDistribution] =
       await Promise.all([
         this.prisma.user.count({ where: { role: "STUDENT", deletedAt: null } }),
         this.prisma.course.count({ where: { deletedAt: null } }),
-        this.prisma.section.count({ where: { course: { deletedAt: null } } }),
+        this.prisma.section.count({ where: { course: { deletedAt: null }, ...(termId ? { termId } : {}) } }),
         this.prisma.enrollment.groupBy({
           by: ["status"],
-          where: { deletedAt: null },
+          where: enrollmentWhere,
           _count: { id: true }
         }),
         this.prisma.enrollment.findMany({
           where: {
-            deletedAt: null,
+            ...enrollmentWhere,
             status: "ENROLLED"
           },
           select: {
@@ -2126,9 +2147,9 @@ export class AdminService {
             }
           }
         }),
-        this.getTopSections(),
-        this.getDeptBreakdown(),
-        this.getGpaDistribution()
+        this.getTopSections(termId),
+        this.getDeptBreakdown(termId),
+        this.getGpaDistribution(termId)
       ]);
 
     const enrollmentByStatus = Object.fromEntries(

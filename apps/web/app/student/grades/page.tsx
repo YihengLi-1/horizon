@@ -80,8 +80,8 @@ function gpaTone(gpa: number): string {
 function gpaTier(gpa: number): { label: string; cls: string } {
   if (gpa >= 3.7) return { label: "Dean's List", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" };
   if (gpa >= 3.0) return { label: "Good Standing", cls: "border-blue-200 bg-blue-50 text-blue-700" };
-  if (gpa >= 2.0) return { label: "Satisfactory", cls: "border-slate-200 bg-slate-50 text-slate-600" };
-  return { label: "Academic Warning", cls: "border-amber-200 bg-amber-50 text-amber-700" };
+  if (gpa >= 2.0) return { label: "Warning", cls: "border-amber-200 bg-amber-50 text-amber-700" };
+  return { label: "Academic Probation", cls: "border-red-200 bg-red-50 text-red-700" };
 }
 
 interface Standing {
@@ -118,14 +118,14 @@ function getStanding(gpa: number | null): Standing {
   }
   if (gpa >= 2.0) {
     return {
-      label: "Satisfactory",
-      description: `GPA ${gpa.toFixed(2)} — Meeting minimum requirements.`,
+      label: "Warning",
+      description: `GPA ${gpa.toFixed(2)} — Minimum progression met, but improvement is needed.`,
       cls: "border-amber-200 bg-amber-50 text-amber-800",
       icon: "⚠️"
     };
   }
   return {
-    label: "Academic Warning",
+    label: "Academic Probation",
     description: `GPA ${gpa.toFixed(2)} — Below minimum GPA requirement (2.0). Please contact your advisor.`,
     cls: "border-red-200 bg-red-50 text-red-800",
     icon: "🚨"
@@ -237,6 +237,13 @@ export default async function GradesPage({
   const cumulative = calcGPA(grades);
   const completedCredits = grades.reduce((sum, item) => sum + item.section.credits, 0);
   const standing = getStanding(cumulative?.gpa ?? null);
+  const overallGradeDistribution = gradeDistribution(grades);
+  const overallGradeTotal =
+    overallGradeDistribution.A +
+    overallGradeDistribution.B +
+    overallGradeDistribution.C +
+    overallGradeDistribution.D +
+    overallGradeDistribution.F;
   const activeTerm =
     termsData.find((term) => {
       const now = Date.now();
@@ -317,6 +324,39 @@ export default async function GradesPage({
       ) : null}
 
       <GpaTrendChart data={trendData} />
+
+      {overallGradeTotal > 0 ? (
+        <section className="campus-card overflow-hidden">
+          <div className="border-b border-slate-100 px-4 py-3">
+            <p className="text-sm font-semibold text-slate-700">Grade Distribution</p>
+          </div>
+          <div className="space-y-3 px-4 py-4">
+            {(["A", "B", "C", "D", "F"] as const).map((grade) => {
+              const count = overallGradeDistribution[grade];
+              const width = overallGradeTotal ? Math.max(6, Math.round((count / overallGradeTotal) * 100)) : 0;
+              const tone =
+                grade === "A"
+                  ? "bg-emerald-500"
+                  : grade === "B"
+                    ? "bg-blue-500"
+                    : grade === "C"
+                      ? "bg-amber-500"
+                      : grade === "D"
+                        ? "bg-orange-500"
+                        : "bg-red-500";
+              return (
+                <div key={grade} className="grid grid-cols-[40px_1fr_auto] items-center gap-3 text-sm">
+                  <span className={`font-semibold ${gradeColor(grade)}`}>{grade}</span>
+                  <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                    <div className={`h-full rounded-full ${tone}`} style={{ width: `${width}%` }} />
+                  </div>
+                  <span className="text-xs text-slate-500">{count} 门</span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       {transcriptTerms.length > 1 ? (
       <section className="campus-card overflow-hidden">

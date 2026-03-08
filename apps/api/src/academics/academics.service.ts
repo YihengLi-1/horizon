@@ -62,6 +62,9 @@ export class AcademicsService {
         },
         term: true,
         meetingTimes: true,
+        ratings: {
+          select: { rating: true }
+        },
         enrollments: {
           where: {
             deletedAt: null,

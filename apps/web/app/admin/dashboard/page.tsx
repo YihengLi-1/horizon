@@ -98,6 +98,18 @@ type OpsMetrics = {
   };
 };
 
+type OpsVersion = {
+  version: string;
+  nodeEnv: string;
+  uptime: number;
+  pid: number;
+  buildTime?: string;
+};
+
+type OpsReady = {
+  status: string;
+};
+
 function DonutChart({
   data
 }: {
@@ -216,11 +228,14 @@ const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME ?? "—";
 const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_URL ?? "http://localhost:3001";
 const prometheusUrl = "http://localhost:9090";
 const alertmanagerUrl = "http://localhost:9093";
+const swaggerUrl = `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}/api/docs`;
 
 export default async function AdminDashboardPage() {
-  const [data, opsMetrics] = await Promise.all([
+  const [data, opsMetrics, opsVersion, opsReady] = await Promise.all([
     serverApi<Dashboard>("/admin/dashboard"),
-    serverApi<OpsMetrics>("/ops/metrics").catch(() => null)
+    serverApi<OpsMetrics>("/ops/metrics").catch(() => null),
+    serverApi<OpsVersion>("/ops/version").catch(() => null),
+    serverApi<OpsReady>("/ops/ready").catch(() => null)
   ]);
   const { breakdown, activeTerm, recentActivity } = data;
 
@@ -273,6 +288,7 @@ export default async function AdminDashboardPage() {
   const mailFailureRate = opsMetrics ? `${opsMetrics.mailIndicators.failureRatePercent.toFixed(2)}%` : null;
   const mailLastSuccess = opsMetrics?.mail.lastSuccessAt ? new Date(opsMetrics.mail.lastSuccessAt).toLocaleString() : "Never";
   const mailLastFailure = opsMetrics?.mail.lastFailureAt ? new Date(opsMetrics.mail.lastFailureAt).toLocaleString() : "None";
+  const systemHealthy = opsReady?.status === "ok";
 
   // Check if registration is actually open for activeTerm
   const regOpen = Boolean(activeTerm?.registrationOpen);
@@ -693,29 +709,30 @@ export default async function AdminDashboardPage() {
                 ) : null}
 
                 <div className="mt-4 border-t border-slate-100 pt-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Deployment Info</p>
-                  <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">系统状态</p>
+                  <div className="mt-2 grid grid-cols-4 gap-2 text-xs">
+                    <div>
+                      <p className="text-slate-500">API</p>
+                      <p className={`mt-0.5 font-semibold ${systemHealthy ? "text-emerald-600" : "text-red-600"}`}>
+                        {systemHealthy ? "正常" : "异常"}
+                      </p>
+                    </div>
                     <div>
                       <p className="text-slate-500">Environment</p>
-                      <p className={`mt-0.5 font-semibold ${nodeEnv === "production" ? "text-emerald-600" : "text-amber-600"}`}>
-                        {nodeEnv}
+                      <p className={`mt-0.5 font-semibold ${(opsVersion?.nodeEnv ?? nodeEnv) === "production" ? "text-emerald-600" : "text-amber-600"}`}>
+                        {opsVersion?.nodeEnv ?? nodeEnv}
                       </p>
                     </div>
                     <div>
                       <p className="text-slate-500">Version</p>
-                      <p className="mt-0.5 font-mono font-semibold text-slate-700">{appVersion}</p>
-                      <p className="mt-1 text-[11px] text-slate-400">{buildTime || "—"}</p>
+                      <p className="mt-0.5 font-mono font-semibold text-slate-700">{opsVersion?.version ?? appVersion}</p>
+                      <p className="mt-1 text-[11px] text-slate-400">{opsVersion?.buildTime ?? buildTime || "—"}</p>
                     </div>
                     <div>
-                      <p className="text-slate-500">Grafana</p>
-                      <a
-                        href={grafanaUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-0.5 block font-medium text-blue-600 hover:underline"
-                      >
-                        Open ↗
-                      </a>
+                      <p className="text-slate-500">Uptime / PID</p>
+                      <p className="mt-0.5 font-semibold text-slate-700">
+                        {opsVersion ? `${formatUptime(opsVersion.uptime)} · ${opsVersion.pid}` : "—"}
+                      </p>
                     </div>
                   </div>
                   <div className="mt-3">
@@ -725,11 +742,12 @@ export default async function AdminDashboardPage() {
 
                 <div className="campus-card p-4">
                   <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Monitoring</p>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {[
                       { label: "Grafana", url: grafanaUrl, color: "text-orange-600", bg: "bg-orange-50 border-orange-200", icon: "📊" },
                       { label: "Prometheus", url: prometheusUrl, color: "text-red-600", bg: "bg-red-50 border-red-200", icon: "🔥" },
-                      { label: "Alertmanager", url: alertmanagerUrl, color: "text-blue-600", bg: "bg-blue-50 border-blue-200", icon: "🔔" }
+                      { label: "Alertmanager", url: alertmanagerUrl, color: "text-blue-600", bg: "bg-blue-50 border-blue-200", icon: "🔔" },
+                      { label: "Swagger", url: swaggerUrl, color: "text-slate-700", bg: "bg-slate-50 border-slate-200", icon: "📘" }
                     ].map((item) => (
                       <a
                         key={item.label}
@@ -815,7 +833,7 @@ export default async function AdminDashboardPage() {
         </div>
 
         <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Recent Activity</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">最近审计</h2>
           {recentActivity.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-8 text-center">
               <p className="text-2xl">📋</p>

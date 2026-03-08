@@ -391,8 +391,8 @@ export class AdminController {
 
   @Get("reports/summary")
   @RequireAdminPermissions("dashboard:read")
-  async getReportsSummary() {
-    return ok(await this.adminService.getReportsSummary());
+  async getReportsSummary(@Query("termId") termId?: string) {
+    return ok(await this.adminService.getReportsSummary(termId));
   }
 
   @Get("audit-logs")

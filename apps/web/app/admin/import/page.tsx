@@ -177,10 +177,24 @@ export default function ImportPage() {
   };
 
   const downloadTemplate = () => {
-    const csv = `name,email,studentId\n张三,zhangsan@example.com,20240001\n李四,lisi@example.com,20240002`;
+    const templates: Record<ImportTarget, { filename: string; csv: string }> = {
+      students: {
+        filename: "students-template.csv",
+        csv: "name,email,studentId\n张三,zhangsan@example.com,20240001\n李四,lisi@example.com,20240002"
+      },
+      courses: {
+        filename: "courses-template.csv",
+        csv: "code,title,dept,credits,description\nCS101,Intro to CS,CS,3,Introduction to computing\nMATH201,Calculus I,MATH,4,Differential calculus"
+      },
+      sections: {
+        filename: "sections-template.csv",
+        csv: "courseCode,termName,sectionCode,modality,capacity,credits,instructorName,location,meetings\nCS101,Fall 2026,A,ON_CAMPUS,30,3,Dr. Smith,Room 101,1|540|630;3|540|630\nCS101,Fall 2026,B,ONLINE,25,3,Dr. Lee,,2|660|750"
+      }
+    };
+    const template = templates[target];
     const anchor = Object.assign(document.createElement("a"), {
-      href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })),
-      download: "students-template.csv"
+      href: URL.createObjectURL(new Blob([template.csv], { type: "text/csv" })),
+      download: template.filename
     });
     anchor.click();
     URL.revokeObjectURL(anchor.href);
@@ -313,11 +327,9 @@ export default function ImportPage() {
               >
                 {showExample ? "Hide example CSV" : "Show example CSV"}
               </button>
-              {target === "students" ? (
-                <button type="button" onClick={downloadTemplate} className="font-medium text-blue-600 hover:underline">
-                  ⬇ Download Template
-                </button>
-              ) : null}
+              <button type="button" onClick={downloadTemplate} className="font-medium text-blue-600 hover:underline">
+                ⬇ Download Template
+              </button>
               <span>{Math.max(rowCount, 0)} rows detected (excluding header)</span>
             </div>
 
