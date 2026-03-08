@@ -1,4 +1,5 @@
 import { serverApi } from "@/lib/server-api";
+import { requireRole } from "@/lib/server-auth";
 import TermReportButton from "./TermReportButton";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,8 @@ type HistoryEnrollment = {
 };
 
 export default async function HistoryPage() {
+  await requireRole("STUDENT");
+
   const [enrollments, me] = await Promise.all([
     serverApi<HistoryEnrollment[]>("/registration/enrollments").catch(() => []),
     serverApi<{ legalName?: string; user?: { email?: string } }>("/students/me").catch(() => null)

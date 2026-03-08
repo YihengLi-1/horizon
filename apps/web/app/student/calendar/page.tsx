@@ -1,4 +1,5 @@
 import { serverApi } from "@/lib/server-api";
+import { requireRole } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,8 @@ function rowTone(date: string) {
 }
 
 export default async function StudentCalendarPage() {
+  await requireRole("STUDENT");
+
   const terms = await serverApi<Term[]>("/academics/terms").catch(() => []);
 
   return (

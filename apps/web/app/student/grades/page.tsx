@@ -1,4 +1,4 @@
-import { getMeServer } from "@/lib/server-auth";
+import { getMeServer, requireRole } from "@/lib/server-auth";
 import Link from "next/link";
 import { serverApi } from "@/lib/server-api";
 import CertificateButton from "./CertificateButton";
@@ -215,6 +215,8 @@ export default async function GradesPage({
 }: {
   searchParams: Promise<{ sortBy?: string; sortDir?: string }>;
 }) {
+  await requireRole("STUDENT");
+
   const params  = await searchParams;
   const sortBy  = (params.sortBy  ?? "code") as SortCol;
   const sortDir = (params.sortDir === "desc" ? "desc" : "asc") as "asc" | "desc";

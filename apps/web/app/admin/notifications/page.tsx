@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { serverApi } from "@/lib/server-api";
+import { requireRole } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,8 @@ export default async function AdminNotificationsPage({
 }: {
   searchParams?: Promise<{ page?: string }>;
 }) {
+  await requireRole("ADMIN");
+
   const params = (await searchParams) ?? {};
   const page = Math.max(1, Number(params.page) || 1);
   const result = await serverApi<NotificationLogResponse>(`/admin/notification-log?page=${page}`).catch(() => ({

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { serverApi } from "@/lib/server-api";
+import { requireRole } from "@/lib/server-auth";
 import RosterExport from "./RosterExport";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,8 @@ type RosterEnrollment = {
 };
 
 export default async function SectionRosterPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireRole("ADMIN");
+
   const { id } = await params;
   const rows = await serverApi<RosterEnrollment[]>(`/admin/sections/${id}/enrollments`).catch(() => []);
 
