@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { Cron } from "@nestjs/schedule";
 import { EnrollmentStatus, Prisma } from "@prisma/client";
 import { Request } from "express";
 import { addCartItemSchema, dropEnrollmentSchema, submitCartSchema } from "@sis/shared";
@@ -214,6 +215,58 @@ export class RegistrationService {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultMaxCredits;
   }
 
+  private async assertPrerequisitesSatisfied(
+    tx: Prisma.TransactionClient,
+    studentId: string,
+    section: { courseId: string }
+  ): Promise<void> {
+    const courseWithPrereqs = await tx.course.findUnique({
+      where: { id: section.courseId },
+      include: {
+        prerequisiteLinks: {
+          include: {
+            prerequisiteCourse: {
+              select: {
+                id: true,
+                code: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const prereqLinks = courseWithPrereqs?.prerequisiteLinks ?? [];
+    if (prereqLinks.length === 0) return;
+
+    const prereqCourseIds = prereqLinks.map((link) => link.prerequisiteCourseId);
+    const completed = await tx.enrollment.findMany({
+      where: {
+        studentId,
+        deletedAt: null,
+        status: "COMPLETED",
+        section: {
+          courseId: { in: prereqCourseIds }
+        }
+      },
+      select: {
+        section: {
+          select: {
+            courseId: true
+          }
+        }
+      }
+    });
+
+    const completedIds = new Set(completed.map((enrollment) => enrollment.section.courseId));
+    const missing = prereqLinks.filter((link) => !completedIds.has(link.prerequisiteCourseId));
+
+    if (missing.length > 0) {
+      const codes = missing.map((link) => link.prerequisiteCourse.code).join(", ");
+      throw new BadRequestException(`PREREQ_NOT_MET: ${codes}`);
+    }
+  }
+
   /**
    * @description Returns the current waitlist position for a student in a section.
    * @param studentId Student user id.
@@ -413,6 +466,99 @@ export class RegistrationService {
         status: item.status,
         waitlistPosition: item.waitlistPosition ?? null
       };
+    });
+  }
+
+  async enroll(studentId: string, sectionId: string) {
+    return this.runEnrollmentTransactionWithRetry(async (tx) => {
+      await this.lockSectionsForUpdate(tx, [sectionId]);
+
+      const section = await tx.section.findUnique({
+        where: { id: sectionId },
+        include: {
+          term: true,
+          course: true,
+          meetingTimes: true,
+          enrollments: {
+            where: {
+              deletedAt: null,
+              status: { in: ["ENROLLED", "PENDING_APPROVAL"] }
+            }
+          }
+        }
+      });
+
+      if (!section) {
+        throw new NotFoundException("Section not found");
+      }
+
+      const enrolledCount = section.enrollments.filter((enrollment) => enrollment.status === "ENROLLED").length;
+      if (section.capacity > 0 && enrolledCount >= section.capacity) {
+        throw new BadRequestException("SECTION_FULL");
+      }
+
+      await this.assertPrerequisitesSatisfied(tx, studentId, section);
+
+      const existing = await tx.enrollment.findFirst({
+        where: {
+          studentId,
+          sectionId,
+          deletedAt: null,
+          status: { in: ["ENROLLED", "WAITLISTED", "PENDING_APPROVAL"] }
+        }
+      });
+
+      if (existing?.status === "ENROLLED") {
+        return existing;
+      }
+
+      if (existing) {
+        throw new BadRequestException("ALREADY_REGISTERED");
+      }
+
+      const otherEnrollments = await tx.enrollment.findMany({
+        where: {
+          studentId,
+          termId: section.termId,
+          deletedAt: null,
+          status: { in: ["ENROLLED", "PENDING_APPROVAL"] }
+        },
+        include: {
+          section: {
+            include: {
+              meetingTimes: true
+            }
+          }
+        }
+      });
+
+      const hasConflict = otherEnrollments.some((enrollment) =>
+        hasMeetingConflict(
+          enrollment.section.meetingTimes.map((meeting) => ({
+            weekday: meeting.weekday,
+            startMinutes: meeting.startMinutes,
+            endMinutes: meeting.endMinutes
+          })),
+          section.meetingTimes.map((meeting) => ({
+            weekday: meeting.weekday,
+            startMinutes: meeting.startMinutes,
+            endMinutes: meeting.endMinutes
+          }))
+        )
+      );
+
+      if (hasConflict) {
+        throw new BadRequestException("TIME_CONFLICT");
+      }
+
+      return tx.enrollment.create({
+        data: {
+          studentId,
+          termId: section.termId,
+          sectionId,
+          status: section.requireApproval ? "PENDING_APPROVAL" : "ENROLLED"
+        }
+      });
     });
   }
 
@@ -774,6 +920,13 @@ export class RegistrationService {
       }
 
       const { toCreate } = txValidation;
+
+      for (const enrollment of toCreate) {
+        const section = txCartItems.find((item) => item.sectionId === enrollment.sectionId)?.section;
+        if (section) {
+          await this.assertPrerequisitesSatisfied(tx, studentId, section);
+        }
+      }
 
       await tx.enrollment.createMany({ data: toCreate });
       await tx.cartItem.deleteMany({ where: { studentId, termId: input.termId } });
@@ -1176,5 +1329,235 @@ export class RegistrationService {
       },
       orderBy: { updatedAt: "desc" }
     });
+  }
+
+  async swap(studentId: string, dropSectionId: string, addSectionId: string, req?: Request) {
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockSectionsForUpdate(tx, [dropSectionId, addSectionId]);
+
+      const [dropSection, addSection] = await Promise.all([
+        tx.section.findUnique({
+          where: { id: dropSectionId },
+          include: { course: true, meetingTimes: true }
+        }),
+        tx.section.findUnique({
+          where: { id: addSectionId },
+          include: {
+            course: true,
+            meetingTimes: true,
+            enrollments: {
+              where: {
+                deletedAt: null,
+                status: { in: ["ENROLLED", "PENDING_APPROVAL"] }
+              }
+            }
+          }
+        })
+      ]);
+
+      if (!dropSection || !addSection) {
+        throw new NotFoundException("Section not found");
+      }
+
+      if (dropSection.courseId !== addSection.courseId) {
+        throw new BadRequestException("SWAP_DIFFERENT_COURSE");
+      }
+
+      if (dropSection.termId !== addSection.termId) {
+        throw new BadRequestException("SWAP_DIFFERENT_TERM");
+      }
+
+      const addEnrolledCount = addSection.enrollments.filter((enrollment) => enrollment.status === "ENROLLED").length;
+      if (addSection.capacity > 0 && addEnrolledCount >= addSection.capacity) {
+        throw new BadRequestException("SECTION_FULL");
+      }
+
+      const currentEnrollment = await tx.enrollment.findFirst({
+        where: {
+          studentId,
+          sectionId: dropSectionId,
+          deletedAt: null,
+          status: "ENROLLED"
+        }
+      });
+
+      if (!currentEnrollment) {
+        throw new NotFoundException("Enrollment not found");
+      }
+
+      const existingTarget = await tx.enrollment.findFirst({
+        where: {
+          studentId,
+          sectionId: addSectionId,
+          deletedAt: null,
+          status: { in: ["ENROLLED", "WAITLISTED", "PENDING_APPROVAL"] }
+        }
+      });
+
+      if (existingTarget) {
+        throw new BadRequestException("ALREADY_REGISTERED");
+      }
+
+      await this.assertPrerequisitesSatisfied(tx, studentId, addSection);
+
+      const otherEnrollments = await tx.enrollment.findMany({
+        where: {
+          studentId,
+          termId: currentEnrollment.termId,
+          deletedAt: null,
+          status: { in: ["ENROLLED", "PENDING_APPROVAL"] },
+          sectionId: { not: dropSectionId }
+        },
+        include: {
+          section: {
+            include: {
+              meetingTimes: true
+            }
+          }
+        }
+      });
+
+      const conflicts = otherEnrollments.some((enrollment) =>
+        hasMeetingConflict(
+          enrollment.section.meetingTimes.map((meeting) => ({
+            weekday: meeting.weekday,
+            startMinutes: meeting.startMinutes,
+            endMinutes: meeting.endMinutes
+          })),
+          addSection.meetingTimes.map((meeting) => ({
+            weekday: meeting.weekday,
+            startMinutes: meeting.startMinutes,
+            endMinutes: meeting.endMinutes
+          }))
+        )
+      );
+
+      if (conflicts) {
+        throw new BadRequestException("TIME_CONFLICT");
+      }
+
+      const created = await tx.enrollment.create({
+        data: {
+          studentId,
+          sectionId: addSectionId,
+          status: "ENROLLED",
+          termId: currentEnrollment.termId
+        }
+      });
+
+      await tx.enrollment.update({
+        where: { id: currentEnrollment.id },
+        data: {
+          status: "DROPPED",
+          droppedAt: new Date()
+        }
+      });
+
+      await this.auditService.logInTransaction(tx, {
+        actorUserId: studentId,
+        action: "swap",
+        entityType: "enrollment",
+        entityId: created.id,
+        metadata: {
+          droppedSectionId: dropSectionId,
+          addedSectionId: addSectionId,
+          droppedSectionCode: dropSection.sectionCode,
+          addedSectionCode: addSection.sectionCode
+        },
+        req
+      });
+
+      return {
+        success: true,
+        addedSection: addSection.sectionCode,
+        droppedSection: dropSection.sectionCode
+      };
+    });
+  }
+
+  async watchSection(userId: string, sectionId: string) {
+    await this.prisma.sectionWatch.upsert({
+      where: { userId_sectionId: { userId, sectionId } },
+      create: { userId, sectionId },
+      update: {}
+    });
+    return { watching: true };
+  }
+
+  async unwatchSection(userId: string, sectionId: string) {
+    await this.prisma.sectionWatch.deleteMany({
+      where: { userId, sectionId }
+    });
+    return { watching: false };
+  }
+
+  async getWatches(userId: string) {
+    return this.prisma.sectionWatch.findMany({
+      where: { userId },
+      include: {
+        section: {
+          include: {
+            course: true
+          }
+        }
+      }
+    });
+  }
+
+  @Cron("*/5 * * * *")
+  async notifyWatchers() {
+    const watches = await this.prisma.sectionWatch.findMany({
+      where: { notifiedAt: null },
+      include: {
+        section: {
+          include: {
+            enrollments: true,
+            course: true
+          }
+        },
+        user: {
+          select: {
+            email: true,
+            studentProfile: {
+              select: {
+                legalName: true
+              }
+            }
+          }
+        }
+      },
+      take: 100
+    });
+
+    for (const watch of watches) {
+      const enrolledCount = watch.section.enrollments.filter((enrollment) => enrollment.status === "ENROLLED").length;
+      const seatsAvailable = watch.section.capacity === 0 || enrolledCount < watch.section.capacity;
+      if (!seatsAvailable) continue;
+
+      try {
+        await this.notificationsService.sendMail({
+          to: watch.user.email,
+          subject: `【地平线】${watch.section.course.code} 有空位了！`,
+          text: `您关注的课程 ${watch.section.course.code} ${watch.section.course.title} 目前有空位，请尽快前往选课系统选课。`,
+          html: `<p>您关注的课程 <strong>${watch.section.course.code} ${watch.section.course.title}</strong> 目前有空位，请尽快前往选课系统选课。</p>`
+        });
+      } catch {
+        // ignore email failures
+      }
+
+      await this.prisma.notificationLog.create({
+        data: {
+          userId: watch.userId,
+          type: "SEAT_AVAILABLE",
+          subject: "Seat available",
+          body: `${watch.section.course.code} 有空位，快去选！`
+        }
+      }).catch(() => {});
+
+      await this.prisma.sectionWatch.update({
+        where: { id: watch.id },
+        data: { notifiedAt: new Date() }
+      });
+    }
   }
 }

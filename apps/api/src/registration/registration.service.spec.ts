@@ -6,10 +6,28 @@ function createRegistrationService(overrides?: Partial<Record<string, unknown>>)
     systemSetting: {
       findUnique: jest.fn()
     },
+    course: {
+      findUnique: jest.fn()
+    },
+    section: {
+      findUnique: jest.fn()
+    },
+    sectionWatch: {
+      upsert: jest.fn(),
+      deleteMany: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn()
+    },
+    notificationLog: {
+      create: jest.fn()
+    },
     enrollment: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
       update: jest.fn(),
-      updateMany: jest.fn()
+      updateMany: jest.fn(),
+      createMany: jest.fn()
     },
     $transaction: jest.fn()
   } as any;
@@ -294,6 +312,105 @@ describe("RegistrationService", () => {
     await expect(service.getWaitlistPosition("student-2", "section-1")).resolves.toEqual({
       position: 2,
       ahead: 1
+    });
+  });
+
+  describe("prerequisite enforcement", () => {
+    it("rejects enrollment when student has not completed prerequisite", async () => {
+      const { prisma, service } = createRegistrationService();
+      const tx = {
+        $queryRaw: jest.fn().mockResolvedValue(undefined),
+        section: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: "section-1",
+            courseId: "course-2",
+            termId: "term-1",
+            capacity: 30,
+            requireApproval: false,
+            meetingTimes: [],
+            enrollments: [],
+            term: { id: "term-1" },
+            course: { id: "course-2", code: "CS201" }
+          })
+        },
+        course: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: "course-2",
+            prerequisiteLinks: [
+              {
+                prerequisiteCourseId: "course-1",
+                prerequisiteCourse: { id: "course-1", code: "CS101" }
+              }
+            ]
+          })
+        },
+        enrollment: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          findMany: jest.fn().mockResolvedValue([]),
+          create: jest.fn()
+        }
+      };
+      prisma.$transaction.mockImplementation(async (fn: (client: any) => Promise<unknown>) => fn(tx));
+
+      await expect(service.enroll("student-1", "section-1")).rejects.toThrow("PREREQ_NOT_MET");
+      expect(tx.enrollment.create).not.toHaveBeenCalled();
+    });
+
+    it("allows enrollment when all prerequisites are completed", async () => {
+      const { prisma, service } = createRegistrationService();
+      const created = {
+        id: "enrollment-1",
+        studentId: "student-1",
+        sectionId: "section-1",
+        termId: "term-1",
+        status: "ENROLLED"
+      };
+      const tx = {
+        $queryRaw: jest.fn().mockResolvedValue(undefined),
+        section: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: "section-1",
+            courseId: "course-2",
+            termId: "term-1",
+            capacity: 30,
+            requireApproval: false,
+            meetingTimes: [],
+            enrollments: [],
+            term: { id: "term-1" },
+            course: { id: "course-2", code: "CS201" }
+          })
+        },
+        course: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: "course-2",
+            prerequisiteLinks: [
+              {
+                prerequisiteCourseId: "course-1",
+                prerequisiteCourse: { id: "course-1", code: "CS101" }
+              }
+            ]
+          })
+        },
+        enrollment: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          findMany: jest
+            .fn()
+            .mockResolvedValueOnce([{ section: { courseId: "course-1" } }])
+            .mockResolvedValueOnce([]),
+          create: jest.fn().mockResolvedValue(created)
+        }
+      };
+      prisma.$transaction.mockImplementation(async (fn: (client: any) => Promise<unknown>) => fn(tx));
+
+      await expect(service.enroll("student-1", "section-1")).resolves.toEqual(created);
+      expect(tx.enrollment.create).toHaveBeenCalledWith({
+        data: {
+          studentId: "student-1",
+          termId: "term-1",
+          sectionId: "section-1",
+          status: "ENROLLED"
+        }
+      });
     });
   });
 });

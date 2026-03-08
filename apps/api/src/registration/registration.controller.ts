@@ -76,4 +76,28 @@ export class RegistrationController {
   async getWaitlistPosition(@CurrentUser() user: { userId: string }, @Param("sectionId") sectionId: string) {
     return ok(await this.registrationService.getWaitlistPosition(user.userId, sectionId));
   }
+
+  @Post("swap")
+  async swap(
+    @Body() body: { dropSectionId: string; addSectionId: string },
+    @CurrentUser() user: { userId: string },
+    @Req() req: Request
+  ) {
+    return ok(await this.registrationService.swap(user.userId, body.dropSectionId, body.addSectionId, req));
+  }
+
+  @Post("watch/:sectionId")
+  async watchSection(@Param("sectionId") sectionId: string, @CurrentUser() user: { userId: string }) {
+    return ok(await this.registrationService.watchSection(user.userId, sectionId));
+  }
+
+  @Delete("watch/:sectionId")
+  async unwatchSection(@Param("sectionId") sectionId: string, @CurrentUser() user: { userId: string }) {
+    return ok(await this.registrationService.unwatchSection(user.userId, sectionId));
+  }
+
+  @Get("watches")
+  async getWatches(@CurrentUser() user: { userId: string }) {
+    return ok(await this.registrationService.getWatches(user.userId));
+  }
 }

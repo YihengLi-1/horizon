@@ -333,15 +333,29 @@ export default function SchedulePage() {
   };
 
   const dropDaysLeft = activeTerm && !dropDeadlinePassed ? daysUntil(activeTerm.dropDeadline) : 0;
-  const downloadIcs = () => {
-    const ics = buildIcs(activeTerm, visibleEnrollments);
-    if (!ics) return;
-    const link = Object.assign(document.createElement("a"), {
-      href: URL.createObjectURL(new Blob([ics], { type: "text/calendar;charset=utf-8" })),
-      download: "schedule.ics"
-    });
-    link.click();
-    URL.revokeObjectURL(link.href);
+  const downloadIcs = async () => {
+    if (!activeTerm) return;
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/students/schedule/ical?termId=${termId}`,
+        {
+          credentials: "include",
+          headers: {
+            [process.env.NEXT_PUBLIC_CSRF_HEADER_NAME ?? "x-csrf-token"]:
+              document.cookie.match(/sis-csrf=([^;]+)/)?.[1] ?? ""
+          }
+        }
+      );
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `schedule-${activeTerm.name.replace(/\s+/g, "-")}.ics`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError("导出失败");
+    }
   };
   const shareSchedule = async () => {
     if (!activeTerm || visibleEnrollments.length === 0 || typeof window === "undefined") return;

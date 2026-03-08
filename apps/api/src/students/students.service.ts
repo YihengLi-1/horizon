@@ -302,6 +302,70 @@ export class StudentsService {
     });
   }
 
+  async generateIcal(userId: string, termId: string): Promise<string> {
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: {
+        studentId: userId,
+        termId,
+        deletedAt: null,
+        status: "ENROLLED"
+      },
+      include: {
+        section: {
+          include: {
+            course: true,
+            meetingTimes: true
+          }
+        },
+        term: true
+      }
+    });
+
+    const byDay = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+    const pad = (value: number) => String(value).padStart(2, "0");
+    const minutesToTime = (minutes: number) => `${pad(Math.floor(minutes / 60))}${pad(minutes % 60)}00`;
+    const toIcalDate = (value: Date) =>
+      `${value.getFullYear()}${pad(value.getMonth() + 1)}${pad(value.getDate())}`;
+
+    const events: string[] = [];
+
+    for (const enrollment of enrollments) {
+      const section = enrollment.section;
+      const term = enrollment.term;
+      const termStart = term.startDate ?? new Date();
+      const termEnd = term.endDate ?? new Date(termStart.getTime() + 120 * 86_400_000);
+
+      for (const meetingTime of section.meetingTimes) {
+        const start = new Date(termStart);
+        const delta = (meetingTime.weekday - start.getDay() + 7) % 7;
+        start.setDate(start.getDate() + delta);
+
+        events.push(
+          [
+            "BEGIN:VEVENT",
+            `UID:${enrollment.id}-${meetingTime.id}@sis-horizon`,
+            `SUMMARY:${section.course.code} ${section.course.title}`,
+            `LOCATION:${section.location ?? ""}`,
+            `DTSTART;TZID=Asia/Shanghai:${toIcalDate(start)}T${minutesToTime(meetingTime.startMinutes)}`,
+            `DTEND;TZID=Asia/Shanghai:${toIcalDate(start)}T${minutesToTime(meetingTime.endMinutes)}`,
+            `RRULE:FREQ=WEEKLY;BYDAY=${byDay[meetingTime.weekday]};UNTIL=${toIcalDate(termEnd)}T235959Z`,
+            `DESCRIPTION:${section.instructorName ?? ""}`,
+            "END:VEVENT"
+          ].join("\r\n")
+        );
+      }
+    }
+
+    return [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//地平线 SIS//EN",
+      "CALSCALE:GREGORIAN",
+      ...events,
+      "END:VCALENDAR"
+    ].join("\r\n");
+  }
+
   async submitContactMessage(
     userId: string,
     input: { subject?: string; message?: string; category?: string }

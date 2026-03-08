@@ -29,6 +29,38 @@ type CartItem = {
   };
 };
 
+type CurrentEnrollment = {
+  id: string;
+  status: string;
+  section: {
+    id: string;
+    sectionCode: string;
+    instructorName: string;
+    location: string | null;
+    meetingTimes: Array<{ weekday: number; startMinutes: number; endMinutes: number }>;
+    course: {
+      code: string;
+      title: string;
+    };
+    enrollments?: Array<{ status: string }>;
+    capacity?: number;
+  };
+};
+
+type SectionOption = {
+  id: string;
+  sectionCode: string;
+  instructorName: string;
+  location: string | null;
+  capacity: number;
+  meetingTimes: Array<{ weekday: number; startMinutes: number; endMinutes: number }>;
+  enrollments: Array<{ status: string }>;
+  course: {
+    code: string;
+    title: string;
+  };
+};
+
 type SubmitResult = {
   id: string;
   sectionId: string;
@@ -112,6 +144,12 @@ function formatDateTime(value: string): string {
   }).format(new Date(value));
 }
 
+function fmt(minutes: number): string {
+  const hours = String(Math.floor(minutes / 60)).padStart(2, "0");
+  const mins = String(minutes % 60).padStart(2, "0");
+  return `${hours}:${mins}`;
+}
+
 function buildIssueToastMessage(issues: SubmitIssue[], maxCredits?: number | null): string {
   if (issues.some((issue) => issue.reasonCode === "TIME_CONFLICT")) {
     return "时间冲突：有课程时间重叠，无法提交";
@@ -156,6 +194,13 @@ export default function StudentCartPage() {
   const [removingInvalid, setRemovingInvalid] = useState(false);
   const [removingItemId, setRemovingItemId] = useState("");
   const [waitlistPositions, setWaitlistPositions] = useState<Record<string, number>>({});
+  const [currentEnrollments, setCurrentEnrollments] = useState<CurrentEnrollment[]>([]);
+  const [allSections, setAllSections] = useState<SectionOption[]>([]);
+  const [swapSource, setSwapSource] = useState<CurrentEnrollment | null>(null);
+  const [swapCandidates, setSwapCandidates] = useState<SectionOption[]>([]);
+  const [swapTargetId, setSwapTargetId] = useState("");
+  const [loadingSwapOptions, setLoadingSwapOptions] = useState(false);
+  const [swapping, setSwapping] = useState(false);
   const errorSummaryRef = useRef<HTMLDivElement | null>(null);
   const toast = useToast();
 
@@ -404,6 +449,34 @@ export default function StudentCartPage() {
     }
   };
 
+  const loadCurrentEnrollments = async (selectedTermId: string) => {
+    if (!selectedTermId) {
+      setCurrentEnrollments([]);
+      return;
+    }
+
+    try {
+      const data = await apiFetch<CurrentEnrollment[]>(`/registration/enrollments?termId=${selectedTermId}`);
+      setCurrentEnrollments(data.filter((item) => item.status === "ENROLLED"));
+    } catch {
+      setCurrentEnrollments([]);
+    }
+  };
+
+  const loadSections = async (selectedTermId: string) => {
+    if (!selectedTermId) {
+      setAllSections([]);
+      return;
+    }
+
+    try {
+      const data = await apiFetch<SectionOption[]>(`/academics/sections?termId=${selectedTermId}`);
+      setAllSections(data);
+    } catch {
+      setAllSections([]);
+    }
+  };
+
   useEffect(() => {
     async function loadTermsAndCart() {
       try {
@@ -422,7 +495,7 @@ export default function StudentCartPage() {
 
         if (initialTermId) {
           updateUrlTerm(initialTermId);
-          await loadCart(initialTermId);
+          await Promise.all([loadCart(initialTermId), loadCurrentEnrollments(initialTermId), loadSections(initialTermId)]);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load terms");
@@ -439,7 +512,7 @@ export default function StudentCartPage() {
     setSubmitIssues([]);
     resetPrecheck();
     updateUrlTerm(nextTermId);
-    await loadCart(nextTermId);
+    await Promise.all([loadCart(nextTermId), loadCurrentEnrollments(nextTermId), loadSections(nextTermId)]);
   };
 
   const removeItem = async (cartItemId: string) => {
@@ -531,7 +604,7 @@ export default function StudentCartPage() {
       setMessage(`Submitted ${result.length} item(s).`);
       toast(`Submitted ${result.length} item(s).`, "success");
       resetPrecheck();
-      await loadCart(termId);
+      await Promise.all([loadCart(termId), loadCurrentEnrollments(termId), loadSections(termId)]);
     } catch (err) {
       if (
         err instanceof ApiError &&
@@ -553,6 +626,55 @@ export default function StudentCartPage() {
   };
 
   const catalogHref = `/student/catalog${termId ? `?termId=${termId}` : ""}`;
+  const enrolledItems = useMemo(
+    () => currentEnrollments.filter((item) => item.status === "ENROLLED"),
+    [currentEnrollments]
+  );
+
+  const openSwapModal = async (enrollment: CurrentEnrollment) => {
+    setSwapSource(enrollment);
+    setSwapTargetId("");
+    setLoadingSwapOptions(true);
+    try {
+      const sourceSections =
+        allSections.length > 0 ? allSections : await apiFetch<SectionOption[]>(`/academics/sections?termId=${termId}`);
+      if (allSections.length === 0) {
+        setAllSections(sourceSections);
+      }
+      const candidates = sourceSections.filter(
+        (section) => section.course.code === enrollment.section.course.code && section.id !== enrollment.section.id
+      );
+      setSwapCandidates(candidates);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "加载换班选项失败", "error");
+      setSwapSource(null);
+    } finally {
+      setLoadingSwapOptions(false);
+    }
+  };
+
+  const confirmSwap = async () => {
+    if (!swapSource || !swapTargetId) return;
+    try {
+      setSwapping(true);
+      await apiFetch("/registration/swap", {
+        method: "POST",
+        body: JSON.stringify({
+          dropSectionId: swapSource.section.id,
+          addSectionId: swapTargetId
+        })
+      });
+      toast("换班成功", "success");
+      setSwapSource(null);
+      setSwapCandidates([]);
+      setSwapTargetId("");
+      await Promise.all([loadCart(termId), loadCurrentEnrollments(termId), loadSections(termId)]);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "换班失败", "error");
+    } finally {
+      setSwapping(false);
+    }
+  };
   const issueAnchorHref =
     summaryIssues.length > 0 ? "#cart-issue-summary" : groupedPrecheckIssues.length > 0 ? "#precheck-issues" : "";
   const nextAction: NextAction = (() => {
@@ -951,6 +1073,37 @@ export default function StudentCartPage() {
       ) : null}
       {!loading && items.length === 0 ? <Alert type="info" message="Your cart is empty. Add sections from catalog." /> : null}
 
+      {enrolledItems.length > 0 ? (
+        <section className="campus-card p-4 md:p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-slate-900">当前已选教学班</h2>
+            <span className="text-xs text-slate-500">{enrolledItems.length} enrolled</span>
+          </div>
+          <div className="mt-3 space-y-2">
+            {enrolledItems.map((enrollment) => (
+              <div key={enrollment.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-900">
+                    {enrollment.section.course.code} §{enrollment.section.sectionCode}
+                  </p>
+                  <p className="text-xs text-slate-500">{enrollment.section.course.title}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {enrollment.section.instructorName} · {enrollment.section.meetingTimes.map((meeting) => `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][meeting.weekday]} ${fmt(Math.floor(meeting.startMinutes / 60) * 60).slice(0, 5)}-${fmt(Math.floor(meeting.endMinutes / 60) * 60).slice(0, 5)}`).join(" / ")}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void openSwapModal(enrollment)}
+                  className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  换班
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <section className="campus-card overflow-hidden">
         <div className="space-y-3 p-3 md:hidden">
           {loading ? (
@@ -1307,6 +1460,83 @@ export default function StudentCartPage() {
             ))}
           </div>
         </section>
+      ) : null}
+
+      {swapSource ? (
+        <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setSwapSource(null)}>
+          <div className="campus-card max-w-md mx-auto mt-20 p-6" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">换班</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  {swapSource.section.course.code} 当前为 §{swapSource.section.sectionCode}
+                </p>
+              </div>
+              <button type="button" onClick={() => setSwapSource(null)} className="text-slate-400 hover:text-slate-600">
+                ×
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              {loadingSwapOptions ? (
+                <p className="text-sm text-slate-500">加载中…</p>
+              ) : swapCandidates.length === 0 ? (
+                <p className="text-sm text-slate-500">没有可换的其他班级。</p>
+              ) : (
+                swapCandidates.map((section) => {
+                  const enrolled = (section.enrollments ?? []).filter((item) => item.status === "ENROLLED").length;
+                  const remaining = section.capacity > 0 ? section.capacity - enrolled : Number.POSITIVE_INFINITY;
+                  const disabled = section.capacity > 0 && remaining <= 0;
+                  return (
+                    <label
+                      key={section.id}
+                      className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 ${
+                        swapTargetId === section.id ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white"
+                      } ${disabled ? "opacity-50" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="swap-section"
+                        value={section.id}
+                        checked={swapTargetId === section.id}
+                        disabled={disabled}
+                        onChange={() => setSwapTargetId(section.id)}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-slate-900">§{section.sectionCode}</p>
+                        <p className="text-xs text-slate-500">{section.instructorName}</p>
+                        <p className="text-xs text-slate-500">
+                          {section.meetingTimes.map((meeting) => `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][meeting.weekday]} ${fmt(meeting.startMinutes)}-${fmt(meeting.endMinutes)}`).join(" / ")}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          {section.capacity === 0 ? "剩余名额：不限" : `剩余名额：${Math.max(0, remaining)}`}
+                        </p>
+                      </div>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setSwapSource(null)}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmSwap()}
+                disabled={!swapTargetId || swapping}
+                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
+              >
+                {swapping ? "换班中…" : "确认换班"}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );
