@@ -14,6 +14,26 @@ import { PrismaService } from "./common/prisma.service";
 import { NotificationsService } from "./notifications/notifications.service";
 
 async function bootstrap() {
+  const expandLoopbackOrigins = (origins: Iterable<string>): Set<string> => {
+    const expanded = new Set<string>();
+    for (const origin of origins) {
+      const trimmed = origin.trim().replace(/\/+$/, "");
+      if (!trimmed) continue;
+      expanded.add(trimmed);
+      try {
+        const parsed = new URL(trimmed);
+        if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
+          const alt = new URL(trimmed);
+          alt.hostname = parsed.hostname === "localhost" ? "127.0.0.1" : "localhost";
+          expanded.add(alt.toString().replace(/\/+$/, ""));
+        }
+      } catch {
+        // Keep the original origin only.
+      }
+    }
+    return expanded;
+  };
+
   const logger = new StructuredLogger();
   const app = await NestFactory.create(AppModule, { logger });
   const auditService = app.get(AuditService);
@@ -121,7 +141,7 @@ async function bootstrap() {
       .map((path) => path.trim())
       .filter(Boolean)
   );
-  const csrfAllowedOrigins = new Set(
+  const csrfAllowedOrigins = expandLoopbackOrigins(
     (process.env.CSRF_ALLOWED_ORIGINS || process.env.WEB_URL || "http://localhost:3000")
       .split(",")
       .map((origin) => origin.trim())
@@ -245,8 +265,22 @@ async function bootstrap() {
     next();
   });
 
+  const corsAllowedOrigins = expandLoopbackOrigins([
+    ...(process.env.CSRF_ALLOWED_ORIGINS || "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+    process.env.WEB_URL || "http://localhost:3000"
+  ]);
+
   app.enableCors({
-    origin: process.env.WEB_URL || "http://localhost:3000",
+    origin(origin, callback) {
+      if (!origin || corsAllowedOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`Origin not allowed by CORS: ${origin}`), false);
+    },
     credentials: true
   });
 

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ApiError, apiFetch } from "@/lib/api";
+import { API_URL } from "@/lib/config";
 
 type LoginResult = {
   role: "STUDENT" | "ADMIN";
@@ -18,8 +19,6 @@ const DEMO_STUDENT_ID = process.env.NEXT_PUBLIC_DEMO_STUDENT_ID || "student1@sis
 const DEMO_STUDENT_PASSWORD = process.env.NEXT_PUBLIC_DEMO_STUDENT_PASSWORD || "Student@2026!";
 const DEMO_ADMIN_EMAIL = process.env.NEXT_PUBLIC_DEMO_ADMIN_EMAIL || "admin@sis.edu";
 const DEMO_ADMIN_PASSWORD = process.env.NEXT_PUBLIC_DEMO_ADMIN_PASSWORD || "Admin@2026!";
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-
 export default function LoginPage() {
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
@@ -193,7 +192,7 @@ export default function LoginPage() {
         {showDemoAccounts ? (
           <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
             <p>WEB: {webOrigin}</p>
-            <p>API: {API_BASE_URL}</p>
+            <p>API: {API_URL}</p>
             <p>MODE: {process.env.NODE_ENV}</p>
           </div>
         ) : null}

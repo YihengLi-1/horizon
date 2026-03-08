@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
-const CLIENT_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+import { API_URL } from "@/lib/config";
 
 export function LogoutButton() {
   const [loading, setLoading] = useState(false);
@@ -12,7 +11,7 @@ export function LogoutButton() {
     setLoading(true);
 
     try {
-      await fetch(`${CLIENT_API_URL}/auth/logout`, {
+      await fetch(`${API_URL}/auth/logout`, {
         method: "POST",
         credentials: "include"
       });

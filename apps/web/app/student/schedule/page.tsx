@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { API_URL } from "@/lib/config";
 import { enrollmentStatusLabel } from "@/lib/labels";
 import PrintButton from "./PrintButton";
 
@@ -324,7 +325,7 @@ export default function SchedulePage() {
     if (!activeTerm) return;
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/students/schedule/ical?termId=${termId}`,
+        `${API_URL}/students/schedule/ical?termId=${termId}`,
         {
           credentials: "include",
           headers: {
