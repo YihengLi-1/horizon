@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 
 const BASE = process.env.API_URL ?? 'http://localhost:4000';
-const INVITE_CODE = process.env.SMOKE_INVITE_CODE ?? 'INVITE-2026';
 const ADMIN_IDENTIFIER = process.env.SMOKE_ADMIN_IDENTIFIER ?? 'admin@university.edu';
 const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD ?? 'Admin123!';
 const STUDENT_PASSWORD = process.env.SMOKE_STUDENT_PASSWORD ?? 'Student@2026!';
@@ -123,8 +122,59 @@ async function main() {
   let activationLink = null;
   let selectedTermId = null;
   let selectedSectionId = null;
+  let studentLoggedOut = false;
+  let inviteCode = process.env.SMOKE_INVITE_CODE ?? '';
+
+  async function ensureAdminSession() {
+    if (admin.cookies.get('access_token')) {
+      return;
+    }
+    const res = await admin.request('/auth/login', {
+      method: 'POST',
+      body: { identifier: ADMIN_IDENTIFIER, password: ADMIN_PASSWORD }
+    });
+    assert.equal(res.status, 200, `Expected 200, got ${res.status}`);
+    const data = unwrapData(res);
+    assert.equal(data?.email, ADMIN_IDENTIFIER, 'Admin login payload mismatch');
+  }
+
+  async function ensureInviteCode() {
+    if (inviteCode) {
+      return inviteCode;
+    }
+    await ensureAdminSession();
+    await admin.request('/auth/csrf-token');
+    const code = `SMOKE-${Date.now()}`;
+    const res = await admin.request('/admin/invite-codes', {
+      method: 'POST',
+      csrf: true,
+      body: {
+        code,
+        active: true
+      }
+    });
+    assert.equal(res.status, 201, `Expected 201, got ${res.status}`);
+    const data = unwrapData(res);
+    inviteCode = data?.code ?? code;
+    return inviteCode;
+  }
+
+  async function ensureStudentSession() {
+    if (!studentLoggedOut && student.cookies.get('access_token')) {
+      return;
+    }
+    const res = await student.request('/auth/login', {
+      method: 'POST',
+      body: { identifier: email, password: STUDENT_PASSWORD }
+    });
+    assert.equal(res.status, 200, `Expected 200, got ${res.status}`);
+    const data = unwrapData(res);
+    assert.equal(data?.email, email, 'Missing logged-in user payload');
+    studentLoggedOut = false;
+  }
 
   await step('1. POST /auth/register → 201', async () => {
+    const nextInviteCode = await ensureInviteCode();
     const res = await student.request('/auth/register', {
       method: 'POST',
       body: {
@@ -132,7 +182,7 @@ async function main() {
         legalName: 'Smoke Student',
         studentId,
         password: STUDENT_PASSWORD,
-        inviteCode: INVITE_CODE
+        inviteCode: nextInviteCode
       }
     });
     assert.equal(res.status, 201, `Expected 201, got ${res.status}`);
@@ -155,6 +205,7 @@ async function main() {
     const data = unwrapData(res);
     assert.equal(data?.email, email, 'Missing logged-in user payload');
     assert.ok(student.cookies.get('access_token'), 'Missing access_token cookie');
+    studentLoggedOut = false;
   });
 
   await step('3. GET /academics/terms → array', async () => {
@@ -200,6 +251,7 @@ async function main() {
     const res = await student.request('/auth/logout', { method: 'POST', csrf: true });
     assert.equal(res.status, 200, `Expected 200, got ${res.status}`);
     unwrapData(res);
+    studentLoggedOut = true;
   });
 
   await step('9. POST /auth/login admin → 200', async () => {
@@ -232,6 +284,7 @@ async function main() {
   });
 
   await step('13. GET /students/recommended → array', async () => {
+    await ensureStudentSession();
     const res = await student.request('/students/recommended');
     const data = unwrapData(res);
     assert.ok(Array.isArray(data), 'Expected array');
@@ -259,6 +312,7 @@ async function main() {
     if (!selectedTermId) {
       return;
     }
+    await ensureStudentSession();
     const sectionsRes = await student.request(`/academics/sections?termId=${encodeURIComponent(selectedTermId)}`);
     const sections = unwrapData(sectionsRes);
     assert.ok(Array.isArray(sections), 'Expected sections array');
@@ -280,6 +334,7 @@ async function main() {
     if (!selectedTermId) {
       return;
     }
+    await ensureStudentSession();
     const res = await student.request(`/registration/cart?termId=${encodeURIComponent(selectedTermId)}`);
     const data = unwrapData(res);
     assert.ok(Array.isArray(data), 'Expected array');
@@ -289,6 +344,7 @@ async function main() {
     if (!selectedTermId) {
       return;
     }
+    await ensureStudentSession();
     const res = await student.request(`/registration/schedule?termId=${encodeURIComponent(selectedTermId)}`);
     const data = unwrapData(res);
     assert.ok(Array.isArray(data), 'Expected array');

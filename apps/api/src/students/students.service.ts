@@ -366,6 +366,69 @@ export class StudentsService {
     ].join("\r\n");
   }
 
+  async createScheduleSnapshot(userId: string, termId: string) {
+    if (!termId) {
+      throw new BadRequestException({ code: "TERM_REQUIRED", message: "termId is required" });
+    }
+
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: {
+        studentId: userId,
+        termId,
+        deletedAt: null,
+        status: "ENROLLED"
+      },
+      include: {
+        section: {
+          include: {
+            course: true,
+            meetingTimes: true
+          }
+        }
+      },
+      orderBy: [{ section: { course: { code: "asc" } } }, { section: { sectionCode: "asc" } }]
+    });
+
+    const snapshot = await this.prisma.scheduleSnapshot.create({
+      data: {
+        studentId: userId,
+        termId,
+        sectionsJson: JSON.stringify(
+          enrollments.map((enrollment) => ({
+            id: enrollment.section.id,
+            sectionCode: enrollment.section.sectionCode,
+            instructorName: enrollment.section.instructorName,
+            location: enrollment.section.location,
+            credits: enrollment.section.credits,
+            course: {
+              code: enrollment.section.course.code,
+              title: enrollment.section.course.title
+            },
+            meetingTimes: enrollment.section.meetingTimes
+          }))
+        )
+      }
+    });
+
+    return { token: snapshot.id };
+  }
+
+  async getScheduleSnapshot(token: string) {
+    const snapshot = await this.prisma.scheduleSnapshot.findUnique({
+      where: { id: token },
+      select: {
+        sectionsJson: true,
+        createdAt: true
+      }
+    });
+
+    if (!snapshot) {
+      throw new NotFoundException({ code: "SCHEDULE_SNAPSHOT_NOT_FOUND", message: "Schedule snapshot not found" });
+    }
+
+    return snapshot;
+  }
+
   async submitContactMessage(
     userId: string,
     input: { subject?: string; message?: string; category?: string }
