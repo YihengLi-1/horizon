@@ -62,7 +62,7 @@ services:
     networks:
       - sis-net
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/ops/ready >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/ops/ready >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -89,7 +89,7 @@ services:
     networks:
       - sis-net
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -189,7 +189,7 @@ services:
     networks:
       - sis-net
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
       interval: 30s
       timeout: 5s
       retries: 3
