@@ -726,7 +726,7 @@ export default async function AdminDashboardPage() {
                     <div>
                       <p className="text-slate-500">Version</p>
                       <p className="mt-0.5 font-mono font-semibold text-slate-700">{opsVersion?.version ?? appVersion}</p>
-                      <p className="mt-1 text-[11px] text-slate-400">{opsVersion?.buildTime ?? buildTime || "—"}</p>
+                      <p className="mt-1 text-[11px] text-slate-400">{opsVersion?.buildTime ?? (buildTime || "—")}</p>
                     </div>
                     <div>
                       <p className="text-slate-500">Uptime / PID</p>

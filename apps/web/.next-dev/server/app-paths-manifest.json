@@ -1,9 +1,15 @@
 {
   "/manifest.json/route": "app/manifest.json/route.js",
   "/_not-found/page": "app/_not-found/page.js",
-  "/admin/dashboard/page": "app/admin/dashboard/page.js",
   "/student/calendar/page": "app/student/calendar/page.js",
-  "/student/cart/page": "app/student/cart/page.js",
+  "/student/catalog/page": "app/student/catalog/page.js",
   "/(auth)/login/page": "app/(auth)/login/page.js",
-  "/student/catalog/page": "app/student/catalog/page.js"
+  "/student/dashboard/page": "app/student/dashboard/page.js",
+  "/student/grades/page": "app/student/grades/page.js",
+  "/student/history/page": "app/student/history/page.js",
+  "/admin/dashboard/page": "app/admin/dashboard/page.js",
+  "/student/bookmarks/page": "app/student/bookmarks/page.js",
+  "/student/contact/page": "app/student/contact/page.js",
+  "/student/profile/page": "app/student/profile/page.js",
+  "/student/help/page": "app/student/help/page.js"
 }
