@@ -40,6 +40,7 @@ import { LogoutButton } from "@/components/logout-button";
 import SessionExpiryBanner from "@/components/SessionExpiryBanner";
 import StudentMobileNav from "@/components/StudentMobileNav";
 import { apiFetch } from "@/lib/api";
+import { API_URL } from "@/lib/config";
 
 type AppArea = "student" | "admin";
 
@@ -323,7 +324,7 @@ export function AppShell({
             <div className="flex items-center gap-2">
               <DarkModeToggle />
               {area === "student" ? (
-                <NotificationBell apiBase={process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"} />
+                <NotificationBell apiBase={API_URL} />
               ) : null}
               <span className="hidden h-9 items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm sm:inline-flex">
                 Signed in: {userLabel}
