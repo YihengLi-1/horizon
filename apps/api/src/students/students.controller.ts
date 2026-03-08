@@ -57,6 +57,18 @@ export class StudentsController {
   }
 
   @Roles("STUDENT", "ADMIN")
+  @Post("schedule/share")
+  async shareSchedule(@CurrentUser() user: { userId: string }, @Body() body: { termId?: string }) {
+    return ok(await this.studentsService.createScheduleSnapshot(user.userId, body.termId ?? ""));
+  }
+
+  @Public()
+  @Get("schedule/snapshot/:token")
+  async getScheduleSnapshot(@Param("token") token: string) {
+    return ok(await this.studentsService.getScheduleSnapshot(token));
+  }
+
+  @Roles("STUDENT", "ADMIN")
   @Get("announcements")
   async getAnnouncements(@CurrentUser() user: { role: "STUDENT" | "ADMIN" }) {
     return ok(await this.studentsService.getAnnouncements(user.role));

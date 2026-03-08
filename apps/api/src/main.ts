@@ -483,7 +483,7 @@ async function bootstrap() {
   expressApp.get("/ops/version", (_req: any, res: any) => {
     res.json({
       version: process.env.npm_package_version ?? "0.0.0",
-      nodeEnv: process.env.NODE_ENV,
+      nodeEnv: process.env.NODE_ENV ?? "development",
       uptime: Math.floor(process.uptime()),
       pid: process.pid,
       buildTime: process.env.BUILD_TIME ?? "dev"

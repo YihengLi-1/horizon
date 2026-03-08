@@ -51,6 +51,7 @@ model User {
   notificationLogs        NotificationLog[]
   auditLogs               AuditLog[]               @relation("AuditActor")
   watches                 SectionWatch[]
+  scheduleSnapshots       ScheduleSnapshot[]
 
   @@index([role, deletedAt])
 }
@@ -133,6 +134,7 @@ model Term {
   sections            Section[]
   enrollments         Enrollment[]
   cartItems           CartItem[]
+  scheduleSnapshots   ScheduleSnapshot[]
 }
 
 model Course {
@@ -304,6 +306,19 @@ model SectionWatch {
   section    Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
   @@unique([userId, sectionId])
+}
+
+model ScheduleSnapshot {
+  id           String   @id @default(cuid())
+  studentId    String
+  termId       String
+  sectionsJson String   @db.Text
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  term         Term     @relation(fields: [termId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, createdAt])
+  @@index([termId])
 }
 
 model SystemSetting {
