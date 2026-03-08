@@ -29,9 +29,19 @@ export default function LoginPage() {
   const [locked, setLocked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [webOrigin, setWebOrigin] = useState("");
+  const [showDemoAccounts, setShowDemoAccounts] = useState(SHOW_DEMO_ACCOUNTS);
 
   useEffect(() => {
     setWebOrigin(window.location.origin);
+    if (SHOW_DEMO_ACCOUNTS) {
+      setShowDemoAccounts(true);
+      return;
+    }
+
+    const host = window.location.hostname.toLowerCase();
+    if (host === "localhost" || host === "127.0.0.1") {
+      setShowDemoAccounts(true);
+    }
   }, []);
 
   const onSubmit = async (event: FormEvent) => {
@@ -149,7 +159,7 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        {SHOW_DEMO_ACCOUNTS ? (
+        {showDemoAccounts ? (
           <div className="mt-5 rounded-2xl border border-amber-200/80 bg-amber-50/70 p-4">
             <h2 className="text-sm font-semibold text-slate-900">Demo accounts</h2>
             <p className="mt-1 text-xs text-slate-600">Use these buttons to auto-fill test credentials.</p>
@@ -180,7 +190,7 @@ export default function LoginPage() {
           <Link className="font-medium text-primary underline underline-offset-2" href="/forgot">Forgot password?</Link>
         </div>
 
-        {SHOW_DEMO_ACCOUNTS ? (
+        {showDemoAccounts ? (
           <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
             <p>WEB: {webOrigin}</p>
             <p>API: {API_BASE_URL}</p>
