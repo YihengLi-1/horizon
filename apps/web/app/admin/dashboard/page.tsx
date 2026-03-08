@@ -1,6 +1,7 @@
 import Link from "next/link";
 import AdminDataExport from "@/components/AdminDataExport";
 import { serverApi } from "@/lib/server-api";
+import { requireRole } from "@/lib/server-auth";
 import EnrollmentTrendChart from "./EnrollmentTrendChart";
 import QuickSearch from "./QuickSearch";
 import RefreshButton from "./RefreshButton";
@@ -231,6 +232,8 @@ const alertmanagerUrl = "http://localhost:9093";
 const swaggerUrl = `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}/api/docs`;
 
 export default async function AdminDashboardPage() {
+  await requireRole("ADMIN");
+
   const [data, opsMetrics, opsVersion, opsReady] = await Promise.all([
     serverApi<Dashboard>("/admin/dashboard"),
     serverApi<OpsMetrics>("/ops/metrics").catch(() => null),

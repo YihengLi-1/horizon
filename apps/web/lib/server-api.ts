@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 const SERVER_API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
 const CSRF_COOKIE_NAME =
@@ -66,6 +67,9 @@ export async function serverApi<T>(path: string, options: ServerApiOptions = {})
       });
 
       const json = await res.json().catch(() => null);
+      if (res.status === 401 || res.status === 403 || json?.error?.statusCode === 401 || json?.error?.statusCode === 403) {
+        redirect("/login");
+      }
       if (!res.ok || !json?.success) {
         throw new Error(json?.error?.message || "Server request failed");
       }

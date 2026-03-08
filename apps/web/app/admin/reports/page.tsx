@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { serverApi } from "@/lib/server-api";
+import { requireRole } from "@/lib/server-auth";
 import AllTranscriptsExport from "./AllTranscriptsExport";
 import PrintButton from "@/app/student/schedule/PrintButton";
 
@@ -127,6 +128,8 @@ export default async function ReportsPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  await requireRole("ADMIN");
+
   const params = (await searchParams) ?? {};
   const selectedTermId = params.termId ?? "";
 
