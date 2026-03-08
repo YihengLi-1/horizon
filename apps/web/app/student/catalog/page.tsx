@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { RegistrationStepper } from "@/components/registration-stepper";
 import { useToast } from "@/components/Toast";
+import GradeDistBar from "@/components/GradeDistBar";
 import { apiFetch } from "@/lib/api";
 import BookmarkButton from "./BookmarkButton";
 import RecommendedCourses from "./RecommendedCourses";
@@ -29,6 +30,7 @@ type Section = {
   credits: number;
   modality: string;
   capacity: number;
+  gradeDistribution?: { A: number; B: number; C: number; D: number; F: number; total: number };
   ratings?: Array<{ rating: number }>;
   instructorName: string;
   location: string | null;
@@ -36,6 +38,7 @@ type Section = {
   meetingTimes: MeetingTime[];
   enrollments: Array<{ status: string }>;
   course: {
+    id: string;
     code: string;
     title: string;
     description: string | null;
@@ -222,7 +225,7 @@ export default function StudentCatalogPage() {
   const [passedCourseCodes, setPassedCourseCodes] = useState<string[]>([]);
   const [hydratedFilters, setHydratedFilters] = useState(false);
   const [page, setPage] = useState(1);
-  const [alerts, setAlerts] = useState<Set<string>>(new Set());
+  const [watches, setWatches] = useState<Set<string>>(new Set());
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
   const [recentlyViewed, setRecentlyViewed] = useState<Array<{ sectionId: string; code: string; title: string }>>([]);
@@ -260,16 +263,6 @@ export default function StudentCatalogPage() {
     const timer = window.setTimeout(() => setDebouncedSearch(filters.search), 300);
     return () => window.clearTimeout(timer);
   }, [filters.search]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const saved = JSON.parse(window.localStorage.getItem("sis-capacity-alerts") || "[]");
-      setAlerts(new Set(Array.isArray(saved) ? saved : []));
-    } catch {
-      setAlerts(new Set());
-    }
-  }, []);
 
   // Load recently viewed from sessionStorage on mount
   useEffect(() => {
@@ -350,11 +343,31 @@ export default function StudentCatalogPage() {
       setLoading(true);
       setError("");
       const data = await apiFetch<Section[]>(`/academics/sections?termId=${tid}`);
-      setSections(data);
+      const dists = await Promise.allSettled(
+        data.slice(0, 20).map((section) =>
+          apiFetch<{ A: number; B: number; C: number; D: number; F: number; total: number }>(
+            `/academics/sections/${section.id}/grade-distribution`
+          )
+        )
+      );
+      const withDist = data.map((section, index) => ({
+        ...section,
+        gradeDistribution: dists[index]?.status === "fulfilled" ? dists[index].value : undefined
+      }));
+      setSections(withDist);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load sections");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadWatches = async () => {
+    try {
+      const data = await apiFetch<Array<{ sectionId: string }>>("/registration/watches");
+      setWatches(new Set(data.map((watch) => watch.sectionId)));
+    } catch {
+      setWatches(new Set());
     }
   };
 
@@ -420,7 +433,7 @@ export default function StudentCatalogPage() {
         setTermId(validId);
         if (validId) {
           updateUrlTerm(validId);
-          await Promise.all([loadSections(validId), loadCart(validId), loadEnrollments(validId)]);
+          await Promise.all([loadSections(validId), loadCart(validId), loadEnrollments(validId), loadWatches()]);
         }
         setHydratedFilters(true);
       } catch (err) {
@@ -441,7 +454,7 @@ export default function StudentCatalogPage() {
     setFilterNoConflict(false);
     setNotice("");
     setError("");
-    await Promise.all([loadSections(nextTermId), loadCart(nextTermId), loadEnrollments(nextTermId)]);
+    await Promise.all([loadSections(nextTermId), loadCart(nextTermId), loadEnrollments(nextTermId), loadWatches()]);
   };
 
   useEffect(() => {
@@ -502,18 +515,6 @@ export default function StudentCatalogPage() {
     setFilterApprovalOnly(false);
     setFilterNoConflict(false);
     setPage(1);
-  };
-
-  const toggleAlert = (sectionId: string) => {
-    setAlerts((prev) => {
-      const next = new Set(prev);
-      if (next.has(sectionId)) next.delete(sectionId);
-      else next.add(sectionId);
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("sis-capacity-alerts", JSON.stringify(Array.from(next)));
-      }
-      return next;
-    });
   };
 
   const activeFilterLabels = useMemo(() => {
@@ -1238,6 +1239,13 @@ export default function StudentCatalogPage() {
                         Time conflict with a section already in your cart.
                       </p>
                     ) : null}
+
+                    {section.gradeDistribution && section.gradeDistribution.total > 0 ? (
+                      <div className="border-t border-slate-100 px-0 pt-1">
+                        <p className="mb-1 text-xs text-slate-400">历史成绩分布</p>
+                        <GradeDistBar dist={section.gradeDistribution} />
+                      </div>
+                    ) : null}
                   </div>
 
                   <aside className="flex w-full flex-col justify-between gap-4 border-t border-slate-200 bg-slate-50/40 p-4 lg:border-l lg:border-t-0">
@@ -1301,6 +1309,32 @@ export default function StudentCatalogPage() {
                         <span className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-slate-200/70 px-4 text-sm font-semibold text-slate-500">
                           Registration closed
                         </span>
+                      ) : isFull && !inCart && !alreadyEnrolledHere ? (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (watches.has(section.id)) {
+                              await apiFetch(`/registration/watch/${section.id}`, { method: "DELETE" });
+                              setWatches((prev) => {
+                                const next = new Set(prev);
+                                next.delete(section.id);
+                                return next;
+                              });
+                              toast("已取消空位通知", "info");
+                            } else {
+                              await apiFetch(`/registration/watch/${section.id}`, { method: "POST" });
+                              setWatches((prev) => new Set([...prev, section.id]));
+                              toast("有空位时将通知您", "success");
+                            }
+                          }}
+                          className={`campus-chip h-10 cursor-pointer justify-center transition ${
+                            watches.has(section.id)
+                              ? "border-blue-300 bg-blue-50 text-blue-700"
+                              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          {watches.has(section.id) ? "🔔 已订阅空位" : "🔔 空位通知我"}
+                        </button>
                       ) : (
                         <button
                           type="button"
@@ -1329,19 +1363,6 @@ export default function StudentCatalogPage() {
                       )}
                       {cartConflict && !inCart && !alreadyEnrolledHere ? (
                         <p className="text-sm text-amber-700">Conflict will be rechecked at submit.</p>
-                      ) : null}
-                      {isFull && !alreadyEnrolledHere ? (
-                        <button
-                          type="button"
-                          onClick={() => toggleAlert(section.id)}
-                          className={`rounded px-2 py-1 text-xs font-medium border transition-colors ${
-                            alerts.has(section.id)
-                              ? "border-amber-300 bg-amber-50 text-amber-700"
-                              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                          }`}
-                        >
-                          {alerts.has(section.id) ? "🔔 Notifying" : "🔕 Notify me"}
-                        </button>
                       ) : null}
                     </div>
                   </aside>

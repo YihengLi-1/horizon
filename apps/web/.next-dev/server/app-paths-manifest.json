@@ -1,12 +1,9 @@
 {
   "/manifest.json/route": "app/manifest.json/route.js",
   "/_not-found/page": "app/_not-found/page.js",
-  "/(auth)/login/page": "app/(auth)/login/page.js",
-  "/admin/dashboard/page": "app/admin/dashboard/page.js",
-  "/student/dashboard/page": "app/student/dashboard/page.js",
   "/student/help/page": "app/student/help/page.js",
+  "/(auth)/login/page": "app/(auth)/login/page.js",
   "/admin/waitlist/page": "app/admin/waitlist/page.js",
-  "/admin/audit-logs/page": "app/admin/audit-logs/page.js",
-  "/admin/announcements/page": "app/admin/announcements/page.js",
-  "/admin/sections/page": "app/admin/sections/page.js"
+  "/admin/sections/page": "app/admin/sections/page.js",
+  "/student/dashboard/page": "app/student/dashboard/page.js"
 }

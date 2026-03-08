@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
 import { changePasswordSchema, createStudentSchema, updateProfileSchema } from "@sis/shared";
+import { Response } from "express";
 import { AdminPermissionGuard } from "../common/admin-permission.guard";
 import { RequireAdminPermissions } from "../common/admin-permission.decorator";
 import { CurrentUser } from "../common/current-user.decorator";
@@ -39,6 +40,20 @@ export class StudentsController {
   @Get("cart")
   async getCart(@CurrentUser() user: { userId: string }) {
     return ok(await this.studentsService.getCart(user.userId));
+  }
+
+  @Roles("STUDENT", "ADMIN")
+  @Get("schedule/ical")
+  async getIcal(
+    @Query("termId") termId: string,
+    @Req() req: { user?: { userId?: string; sub?: string } },
+    @Res() res: Response
+  ) {
+    const userId = req.user?.userId ?? req.user?.sub ?? "";
+    const ical = await this.studentsService.generateIcal(userId, termId);
+    res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="schedule.ics"');
+    res.send(ical);
   }
 
   @Roles("STUDENT", "ADMIN")

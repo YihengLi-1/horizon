@@ -50,6 +50,7 @@ model User {
   ratings                 CourseRating[]
   notificationLogs        NotificationLog[]
   auditLogs               AuditLog[]               @relation("AuditActor")
+  watches                 SectionWatch[]
 
   @@index([role, deletedAt])
 }
@@ -178,6 +179,7 @@ model Section {
   enrollments     Enrollment[]
   cartItems       CartItem[]
   ratings         CourseRating[]
+  watches         SectionWatch[]
 
   @@unique([termId, sectionCode])
   @@index([courseId])
@@ -290,6 +292,18 @@ model NotificationLog {
 
   @@index([userId])
   @@index([sentAt])
+}
+
+model SectionWatch {
+  id         String   @id @default(cuid())
+  userId     String
+  sectionId  String
+  createdAt  DateTime @default(now())
+  notifiedAt DateTime?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  section    Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sectionId])
 }
 
 model SystemSetting {

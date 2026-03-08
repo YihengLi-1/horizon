@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, type NestModule, RequestMethod } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
+import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { AuthzModule } from "./common/authz.module";
 import { PrismaModule } from "./common/prisma.module";
@@ -17,6 +18,7 @@ import { MaintenanceMiddleware } from "./common/maintenance.middleware";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
         name: "default",

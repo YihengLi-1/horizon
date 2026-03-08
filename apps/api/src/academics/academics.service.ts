@@ -76,4 +76,36 @@ export class AcademicsService {
       orderBy: [{ term: { startDate: "desc" } }, { sectionCode: "asc" }]
     });
   }
+
+  async getSectionGradeDistribution(sectionId: string) {
+    const rows = await this.prisma.enrollment.groupBy({
+      by: ["finalGrade"],
+      where: {
+        sectionId,
+        deletedAt: null,
+        status: "COMPLETED",
+        finalGrade: { not: null }
+      },
+      _count: { finalGrade: true }
+    });
+
+    const distribution: Record<"A" | "B" | "C" | "D" | "F" | "W", number> = {
+      A: 0,
+      B: 0,
+      C: 0,
+      D: 0,
+      F: 0,
+      W: 0
+    };
+
+    for (const row of rows) {
+      const grade = (row.finalGrade ?? "").charAt(0).toUpperCase() as keyof typeof distribution;
+      if (grade in distribution) {
+        distribution[grade] += row._count.finalGrade;
+      }
+    }
+
+    const total = Object.values(distribution).reduce((sum, value) => sum + value, 0);
+    return { ...distribution, total };
+  }
 }

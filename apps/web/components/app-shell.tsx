@@ -61,6 +61,7 @@ const studentItems: NavItem[] = [
   { href: "/student/notifications", label: "Notifications", icon: <Bell className={iconClass} /> },
   { href: "/student/announcements", label: "Announcements", icon: <Megaphone className={iconClass} /> },
   { href: "/student/catalog", label: "Catalog", icon: <BookOpen className={iconClass} /> },
+  { href: "/student/planner", label: "选课规划", icon: <CalendarDays className={iconClass} /> },
   { href: "/student/cart", label: "Cart", icon: <ShoppingCart className={iconClass} /> },
   { href: "/student/schedule", label: "Schedule", icon: <CalendarDays className={iconClass} /> },
   { href: "/student/grades", label: "Grades", icon: <GraduationCap className={iconClass} /> },
@@ -145,7 +146,7 @@ export function AppShell({
           ]
         : [
             { label: "Overview", hrefs: ["/student/dashboard", "/student/notifications", "/student/announcements"] },
-            { label: "Registration", hrefs: ["/student/catalog", "/student/cart", "/student/schedule"] },
+            { label: "Registration", hrefs: ["/student/catalog", "/student/planner", "/student/cart", "/student/schedule"] },
             { label: "Academic", hrefs: ["/student/grades", "/student/calendar", "/student/history", "/student/bookmarks", "/student/contact", "/student/profile", "/student/help"] }
           ];
 

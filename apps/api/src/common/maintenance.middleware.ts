@@ -26,6 +26,7 @@ export class MaintenanceMiddleware implements NestMiddleware {
     }
 
     if (mode === "true") {
+      res.setHeader("Set-Cookie", "sis-maintenance=true; Path=/; Max-Age=300; HttpOnly; SameSite=Lax");
       res.status(503).json({
         message: "系统维护中，请稍后再试",
         maintenance: true
@@ -33,6 +34,7 @@ export class MaintenanceMiddleware implements NestMiddleware {
       return;
     }
 
+    res.setHeader("Set-Cookie", "sis-maintenance=; Path=/; Max-Age=0; SameSite=Lax");
     next();
   }
 }

@@ -1,6 +1,7 @@
 import { Controller, Get, Header, Param, Query, UseGuards } from "@nestjs/common";
 import { CurrentUser } from "../common/current-user.decorator";
 import { JwtAuthGuard } from "../common/jwt-auth.guard";
+import { Public } from "../common/public.decorator";
 import { Roles } from "../common/roles.decorator";
 import { RolesGuard } from "../common/roles.guard";
 import { ok } from "../common/response";
@@ -31,5 +32,12 @@ export class AcademicsController {
   @Get("sections")
   async listSections(@Query("termId") termId?: string, @Query("courseId") courseId?: string) {
     return ok(await this.academicsService.listSections(termId, courseId));
+  }
+
+  @Public()
+  @Roles()
+  @Get("sections/:id/grade-distribution")
+  async getGradeDistribution(@Param("id") id: string) {
+    return ok(await this.academicsService.getSectionGradeDistribution(id));
   }
 }

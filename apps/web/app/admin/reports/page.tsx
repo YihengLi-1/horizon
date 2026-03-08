@@ -125,7 +125,7 @@ function gradePoints(grade: string): number {
 export default async function ReportsPage({
   searchParams
 }: {
-  searchParams?: Promise<SearchParams>;
+  searchParams: Promise<SearchParams>;
 }) {
   const params = (await searchParams) ?? {};
   const selectedTermId = params.termId ?? "";
@@ -144,6 +144,7 @@ export default async function ReportsPage({
   ]);
 
   const maxGpaTierCount = Math.max(...summary.gpaDistribution.map((item) => item.count), 1);
+  const activeTerm = terms.find((term) => term.id === selectedTermId);
   const enrollmentByStatus = summary.enrollmentByStatus;
   const noGpaStudents = dataQuality.studentsNoProfile;
   const noInstructor = dataQuality.sectionsNoInstructor.length;
@@ -194,7 +195,10 @@ export default async function ReportsPage({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="reports-title text-2xl font-bold text-slate-900">Reports</h1>
-            <p className="mt-1 text-sm text-slate-500">Enrollment, GPA, and data-quality overview by term.</p>
+            <p className="mt-1 text-sm text-slate-500">
+              {selectedTermId && activeTerm ? `${activeTerm.name} · ` : ""}
+              Enrollment statistics
+            </p>
           </div>
           <div className="no-print flex flex-wrap gap-2">
             <AllTranscriptsExport
