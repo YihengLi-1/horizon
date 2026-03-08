@@ -1,9 +1,17 @@
 {
   "/manifest.json/route": "app/manifest.json/route.js",
   "/_not-found/page": "app/_not-found/page.js",
-  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/schedule/share/[token]/page": "app/schedule/share/[token]/page.js",
+  "/admin/announcements/page": "app/admin/announcements/page.js",
   "/admin/dashboard/page": "app/admin/dashboard/page.js",
+  "/admin/courses/page": "app/admin/courses/page.js",
+  "/admin/terms/page": "app/admin/terms/page.js",
+  "/admin/waitlist/page": "app/admin/waitlist/page.js",
+  "/admin/enrollments/page": "app/admin/enrollments/page.js",
+  "/admin/invite-codes/page": "app/admin/invite-codes/page.js",
+  "/admin/reports/page": "app/admin/reports/page.js",
+  "/student/dashboard/page": "app/student/dashboard/page.js",
   "/student/catalog/page": "app/student/catalog/page.js",
-  "/student/calendar/page": "app/student/calendar/page.js",
-  "/admin/announcements/page": "app/admin/announcements/page.js"
+  "/student/grades/page": "app/student/grades/page.js",
+  "/admin/import/page": "app/admin/import/page.js"
 }

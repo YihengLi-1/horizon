@@ -25,7 +25,8 @@ receivers:
   - name: "default"
     email_configs:
       - to: "admin@sis.edu"
-        subject: "[SIS Alert] {{ .GroupLabels.alertname }}"
+        headers:
+          Subject: "[SIS Alert] {{ .GroupLabels.alertname }}"
         text: |
           {{ range .Alerts }}
           Alert: {{ .Annotations.summary }}
@@ -37,7 +38,8 @@ receivers:
   - name: "critical"
     email_configs:
       - to: "admin@sis.edu"
-        subject: "[SIS CRITICAL] {{ .GroupLabels.alertname }}"
+        headers:
+          Subject: "[SIS CRITICAL] {{ .GroupLabels.alertname }}"
         text: |
           CRITICAL ALERT - Immediate action required!
           {{ range .Alerts }}
