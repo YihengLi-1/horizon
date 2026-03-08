@@ -105,6 +105,11 @@ function getPrerequisiteCodes(section: Section): string[] {
     .filter((code): code is string => Boolean(code));
 }
 
+function averageRating(section: Section): number | null {
+  if (!section.ratings || section.ratings.length === 0) return null;
+  return section.ratings.reduce((sum, rating) => sum + rating.rating, 0) / section.ratings.length;
+}
+
 function Highlight({ text, query }: { text: string; query: string }) {
   if (!query) return <>{text}</>;
   const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -252,9 +257,9 @@ export default function StudentCatalogPage() {
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedSearch(search), 300);
+    const timer = window.setTimeout(() => setDebouncedSearch(filters.search), 300);
     return () => window.clearTimeout(timer);
-  }, [search]);
+  }, [filters.search]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -270,7 +275,11 @@ export default function StudentCatalogPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const saved = JSON.parse(window.sessionStorage.getItem("sis-recently-viewed") || "[]");
+      const saved = JSON.parse(
+        window.sessionStorage.getItem("recently_viewed") ??
+          window.sessionStorage.getItem("sis-recently-viewed") ??
+          "[]"
+      );
       if (Array.isArray(saved)) setRecentlyViewed(saved.slice(0, 5));
     } catch { /* ignore */ }
   }, []);
@@ -281,7 +290,10 @@ export default function StudentCatalogPage() {
       const filtered = prev.filter(x => x.sectionId !== section.id);
       const next = [entry, ...filtered].slice(0, 5);
       if (typeof window !== "undefined") {
-        try { window.sessionStorage.setItem("sis-recently-viewed", JSON.stringify(next)); } catch { /* ignore */ }
+        try {
+          window.sessionStorage.setItem("recently_viewed", JSON.stringify(next));
+          window.sessionStorage.setItem("sis-recently-viewed", JSON.stringify(next));
+        } catch { /* ignore */ }
       }
       return next;
     });
@@ -383,20 +395,23 @@ export default function StudentCatalogPage() {
         const queryCredits = query?.get("credits") ?? "ALL";
         const queryDept = (query?.get("dept") ?? "ALL").toUpperCase();
         const querySort = query?.get("sort") ?? "RELEVANCE";
+        const queryDays = (query?.get("days") ?? "")
+          .split(",")
+          .map((value) => Number(value))
+          .filter((value) => Number.isInteger(value) && value >= 0 && value <= 6);
 
-        setSearch(querySearch);
         setDebouncedSearch(querySearch);
-        setFilterModality(
-          ["ALL", "ON_CAMPUS", "ONLINE", "HYBRID"].includes(queryModality) ? queryModality : "ALL"
-        );
-        setFilterCredits(queryCredits === "ALL" ? "ALL" : queryCredits);
-        setFilterDept(queryDept.length >= 2 ? queryDept : "ALL");
-        setSortBy(
-          ["RELEVANCE", "SEATS_DESC", "CODE_ASC", "TITLE_ASC", "CREDITS_ASC", "CREDITS_DESC"].includes(querySort)
+        setFilters({
+          dept: queryDept.length >= 2 ? queryDept : "ALL",
+          modality: ["ALL", "ON_CAMPUS", "ONLINE", "HYBRID"].includes(queryModality) ? queryModality : "ALL",
+          credits: queryCredits === "ALL" ? "ALL" : queryCredits,
+          days: queryDays,
+          availableOnly: parseBool(query?.get("available") ?? null),
+          search: querySearch,
+          sort: ["RELEVANCE", "SEATS_ASC", "CREDITS_ASC", "CREDITS_DESC", "RATING_DESC"].includes(querySort)
             ? querySort
             : "RELEVANCE"
-        );
-        setFilterAvailable(parseBool(query?.get("available") ?? null));
+        });
         setFilterPrereqReady(parseBool(query?.get("prereqReady") ?? null));
         setFilterApprovalOnly(parseBool(query?.get("approvalOnly") ?? null));
         setFilterNoConflict(parseBool(query?.get("noConflict") ?? null));
@@ -450,8 +465,11 @@ export default function StudentCatalogPage() {
     if (sortBy !== "RELEVANCE") url.searchParams.set("sort", sortBy);
     else url.searchParams.delete("sort");
 
-    if (filterAvailable) url.searchParams.set("available", "1");
+    if (availableOnly) url.searchParams.set("available", "1");
     else url.searchParams.delete("available");
+
+    if (filters.days.length > 0) url.searchParams.set("days", filters.days.join(","));
+    else url.searchParams.delete("days");
 
     if (filterPrereqReady) url.searchParams.set("prereqReady", "1");
     else url.searchParams.delete("prereqReady");
@@ -470,7 +488,8 @@ export default function StudentCatalogPage() {
     filterModality,
     filterCredits,
     filterDept,
-    filterAvailable,
+    availableOnly,
+    filters.days,
     filterPrereqReady,
     filterApprovalOnly,
     filterNoConflict,
@@ -503,7 +522,8 @@ export default function StudentCatalogPage() {
     if (filterModality !== "ALL") labels.push(`Modality: ${filterModality.replace("_", " ")}`);
     if (filterCredits !== "ALL") labels.push(`Credits: ${filterCredits}`);
     if (filterDept !== "ALL") labels.push(`Dept: ${filterDept}`);
-    if (filterAvailable) labels.push("Seats available");
+    if (availableOnly) labels.push("Seats available");
+    if (filters.days.length > 0) labels.push(`Days: ${filters.days.map((day) => WEEKDAY[day]).join(", ")}`);
     if (filterPrereqReady) labels.push("Prerequisites met");
     if (filterApprovalOnly) labels.push("Approval required");
     if (filterNoConflict) labels.push("No cart conflicts");
@@ -514,7 +534,8 @@ export default function StudentCatalogPage() {
     filterModality,
     filterCredits,
     filterDept,
-    filterAvailable,
+    availableOnly,
+    filters.days,
     filterPrereqReady,
     filterApprovalOnly,
     filterNoConflict,
@@ -523,6 +544,16 @@ export default function StudentCatalogPage() {
 
   const creditOptions = useMemo(() => {
     const vals = Array.from(new Set(sections.map((s) => s.credits))).sort((a, b) => a - b);
+    return vals;
+  }, [sections]);
+  const deptOptions = useMemo(() => {
+    const vals = Array.from(
+      new Set(
+        sections
+          .map((section) => section.course.code.match(/^[A-Za-z]+/)?.[0]?.toUpperCase() ?? "")
+          .filter(Boolean)
+      )
+    ).sort();
     return vals;
   }, [sections]);
 
@@ -541,9 +572,12 @@ export default function StudentCatalogPage() {
         if (!target.includes(q)) return false;
       }
       if (filterModality !== "ALL" && s.modality !== filterModality) return false;
-      if (filterCredits !== "ALL" && s.credits !== Number(filterCredits)) return false;
+      if (filterCredits !== "ALL") {
+        if (filterCredits === "4" && s.credits < 4) return false;
+        if (filterCredits !== "4" && s.credits !== Number(filterCredits)) return false;
+      }
       if (filterDept !== "ALL" && !s.course.code.toUpperCase().startsWith(filterDept)) return false;
-      if (filterAvailable && enrolledCount >= s.capacity) return false;
+      if (availableOnly && s.capacity !== 0 && enrolledCount >= s.capacity) return false;
       if (filterPrereqReady && prereqCodes.some((code) => !passedCourseCodeSet.has(code))) return false;
       if (filterApprovalOnly && !s.requireApproval) return false;
       if (filterNoConflict && hasConflict) return false;
@@ -552,24 +586,22 @@ export default function StudentCatalogPage() {
       return true;
     });
 
-    if (sortBy === "SEATS_DESC") {
+    if (sortBy === "SEATS_ASC") {
       filtered.sort((a, b) => {
-        const aSeats = a.capacity - getEnrolledCount(a);
-        const bSeats = b.capacity - getEnrolledCount(b);
-        return bSeats - aSeats;
-      });
-    } else if (sortBy === "CODE_ASC") {
-      filtered.sort((a, b) => {
-        const byCode = a.course.code.localeCompare(b.course.code);
-        if (byCode !== 0) return byCode;
-        return a.sectionCode.localeCompare(b.sectionCode);
+        const aSeats = a.capacity === 0 ? Number.MAX_SAFE_INTEGER : a.capacity - getEnrolledCount(a);
+        const bSeats = b.capacity === 0 ? Number.MAX_SAFE_INTEGER : b.capacity - getEnrolledCount(b);
+        return aSeats - bSeats;
       });
     } else if (sortBy === "CREDITS_ASC") {
       filtered.sort((a, b) => a.credits - b.credits);
     } else if (sortBy === "CREDITS_DESC") {
       filtered.sort((a, b) => b.credits - a.credits);
-    } else if (sortBy === "TITLE_ASC") {
-      filtered.sort((a, b) => a.course.title.localeCompare(b.course.title));
+    } else if (sortBy === "RATING_DESC") {
+      filtered.sort((a, b) => {
+        const avgA = averageRating(a) ?? -1;
+        const avgB = averageRating(b) ?? -1;
+        return avgB - avgA;
+      });
     }
 
     return filtered;
@@ -579,7 +611,7 @@ export default function StudentCatalogPage() {
     filterModality,
     filterCredits,
     filterDept,
-    filterAvailable,
+    availableOnly,
     filters.days,
     filterPrereqReady,
     filterApprovalOnly,
@@ -594,7 +626,7 @@ export default function StudentCatalogPage() {
   useEffect(() => {
     if (!hydratedFilters) return;
     setPage(1);
-  }, [hydratedFilters, debouncedSearch, filterModality, filterCredits, filterDept, filterAvailable, filterPrereqReady, filterApprovalOnly, filterNoConflict, sortBy]);
+  }, [hydratedFilters, debouncedSearch, filterModality, filterCredits, filterDept, availableOnly, filters.days, filterPrereqReady, filterApprovalOnly, filterNoConflict, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filteredSections.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -622,6 +654,29 @@ export default function StudentCatalogPage() {
     return { openCount, fullCount, approvalCount, prereqBlockedCount, conflictCount };
   }, [filteredSections, cartSectionIds, cartMeetingTimes, passedCourseCodeSet]);
   const isFilteredView = filteredSections.length !== sections.length;
+  const completedCourseIds = useMemo(() => new Set(passedCourseCodes), [passedCourseCodes]);
+  const compareSections = useMemo(
+    () => sections.filter((section) => compareIds.includes(section.id)),
+    [compareIds, sections]
+  );
+
+  const toggleCompare = (sectionId: string) => {
+    setCompareIds((current) => {
+      if (current.includes(sectionId)) {
+        return current.filter((id) => id !== sectionId);
+      }
+      if (current.length >= 3) {
+        toast("最多对比 3 门课", "error");
+        return current;
+      }
+      return [...current, sectionId];
+    });
+  };
+
+  const jumpToSection = (sectionId: string) => {
+    const target = document.getElementById(`section-${sectionId}`);
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
 
   const addToCart = async (section: Section) => {
     if (!termId) return;
@@ -709,8 +764,7 @@ export default function StudentCatalogPage() {
 
       {/* Filters */}
       <section className="campus-toolbar">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {/* Term */}
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Term</span>
             <select
@@ -723,36 +777,19 @@ export default function StudentCatalogPage() {
               {terms.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </label>
-
-          {/* Modality */}
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Modality</span>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">院系</span>
             <select
               className="campus-select"
-              value={filterModality}
-              onChange={(e) => setFilterModality(e.target.value)}
+              value={filterDept}
+              onChange={(e) => setFilterDept(e.target.value)}
             >
-              <option value="ALL">All modalities</option>
-              <option value="ON_CAMPUS">On Campus</option>
-              <option value="ONLINE">Online</option>
-              <option value="HYBRID">Hybrid</option>
+              <option value="ALL">全部院系</option>
+              {deptOptions.map((dept) => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
             </select>
           </label>
-
-          {/* Credits */}
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Credits</span>
-            <select
-              className="campus-select"
-              value={filterCredits}
-              onChange={(e) => setFilterCredits(e.target.value)}
-            >
-              <option value="ALL">All credits</option>
-              {creditOptions.map((c) => <option key={c} value={c}>{c} cr</option>)}
-            </select>
-          </label>
-
-          {/* Search */}
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search</span>
             <div className="relative">
@@ -766,22 +803,110 @@ export default function StudentCatalogPage() {
               />
             </div>
           </label>
-
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Sort</span>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">排序</span>
             <select
               className="campus-select"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
             >
-              <option value="RELEVANCE">Relevance</option>
-              <option value="SEATS_DESC">Seats available</option>
-              <option value="CODE_ASC">Course code (A-Z)</option>
-              <option value="TITLE_ASC">Title (A-Z)</option>
-              <option value="CREDITS_ASC">Credits (low → high)</option>
-              <option value="CREDITS_DESC">Credits (high → low)</option>
+              <option value="RELEVANCE">相关度</option>
+              <option value="CREDITS_ASC">学分升序</option>
+              <option value="CREDITS_DESC">学分降序</option>
+              <option value="SEATS_ASC">余量升序</option>
+              <option value="RATING_DESC">评分降序</option>
             </select>
           </label>
+        </div>
+
+        <div className="mt-4 space-y-4">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">授课方式</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: "ALL", label: "全部" },
+                { value: "ONLINE", label: "线上" },
+                { value: "ON_CAMPUS", label: "线下" },
+                { value: "HYBRID", label: "混合" }
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setFilterModality(option.value)}
+                  className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+                    filterModality === option.value
+                      ? "border-blue-600 bg-blue-600 text-white"
+                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">学分</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: "ALL", label: "全部" },
+                { value: "1", label: "1学分" },
+                { value: "2", label: "2学分" },
+                { value: "3", label: "3学分" },
+                { value: "4", label: "4学分+" }
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setFilterCredits(option.value)}
+                  className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+                    filterCredits === option.value
+                      ? "border-blue-600 bg-blue-600 text-white"
+                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">星期</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: 1, label: "一" },
+                { value: 2, label: "二" },
+                { value: 3, label: "三" },
+                { value: 4, label: "四" },
+                { value: 5, label: "五" },
+                { value: 6, label: "六" }
+              ].map((option) => (
+                <label
+                  key={option.value}
+                  className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${
+                    filters.days.includes(option.value)
+                      ? "border-blue-600 bg-blue-50 text-blue-700"
+                      : "border-slate-300 bg-white text-slate-700"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="size-4 accent-blue-600"
+                    checked={filters.days.includes(option.value)}
+                    onChange={() =>
+                      setFilterDays(
+                        filters.days.includes(option.value)
+                          ? filters.days.filter((day) => day !== option.value)
+                          : [...filters.days, option.value]
+                      )
+                    }
+                  />
+                  星期{option.label}
+                </label>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -789,10 +914,10 @@ export default function StudentCatalogPage() {
             <input
               type="checkbox"
               className="size-4 accent-slate-900"
-              checked={filterAvailable}
+              checked={availableOnly}
               onChange={(event) => setFilterAvailable(event.target.checked)}
             />
-            Only sections with available seats
+            仅显示有余量
           </label>
           <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
             <input
@@ -897,18 +1022,34 @@ export default function StudentCatalogPage() {
 
       {/* Recently Viewed strip */}
       {recentlyViewed.length > 0 ? (
-        <section aria-label="Recently viewed sections">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Recently Viewed</p>
+        <section className="campus-card p-4" aria-label="Recently viewed sections">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">最近查看</p>
+            <button
+              type="button"
+              onClick={() => {
+                setRecentlyViewed([]);
+                if (typeof window !== "undefined") {
+                  window.sessionStorage.removeItem("recently_viewed");
+                  window.sessionStorage.removeItem("sis-recently-viewed");
+                }
+              }}
+              className="text-xs text-slate-400 underline hover:text-slate-600"
+            >
+              清除
+            </button>
+          </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {recentlyViewed.map(item => (
-              <a
+              <button
                 key={item.sectionId}
-                href={`#section-${item.sectionId}`}
-                className="flex-shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 no-underline shadow-sm hover:bg-slate-50 hover:border-slate-300 transition"
+                type="button"
+                onClick={() => jumpToSection(item.sectionId)}
+                className="flex-shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-left text-xs font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
               >
                 <span className="font-semibold text-slate-900">{item.code}</span>
                 <span className="ml-1 text-slate-500 max-w-[120px] inline-block truncate align-middle">{item.title}</span>
-              </a>
+              </button>
             ))}
           </div>
         </section>
@@ -981,8 +1122,9 @@ export default function StudentCatalogPage() {
             const sectionMeetingTimes = section.meetingTimes ?? [];
             const enrolledCount = getEnrolledCount(section);
             const waitlistCount = getWaitlistedCount(section);
-            const availableSeats = section.capacity - enrolledCount;
-            const isFull = availableSeats <= 0;
+            const isUnlimited = section.capacity === 0;
+            const availableSeats = isUnlimited ? Number.POSITIVE_INFINITY : section.capacity - enrolledCount;
+            const isFull = !isUnlimited && availableSeats <= 0;
             const inCart = cartSectionIds.has(section.id);
             const cartConflict = !inCart && timeOverlap(
               sectionMeetingTimes,
@@ -991,7 +1133,7 @@ export default function StudentCatalogPage() {
             const prereqs = getPrerequisiteCodes(section);
             const missingPrereqs = prereqs.filter((code) => !passedCourseCodeSet.has(code));
             const prereqBlocked = missingPrereqs.length > 0;
-            const alreadyCompleted = passedCourseCodeSet.has(section.course.code);
+            const alreadyCompleted = completedCourseIds.has(section.course.code);
             const hasCapacityData =
               Number.isFinite(enrolledCount) && Number.isFinite(section.capacity) && section.capacity > 0;
             // Whether this student is already enrolled in this exact section or another section of the same course
@@ -1015,15 +1157,7 @@ export default function StudentCatalogPage() {
                     type="checkbox"
                     className="size-3.5 accent-blue-600"
                     checked={compareIds.includes(section.id)}
-                    onChange={() => {
-                      if (compareIds.includes(section.id)) {
-                        setCompareIds(prev => prev.filter(x => x !== section.id));
-                      } else if (compareIds.length >= 3) {
-                        toast("最多对比 3 门课", "error");
-                      } else {
-                        setCompareIds(prev => [...prev, section.id]);
-                      }
-                    }}
+                    onChange={() => toggleCompare(section.id)}
                   />
                   对比
                 </label>
@@ -1110,10 +1244,10 @@ export default function StudentCatalogPage() {
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Seat Status</p>
                       <p className={`mt-1 text-lg font-semibold ${isFull ? "text-red-700" : "text-emerald-700"}`}>
-                        {isFull ? "Full / Waitlist" : `${availableSeats} seat${availableSeats !== 1 ? "s" : ""} open`}
+                        {isUnlimited ? "Unlimited seats" : isFull ? "Full / Waitlist" : `${availableSeats} seat${availableSeats !== 1 ? "s" : ""} open`}
                       </p>
                       <p className="text-sm text-slate-600">
-                        Enrolled {enrolledCount}/{section.capacity}
+                        Enrolled {enrolledCount}/{isUnlimited ? "∞" : section.capacity}
                         {waitlistCount > 0 ? ` · Waitlist ${waitlistCount}` : ""}
                       </p>
                       {hasCapacityData ? (
@@ -1284,14 +1418,13 @@ export default function StudentCatalogPage() {
               对比 ({compareIds.length}/3):
             </span>
             <div className="flex flex-1 flex-wrap gap-2">
-              {compareIds.map(id => {
-                const s = sections.find(x => x.id === id);
-                return s ? (
-                  <span key={id} className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
-                    {s.course.code}
-                    <button type="button" onClick={() => setCompareIds(prev => prev.filter(x => x !== id))} className="ml-1 text-blue-500 hover:text-red-600">×</button>
+              {compareSections.map((section) => {
+                return (
+                  <span key={section.id} className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
+                    {section.course.code}
+                    <button type="button" onClick={() => setCompareIds(prev => prev.filter(x => x !== section.id))} className="ml-1 text-blue-500 hover:text-red-600">×</button>
                   </span>
-                ) : null;
+                );
               })}
             </div>
             <button
@@ -1322,9 +1455,8 @@ export default function StudentCatalogPage() {
                 <thead>
                   <tr className="bg-slate-50 dark:bg-gray-800">
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase w-32">属性</th>
-                    {compareIds.map(id => {
-                      const s = sections.find(x => x.id === id);
-                      return <th key={id} className="px-4 py-3 text-left font-semibold text-slate-800 dark:text-white">{s?.course.code ?? id}</th>;
+                    {compareSections.map((section) => {
+                      return <th key={section.id} className="px-4 py-3 text-left font-semibold text-slate-800 dark:text-white">{section.course.code}</th>;
                     })}
                   </tr>
                 </thead>
@@ -1338,17 +1470,12 @@ export default function StudentCatalogPage() {
                     { label: "地点", fn: (s: Section) => s.location ?? "TBA" },
                     { label: "容量", fn: (s: Section) => `${getEnrolledCount(s)}/${s.capacity}` },
                     { label: "上课时间", fn: (s: Section) => s.meetingTimes.map(mt => meetingChip(mt)).join("; ") || "异步" },
-                    { label: "平均评分", fn: (s: Section) => {
-                      const ratings = s.ratings ?? [];
-                      if (!ratings.length) return "—";
-                      return (ratings.reduce((a, b) => a + b.rating, 0) / ratings.length).toFixed(1) + " ★";
-                    }},
+                    { label: "平均评分", fn: (s: Section) => averageRating(s)?.toFixed(1) ? `${averageRating(s)?.toFixed(1)} ★` : "—" },
                   ].map(({ label, fn }) => (
                     <tr key={label} className="border-t border-slate-100 dark:border-gray-700 even:bg-slate-50/50 dark:even:bg-gray-800/50">
                       <td className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">{label}</td>
-                      {compareIds.map(id => {
-                        const s = sections.find(x => x.id === id);
-                        return <td key={id} className="px-4 py-3 text-slate-800 dark:text-slate-200">{s ? fn(s) : "—"}</td>;
+                      {compareSections.map((section) => {
+                        return <td key={section.id} className="px-4 py-3 text-slate-800 dark:text-slate-200">{fn(section)}</td>;
                       })}
                     </tr>
                   ))}
