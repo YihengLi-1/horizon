@@ -74,6 +74,17 @@ type DataQuality = {
   coursesNoSections: Array<{ id: string; code?: string; title?: string }>;
 };
 
+const emptySummary: ReportsSummary = {
+  totalStudents: 0,
+  totalCourses: 0,
+  totalSections: 0,
+  avgCreditsPerStudent: 0,
+  enrollmentByStatus: {},
+  topSections: [],
+  deptBreakdown: [],
+  gpaDistribution: []
+};
+
 async function fetchCompletedEnrollments(termId?: string): Promise<EnrollmentRow[]> {
   const rows: EnrollmentRow[] = [];
   let page = 1;
@@ -121,16 +132,7 @@ export default async function ReportsPage({
 
   const [terms, summary, dataQuality, completedEnrollments] = await Promise.all([
     serverApi<TermRow[]>("/academics/terms").catch(() => []),
-    serverApi<ReportsSummary>(`/admin/reports/summary${selectedTermId ? `?termId=${selectedTermId}` : ""}`).catch(() => ({
-      totalStudents: 0,
-      totalCourses: 0,
-      totalSections: 0,
-      avgCreditsPerStudent: 0,
-      enrollmentByStatus: {},
-      topSections: [],
-      deptBreakdown: [],
-      gpaDistribution: []
-    })),
+    serverApi<ReportsSummary>(`/admin/reports/summary${selectedTermId ? `?termId=${selectedTermId}` : ""}`).catch(() => emptySummary),
     serverApi<DataQuality>("/admin/data-quality").catch(() => ({
       sectionsNoInstructor: [],
       sectionsNoMeetings: [],
@@ -142,6 +144,10 @@ export default async function ReportsPage({
   ]);
 
   const maxGpaTierCount = Math.max(...summary.gpaDistribution.map((item) => item.count), 1);
+  const enrollmentByStatus = summary.enrollmentByStatus;
+  const noGpaStudents = dataQuality.studentsNoProfile;
+  const noInstructor = dataQuality.sectionsNoInstructor.length;
+  const noGrade = dataQuality.enrollmentsNoGrade;
   const statusEntries = [
     ["ENROLLED", "Enrolled"],
     ["WAITLISTED", "Waitlisted"],
@@ -152,9 +158,9 @@ export default async function ReportsPage({
   const dataQualityRows = [
     {
       label: "教学班无授课教师",
-      count: dataQuality.sectionsNoInstructor.length,
+      count: noInstructor,
       href: "/admin/sections",
-      ok: dataQuality.sectionsNoInstructor.length === 0
+      ok: noInstructor === 0
     },
     {
       label: "教学班无上课时间",
@@ -164,15 +170,15 @@ export default async function ReportsPage({
     },
     {
       label: "已完成选课缺少成绩",
-      count: dataQuality.enrollmentsNoGrade,
+      count: noGrade,
       href: "/admin/enrollments?status=COMPLETED",
-      ok: dataQuality.enrollmentsNoGrade === 0
+      ok: noGrade === 0
     },
     {
       label: "学生缺少档案",
-      count: dataQuality.studentsNoProfile,
+      count: noGpaStudents,
       href: "/admin/students",
-      ok: dataQuality.studentsNoProfile === 0
+      ok: noGpaStudents === 0
     },
     {
       label: "课程没有教学班",
@@ -249,7 +255,7 @@ export default async function ReportsPage({
         {statusEntries.map(([status, label]) => (
           <div key={status} className="campus-kpi reports-kpi">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{summary.enrollmentByStatus[status] ?? 0}</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">{enrollmentByStatus[status] ?? 0}</p>
           </div>
         ))}
       </div>
