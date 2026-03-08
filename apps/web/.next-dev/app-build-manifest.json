@@ -245,6 +245,51 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/health/route.js"
+    ],
+    "/student/schedule/error": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/student/schedule/error.js"
+    ],
+    "/student/schedule/loading": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/student/schedule/loading.js"
+    ],
+    "/student/schedule/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/student/schedule/page.js"
+    ],
+    "/admin/terms/error": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/terms/error.js"
+    ],
+    "/admin/terms/loading": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/terms/loading.js"
+    ],
+    "/admin/terms/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/terms/page.js"
+    ],
+    "/admin/invite-codes/error": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/invite-codes/error.js"
+    ],
+    "/admin/invite-codes/loading": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/invite-codes/loading.js"
+    ],
+    "/admin/invite-codes/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/invite-codes/page.js"
     ]
   }
 }
