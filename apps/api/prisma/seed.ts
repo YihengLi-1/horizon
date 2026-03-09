@@ -5,8 +5,10 @@ const prisma = new PrismaClient();
 
 const IDS = {
   admin: "seed-user-admin",
+  faculty: "seed-user-faculty-1",
+  advisor: "seed-user-advisor-1",
   spring2026: "seed-term-spring-2026",
-  fall2026: "seed-term-fall-2026",
+  fall2026: "seed-term-fall-2026"
 } as const;
 
 type StudentSeed = {
@@ -36,6 +38,7 @@ type SectionSeed = {
   capacity: number;
   credits: number;
   instructorName: string;
+  instructorUserId?: string;
   location: string;
   requireApproval: boolean;
   startDate: string;
@@ -165,7 +168,8 @@ const sections: SectionSeed[] = [
     modality: Modality.HYBRID,
     capacity: 20,
     credits: 4,
-    instructorName: "Dr. Shah",
+    instructorName: "Prof. Ada Stone",
+    instructorUserId: IDS.faculty,
     location: "SCI-210",
     requireApproval: true,
     startDate: "2026-01-12T00:00:00.000Z",
@@ -249,7 +253,8 @@ const sections: SectionSeed[] = [
     modality: Modality.ON_CAMPUS,
     capacity: 30,
     credits: 3,
-    instructorName: "Prof. Walker",
+    instructorName: "Prof. Ada Stone",
+    instructorUserId: IDS.faculty,
     location: "HUM-110",
     requireApproval: false,
     startDate: "2026-01-12T00:00:00.000Z",
@@ -348,9 +353,107 @@ async function upsertUser(student: StudentSeed, passwordHash: string) {
   });
 }
 
+async function upsertFaculty(passwordHash: string) {
+  return prisma.user.upsert({
+    where: { email: "faculty1@sis.edu" },
+    update: {
+      studentId: null,
+      passwordHash,
+      role: Role.FACULTY,
+      emailVerifiedAt: new Date("2026-01-10T12:00:00.000Z"),
+      deletedAt: null,
+      facultyProfile: {
+        upsert: {
+          create: {
+            displayName: "Prof. Ada Stone",
+            employeeId: "F2601",
+            department: "Computer Science",
+            title: "Associate Professor"
+          },
+          update: {
+            displayName: "Prof. Ada Stone",
+            employeeId: "F2601",
+            department: "Computer Science",
+            title: "Associate Professor"
+          }
+        }
+      }
+    },
+    create: {
+      id: IDS.faculty,
+      email: "faculty1@sis.edu",
+      studentId: null,
+      passwordHash,
+      role: Role.FACULTY,
+      emailVerifiedAt: new Date("2026-01-10T12:00:00.000Z"),
+      facultyProfile: {
+        create: {
+          displayName: "Prof. Ada Stone",
+          employeeId: "F2601",
+          department: "Computer Science",
+          title: "Associate Professor"
+        }
+      }
+    },
+    include: {
+      facultyProfile: true
+    }
+  });
+}
+
+async function upsertAdvisor(passwordHash: string) {
+  return prisma.user.upsert({
+    where: { email: "advisor1@sis.edu" },
+    update: {
+      studentId: null,
+      passwordHash,
+      role: Role.ADVISOR,
+      emailVerifiedAt: new Date("2026-01-10T12:00:00.000Z"),
+      deletedAt: null,
+      advisorProfile: {
+        upsert: {
+          create: {
+            displayName: "Jordan Reyes",
+            employeeId: "A2601",
+            department: "Academic Advising",
+            officeLocation: "Student Success Center 210"
+          },
+          update: {
+            displayName: "Jordan Reyes",
+            employeeId: "A2601",
+            department: "Academic Advising",
+            officeLocation: "Student Success Center 210"
+          }
+        }
+      }
+    },
+    create: {
+      id: IDS.advisor,
+      email: "advisor1@sis.edu",
+      studentId: null,
+      passwordHash,
+      role: Role.ADVISOR,
+      emailVerifiedAt: new Date("2026-01-10T12:00:00.000Z"),
+      advisorProfile: {
+        create: {
+          displayName: "Jordan Reyes",
+          employeeId: "A2601",
+          department: "Academic Advising",
+          officeLocation: "Student Success Center 210"
+        }
+      }
+    },
+    include: {
+      advisorProfile: true
+    }
+  });
+}
+
 async function main() {
   const adminPasswordHash = await bcrypt.hash("Admin@2026!", 12);
   const studentPasswordHash = await bcrypt.hash("Student@2026!", 12);
+  const facultyPasswordHash = await bcrypt.hash("Faculty@2026!", 12);
+  const advisorPasswordHash = await bcrypt.hash("Advisor@2026!", 12);
 
   const admin = await prisma.user.upsert({
     where: { email: "admin@sis.edu" },
@@ -375,6 +478,8 @@ async function main() {
   for (const student of [...namedStudents, ...fillerStudents]) {
     studentUsers.push(await upsertUser(student, studentPasswordHash));
   }
+  const faculty = await upsertFaculty(facultyPasswordHash);
+  const advisor = await upsertAdvisor(advisorPasswordHash);
 
   await prisma.term.upsert({
     where: { id: IDS.spring2026 },
@@ -489,6 +594,7 @@ async function main() {
         capacity: section.capacity,
         credits: section.credits,
         instructorName: section.instructorName,
+        instructorUserId: section.instructorUserId ?? null,
         location: section.location,
         requireApproval: section.requireApproval,
         startDate: new Date(section.startDate)
@@ -502,6 +608,7 @@ async function main() {
         capacity: section.capacity,
         credits: section.credits,
         instructorName: section.instructorName,
+        instructorUserId: section.instructorUserId ?? null,
         location: section.location,
         requireApproval: section.requireApproval,
         startDate: new Date(section.startDate)
@@ -582,6 +689,46 @@ async function main() {
   if (!sectionCs102 || !sectionEng101 || !sectionBus101 || !sectionCs201 || !sectionMath101) {
     throw new Error("Named demo sections were not created correctly");
   }
+
+  await prisma.advisorAssignment.upsert({
+    where: { id: "advisor-assignment-student1" },
+    update: {
+      studentId: student1.id,
+      advisorId: advisor.id,
+      assignedByUserId: admin.id,
+      notes: "Primary academic advisor for demo student 1",
+      active: true,
+      endedAt: null
+    },
+    create: {
+      id: "advisor-assignment-student1",
+      studentId: student1.id,
+      advisorId: advisor.id,
+      assignedByUserId: admin.id,
+      notes: "Primary academic advisor for demo student 1",
+      active: true
+    }
+  });
+
+  await prisma.advisorAssignment.upsert({
+    where: { id: "advisor-assignment-student2" },
+    update: {
+      studentId: student2.id,
+      advisorId: advisor.id,
+      assignedByUserId: admin.id,
+      notes: "Primary academic advisor for demo student 2",
+      active: true,
+      endedAt: null
+    },
+    create: {
+      id: "advisor-assignment-student2",
+      studentId: student2.id,
+      advisorId: advisor.id,
+      assignedByUserId: admin.id,
+      notes: "Primary academic advisor for demo student 2",
+      active: true
+    }
+  });
 
   const fullSectionStudentIds = fillerStudents.map((student) => {
     const user = studentUsers.find((item) => item.email === student.email);
@@ -762,6 +909,59 @@ async function main() {
   });
 
   await prisma.auditLog.upsert({
+    where: { id: "audit-seed-faculty-assignment" },
+    update: {
+      actorUserId: admin.id,
+      action: "faculty_assignment_seed",
+      entityType: "section",
+      entityId: sectionCs201,
+      metadata: { facultyUserId: faculty.id, seeded: true }
+    },
+    create: {
+      id: "audit-seed-faculty-assignment",
+      actorUserId: admin.id,
+      action: "faculty_assignment_seed",
+      entityType: "section",
+      entityId: sectionCs201,
+      metadata: { facultyUserId: faculty.id, seeded: true }
+    }
+  });
+
+  await prisma.auditLog.upsert({
+    where: { id: "audit-seed-advisor-assignment" },
+    update: {
+      actorUserId: admin.id,
+      action: "advisor_assignment_seed",
+      entityType: "student",
+      entityId: student1.id,
+      metadata: { advisorUserId: advisor.id, seeded: true }
+    },
+    create: {
+      id: "audit-seed-advisor-assignment",
+      actorUserId: admin.id,
+      action: "advisor_assignment_seed",
+      entityType: "student",
+      entityId: student1.id,
+      metadata: { advisorUserId: advisor.id, seeded: true }
+    }
+  });
+
+  await prisma.advisorNote.upsert({
+    where: { id: "advisor-note-student1-initial" },
+    update: {
+      advisorId: advisor.id,
+      studentId: student1.id,
+      body: "Initial advising note: monitor registration progress for Spring 2026."
+    },
+    create: {
+      id: "advisor-note-student1-initial",
+      advisorId: advisor.id,
+      studentId: student1.id,
+      body: "Initial advising note: monitor registration progress for Spring 2026."
+    }
+  });
+
+  await prisma.auditLog.upsert({
     where: { id: "audit-seed-waitlist" },
     update: {
       actorUserId: admin.id,
@@ -802,6 +1002,8 @@ async function main() {
     admin: "admin@sis.edu / Admin@2026!",
     student1: "student1@sis.edu / Student@2026!",
     student2: "student2@sis.edu / Student@2026!",
+    faculty1: "faculty1@sis.edu / Faculty@2026!",
+    advisor1: "advisor1@sis.edu / Advisor@2026!",
     inviteCodes: ["OPEN-2026", "LIMIT10-2026"]
   });
 }

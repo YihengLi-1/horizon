@@ -42,7 +42,7 @@ import StudentMobileNav from "@/components/StudentMobileNav";
 import { apiFetch } from "@/lib/api";
 import { API_URL } from "@/lib/config";
 
-type AppArea = "student" | "admin";
+type AppArea = "student" | "admin" | "faculty" | "advisor";
 
 type NavItem = {
   href: string;
@@ -92,9 +92,21 @@ const adminItems: NavItem[] = [
   { href: "/admin/settings", label: "系统设置", icon: <Settings className={iconClass} /> }
 ];
 
+const facultyItems: NavItem[] = [
+  { href: "/faculty/dashboard", label: "Dashboard", icon: <LayoutDashboard className={iconClass} /> },
+  { href: "/faculty/sections", label: "My Sections", icon: <BookOpen className={iconClass} /> }
+];
+
+const advisorItems: NavItem[] = [
+  { href: "/advisor/dashboard", label: "Dashboard", icon: <LayoutDashboard className={iconClass} /> },
+  { href: "/advisor/advisees", label: "My Advisees", icon: <Users className={iconClass} /> }
+];
+
 const areaMeta: Record<AppArea, { label: string; items: NavItem[]; subtitle: string }> = {
   student: { label: "Student Portal", items: studentItems, subtitle: "Academic Planning & Registration" },
-  admin: { label: "Admin Console", items: adminItems, subtitle: "Records & Enrollment Operations" }
+  admin: { label: "Admin Console", items: adminItems, subtitle: "Records & Enrollment Operations" },
+  faculty: { label: "Faculty Workspace", items: facultyItems, subtitle: "Instruction & Grade Submission" },
+  advisor: { label: "Advisor Workspace", items: advisorItems, subtitle: "Advisee Oversight & Notes" }
 };
 
 function toTitle(text: string): string {
@@ -145,6 +157,10 @@ export function AppShell({
             { label: "注册管理", hrefs: ["/admin/enrollments", "/admin/waitlist"] },
             { label: "系统", hrefs: ["/admin/announcements", "/admin/invite-codes", "/admin/import", "/admin/reports", "/admin/audit-logs", "/admin/notifications", "/admin/sessions", "/admin/settings"] }
           ]
+        : area === "faculty"
+          ? [{ label: "Instruction", hrefs: ["/faculty/dashboard", "/faculty/sections"] }]
+          : area === "advisor"
+            ? [{ label: "Advising", hrefs: ["/advisor/dashboard", "/advisor/advisees"] }]
         : [
             { label: "Overview", hrefs: ["/student/dashboard", "/student/notifications", "/student/announcements"] },
             { label: "Registration", hrefs: ["/student/catalog", "/student/planner", "/student/cart", "/student/schedule"] },
@@ -290,7 +306,15 @@ export function AppShell({
           <div className="mt-auto">
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
               <p className="truncate font-semibold text-slate-800">{userLabel}</p>
-              <p className="mt-0.5">{area === "student" ? "Student Services" : "Administrative Services"}</p>
+              <p className="mt-0.5">
+                {area === "student"
+                  ? "Student Services"
+                  : area === "admin"
+                    ? "Administrative Services"
+                    : area === "faculty"
+                      ? "Faculty Services"
+                      : "Advising Services"}
+              </p>
             </div>
             <div className="mt-3 border-t border-slate-200 px-3 py-3">
               <p className="text-[10px] text-slate-400">地平线 SIS · v1.0</p>

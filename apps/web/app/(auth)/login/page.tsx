@@ -19,6 +19,10 @@ const DEMO_STUDENT_ID = process.env.NEXT_PUBLIC_DEMO_STUDENT_ID || "student1@sis
 const DEMO_STUDENT_PASSWORD = process.env.NEXT_PUBLIC_DEMO_STUDENT_PASSWORD || "Student@2026!";
 const DEMO_ADMIN_EMAIL = process.env.NEXT_PUBLIC_DEMO_ADMIN_EMAIL || "admin@sis.edu";
 const DEMO_ADMIN_PASSWORD = process.env.NEXT_PUBLIC_DEMO_ADMIN_PASSWORD || "Admin@2026!";
+const DEMO_FACULTY_EMAIL = process.env.NEXT_PUBLIC_DEMO_FACULTY_EMAIL || "faculty1@sis.edu";
+const DEMO_FACULTY_PASSWORD = process.env.NEXT_PUBLIC_DEMO_FACULTY_PASSWORD || "Faculty@2026!";
+const DEMO_ADVISOR_EMAIL = process.env.NEXT_PUBLIC_DEMO_ADVISOR_EMAIL || "advisor1@sis.edu";
+const DEMO_ADVISOR_PASSWORD = process.env.NEXT_PUBLIC_DEMO_ADVISOR_PASSWORD || "Advisor@2026!";
 export default function LoginPage() {
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
@@ -63,8 +67,18 @@ export default function LoginPage() {
         return;
       }
 
+      if (data.role === "FACULTY") {
+        router.push("/faculty/dashboard");
+        return;
+      }
+
+      if (data.role === "ADVISOR") {
+        router.push("/advisor/dashboard");
+        return;
+      }
+
       await apiFetch("/auth/logout", { method: "POST" }).catch(() => undefined);
-      setError("Faculty/advisor workspaces are not available in this build yet. Use an admin or student account.");
+      setError("Your account role is not supported in this build.");
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.code === "ACCOUNT_LOCKED") {
@@ -92,6 +106,18 @@ export default function LoginPage() {
   const fillAdminDemo = () => {
     setIdentifier(DEMO_ADMIN_EMAIL);
     setPassword(DEMO_ADMIN_PASSWORD);
+    setError("");
+  };
+
+  const fillFacultyDemo = () => {
+    setIdentifier(DEMO_FACULTY_EMAIL);
+    setPassword(DEMO_FACULTY_PASSWORD);
+    setError("");
+  };
+
+  const fillAdvisorDemo = () => {
+    setIdentifier(DEMO_ADVISOR_EMAIL);
+    setPassword(DEMO_ADVISOR_PASSWORD);
     setError("");
   };
 
@@ -189,6 +215,22 @@ export default function LoginPage() {
                 onClick={fillAdminDemo}
               >
                 Fill Admin
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                onClick={fillFacultyDemo}
+              >
+                Fill Faculty
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                onClick={fillAdvisorDemo}
+              >
+                Fill Advisor
               </Button>
             </div>
           </div>
