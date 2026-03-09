@@ -13,10 +13,21 @@ interface Session {
 
 export default function SessionsPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [revoking, setRevoking] = useState<string | null>(null);
 
   async function load() {
-    setSessions(await apiFetch<Session[]>("/auth/sessions").catch(() => []));
+    try {
+      setLoading(true);
+      setError("");
+      setSessions(await apiFetch<Session[]>("/auth/sessions"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load active sessions");
+      setSessions([]);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -37,12 +48,21 @@ export default function SessionsPage() {
     <div className="campus-page space-y-6">
       <div className="campus-hero">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Active Sessions</h1>
-        <p className="mt-1 text-sm text-slate-500">Manage active user sessions</p>
+        <p className="mt-1 text-sm text-slate-500">
+          Manage currently tracked user sessions. This list is operational and resets when the API process restarts.
+        </p>
       </div>
+      {error ? (
+        <div className="campus-card border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          Unable to load active sessions. {error}
+        </div>
+      ) : null}
       <div className="campus-card overflow-hidden">
-        {sessions.length === 0 ? (
+        {loading ? (
+          <div className="p-8 text-center text-slate-400">Loading active sessions…</div>
+        ) : sessions.length === 0 ? (
           <div className="p-8 text-center text-slate-400">
-            No active sessions tracked (sessions tracked since last API start)
+            No active sessions are currently tracked.
           </div>
         ) : (
           <table className="w-full text-sm">

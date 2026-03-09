@@ -86,9 +86,17 @@ bash scripts/smoke-docker.sh
 
 ## 默认账号（seed 数据，生产前必须修改密码）
 - Admin: `admin@sis.edu / Admin@2026!`
-- Student: `student1@sis.edu / Student@2026!`
+- Student: `student1@sis.edu` or `S2601` / `Student@2026!`
+- Seeded student invite codes: `OPEN-2026`, `LIMIT10-2026`
 
 ## 交付范围说明
 - 当前系统定位为“学生自助 + registrar/admin 学术运营门户”。
 - 当前交付不包含 faculty/advisor actor accounts、学费/账单、financial aid、degree audit。
 - 如果客户要求完整 SIS，请先扩展域模型和权限边界，再进入生产交付。
+
+## Go-Live Caveats
+- `ENABLE_PUBLIC_SCHEDULE_SHARING` 与 `NEXT_PUBLIC_ENABLE_PUBLIC_SCHEDULE_SHARING` 在正式交付中应保持 `false`，除非你已补齐过期、撤销和隐私审查。
+- `/student/contact` 当前实现为 registrar/support 请求入口，消息会写入 admin 通知日志；它不是完整的 helpdesk/ticketing 系统。
+- `/admin/sessions` 反映的是当前 API 进程内存中的活动会话，API 重启后该列表会重置；不要将其当作审计级永久会话台账。
+- Invite code 仅用于 student self-service registration。Admin 账号必须由现有管理员单独提升角色或直接创建。
+- 若 SMTP 未配置，邮件类能力会退化为日志/通知记录，不应在正式环境中默认为可用。

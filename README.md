@@ -57,9 +57,9 @@ pnpm dev
 
 ## Seed Accounts
 - Admin: `admin@sis.edu / Admin@2026!`
-- Student 1: `student1@sis.edu` or `S1001` / `Student@2026!`
+- Student 1: `student1@sis.edu` or `S2601` / `Student@2026!`
 - Student 2: seed file contains additional sample student records; check [seed.ts](/Users/yihengli/Desktop/TA/访达/地平线/apps/api/prisma/seed.ts) before client demos
-- Invite code: `INVITE-2026`
+- Student invite codes seeded for demos: `OPEN-2026`, `LIMIT10-2026`
 
 ## Monorepo Scripts
 - `pnpm dev` - run API + Web
@@ -79,12 +79,14 @@ pnpm dev
 
 ## API Documentation
 - See [apps/api/ROUTES.md](apps/api/ROUTES.md)
+- See [docs/UAT.md](/Users/yihengli/Desktop/TA/访达/地平线/docs/UAT.md) for client acceptance scenarios.
 
 ## Known Limitations
 - Invite codes create student registrations only. Admin role assignment is a separate admin action.
 - Instructor names are informational text on sections; they are not faculty actor accounts.
 - Student support requests are routed to admin notification logs. There is no separate helpdesk/ticketing subsystem yet.
 - Public schedule sharing is disabled by default for privacy reasons.
+- Admin session tracking is operational only and resets when the API process restarts.
 
 ## Project Tree (key)
 ```text

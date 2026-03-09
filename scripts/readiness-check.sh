@@ -270,6 +270,8 @@ check_contains "apps/web/app/(auth)/register/page.tsx" "check-email|此邮箱已
 check_contains "apps/web/components/NotificationBell.tsx" "30000|30_000|30\\s*\\*" "Notification polling at 30s"
 check_contains ".env.example" "SIS_TIMEZONE|ENABLE_PUBLIC_SCHEDULE_SHARING|NEXT_PUBLIC_ENABLE_PUBLIC_SCHEDULE_SHARING" "Timezone and schedule sharing env config"
 check_contains "apps/api/src/students/students.service.ts" "Support request received|student_support_request|SCHEDULE_SHARING_DISABLED|SIS_TIMEZONE" "Students service production hardening"
+check_contains "apps/web/app/admin/settings/page.tsx" "SIS_TIMEZONE|ENABLE_PUBLIC_SCHEDULE_SHARING|NEXT_PUBLIC_ENABLE_PUBLIC_SCHEDULE_SHARING" "Admin settings env visibility"
+check_exists "docs/UAT.md" "Client UAT checklist"
 check_contains "apps/api/src/admin/admin.controller.ts" "Delete.*terms|terms.*Delete|deleteTerm" "Admin terms delete guard"
 check_contains "apps/web/app/admin/terms/page.tsx" "registrationOpen|toggle|开放" "Terms registration toggle in UI"
 check_contains "apps/web/app/admin/terms/page.tsx" "campus-kpi|Total Terms|学期总数" "Admin terms KPI row"
