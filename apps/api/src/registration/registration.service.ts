@@ -1133,7 +1133,7 @@ export class RegistrationService {
     ) {
       throw new BadRequestException({
         code: "DROP_DEADLINE_PASSED",
-        message: "Contact advisor/registrar"
+        message: "Contact registrar/support"
       });
     }
 

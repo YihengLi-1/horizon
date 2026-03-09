@@ -140,6 +140,7 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, (next: T | ((valu
 }
 
 export default function SchedulePage() {
+  const publicScheduleSharingEnabled = process.env.NEXT_PUBLIC_ENABLE_PUBLIC_SCHEDULE_SHARING === "true";
   const [terms, setTerms] = useState<Term[]>([]);
   const [termId, setTermId] = useState("");
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
@@ -352,34 +353,6 @@ export default function SchedulePage() {
       setError("导出失败");
     }
   };
-  const shareSchedule = async () => {
-    if (!activeTerm || visibleEnrollments.length === 0 || typeof window === "undefined") return;
-    try {
-      const { token } = await apiFetch<{ token: string }>("/students/schedule/share", {
-        method: "POST",
-        body: JSON.stringify({ termId })
-      });
-      const url = `${window.location.origin}/schedule/share/${token}`;
-      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-        try {
-          await navigator.share({
-            title: `${activeTerm.name} schedule`,
-            text: "查看我的课表快照",
-            url
-          });
-        } catch {
-          await navigator.clipboard.writeText(url);
-        }
-      } else {
-        await navigator.clipboard.writeText(url);
-      }
-      setNotice("链接已复制到剪贴板");
-      setError("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to share schedule");
-    }
-  };
-
   return (
     <div className="campus-page">
       <section className="campus-hero no-print">
@@ -425,14 +398,11 @@ export default function SchedulePage() {
               >
                 iCal 导出
               </button>
-              <button
-                type="button"
-                onClick={shareSchedule}
-                disabled={!activeTerm || visibleEnrollments.length === 0}
-                className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 transition hover:bg-white disabled:opacity-50"
-              >
-                🔗 分享课表
-              </button>
+              {publicScheduleSharingEnabled ? null : (
+                <span className="campus-chip inline-flex h-9 flex-1 items-center justify-center border-slate-300 bg-slate-100 px-3 text-xs font-semibold text-slate-600">
+                  公开课表分享已禁用
+                </span>
+              )}
               <Link
                 href={termId ? `/student/catalog?termId=${termId}` : "/student/catalog"}
                 className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 no-underline transition hover:bg-white"
@@ -507,7 +477,7 @@ export default function SchedulePage() {
               <div>
                 <span className="font-semibold">Drop deadline has passed</span>{" "}
                 (was {new Date(activeTerm.dropDeadline).toLocaleDateString("en-US")}).
-                Enrolled and pending-approval drops now require advisor/registrar support.
+                Enrolled and pending-approval drops now require registrar/support review.
               </div>
             </div>
           </div>
@@ -782,7 +752,7 @@ export default function SchedulePage() {
                             >
                               Drop unavailable
                             </button>
-                            <p className="text-[11px] text-amber-700">Contact advisor/registrar</p>
+                            <p className="text-[11px] text-amber-700">Contact registrar/support</p>
                           </div>
                         ) : enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL" || enrollment.status === "WAITLISTED" ? (
                           <button

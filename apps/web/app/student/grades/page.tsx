@@ -126,7 +126,7 @@ function getStanding(gpa: number | null): Standing {
   }
   return {
     label: "Academic Probation",
-    description: `GPA ${gpa.toFixed(2)} — Below minimum GPA requirement (2.0). Please contact your advisor.`,
+    description: `GPA ${gpa.toFixed(2)} — Below minimum GPA requirement (2.0). Please contact registrar support for next steps.`,
     cls: "border-red-200 bg-red-50 text-red-800",
     icon: "🚨"
   };
@@ -221,12 +221,18 @@ export default async function GradesPage({
   const sortBy  = (params.sortBy  ?? "code") as SortCol;
   const sortDir = (params.sortDir === "desc" ? "desc" : "asc") as "asc" | "desc";
 
-  const [grades, transcriptTerms, termsData, me] = await Promise.all([
+  const [grades, transcriptResult, termsData, me] = await Promise.all([
     serverApi<GradeItem[]>("/registration/grades"),
-    serverApi<TranscriptTerm[]>("/students/transcript").catch(() => [] as TranscriptTerm[]),
+    serverApi<TranscriptTerm[]>("/students/transcript")
+      .then((data) => ({ data, error: "" }))
+      .catch((error) => ({
+        data: [] as TranscriptTerm[],
+        error: error instanceof Error ? error.message : "Failed to load transcript"
+      })),
     serverApi<Term[]>("/academics/terms").catch(() => [] as Term[]),
     getMeServer().catch(() => null)
   ]);
+  const transcriptTerms = transcriptResult.data;
 
   const byTerm = new Map<string, GradeItem[]>();
   for (const item of grades) {
@@ -310,6 +316,12 @@ export default async function GradesPage({
           <p className="mt-0.5 text-sm">{standing.description}</p>
         </div>
       </section>
+
+      {transcriptResult.error ? (
+        <section className="campus-card border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          Transcript data is temporarily unavailable. GPA trend and semester breakdowns may be incomplete until the service recovers.
+        </section>
+      ) : null}
 
       {daysLeft !== null && daysLeft >= 0 && daysLeft <= 7 ? (
         <section

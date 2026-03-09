@@ -21,6 +21,7 @@ export default function NotificationBell({ apiBase }: { apiBase: string }) {
   const [items, setItems] = useState<Notif[]>([]);
   const [open, setOpen] = useState(false);
   const [lastSeenAt, setLastSeenAt] = useState(0);
+  const [loadError, setLoadError] = useState("");
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -38,14 +39,20 @@ export default function NotificationBell({ apiBase }: { apiBase: string }) {
     async function load() {
       try {
         const response = await fetch(`${apiBase}/students/notifications`, { credentials: "include" });
-        if (!response.ok || !alive) return;
+        if (!response.ok || !alive) {
+          if (alive) setLoadError("Notifications unavailable");
+          return;
+        }
         const payload = (await response.json()) as
           | Notif[]
           | { success?: boolean; data?: Notif[] };
         const nextItems = Array.isArray(payload) ? payload : payload.data ?? [];
-        if (alive) setItems(nextItems);
+        if (alive) {
+          setItems(nextItems);
+          setLoadError("");
+        }
       } catch {
-        // Silent polling failure by design.
+        if (alive) setLoadError("Notifications unavailable");
       }
     }
 
@@ -110,7 +117,9 @@ export default function NotificationBell({ apiBase }: { apiBase: string }) {
           </div>
           <div className="max-h-72 overflow-y-auto divide-y divide-slate-50">
             {items.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-slate-400">🔔 No notifications</div>
+              <div className="px-4 py-8 text-center text-sm text-slate-400">
+                {loadError ? "⚠️ Notifications unavailable" : "🔔 No notifications"}
+              </div>
             ) : (
               items.map((item) => (
                 <div key={item.id} role="menuitem" className={`border-l-4 px-4 py-3 ${TYPE_CLS[item.type]}`}>

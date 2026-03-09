@@ -183,7 +183,7 @@ function RegistrationWindowBanner({ term }: { term: Term | null }) {
     return (
       <Alert
         type="warning"
-        message={`Registration window is closed (closed ${new Date(term.registrationCloseAt).toLocaleDateString()}). To make changes, contact your academic advisor.`}
+        message={`Registration window is closed (closed ${new Date(term.registrationCloseAt).toLocaleDateString()}). To make changes, contact registrar support.`}
       />
     );
   }

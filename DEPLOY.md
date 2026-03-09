@@ -39,6 +39,9 @@
 - `CORS_ORIGIN`：如果你的部署流程使用单独的 CORS 变量，请与 `WEB_URL` / `CSRF_ALLOWED_ORIGINS` 保持一致
 - `GRAFANA_ADMIN_PASSWORD`：Grafana 管理员密码
 - `ALERT_EMAIL`：接收 Alertmanager 告警的邮箱
+- `SIS_TIMEZONE`：学校时区，例如 `America/Los_Angeles`；用于 iCal 导出与机构级时间显示
+- `ENABLE_PUBLIC_SCHEDULE_SHARING`：默认 `false`；除非你已补齐过期/撤销控制，否则不要启用
+- `NEXT_PUBLIC_ENABLE_PUBLIC_SCHEDULE_SHARING`：前端分享按钮开关，必须与后端开关保持一致
 
 ## 监控告警
 - Grafana 默认账号：`admin / sis-grafana-2026`（生产必须修改）
@@ -84,3 +87,8 @@ bash scripts/smoke-docker.sh
 ## 默认账号（seed 数据，生产前必须修改密码）
 - Admin: `admin@sis.edu / Admin@2026!`
 - Student: `student1@sis.edu / Student@2026!`
+
+## 交付范围说明
+- 当前系统定位为“学生自助 + registrar/admin 学术运营门户”。
+- 当前交付不包含 faculty/advisor actor accounts、学费/账单、financial aid、degree audit。
+- 如果客户要求完整 SIS，请先扩展域模型和权限边界，再进入生产交付。

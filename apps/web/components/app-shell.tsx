@@ -69,7 +69,7 @@ const studentItems: NavItem[] = [
   { href: "/student/calendar", label: "Calendar", icon: <CalendarRange className={iconClass} /> },
   { href: "/student/history", label: "History", icon: <History className={iconClass} /> },
   { href: "/student/bookmarks", label: "Bookmarks", icon: <Bookmark className={iconClass} /> },
-  { href: "/student/contact", label: "Contact", icon: <Mail className={iconClass} /> },
+  { href: "/student/contact", label: "Support", icon: <Mail className={iconClass} /> },
   { href: "/student/profile", label: "Profile", icon: <User className={iconClass} /> },
   { href: "/student/help", label: "Help", icon: <HelpCircle className={iconClass} /> }
 ];

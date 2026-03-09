@@ -1,4 +1,12 @@
-import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+  UnauthorizedException
+} from "@nestjs/common";
 import argon2 from "argon2";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../common/prisma.service";
@@ -46,10 +54,20 @@ type TranscriptTermGroup = {
 
 @Injectable()
 export class StudentsService {
+  private readonly logger = new Logger(StudentsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService
   ) {}
+
+  private getInstitutionTimezone(): string {
+    return process.env.SIS_TIMEZONE?.trim() || "America/Los_Angeles";
+  }
+
+  private isScheduleSharingEnabled(): boolean {
+    return process.env.ENABLE_PUBLIC_SCHEDULE_SHARING === "true";
+  }
 
   async getMyProfile(userId: string) {
     const user = await this.prisma.user.findFirst({
@@ -109,8 +127,15 @@ export class StudentsService {
                 ? "候补中"
                 : "等待管理员审批"
         }));
-    } catch {
-      return [];
+    } catch (error) {
+      this.logger.error(
+        `Failed to load notifications for student ${studentId}`,
+        error instanceof Error ? error.stack : undefined
+      );
+      throw new InternalServerErrorException({
+        code: "NOTIFICATIONS_UNAVAILABLE",
+        message: "Unable to load notifications right now"
+      });
     }
   }
 
@@ -181,8 +206,15 @@ export class StudentsService {
       });
 
       return transcript.reverse();
-    } catch {
-      return [];
+    } catch (error) {
+      this.logger.error(
+        `Failed to load transcript for student ${userId}`,
+        error instanceof Error ? error.stack : undefined
+      );
+      throw new InternalServerErrorException({
+        code: "TRANSCRIPT_UNAVAILABLE",
+        message: "Unable to load transcript right now"
+      });
     }
   }
 
@@ -322,6 +354,7 @@ export class StudentsService {
     });
 
     const byDay = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+    const timezone = this.getInstitutionTimezone();
     const pad = (value: number) => String(value).padStart(2, "0");
     const minutesToTime = (minutes: number) => `${pad(Math.floor(minutes / 60))}${pad(minutes % 60)}00`;
     const toIcalDate = (value: Date) =>
@@ -346,8 +379,8 @@ export class StudentsService {
             `UID:${enrollment.id}-${meetingTime.id}@sis-horizon`,
             `SUMMARY:${section.course.code} ${section.course.title}`,
             `LOCATION:${section.location ?? ""}`,
-            `DTSTART;TZID=Asia/Shanghai:${toIcalDate(start)}T${minutesToTime(meetingTime.startMinutes)}`,
-            `DTEND;TZID=Asia/Shanghai:${toIcalDate(start)}T${minutesToTime(meetingTime.endMinutes)}`,
+            `DTSTART;TZID=${timezone}:${toIcalDate(start)}T${minutesToTime(meetingTime.startMinutes)}`,
+            `DTEND;TZID=${timezone}:${toIcalDate(start)}T${minutesToTime(meetingTime.endMinutes)}`,
             `RRULE:FREQ=WEEKLY;BYDAY=${byDay[meetingTime.weekday]};UNTIL=${toIcalDate(termEnd)}T235959Z`,
             `DESCRIPTION:${section.instructorName ?? ""}`,
             "END:VEVENT"
@@ -367,6 +400,13 @@ export class StudentsService {
   }
 
   async createScheduleSnapshot(userId: string, termId: string) {
+    if (!this.isScheduleSharingEnabled()) {
+      throw new ForbiddenException({
+        code: "SCHEDULE_SHARING_DISABLED",
+        message: "Public schedule sharing is disabled in this deployment"
+      });
+    }
+
     if (!termId) {
       throw new BadRequestException({ code: "TERM_REQUIRED", message: "termId is required" });
     }
@@ -414,6 +454,10 @@ export class StudentsService {
   }
 
   async getScheduleSnapshot(token: string) {
+    if (!this.isScheduleSharingEnabled()) {
+      throw new NotFoundException({ code: "SCHEDULE_SNAPSHOT_DISABLED", message: "Schedule sharing is disabled" });
+    }
+
     const snapshot = await this.prisma.scheduleSnapshot.findUnique({
       where: { id: token },
       select: {
@@ -433,7 +477,7 @@ export class StudentsService {
     userId: string,
     input: { subject?: string; message?: string; category?: string }
   ) {
-    const subject = input.subject?.trim() || "Contact Form";
+    const subject = input.subject?.trim() || "Support request";
     const message = input.message?.trim() || "";
     const category = input.category?.trim() || "other";
 
@@ -449,28 +493,55 @@ export class StudentsService {
       throw new NotFoundException({ code: "USER_NOT_FOUND", message: "Student not found" });
     }
 
-    await this.prisma.notificationLog.create({
-      data: {
-        userId,
-        type: "in-app",
-        subject: "Contact Form",
-        body: JSON.stringify({
-          category,
-          subject,
-          message,
-          email: user.email
-        })
-      }
+    const adminRecipients = await this.prisma.user.findMany({
+      where: { role: "ADMIN", deletedAt: null },
+      select: { id: true, email: true }
     });
+
+    const requestBody = JSON.stringify({
+      category,
+      subject,
+      message,
+      studentUserId: user.id,
+      studentEmail: user.email
+    });
+
+    const writes = [
+      this.prisma.notificationLog.create({
+        data: {
+          userId,
+          type: "in-app",
+          subject: "Support request received",
+          body: JSON.stringify({
+            category,
+            subject,
+            message,
+            routedToAdmins: adminRecipients.length
+          })
+        }
+      }),
+      ...adminRecipients.map((admin) =>
+        this.prisma.notificationLog.create({
+          data: {
+            userId: admin.id,
+            type: "support-request",
+            subject: `Student support request: ${subject}`,
+            body: requestBody
+          }
+        })
+      )
+    ];
+
+    await this.prisma.$transaction(writes);
 
     await this.auditService.log({
       actorUserId: userId,
-      action: "student_contact",
-      entityType: "contact",
-      metadata: { category, subject }
+      action: "student_support_request",
+      entityType: "support_request",
+      metadata: { category, subject, routedToAdmins: adminRecipients.length }
     });
 
-    return { ok: true };
+    return { ok: true, routedToAdmins: adminRecipients.length };
   }
 
   async rateSection(userId: string, sectionId: string, rating: number, comment?: string) {

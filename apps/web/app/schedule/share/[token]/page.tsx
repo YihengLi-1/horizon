@@ -53,6 +53,26 @@ export default async function SharedSchedulePage({
 }: {
   params: Promise<{ token: string }>;
 }) {
+  if (process.env.ENABLE_PUBLIC_SCHEDULE_SHARING !== "true") {
+    return (
+      <div className="campus-page flex min-h-screen items-center justify-center">
+        <div className="campus-card max-w-lg p-8 text-center">
+          <p className="text-4xl">🔒</p>
+          <h1 className="mt-4 text-2xl font-bold text-slate-900">课表分享已禁用</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Public schedule links are disabled in this deployment to reduce student privacy risk.
+          </p>
+          <p className="mt-2 text-xs text-slate-400">
+            Ask the registrar/support team if read-only schedule export needs to be re-enabled with expiration controls.
+          </p>
+          <Link href="/login" className="mt-6 inline-block text-sm font-semibold text-slate-900 underline">
+            返回系统登录
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   const { token } = await params;
 
   let snapshot: SnapshotResponse;

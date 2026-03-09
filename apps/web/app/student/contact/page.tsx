@@ -21,7 +21,7 @@ export default function ContactPage() {
         body: JSON.stringify(form)
       });
       setSent(true);
-      toast("您的消息已发送，我们将在 2 个工作日内回复", "success");
+      toast("您的请求已提交给注册/支持团队，我们将在 2 个工作日内回复", "success");
     } catch (ex) {
       const message = ex instanceof Error ? ex.message : "发送失败";
       setError(message);
@@ -38,8 +38,8 @@ export default function ContactPage() {
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-emerald-200 bg-emerald-50 text-3xl">
             ✉️
           </div>
-          <p className="text-lg font-semibold text-slate-800 dark:text-white">Message Sent!</p>
-          <p className="text-sm text-slate-500">您的消息已发送，我们将在 2 个工作日内回复。</p>
+          <p className="text-lg font-semibold text-slate-800 dark:text-white">Request Submitted</p>
+          <p className="text-sm text-slate-500">您的请求已提交给注册/支持团队，我们将在 2 个工作日内回复。</p>
           <button type="button" onClick={() => setSent(false)} className="text-sm font-medium text-blue-600 hover:underline">
             Send another
           </button>
@@ -51,8 +51,8 @@ export default function ContactPage() {
   return (
     <div className="campus-page space-y-6">
       <div className="campus-hero">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Contact Advisor</h1>
-        <p className="mt-1 text-sm text-slate-500">Send a message to your academic advisor</p>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Registrar / Support Request</h1>
+        <p className="mt-1 text-sm text-slate-500">Send a request to the registrar or support team for follow-up.</p>
       </div>
       <form onSubmit={submit} className="campus-card max-w-lg space-y-4 p-6">
         <div className="space-y-1">
