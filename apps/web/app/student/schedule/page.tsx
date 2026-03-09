@@ -51,10 +51,9 @@ function fmt(minutes: number): string {
   return `${h}:${m}`;
 }
 
-function daysUntil(dateStr: string): number {
+function daysUntilFrom(dateStr: string, nowMs: number): number {
   const target = new Date(dateStr);
-  const now = new Date();
-  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.ceil((target.getTime() - nowMs) / (1000 * 60 * 60 * 24));
 }
 
 function meetingSummary(mts: MeetingTime[]): string {
@@ -154,12 +153,20 @@ export default function SchedulePage() {
   const [showPending, setShowPending] = useState(true);
   const [showWaitlisted, setShowWaitlisted] = useState(true);
   const [viewMode, setViewMode] = useLocalStorage<"list" | "grid">("schedule_view_mode", "list");
+  const [clientNow, setClientNow] = useState<number | null>(null);
+  const [todayWeekday, setTodayWeekday] = useState(0);
+
+  useEffect(() => {
+    const now = Date.now();
+    setClientNow(now);
+    setTodayWeekday(new Date(now).getDay());
+  }, []);
 
   const activeTerm = useMemo(() => terms.find((t) => t.id === termId) ?? null, [terms, termId]);
   const dropDeadlinePassed = useMemo(() => {
-    if (!activeTerm) return false;
-    return Date.now() > new Date(activeTerm.dropDeadline).getTime();
-  }, [activeTerm]);
+    if (!activeTerm || clientNow === null) return false;
+    return clientNow > new Date(activeTerm.dropDeadline).getTime();
+  }, [activeTerm, clientNow]);
 
   const statusCounts = useMemo(() => {
     const counts = { ENROLLED: 0, PENDING_APPROVAL: 0, WAITLISTED: 0 };
@@ -192,7 +199,6 @@ export default function SchedulePage() {
     () => !showEnrolled || !showPending || !showWaitlisted,
     [showEnrolled, showPending, showWaitlisted]
   );
-  const todayWeekday = new Date().getDay();
   const todayClasses = useMemo(
     () =>
       visibleEnrollments
@@ -320,7 +326,8 @@ export default function SchedulePage() {
     }
   };
 
-  const dropDaysLeft = activeTerm && !dropDeadlinePassed ? daysUntil(activeTerm.dropDeadline) : 0;
+  const safeDropDaysLeft =
+    activeTerm && !dropDeadlinePassed && clientNow !== null ? daysUntilFrom(activeTerm.dropDeadline, clientNow) : 0;
   const downloadIcs = async () => {
     if (!activeTerm) return;
     try {
@@ -499,23 +506,23 @@ export default function SchedulePage() {
               <span className="text-base">⚠️</span>
               <div>
                 <span className="font-semibold">Drop deadline has passed</span>{" "}
-                (was {new Date(activeTerm.dropDeadline).toLocaleDateString()}).
+                (was {new Date(activeTerm.dropDeadline).toLocaleDateString("en-US")}).
                 Enrolled and pending-approval drops now require advisor/registrar support.
               </div>
             </div>
           </div>
         ) : (
-          <div className={`no-print rounded-xl border px-4 py-3 text-sm ${dropDaysLeft <= 3 ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
+          <div className={`no-print rounded-xl border px-4 py-3 text-sm ${safeDropDaysLeft <= 3 ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
             <div className="flex items-center justify-between gap-4">
               <div>
                 Drop deadline:{" "}
-                <span className="font-semibold">{new Date(activeTerm.dropDeadline).toLocaleDateString()}</span>
+                <span className="font-semibold">{new Date(activeTerm.dropDeadline).toLocaleDateString("en-US")}</span>
                 {" "}at{" "}
-                <span className="font-semibold">{new Date(activeTerm.dropDeadline).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>.
+                <span className="font-semibold">{new Date(activeTerm.dropDeadline).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>.
                 {" "}You can drop courses until then.
               </div>
-              <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${dropDaysLeft <= 3 ? "border-amber-300 bg-amber-100 text-amber-800" : "border-emerald-300 bg-emerald-100 text-emerald-800"}`}>
-                {dropDaysLeft <= 0 ? "Today!" : dropDaysLeft === 1 ? "1 day left" : `${dropDaysLeft} days left`}
+              <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${safeDropDaysLeft <= 3 ? "border-amber-300 bg-amber-100 text-amber-800" : "border-emerald-300 bg-emerald-100 text-emerald-800"}`}>
+                {safeDropDaysLeft <= 0 ? "Today!" : safeDropDaysLeft === 1 ? "1 day left" : `${safeDropDaysLeft} days left`}
               </span>
             </div>
           </div>
