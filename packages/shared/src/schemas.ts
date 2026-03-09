@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const roleSchema = z.enum(["STUDENT", "ADMIN"]);
+export const roleSchema = z.enum(["STUDENT", "FACULTY", "ADVISOR", "ADMIN"]);
 export const modalitySchema = z.enum(["ONLINE", "ON_CAMPUS", "HYBRID"]);
 export const enrollmentStatusSchema = z.enum([
   "CART",
@@ -52,7 +52,31 @@ export const createStudentSchema = z.object({
   password: z.string().min(8),
   studentId: z.string().min(3),
   legalName: z.string().min(1),
-  role: roleSchema.default("STUDENT")
+  role: z.literal("STUDENT").optional().default("STUDENT")
+});
+
+export const createFacultySchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  displayName: z.string().min(1),
+  employeeId: z.string().min(2).optional().nullable(),
+  department: z.string().min(1).optional().nullable(),
+  title: z.string().min(1).optional().nullable()
+});
+
+export const createAdvisorSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  displayName: z.string().min(1),
+  employeeId: z.string().min(2).optional().nullable(),
+  department: z.string().min(1).optional().nullable(),
+  officeLocation: z.string().min(1).optional().nullable()
+});
+
+export const assignAdvisorSchema = z.object({
+  studentId: z.string().min(1),
+  advisorId: z.string().min(1),
+  notes: z.string().optional().nullable()
 });
 
 export const createInviteCodeSchema = z.object({
@@ -99,6 +123,7 @@ export const createSectionSchema = z.object({
   capacity: z.number().int().positive(),
   credits: z.number().int().positive(),
   instructorName: z.string().min(1),
+  instructorUserId: z.string().min(1).optional().nullable(),
   location: z.string().optional().nullable(),
   requireApproval: z.boolean().default(false),
   startDate: z.string().datetime().optional().nullable(),
@@ -146,3 +171,6 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type CreateTermInput = z.infer<typeof createTermSchema>;
 export type CreateCourseInput = z.infer<typeof createCourseSchema>;
 export type CreateSectionInput = z.infer<typeof createSectionSchema>;
+export type CreateFacultyInput = z.infer<typeof createFacultySchema>;
+export type CreateAdvisorInput = z.infer<typeof createAdvisorSchema>;
+export type AssignAdvisorInput = z.infer<typeof assignAdvisorSchema>;

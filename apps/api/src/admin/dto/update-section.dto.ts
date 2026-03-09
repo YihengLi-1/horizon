@@ -26,6 +26,10 @@ export class UpdateSectionDto {
 
   @IsOptional()
   @IsString()
+  instructorUserId?: string | null;
+
+  @IsOptional()
+  @IsString()
   location?: string;
 
   @IsOptional()

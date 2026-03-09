@@ -11,7 +11,7 @@ import { ApiError, apiFetch } from "@/lib/api";
 import { API_URL } from "@/lib/config";
 
 type LoginResult = {
-  role: "STUDENT" | "ADMIN";
+  role: "STUDENT" | "FACULTY" | "ADVISOR" | "ADMIN";
 };
 
 const SHOW_DEMO_ACCOUNTS = process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_DEMO === "true";
@@ -53,7 +53,18 @@ export default function LoginPage() {
         method: "POST",
         body: JSON.stringify({ identifier, password })
       });
-      router.push(data.role === "ADMIN" ? "/admin/dashboard" : "/student/dashboard");
+      if (data.role === "ADMIN") {
+        router.push("/admin/dashboard");
+        return;
+      }
+
+      if (data.role === "STUDENT") {
+        router.push("/student/dashboard");
+        return;
+      }
+
+      await apiFetch("/auth/logout", { method: "POST" }).catch(() => undefined);
+      setError("Faculty/advisor workspaces are not available in this build yet. Use an admin or student account.");
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.code === "ACCOUNT_LOCKED") {

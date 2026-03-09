@@ -695,6 +695,24 @@ export class StudentsService {
       where: { id, role: "STUDENT", deletedAt: null },
       include: {
         studentProfile: true,
+        adviseeAssignments: {
+          where: { active: true },
+          include: {
+            advisor: {
+              select: {
+                id: true,
+                email: true,
+                advisorProfile: {
+                  select: { displayName: true, department: true, officeLocation: true }
+                }
+              }
+            },
+            assignedBy: {
+              select: { id: true, email: true, role: true }
+            }
+          },
+          orderBy: { assignedAt: "desc" }
+        },
         enrollments: {
           where: { deletedAt: null },
           include: {

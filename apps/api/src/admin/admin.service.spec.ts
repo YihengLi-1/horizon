@@ -7,13 +7,28 @@ function createAdminService() {
     auditLog: {
       findMany: jest.fn()
     },
+    user: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn()
+    },
+    facultyProfile: {
+      findUnique: jest.fn()
+    },
+    advisorProfile: {
+      findUnique: jest.fn()
+    },
     section: {
       findMany: jest.fn()
-    }
+    },
+    $transaction: jest.fn()
   } as any;
-  const auditService = {} as any;
+  const auditService = {
+    log: jest.fn()
+  } as any;
   const notificationsService = {} as any;
-  return { prisma, service: new AdminService(prisma, auditService, notificationsService) };
+  return { prisma, auditService, service: new AdminService(prisma, auditService, notificationsService) };
 }
 
 describe("AdminService helpers", () => {
@@ -160,5 +175,95 @@ describe("AdminService helpers", () => {
     const output = sanitizeHtml("<p><strong>Hello</strong> World</p>");
     expect(output).toContain("Hello");
     expect(output).toContain("World");
+  });
+
+  it("createFaculty provisions a faculty user with profile data", async () => {
+    const { prisma, auditService, service } = createAdminService();
+    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.facultyProfile.findUnique.mockResolvedValue(null);
+    prisma.advisorProfile.findUnique.mockResolvedValue(null);
+    prisma.user.create.mockResolvedValue({
+      id: "faculty-1",
+      email: "prof@sis.edu",
+      role: "FACULTY",
+      facultyProfile: { displayName: "Prof Ada", department: "CS", title: "Professor" }
+    });
+
+    const created = await service.createFaculty(
+      {
+        email: "prof@sis.edu",
+        password: "Faculty@2026!",
+        displayName: "Prof Ada",
+        employeeId: "EMP100",
+        department: "CS",
+        title: "Professor"
+      },
+      "admin-1"
+    );
+
+    expect(prisma.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          role: "FACULTY",
+          facultyProfile: {
+            create: expect.objectContaining({
+              displayName: "Prof Ada",
+              employeeId: "EMP100"
+            })
+          }
+        })
+      })
+    );
+    expect(auditService.log).toHaveBeenCalled();
+    expect(created.role).toBe("FACULTY");
+  });
+
+  it("assignAdvisor retires prior assignments before creating a new active advisor link", async () => {
+    const { prisma, auditService, service } = createAdminService();
+    prisma.user.findFirst
+      .mockResolvedValueOnce({
+        id: "student-1",
+        email: "student@sis.edu",
+        studentProfile: { legalName: "Student One" }
+      })
+      .mockResolvedValueOnce({
+        id: "advisor-1",
+        email: "advisor@sis.edu",
+        advisorProfile: { displayName: "Advisor One" }
+      });
+
+    const tx = {
+      advisorAssignment: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        create: jest.fn().mockResolvedValue({
+          id: "assignment-1",
+          studentId: "student-1",
+          advisorId: "advisor-1",
+          active: true
+        })
+      }
+    };
+    prisma.$transaction.mockImplementation(async (callback: any) => callback(tx));
+
+    const assignment = await service.assignAdvisor(
+      { studentId: "student-1", advisorId: "advisor-1", notes: "Primary advisor" },
+      "admin-1"
+    );
+
+    expect(tx.advisorAssignment.updateMany).toHaveBeenCalledWith({
+      where: { studentId: "student-1", active: true },
+      data: { active: false, endedAt: expect.any(Date) }
+    });
+    expect(tx.advisorAssignment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          studentId: "student-1",
+          advisorId: "advisor-1",
+          assignedByUserId: "admin-1"
+        })
+      })
+    );
+    expect(auditService.log).toHaveBeenCalled();
+    expect(assignment.id).toBe("assignment-1");
   });
 });

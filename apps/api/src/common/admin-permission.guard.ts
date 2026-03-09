@@ -1,5 +1,6 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
+import { Role } from "@prisma/client";
 import { AdminPermissionService } from "./admin-permission.service";
 import { ADMIN_PERMISSION_METADATA_KEY, AdminPermission } from "./admin-permissions";
 
@@ -21,7 +22,7 @@ export class AdminPermissionGuard implements CanActivate {
     }
 
     const req = context.switchToHttp().getRequest();
-    const user = req.user as { userId?: string; role?: "STUDENT" | "ADMIN" };
+    const user = req.user as { userId?: string; role?: Role };
 
     if (!user?.userId || user.role !== "ADMIN") {
       throw new ForbiddenException({

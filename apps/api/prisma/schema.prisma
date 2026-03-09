@@ -9,6 +9,8 @@ datasource db {
 
 enum Role {
   STUDENT
+  FACULTY
+  ADVISOR
   ADMIN
 }
 
@@ -41,6 +43,8 @@ model User {
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   studentProfile          StudentProfile?
+  facultyProfile          FacultyProfile?
+  advisorProfile          AdvisorProfile?
   issuedInviteCodes       InviteCode[]             @relation("InviteIssuer")
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
@@ -52,6 +56,10 @@ model User {
   auditLogs               AuditLog[]               @relation("AuditActor")
   watches                 SectionWatch[]
   scheduleSnapshots       ScheduleSnapshot[]
+  instructedSections      Section[]                @relation("SectionInstructor")
+  adviseeAssignments      AdvisorAssignment[]      @relation("StudentAdvisorAssignments")
+  advisorAssignments      AdvisorAssignment[]      @relation("AdvisorAssignments")
+  assignedAdvisorActions  AdvisorAssignment[]      @relation("AdvisorAssignmentActor")
 
   @@index([role, deletedAt])
 }
@@ -69,6 +77,47 @@ model StudentProfile {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FacultyProfile {
+  id         String   @id @default(uuid())
+  userId      String   @unique
+  displayName String
+  employeeId  String?  @unique
+  department  String?
+  title       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AdvisorProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  displayName    String
+  employeeId     String?  @unique
+  department     String?
+  officeLocation String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AdvisorAssignment {
+  id               String   @id @default(uuid())
+  studentId        String
+  advisorId        String
+  assignedByUserId String?
+  active           Boolean  @default(true)
+  notes            String?
+  assignedAt       DateTime @default(now())
+  endedAt          DateTime?
+  student          User     @relation("StudentAdvisorAssignments", fields: [studentId], references: [id], onDelete: Cascade)
+  advisor          User     @relation("AdvisorAssignments", fields: [advisorId], references: [id], onDelete: Cascade)
+  assignedBy       User?    @relation("AdvisorAssignmentActor", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, active])
+  @@index([advisorId, active])
 }
 
 model InviteCode {
@@ -165,6 +214,7 @@ model Section {
   id              String       @id @default(uuid())
   termId          String
   courseId        String
+  instructorUserId String?
   sectionCode     String
   modality        Modality
   capacity        Int
@@ -177,6 +227,7 @@ model Section {
   updatedAt       DateTime     @updatedAt
   term            Term         @relation(fields: [termId], references: [id], onDelete: Cascade)
   course          Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  instructorUser  User?        @relation("SectionInstructor", fields: [instructorUserId], references: [id], onDelete: SetNull)
   meetingTimes    MeetingTime[]
   enrollments     Enrollment[]
   cartItems       CartItem[]
@@ -185,6 +236,7 @@ model Section {
 
   @@unique([termId, sectionCode])
   @@index([courseId])
+  @@index([instructorUserId])
   @@index([termId])
 }
 

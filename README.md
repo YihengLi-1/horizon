@@ -80,10 +80,11 @@ pnpm dev
 ## API Documentation
 - See [apps/api/ROUTES.md](apps/api/ROUTES.md)
 - See [docs/UAT.md](/Users/yihengli/Desktop/TA/访达/地平线/docs/UAT.md) for client acceptance scenarios.
+- See [docs/SIS_V1_ROADMAP.md](/Users/yihengli/Desktop/TA/访达/地平线/docs/SIS_V1_ROADMAP.md) for the staged evolution plan toward a formal university-grade SIS.
 
 ## Known Limitations
 - Invite codes create student registrations only. Admin role assignment is a separate admin action.
-- Instructor names are informational text on sections; they are not faculty actor accounts.
+- Faculty/advisor actor scaffolding exists, but there is no faculty or advisor self-service portal yet.
 - Student support requests are routed to admin notification logs. There is no separate helpdesk/ticketing subsystem yet.
 - Public schedule sharing is disabled by default for privacy reasons.
 - Admin session tracking is operational only and resets when the API process restarts.

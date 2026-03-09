@@ -1,6 +1,9 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from "@nestjs/common";
 import {
+  assignAdvisorSchema,
+  createAdvisorSchema,
   createCourseSchema,
+  createFacultySchema,
   createInviteCodeSchema,
   createSectionSchema,
   createTermSchema,
@@ -81,6 +84,45 @@ export class AdminController {
   @RequireAdminPermissions("terms:write")
   async deleteTerm(@Param("id") id: string, @CurrentUser() user: { userId: string }) {
     return ok(await this.adminService.deleteTerm(id, user.userId));
+  }
+
+  @Get("faculty")
+  @RequireAdminPermissions("students:read")
+  async listFaculty() {
+    return ok(await this.adminService.listFaculty());
+  }
+
+  @Post("faculty")
+  @RequireAdminPermissions("students:write")
+  async createFaculty(
+    @Body(new ZodValidationPipe(createFacultySchema)) body: unknown,
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(await this.adminService.createFaculty(body as never, user.userId));
+  }
+
+  @Get("advisors")
+  @RequireAdminPermissions("students:read")
+  async listAdvisors() {
+    return ok(await this.adminService.listAdvisors());
+  }
+
+  @Post("advisors")
+  @RequireAdminPermissions("students:write")
+  async createAdvisor(
+    @Body(new ZodValidationPipe(createAdvisorSchema)) body: unknown,
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(await this.adminService.createAdvisor(body as never, user.userId));
+  }
+
+  @Post("advisor-assignments")
+  @RequireAdminPermissions("students:write")
+  async assignAdvisor(
+    @Body(new ZodValidationPipe(assignAdvisorSchema)) body: unknown,
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(await this.adminService.assignAdvisor(body as never, user.userId));
   }
 
   @Get("courses")

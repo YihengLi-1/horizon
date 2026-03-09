@@ -5,7 +5,7 @@ type Me = {
   id: string;
   email: string;
   studentId: string | null;
-  role: "STUDENT" | "ADMIN";
+  role: "STUDENT" | "FACULTY" | "ADVISOR" | "ADMIN";
   profile?: {
     legalName?: string;
     programMajor?: string | null;
@@ -65,7 +65,7 @@ export async function getMeServer(): Promise<Me | null> {
   return null;
 }
 
-export async function requireRole(role: "STUDENT" | "ADMIN"): Promise<Me> {
+export async function requireRole(role: Me["role"]): Promise<Me> {
   const me = await getMeServer();
   if (!me || me.role !== role) {
     redirect("/login");

@@ -3,7 +3,10 @@ import { EnrollmentStatus, Modality, Prisma } from "@prisma/client";
 import argon2 from "argon2";
 import { createHash } from "crypto";
 import {
+  assignAdvisorSchema,
+  createAdvisorSchema,
   createCourseSchema,
+  createFacultySchema,
   createInviteCodeSchema,
   createSectionSchema,
   createTermSchema,
@@ -23,6 +26,9 @@ import { NotificationsService } from "../notifications/notifications.service";
 type CreateTermInput = z.infer<typeof createTermSchema>;
 type CreateCourseInput = z.infer<typeof createCourseSchema>;
 type CreateSectionInput = z.infer<typeof createSectionSchema>;
+type CreateFacultyInput = z.infer<typeof createFacultySchema>;
+type CreateAdvisorInput = z.infer<typeof createAdvisorSchema>;
+type AssignAdvisorInput = z.infer<typeof assignAdvisorSchema>;
 type CreateInviteCodeInput = z.infer<typeof createInviteCodeSchema>;
 type PromoteWaitlistInput = z.infer<typeof promoteWaitlistSchema>;
 type UpdateGradeInput = z.infer<typeof updateGradeSchema>;
@@ -463,6 +469,87 @@ export class AdminService {
     };
   }
 
+  private async resolveInstructorAssignment(input: {
+    instructorName?: string | null;
+    instructorUserId?: string | null;
+  }, fallback?: { instructorName: string; instructorUserId?: string | null }) {
+    if (input.instructorUserId !== undefined) {
+      if (!input.instructorUserId) {
+        return {
+          instructorUserId: null,
+          instructorName: input.instructorName?.trim() || fallback?.instructorName || ""
+        };
+      }
+
+      const instructor = await this.prisma.user.findFirst({
+        where: {
+          id: input.instructorUserId,
+          role: "FACULTY",
+          deletedAt: null
+        },
+        include: {
+          facultyProfile: {
+            select: { displayName: true, department: true, title: true }
+          }
+        }
+      });
+
+      if (!instructor) {
+        throw new BadRequestException({
+          code: "FACULTY_NOT_FOUND",
+          message: "Assigned instructor must be an active faculty account"
+        });
+      }
+
+      return {
+        instructorUserId: instructor.id,
+        instructorName:
+          input.instructorName?.trim() ||
+          instructor.facultyProfile?.displayName ||
+          fallback?.instructorName ||
+          instructor.email
+      };
+    }
+
+    return {
+      instructorUserId: fallback?.instructorUserId ?? null,
+      instructorName: input.instructorName?.trim() || fallback?.instructorName || ""
+    };
+  }
+
+  private async ensureUniqueStaffIdentity(email: string, employeeId?: string | null) {
+    const existingEmail = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true }
+    });
+    if (existingEmail) {
+      throw new ConflictException({
+        code: "USER_EXISTS",
+        message: "A user with this email already exists"
+      });
+    }
+
+    if (!employeeId) return;
+
+    const [facultyEmployee, advisorEmployee] = await Promise.all([
+      this.prisma.facultyProfile.findUnique({
+        where: { employeeId },
+        select: { id: true }
+      }),
+      this.prisma.advisorProfile.findUnique({
+        where: { employeeId },
+        select: { id: true }
+      })
+    ]);
+
+    if (facultyEmployee || advisorEmployee) {
+      throw new ConflictException({
+        code: "EMPLOYEE_ID_EXISTS",
+        message: "A staff account with this employee ID already exists"
+      });
+    }
+  }
+
   async getPaginatedStudents(params?: { page?: number; pageSize?: number; search?: string }) {
     const paging = this.normalizePagination({
       page: params?.page,
@@ -552,6 +639,170 @@ export class AdminService {
     }));
     apiCache.set("terms", result, 30_000);
     return result;
+  }
+
+  async listFaculty() {
+    return this.prisma.user.findMany({
+      where: { role: "FACULTY", deletedAt: null },
+      include: {
+        facultyProfile: true,
+        _count: {
+          select: { instructedSections: true }
+        }
+      },
+      orderBy: { email: "asc" }
+    });
+  }
+
+  async createFaculty(input: CreateFacultyInput, actorUserId: string) {
+    await this.ensureUniqueStaffIdentity(input.email, input.employeeId ?? null);
+    const passwordHash = await argon2.hash(input.password);
+
+    const created = await this.prisma.user.create({
+      data: {
+        email: input.email,
+        passwordHash,
+        role: "FACULTY",
+        emailVerifiedAt: new Date(),
+        facultyProfile: {
+          create: {
+            displayName: input.displayName,
+            employeeId: input.employeeId ?? null,
+            department: input.department ?? null,
+            title: input.title ?? null
+          }
+        }
+      },
+      include: { facultyProfile: true }
+    });
+
+    await this.auditService.log({
+      actorUserId,
+      action: "admin_crud",
+      entityType: "faculty",
+      entityId: created.id,
+      metadata: { op: "create" }
+    });
+
+    return created;
+  }
+
+  async listAdvisors() {
+    return this.prisma.user.findMany({
+      where: { role: "ADVISOR", deletedAt: null },
+      include: {
+        advisorProfile: true,
+        advisorAssignments: {
+          where: { active: true },
+          select: { id: true }
+        }
+      },
+      orderBy: { email: "asc" }
+    });
+  }
+
+  async createAdvisor(input: CreateAdvisorInput, actorUserId: string) {
+    await this.ensureUniqueStaffIdentity(input.email, input.employeeId ?? null);
+    const passwordHash = await argon2.hash(input.password);
+
+    const created = await this.prisma.user.create({
+      data: {
+        email: input.email,
+        passwordHash,
+        role: "ADVISOR",
+        emailVerifiedAt: new Date(),
+        advisorProfile: {
+          create: {
+            displayName: input.displayName,
+            employeeId: input.employeeId ?? null,
+            department: input.department ?? null,
+            officeLocation: input.officeLocation ?? null
+          }
+        }
+      },
+      include: { advisorProfile: true }
+    });
+
+    await this.auditService.log({
+      actorUserId,
+      action: "admin_crud",
+      entityType: "advisor",
+      entityId: created.id,
+      metadata: { op: "create" }
+    });
+
+    return created;
+  }
+
+  async assignAdvisor(input: AssignAdvisorInput, actorUserId: string) {
+    const [student, advisor] = await Promise.all([
+      this.prisma.user.findFirst({
+        where: { id: input.studentId, role: "STUDENT", deletedAt: null },
+        select: { id: true, email: true, studentProfile: { select: { legalName: true } } }
+      }),
+      this.prisma.user.findFirst({
+        where: { id: input.advisorId, role: "ADVISOR", deletedAt: null },
+        include: { advisorProfile: { select: { displayName: true } } }
+      })
+    ]);
+
+    if (!student) {
+      throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
+    }
+
+    if (!advisor) {
+      throw new NotFoundException({ code: "ADVISOR_NOT_FOUND", message: "Advisor not found" });
+    }
+
+    const assignment = await this.prisma.$transaction(async (tx) => {
+      await tx.advisorAssignment.updateMany({
+        where: { studentId: input.studentId, active: true },
+        data: { active: false, endedAt: new Date() }
+      });
+
+      return tx.advisorAssignment.create({
+        data: {
+          studentId: input.studentId,
+          advisorId: input.advisorId,
+          assignedByUserId: actorUserId,
+          notes: input.notes ?? null
+        },
+        include: {
+          advisor: {
+            select: {
+              id: true,
+              email: true,
+              advisorProfile: {
+                select: { displayName: true, department: true, officeLocation: true }
+              }
+            }
+          },
+          student: {
+            select: {
+              id: true,
+              email: true,
+              studentProfile: {
+                select: { legalName: true, programMajor: true }
+              }
+            }
+          }
+        }
+      });
+    });
+
+    await this.auditService.log({
+      actorUserId,
+      action: "advisor_assignment",
+      entityType: "student",
+      entityId: input.studentId,
+      metadata: {
+        advisorId: input.advisorId,
+        advisorDisplayName: advisor.advisorProfile?.displayName ?? advisor.email,
+        notes: input.notes ?? null
+      }
+    });
+
+    return assignment;
   }
 
   async createTerm(input: CreateTermInput, actorUserId: string) {
@@ -795,6 +1046,15 @@ export class AdminService {
       include: {
         term: true,
         course: true,
+        instructorUser: {
+          select: {
+            id: true,
+            email: true,
+            facultyProfile: {
+              select: { displayName: true, department: true, title: true }
+            }
+          }
+        },
         meetingTimes: true,
         ratings: {
           select: { rating: true }
@@ -816,6 +1076,11 @@ export class AdminService {
   }
 
   async createSection(input: CreateSectionInput, actorUserId: string) {
+    const instructor = await this.resolveInstructorAssignment({
+      instructorName: input.instructorName,
+      instructorUserId: input.instructorUserId
+    });
+
     const section = await this.prisma.section.create({
       data: {
         termId: input.termId,
@@ -824,7 +1089,8 @@ export class AdminService {
         modality: input.modality,
         capacity: input.capacity,
         credits: input.credits,
-        instructorName: input.instructorName,
+        instructorName: instructor.instructorName,
+        instructorUserId: instructor.instructorUserId,
         location: input.location ?? null,
         requireApproval: input.requireApproval,
         startDate: input.startDate ? new Date(input.startDate) : null,
@@ -835,6 +1101,15 @@ export class AdminService {
       include: {
         term: true,
         course: true,
+        instructorUser: {
+          select: {
+            id: true,
+            email: true,
+            facultyProfile: {
+              select: { displayName: true, department: true, title: true }
+            }
+          }
+        },
         meetingTimes: true
       }
     });
@@ -851,10 +1126,32 @@ export class AdminService {
   }
 
   async updateSection(id: string, input: Partial<CreateSectionInput>, actorUserId: string) {
-    const section = await this.prisma.section.findUnique({ where: { id }, include: { meetingTimes: true } });
+    const section = await this.prisma.section.findUnique({
+      where: { id },
+      include: {
+        meetingTimes: true,
+        instructorUser: {
+          select: {
+            id: true,
+            facultyProfile: { select: { displayName: true } }
+          }
+        }
+      }
+    });
     if (!section) {
       throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
     }
+
+    const instructor = await this.resolveInstructorAssignment(
+      {
+        instructorName: input.instructorName,
+        instructorUserId: input.instructorUserId
+      },
+      {
+        instructorName: section.instructorName,
+        instructorUserId: section.instructorUser?.id ?? null
+      }
+    );
 
     const updated = await this.prisma.$transaction(async (tx) => {
       if (input.meetingTimes) {
@@ -870,7 +1167,8 @@ export class AdminService {
           modality: input.modality ?? section.modality,
           capacity: input.capacity ?? section.capacity,
           credits: input.credits ?? section.credits,
-          instructorName: input.instructorName ?? section.instructorName,
+          instructorName: instructor.instructorName,
+          instructorUserId: instructor.instructorUserId,
           location: input.location !== undefined ? input.location : section.location,
           requireApproval: input.requireApproval ?? section.requireApproval,
           startDate: input.startDate ? new Date(input.startDate) : section.startDate,
@@ -883,6 +1181,15 @@ export class AdminService {
         include: {
           term: true,
           course: true,
+          instructorUser: {
+            select: {
+              id: true,
+              email: true,
+              facultyProfile: {
+                select: { displayName: true, department: true, title: true }
+              }
+            }
+          },
           meetingTimes: true,
           ratings: {
             select: { rating: true }
