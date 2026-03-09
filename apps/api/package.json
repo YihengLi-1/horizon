@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "node --watch -r @swc-node/register src/main.ts",
+    "prebuild": "pnpm --filter @sis/shared build",
     "build": "tsc -p tsconfig.json",
+    "prestart": "pnpm --filter @sis/shared build",
     "start": "node dist/apps/api/src/main.js",
     "test": "jest --runInBand",
     "lint": "echo 'no lint for api'",

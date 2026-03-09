@@ -29,6 +29,23 @@ enum EnrollmentStatus {
   COMPLETED
 }
 
+enum HoldType {
+  REGISTRATION
+  ACADEMIC
+  FINANCIAL
+}
+
+enum AcademicRequestType {
+  CREDIT_OVERLOAD
+}
+
+enum AcademicRequestStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
 model User {
   id                      String                   @id @default(uuid())
   email                   String                   @unique
@@ -62,6 +79,12 @@ model User {
   assignedAdvisorActions  AdvisorAssignment[]      @relation("AdvisorAssignmentActor")
   adviseeNotes            AdvisorNote[]            @relation("StudentAdvisorNotes")
   advisorNotes            AdvisorNote[]            @relation("AdvisorNotes")
+  studentHolds            StudentHold[]            @relation("StudentHolds")
+  createdStudentHolds     StudentHold[]            @relation("CreatedStudentHolds")
+  resolvedStudentHolds    StudentHold[]            @relation("ResolvedStudentHolds")
+  academicRequests        AcademicRequest[]        @relation("StudentAcademicRequests")
+  ownedAcademicRequests   AcademicRequest[]        @relation("AcademicRequestOwner")
+  decidedAcademicRequests AcademicRequest[]        @relation("AcademicRequestDecisionActor")
 
   @@index([role, deletedAt])
 }
@@ -200,6 +223,7 @@ model Term {
   enrollments         Enrollment[]
   cartItems           CartItem[]
   scheduleSnapshots   ScheduleSnapshot[]
+  academicRequests    AcademicRequest[]
 }
 
 model Course {
@@ -249,6 +273,7 @@ model Section {
   cartItems       CartItem[]
   ratings         CourseRating[]
   watches         SectionWatch[]
+  academicRequests AcademicRequest[]
 
   @@unique([termId, sectionCode])
   @@index([courseId])
@@ -362,6 +387,54 @@ model NotificationLog {
 
   @@index([userId])
   @@index([sentAt])
+}
+
+model StudentHold {
+  id               String    @id @default(uuid())
+  studentId        String
+  type             HoldType
+  reason           String
+  note             String?   @db.Text
+  active           Boolean   @default(true)
+  expiresAt        DateTime?
+  createdAt        DateTime  @default(now())
+  resolvedAt       DateTime?
+  createdByUserId  String?
+  resolvedByUserId String?
+  student          User      @relation("StudentHolds", fields: [studentId], references: [id], onDelete: Cascade)
+  createdBy        User?     @relation("CreatedStudentHolds", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  resolvedBy       User?     @relation("ResolvedStudentHolds", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, active, expiresAt])
+  @@index([type, active])
+}
+
+model AcademicRequest {
+  id                   String                @id @default(uuid())
+  studentId            String
+  type                 AcademicRequestType
+  status               AcademicRequestStatus @default(SUBMITTED)
+  termId               String?
+  sectionId            String?
+  reason               String                @db.Text
+  requestedCredits     Int?
+  requiredApproverRole Role?
+  ownerUserId          String?
+  submittedAt          DateTime              @default(now())
+  decisionAt           DateTime?
+  decisionNote         String?               @db.Text
+  decidedByUserId      String?
+  updatedAt            DateTime              @updatedAt
+  student              User                  @relation("StudentAcademicRequests", fields: [studentId], references: [id], onDelete: Cascade)
+  term                 Term?                 @relation(fields: [termId], references: [id], onDelete: SetNull)
+  section              Section?              @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  owner                User?                 @relation("AcademicRequestOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  decidedBy            User?                 @relation("AcademicRequestDecisionActor", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, status])
+  @@index([ownerUserId, status])
+  @@index([termId, type, status])
+  @@index([sectionId, type, status])
 }
 
 model SectionWatch {

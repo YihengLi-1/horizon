@@ -100,6 +100,30 @@ type PrecheckResponse = {
   issues: SubmitIssue[];
 };
 
+type StudentHold = {
+  id: string;
+  type: "REGISTRATION" | "ACADEMIC" | "FINANCIAL";
+  reason: string;
+  note?: string | null;
+  expiresAt?: string | null;
+};
+
+type AcademicRequest = {
+  id: string;
+  type: "CREDIT_OVERLOAD";
+  status: "SUBMITTED" | "APPROVED" | "REJECTED" | "WITHDRAWN";
+  requestedCredits?: number | null;
+  reason: string;
+  submittedAt: string;
+  decisionAt?: string | null;
+  decisionNote?: string | null;
+  term?: {
+    id: string;
+    name: string;
+    maxCredits: number;
+  } | null;
+};
+
 type NextAction = {
   title: string;
   detail: string;
@@ -191,6 +215,10 @@ export default function StudentCartPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [activeHolds, setActiveHolds] = useState<StudentHold[]>([]);
+  const [overloadRequests, setOverloadRequests] = useState<AcademicRequest[]>([]);
+  const [overloadReason, setOverloadReason] = useState("");
+  const [submittingOverloadRequest, setSubmittingOverloadRequest] = useState(false);
   const [removingInvalid, setRemovingInvalid] = useState(false);
   const [removingItemId, setRemovingItemId] = useState("");
   const [waitlistPositions, setWaitlistPositions] = useState<Record<string, number>>({});
@@ -358,6 +386,28 @@ export default function StudentCartPage() {
     () => (submitIssues.length > 0 ? submitIssues : precheckIssues),
     [submitIssues, precheckIssues]
   );
+  const pendingOverloadRequest = useMemo(
+    () => overloadRequests.find((request) => request.status === "SUBMITTED") ?? null,
+    [overloadRequests]
+  );
+  const approvedOverloadRequest = useMemo(
+    () => overloadRequests.find((request) => request.status === "APPROVED") ?? null,
+    [overloadRequests]
+  );
+  const overloadRequestNeeded = useMemo(
+    () =>
+      cartMetrics.maxCredits !== null &&
+      (cartMetrics.totalCredits > cartMetrics.maxCredits ||
+        activeIssues.some((issue) => issue.reasonCode === "CREDIT_LIMIT_EXCEEDED")),
+    [activeIssues, cartMetrics.maxCredits, cartMetrics.totalCredits]
+  );
+  const canSubmitOverloadRequest = useMemo(() => {
+    if (!termId || cartMetrics.maxCredits === null) return false;
+    if (cartMetrics.totalCredits <= cartMetrics.maxCredits) return false;
+    if (pendingOverloadRequest) return false;
+    if (approvedOverloadRequest && (approvedOverloadRequest.requestedCredits ?? 0) >= cartMetrics.totalCredits) return false;
+    return true;
+  }, [approvedOverloadRequest, cartMetrics.maxCredits, cartMetrics.totalCredits, pendingOverloadRequest, termId]);
 
   const issueMapBySectionId = useMemo(() => {
     const map = new Map<string, SubmitIssue[]>();
@@ -405,6 +455,7 @@ export default function StudentCartPage() {
   const readinessChecks = useMemo(
     () => [
       { label: "Term selected", ok: Boolean(termId) },
+      { label: "No active registration hold", ok: activeHolds.length === 0 },
       { label: "Registration window open", ok: registrationWindow.isOpen },
       { label: "Cart has items", ok: items.length > 0 },
       {
@@ -413,7 +464,7 @@ export default function StudentCartPage() {
         hint: precheckRan ? "" : "Run precheck"
       }
     ],
-    [termId, registrationWindow.isOpen, items.length, precheckRan, hasBlockingIssues]
+    [termId, activeHolds.length, registrationWindow.isOpen, items.length, precheckRan, hasBlockingIssues]
   );
 
   const updateUrlTerm = (nextTermId: string) => {
@@ -477,6 +528,29 @@ export default function StudentCartPage() {
     }
   };
 
+  const loadActiveHolds = async () => {
+    try {
+      const data = await apiFetch<StudentHold[]>("/governance/my-holds");
+      setActiveHolds(data);
+    } catch {
+      setActiveHolds([]);
+    }
+  };
+
+  const loadAcademicRequests = async (selectedTermId: string) => {
+    if (!selectedTermId) {
+      setOverloadRequests([]);
+      return;
+    }
+
+    try {
+      const data = await apiFetch<AcademicRequest[]>(`/governance/my-requests?termId=${selectedTermId}`);
+      setOverloadRequests(data.filter((request) => request.type === "CREDIT_OVERLOAD"));
+    } catch {
+      setOverloadRequests([]);
+    }
+  };
+
   useEffect(() => {
     async function loadTermsAndCart() {
       try {
@@ -495,7 +569,13 @@ export default function StudentCartPage() {
 
         if (initialTermId) {
           updateUrlTerm(initialTermId);
-          await Promise.all([loadCart(initialTermId), loadCurrentEnrollments(initialTermId), loadSections(initialTermId)]);
+          await Promise.all([
+            loadCart(initialTermId),
+            loadCurrentEnrollments(initialTermId),
+            loadSections(initialTermId),
+            loadActiveHolds(),
+            loadAcademicRequests(initialTermId)
+          ]);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load terms");
@@ -512,7 +592,13 @@ export default function StudentCartPage() {
     setSubmitIssues([]);
     resetPrecheck();
     updateUrlTerm(nextTermId);
-    await Promise.all([loadCart(nextTermId), loadCurrentEnrollments(nextTermId), loadSections(nextTermId)]);
+    await Promise.all([
+      loadCart(nextTermId),
+      loadCurrentEnrollments(nextTermId),
+      loadSections(nextTermId),
+      loadActiveHolds(),
+      loadAcademicRequests(nextTermId)
+    ]);
   };
 
   const removeItem = async (cartItemId: string) => {
@@ -573,6 +659,12 @@ export default function StudentCartPage() {
         setPrecheckIssues(issues);
         setPrecheckError("Precheck found blocking issues.");
         toast(buildIssueToastMessage(issues, activeTerm?.maxCredits ?? null), "error");
+      } else if (err instanceof ApiError && err.code === "ACTIVE_REGISTRATION_HOLD" && Array.isArray(err.details)) {
+        setActiveHolds(err.details as StudentHold[]);
+        const message = err.message || "Registration is blocked by an active hold.";
+        setPrecheckError(message);
+        toast(message, "error");
+        setPrecheckIssues([]);
       } else {
         const message = err instanceof Error ? err.message : "Precheck failed";
         setPrecheckError(message);
@@ -615,6 +707,11 @@ export default function StudentCartPage() {
         setSubmitIssues(issues);
         setError("Some sections could not be submitted. See reasons below.");
         toast(buildIssueToastMessage(issues, activeTerm?.maxCredits ?? null), "error");
+      } else if (err instanceof ApiError && err.code === "ACTIVE_REGISTRATION_HOLD" && Array.isArray(err.details)) {
+        setActiveHolds(err.details as StudentHold[]);
+        const message = err.message || "Registration is blocked by an active hold.";
+        setError(message);
+        toast(message, "error");
       } else {
         const message = err instanceof Error ? err.message : "Submit failed";
         setError(message);
@@ -675,6 +772,30 @@ export default function StudentCartPage() {
       setSwapping(false);
     }
   };
+
+  const submitOverloadRequest = async () => {
+    if (!termId || !canSubmitOverloadRequest || !overloadReason.trim()) return;
+
+    try {
+      setSubmittingOverloadRequest(true);
+      const requestedCredits = Math.max(cartMetrics.totalCredits, cartMetrics.maxCredits ?? cartMetrics.totalCredits);
+      await apiFetch("/governance/requests/credit-overload", {
+        method: "POST",
+        body: JSON.stringify({
+          termId,
+          requestedCredits,
+          reason: overloadReason.trim()
+        })
+      });
+      setOverloadReason("");
+      await loadAcademicRequests(termId);
+      toast("超学分申请已提交，等待 advisor 审核", "success");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "提交超学分申请失败", "error");
+    } finally {
+      setSubmittingOverloadRequest(false);
+    }
+  };
   const issueAnchorHref =
     summaryIssues.length > 0 ? "#cart-issue-summary" : groupedPrecheckIssues.length > 0 ? "#precheck-issues" : "";
   const nextAction: NextAction = (() => {
@@ -695,6 +816,13 @@ export default function StudentCartPage() {
         href: catalogHref
       };
     }
+    if (activeHolds.length > 0) {
+      return {
+        title: "Resolve registration hold",
+        detail: "Registration is blocked until the active hold is cleared by registrar or finance staff.",
+        tone: "red"
+      };
+    }
     if (!registrationWindow.isOpen) {
       return {
         title: "Registration window is closed",
@@ -713,7 +841,21 @@ export default function StudentCartPage() {
         disabled: precheckDisabled || prechecking
       };
     }
+    if (pendingOverloadRequest) {
+      return {
+        title: "Await advisor decision",
+        detail: "A credit overload request is pending. Registration will remain blocked until it is approved or rejected.",
+        tone: "amber"
+      };
+    }
     if (hasBlockingIssues) {
+      if (canSubmitOverloadRequest && overloadRequestNeeded) {
+        return {
+          title: "Request overload approval",
+          detail: "Your cart exceeds the standard credit limit. Submit a credit overload request for advisor review.",
+          tone: "amber"
+        };
+      }
       if (invalidCartItemIds.length > 0) {
         return {
           title: "Clean invalid rows",
@@ -1016,6 +1158,82 @@ export default function StudentCartPage() {
         {error ? <Alert type="error" message={error} /> : null}
         {precheckError ? <Alert type="error" message={precheckError} /> : null}
       </div>
+      {activeHolds.length > 0 ? (
+        <section className="campus-card border-red-200 bg-red-50 p-4 md:p-5">
+          <h2 className="text-base font-semibold text-red-900">Active Registration Holds</h2>
+          <p className="mt-1 text-sm text-red-800">Self-service registration is blocked until these holds are resolved.</p>
+          <div className="mt-3 space-y-2">
+            {activeHolds.map((hold) => (
+              <div key={hold.id} className="rounded-xl border border-red-200 bg-white p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="campus-chip border-red-200 bg-red-50 text-red-700 text-xs">{hold.type}</span>
+                  {hold.expiresAt ? (
+                    <span className="text-xs text-slate-500">Expires {formatDateTime(hold.expiresAt)}</span>
+                  ) : null}
+                </div>
+                <p className="mt-2 text-sm font-medium text-slate-900">{hold.reason}</p>
+                {hold.note ? <p className="mt-1 text-sm text-slate-600">{hold.note}</p> : null}
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+      {(overloadRequestNeeded || pendingOverloadRequest || approvedOverloadRequest) ? (
+        <section className="campus-card p-4 md:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">Credit Overload Request</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Current cart: {cartMetrics.totalCredits} credits
+                {cartMetrics.maxCredits !== null ? ` · standard limit ${cartMetrics.maxCredits}` : ""}.
+              </p>
+            </div>
+            {pendingOverloadRequest ? (
+              <span className="campus-chip border-amber-200 bg-amber-50 text-amber-700">Pending advisor review</span>
+            ) : approvedOverloadRequest ? (
+              <span className="campus-chip border-emerald-200 bg-emerald-50 text-emerald-700">
+                Approved up to {approvedOverloadRequest.requestedCredits ?? "—"} credits
+              </span>
+            ) : null}
+          </div>
+          {pendingOverloadRequest || approvedOverloadRequest ? (
+            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              <p>
+                Submitted {formatDateTime((pendingOverloadRequest ?? approvedOverloadRequest)!.submittedAt)}
+              </p>
+              <p className="mt-1">{(pendingOverloadRequest ?? approvedOverloadRequest)!.reason}</p>
+              {(pendingOverloadRequest ?? approvedOverloadRequest)!.decisionNote ? (
+                <p className="mt-2 text-xs text-slate-500">
+                  Decision note: {(pendingOverloadRequest ?? approvedOverloadRequest)!.decisionNote}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {canSubmitOverloadRequest ? (
+            <div className="mt-4 space-y-3">
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Why do you need an overload?
+                </span>
+                <textarea
+                  className="campus-input min-h-28"
+                  value={overloadReason}
+                  onChange={(event) => setOverloadReason(event.target.value)}
+                  placeholder="Explain the academic reason for exceeding the standard credit limit."
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => void submitOverloadRequest()}
+                disabled={submittingOverloadRequest || overloadReason.trim().length < 8}
+                className="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {submittingOverloadRequest ? "Submitting…" : `Request approval for ${cartMetrics.totalCredits} credits`}
+              </button>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
       {terms.length === 0 ? (
         <Alert
           type="info"

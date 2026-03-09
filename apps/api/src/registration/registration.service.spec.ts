@@ -12,11 +12,19 @@ function createRegistrationService(overrides?: Partial<Record<string, unknown>>)
     section: {
       findUnique: jest.fn()
     },
+    term: {
+      findUnique: jest.fn()
+    },
     sectionWatch: {
       upsert: jest.fn(),
       deleteMany: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn()
+    },
+    cartItem: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn()
     },
     notificationLog: {
       create: jest.fn()
@@ -40,13 +48,19 @@ function createRegistrationService(overrides?: Partial<Record<string, unknown>>)
     sendMail: jest.fn().mockResolvedValue(true)
   } as any;
 
+  const governanceService = {
+    assertNoBlockingHolds: jest.fn().mockResolvedValue(undefined),
+    getApprovedCreditLimit: jest.fn().mockImplementation(async (_client: unknown, _studentId: string, _termId: string, max: number) => max)
+  } as any;
+
   Object.assign(prisma, overrides);
 
   return {
     prisma,
     auditService,
     notificationsService,
-    service: new RegistrationService(prisma, auditService, notificationsService)
+    governanceService,
+    service: new RegistrationService(prisma, auditService, notificationsService, governanceService)
   };
 }
 
@@ -411,6 +425,51 @@ describe("RegistrationService", () => {
           status: "ENROLLED"
         }
       });
+    });
+  });
+
+  describe("governance enforcement", () => {
+    it("blocks addToCart when an active registration hold exists", async () => {
+      const { governanceService, service } = createRegistrationService();
+      governanceService.assertNoBlockingHolds.mockRejectedValue(
+        new BadRequestException({ code: "ACTIVE_REGISTRATION_HOLD", message: "Registration blocked" })
+      );
+
+      await expect(
+        service.addToCart("student-1", { termId: "term-1", sectionId: "section-1" } as never)
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("precheckCart honors an approved overload limit", async () => {
+      const { prisma, governanceService, service } = createRegistrationService();
+      prisma.term.findUnique.mockResolvedValue({
+        id: "term-1",
+        maxCredits: 18,
+        startDate: new Date("2026-09-01T00:00:00Z"),
+        registrationOpenAt: new Date("2025-08-01T00:00:00Z"),
+        registrationCloseAt: new Date("2099-09-10T00:00:00Z")
+      });
+      prisma.cartItem.findMany.mockResolvedValue([makeCartItem()]);
+      prisma.enrollment.findMany
+        .mockResolvedValueOnce([
+          {
+            sectionId: "existing",
+            status: "ENROLLED",
+            section: { credits: 17, meetingTimes: [] }
+          }
+        ])
+        .mockResolvedValueOnce([]);
+      governanceService.getApprovedCreditLimit.mockResolvedValue(21);
+      (service as any).getSectionEnrollmentStats = jest.fn().mockResolvedValue({
+        enrolledCountBySection: new Map<string, number>(),
+        maxWaitlistPositionBySection: new Map<string, number>()
+      });
+
+      const result = await service.precheckCart("student-1", { termId: "term-1" } as never);
+
+      expect(result.ok).toBe(true);
+      expect(result.issues).toHaveLength(0);
+      expect(governanceService.getApprovedCreditLimit).toHaveBeenCalledWith(expect.anything(), "student-1", "term-1", 18);
     });
   });
 });

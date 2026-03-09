@@ -8,6 +8,7 @@ import { AuditService } from "../audit/audit.service";
 import { isPassingGrade } from "../common/grade.utils";
 import { PrismaService } from "../common/prisma.service";
 import { dispatch } from "../common/webhook";
+import { GovernanceService } from "../governance/governance.service";
 import { NotificationsService } from "../notifications/notifications.service";
 
 type AddCartInput = z.infer<typeof addCartItemSchema>;
@@ -91,7 +92,8 @@ export class RegistrationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
-    private readonly notificationsService: NotificationsService
+    private readonly notificationsService: NotificationsService,
+    private readonly governanceService: GovernanceService
   ) {}
 
   private isSerializationFailure(error: unknown): boolean {
@@ -213,6 +215,15 @@ export class RegistrationService {
     });
     const parsed = Number(setting?.value);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultMaxCredits;
+  }
+
+  private async getAllowedMaxCredits(
+    client: PrismaService | Prisma.TransactionClient,
+    studentId: string,
+    termId: string,
+    defaultMaxCredits: number
+  ): Promise<number> {
+    return this.governanceService.getApprovedCreditLimit(client, studentId, termId, defaultMaxCredits);
   }
 
   private async assertPrerequisitesSatisfied(
@@ -471,6 +482,7 @@ export class RegistrationService {
 
   async enroll(studentId: string, sectionId: string) {
     return this.runEnrollmentTransactionWithRetry(async (tx) => {
+      await this.governanceService.assertNoBlockingHolds(tx, studentId);
       await this.lockSectionsForUpdate(tx, [sectionId]);
 
       const section = await tx.section.findUnique({
@@ -551,6 +563,16 @@ export class RegistrationService {
         throw new BadRequestException("TIME_CONFLICT");
       }
 
+      const effectiveMaxCredits = await this.getEffectiveMaxCredits(section.term.maxCredits);
+      const allowedMaxCredits = await this.getAllowedMaxCredits(tx, studentId, section.termId, effectiveMaxCredits);
+      const currentCredits = otherEnrollments.reduce((sum, enrollment) => sum + enrollment.section.credits, 0);
+      if (currentCredits + section.credits > allowedMaxCredits) {
+        throw new BadRequestException({
+          code: "CREDIT_LIMIT_EXCEEDED",
+          message: `Credit limit (${allowedMaxCredits}) would be exceeded`
+        });
+      }
+
       return tx.enrollment.create({
         data: {
           studentId,
@@ -582,6 +604,8 @@ export class RegistrationService {
   }
 
   async addToCart(studentId: string, input: AddCartInput) {
+    await this.governanceService.assertNoBlockingHolds(this.prisma, studentId);
+
     const section = await this.prisma.section.findUnique({
       where: { id: input.sectionId },
       include: { term: true }
@@ -628,6 +652,8 @@ export class RegistrationService {
   }
 
   async precheckCart(studentId: string, input: SubmitCartInput) {
+    await this.governanceService.assertNoBlockingHolds(this.prisma, studentId);
+
     const term = await this.prisma.term.findUnique({ where: { id: input.termId } });
     if (!term) {
       throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "Term not found" });
@@ -642,6 +668,7 @@ export class RegistrationService {
     }
 
     const effectiveMaxCredits = await this.getEffectiveMaxCredits(term.maxCredits);
+    const allowedMaxCredits = await this.getAllowedMaxCredits(this.prisma, studentId, input.termId, effectiveMaxCredits);
 
     const cartItems: CartItemWithSection[] = await this.prisma.cartItem.findMany({
       where: { studentId, termId: input.termId },
@@ -707,7 +734,7 @@ export class RegistrationService {
       termId: input.termId,
       term: {
         startDate: term.startDate,
-        maxCredits: effectiveMaxCredits
+        maxCredits: allowedMaxCredits
       },
       now,
       cartItems,
@@ -737,6 +764,8 @@ export class RegistrationService {
    * @throws NotFoundException When the requested term does not exist.
    */
   async submitCart(studentId: string, input: SubmitCartInput, req: Request) {
+    await this.governanceService.assertNoBlockingHolds(this.prisma, studentId);
+
     const term = await this.prisma.term.findUnique({ where: { id: input.termId } });
     if (!term) {
       throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "Term not found" });
@@ -751,6 +780,7 @@ export class RegistrationService {
     }
 
     const effectiveMaxCredits = await this.getEffectiveMaxCredits(term.maxCredits);
+    const allowedMaxCredits = await this.getAllowedMaxCredits(this.prisma, studentId, input.termId, effectiveMaxCredits);
 
     const cartItems: CartItemWithSection[] = await this.prisma.cartItem.findMany({
       where: { studentId, termId: input.termId },
@@ -817,7 +847,7 @@ export class RegistrationService {
       termId: input.termId,
       term: {
         startDate: term.startDate,
-        maxCredits: effectiveMaxCredits
+        maxCredits: allowedMaxCredits
       },
       now,
       cartItems,
@@ -836,6 +866,8 @@ export class RegistrationService {
     }
 
     const created = await this.runEnrollmentTransactionWithRetry(async (tx) => {
+      await this.governanceService.assertNoBlockingHolds(tx, studentId);
+
       const txCartItems: CartItemWithSection[] = await tx.cartItem.findMany({
         where: { studentId, termId: input.termId },
         include: {
@@ -895,13 +927,14 @@ export class RegistrationService {
       ]);
 
       const txPassedCourseIds = this.getPassedCourseIds(txCompletedEnrollments);
+      const txAllowedMaxCredits = await this.getAllowedMaxCredits(tx, studentId, input.termId, effectiveMaxCredits);
 
       const txValidation = this.buildEnrollmentPlan({
         studentId,
         termId: input.termId,
         term: {
           startDate: term.startDate,
-          maxCredits: effectiveMaxCredits
+          maxCredits: txAllowedMaxCredits
         },
         now,
         cartItems: txCartItems,
@@ -1333,6 +1366,7 @@ export class RegistrationService {
 
   async swap(studentId: string, dropSectionId: string, addSectionId: string, req?: Request) {
     return this.prisma.$transaction(async (tx) => {
+      await this.governanceService.assertNoBlockingHolds(tx, studentId);
       await this.lockSectionsForUpdate(tx, [dropSectionId, addSectionId]);
 
       const [dropSection, addSection] = await Promise.all([
