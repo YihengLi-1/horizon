@@ -5,10 +5,10 @@ import { chromium } from "playwright";
 const BASE_URL = process.env.WEB_URL || "http://localhost:3000";
 const OUT_DIR = process.env.E2E_OUT_DIR || "/tmp/sis-e2e-critical";
 
-const STUDENT_IDENTIFIER = process.env.SMOKE_STUDENT_IDENTIFIER || "S1001";
-const STUDENT_PASSWORD = process.env.SMOKE_STUDENT_PASSWORD || "Student123!";
-const ADMIN_IDENTIFIER = process.env.SMOKE_ADMIN_IDENTIFIER || "admin@university.edu";
-const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD || "Admin123!";
+const STUDENT_IDENTIFIER = process.env.SMOKE_STUDENT_IDENTIFIER || "student1@sis.edu";
+const STUDENT_PASSWORD = process.env.SMOKE_STUDENT_PASSWORD || "Student@2026!";
+const ADMIN_IDENTIFIER = process.env.SMOKE_ADMIN_IDENTIFIER || "admin@sis.edu";
+const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD || "Admin@2026!";
 
 const RUNTIME_MARKERS = [
   "Unhandled Runtime Error",

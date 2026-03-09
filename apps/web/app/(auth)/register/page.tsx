@@ -120,7 +120,7 @@ export default function RegisterPage() {
             <div className="space-y-1">
               <label className="text-sm font-medium text-slate-700">Invite code</label>
               <Input
-                placeholder="INVITE-2026"
+                placeholder="OPEN-2026"
                 className="h-10"
                 value={form.inviteCode}
                 onChange={(e) => setForm((prev) => ({ ...prev, inviteCode: e.target.value }))}
