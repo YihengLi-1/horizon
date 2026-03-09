@@ -68,47 +68,6 @@ function statusBadge(status: string) {
   return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
-function toIcsDate(value: Date): string {
-  return value.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
-}
-
-function firstOccurrence(termStart: string, weekday: number, minutes: number): Date {
-  const start = new Date(termStart);
-  const result = new Date(start);
-  const delta = (weekday - result.getDay() + 7) % 7;
-  result.setDate(result.getDate() + delta);
-  result.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
-  return result;
-}
-
-function buildIcs(term: Term | null, enrollments: Enrollment[]): string {
-  if (!term) return "";
-  const byDay = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
-  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//SIS//Schedule//EN"];
-
-  for (const enrollment of enrollments) {
-    if (enrollment.status !== "ENROLLED" && enrollment.status !== "PENDING_APPROVAL") continue;
-    for (const meetingTime of enrollment.section.meetingTimes ?? []) {
-      const start = firstOccurrence(term.startDate, meetingTime.weekday, meetingTime.startMinutes);
-      const end = firstOccurrence(term.startDate, meetingTime.weekday, meetingTime.endMinutes);
-      lines.push("BEGIN:VEVENT");
-      lines.push(`UID:${enrollment.id}-${meetingTime.weekday}-${meetingTime.startMinutes}@sis`);
-      lines.push(`DTSTAMP:${toIcsDate(new Date())}`);
-      lines.push(`DTSTART:${toIcsDate(start)}`);
-      lines.push(`DTEND:${toIcsDate(end)}`);
-      lines.push(`RRULE:FREQ=WEEKLY;BYDAY=${byDay[meetingTime.weekday]};UNTIL=${toIcsDate(new Date(term.endDate))}`);
-      lines.push(`SUMMARY:${enrollment.section.course.code} ${enrollment.section.course.title}`);
-      if (enrollment.section.location) {
-        lines.push(`LOCATION:${enrollment.section.location}`);
-      }
-      lines.push("END:VEVENT");
-    }
-  }
-
-  lines.push("END:VCALENDAR");
-  return lines.join("\r\n");
-}
-
 function useLocalStorage<T>(key: string, initialValue: T): [T, (next: T | ((value: T) => T)) => void] {
   const [value, setValue] = useState<T>(initialValue);
 
@@ -332,6 +291,8 @@ export default function SchedulePage() {
   const downloadIcs = async () => {
     if (!activeTerm) return;
     try {
+      setError("");
+      setNotice("");
       const response = await fetch(
         `${API_URL}/students/schedule/ical?termId=${termId}`,
         {
@@ -342,6 +303,13 @@ export default function SchedulePage() {
           }
         }
       );
+      if (!response.ok) {
+        throw new Error(`iCal export failed (${response.status})`);
+      }
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.includes("text/calendar")) {
+        throw new Error("Unexpected calendar export response");
+      }
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -349,8 +317,9 @@ export default function SchedulePage() {
       link.download = `schedule-${activeTerm.name.replace(/\s+/g, "-")}.ics`;
       link.click();
       URL.revokeObjectURL(url);
-    } catch {
-      setError("导出失败");
+      setNotice("课表日历文件已下载");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "导出失败");
     }
   };
   return (

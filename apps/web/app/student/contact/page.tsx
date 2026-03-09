@@ -38,10 +38,10 @@ export default function ContactPage() {
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-emerald-200 bg-emerald-50 text-3xl">
             ✉️
           </div>
-          <p className="text-lg font-semibold text-slate-800 dark:text-white">Request Submitted</p>
+          <p className="text-lg font-semibold text-slate-800 dark:text-white">请求已提交</p>
           <p className="text-sm text-slate-500">您的请求已提交给注册/支持团队，我们将在 2 个工作日内回复。</p>
           <button type="button" onClick={() => setSent(false)} className="text-sm font-medium text-blue-600 hover:underline">
-            Send another
+            继续提交新的请求
           </button>
         </div>
       </div>
@@ -95,7 +95,7 @@ export default function ContactPage() {
           disabled={sending}
           className="w-full rounded-lg bg-slate-900 py-2.5 text-sm font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-slate-900"
         >
-          {sending ? "Sending…" : "Send Message"}
+          {sending ? "提交中…" : "提交请求"}
         </button>
       </form>
     </div>

@@ -7,7 +7,8 @@ export default function SettingsPage() {
       items: [
         { key: "NODE_ENV", value: process.env.NODE_ENV ?? "—" },
         { key: "NEXT_PUBLIC_APP_VERSION", value: process.env.NEXT_PUBLIC_APP_VERSION ?? "—" },
-        { key: "NEXT_PUBLIC_API_URL", value: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000" }
+        { key: "NEXT_PUBLIC_API_URL", value: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000" },
+        { key: "SIS_TIMEZONE", value: process.env.SIS_TIMEZONE ?? "America/Los_Angeles" }
       ]
     },
     {
@@ -27,6 +28,13 @@ export default function SettingsPage() {
     {
       group: "Monitoring",
       items: [{ key: "NEXT_PUBLIC_GRAFANA_URL", value: process.env.NEXT_PUBLIC_GRAFANA_URL ?? "http://localhost:3001" }]
+    },
+    {
+      group: "Feature Flags",
+      items: [
+        { key: "ENABLE_PUBLIC_SCHEDULE_SHARING", value: process.env.ENABLE_PUBLIC_SCHEDULE_SHARING ?? "false" },
+        { key: "NEXT_PUBLIC_ENABLE_PUBLIC_SCHEDULE_SHARING", value: process.env.NEXT_PUBLIC_ENABLE_PUBLIC_SCHEDULE_SHARING ?? "false" }
+      ]
     },
     {
       group: "Secrets (hidden)",
