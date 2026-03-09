@@ -16,6 +16,7 @@ import { HealthModule } from "./health/health.module";
 import { MaintenanceMiddleware } from "./common/maintenance.middleware";
 import { FacultyModule } from "./faculty/faculty.module";
 import { AdvisingModule } from "./advising/advising.module";
+import { GovernanceModule } from "./governance/governance.module";
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AdvisingModule } from "./advising/advising.module";
     AdminModule,
     FacultyModule,
     AdvisingModule,
+    GovernanceModule,
     HealthModule
   ],
   providers: [

@@ -343,6 +343,15 @@ check_contains "apps/web/app/student/planner/page.tsx" "generateCombinations|bac
 check_contains "apps/api/prisma/schema.prisma" "SectionWatch" "SectionWatch model in schema"
 check_contains "apps/api/src/registration/registration.service.ts" "watchSection|sectionWatch" "Section watch service method"
 check_contains "apps/api/src/registration/registration.service.spec.ts" "PREREQ_NOT_MET" "Prereq unit test"
+check_contains "apps/api/prisma/schema.prisma" "StudentHold|AcademicRequest|HoldType|AcademicRequestType" "Governance models in schema"
+check_exists "apps/api/src/governance/governance.service.ts" "Governance service exists"
+check_exists "apps/api/src/governance/governance.controller.ts" "Governance controller exists"
+check_contains "apps/api/src/registration/registration.service.ts" "ACTIVE_REGISTRATION_HOLD|getApprovedCreditLimit|assertNoBlockingHolds" "Registration governance enforcement"
+check_contains "apps/web/app/student/cart/page.tsx" "Credit Overload Request|Active Registration Holds|governance/my-requests" "Student cart governance UI"
+check_exists "apps/web/app/advisor/requests/page.tsx" "Advisor requests page"
+check_contains "apps/web/components/app-shell.tsx" "Pending Requests|/advisor/requests" "Advisor request nav"
+check_exists "apps/api/src/governance/governance.service.spec.ts" "Governance service unit tests"
+check_contains "docs/SIS_V1_ROADMAP.md" "StudentHold|AcademicRequest|CREDIT_OVERLOAD" "Roadmap updated for governance slice"
 
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"

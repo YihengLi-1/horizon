@@ -94,13 +94,28 @@ This repo now includes:
 
 These changes establish the first real institutional workflow slice. They do **not** complete the faculty/advisor domain.
 
+The repo now also includes the first real governance workflow slice:
+
+- `StudentHold` with real hold types: `REGISTRATION`, `ACADEMIC`, `FINANCIAL`
+- admin-governed hold creation and resolution APIs
+- registration enforcement that blocks self-service add/enroll/precheck/submit/swap when active blocking holds exist
+- `AcademicRequest` for `CREDIT_OVERLOAD`
+- student overload request submission for a specific term
+- advisor-owned overload request review and approve/reject decisions
+- credit-limit enforcement that respects an approved overload limit
+- student cart UI that shows active holds and overload request status
+- advisor request review page for assigned advisee overload requests
+
+This establishes the first policy-driven academic workflow. It does **not** complete the broader approvals/holds domain.
+
 ## Still Missing After This Slice
 
 - faculty grade-change workflow or registrar correction approval
 - faculty attendance, assignment, or LMS-facing instructional tools
-- advisor approval workflows for overload/override/exception requests
+- faculty instructor-consent workflow
+- prereq override workflow and section-specific exception workflow
+- registrar finalization step for multi-actor approvals
 - advisor standing review workflow beyond notes and read-only enrollment visibility
-- student holds and override domain
 - programs, majors, minors, catalog years, and degree requirements
 - degree audit and graduation clearance
 - finance/bursar integration and hold synchronization

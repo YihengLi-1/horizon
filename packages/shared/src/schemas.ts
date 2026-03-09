@@ -10,6 +10,9 @@ export const enrollmentStatusSchema = z.enum([
   "DROPPED",
   "COMPLETED"
 ]);
+export const holdTypeSchema = z.enum(["REGISTRATION", "ACADEMIC", "FINANCIAL"]);
+export const academicRequestTypeSchema = z.enum(["CREDIT_OVERLOAD"]);
+export const academicRequestStatusSchema = z.enum(["SUBMITTED", "APPROVED", "REJECTED", "WITHDRAWN"]);
 
 export const registerSchema = z.object({
   email: z.string().email(),
@@ -164,6 +167,29 @@ export const changePasswordSchema = z.object({
   newPassword: z.string().min(8)
 });
 
+export const createHoldSchema = z.object({
+  studentId: z.string().min(1),
+  type: holdTypeSchema,
+  reason: z.string().min(3),
+  note: z.string().optional().nullable(),
+  expiresAt: z.string().datetime().optional().nullable()
+});
+
+export const resolveHoldSchema = z.object({
+  resolutionNote: z.string().optional().nullable()
+});
+
+export const submitCreditOverloadRequestSchema = z.object({
+  termId: z.string().min(1),
+  requestedCredits: z.number().int().min(1).max(40),
+  reason: z.string().min(8)
+});
+
+export const decideAcademicRequestSchema = z.object({
+  decision: z.enum(["APPROVED", "REJECTED"]),
+  decisionNote: z.string().min(3)
+});
+
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -174,3 +200,7 @@ export type CreateSectionInput = z.infer<typeof createSectionSchema>;
 export type CreateFacultyInput = z.infer<typeof createFacultySchema>;
 export type CreateAdvisorInput = z.infer<typeof createAdvisorSchema>;
 export type AssignAdvisorInput = z.infer<typeof assignAdvisorSchema>;
+export type CreateHoldInput = z.infer<typeof createHoldSchema>;
+export type ResolveHoldInput = z.infer<typeof resolveHoldSchema>;
+export type SubmitCreditOverloadRequestInput = z.infer<typeof submitCreditOverloadRequestSchema>;
+export type DecideAcademicRequestInput = z.infer<typeof decideAcademicRequestSchema>;

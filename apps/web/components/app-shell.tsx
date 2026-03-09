@@ -99,7 +99,8 @@ const facultyItems: NavItem[] = [
 
 const advisorItems: NavItem[] = [
   { href: "/advisor/dashboard", label: "Dashboard", icon: <LayoutDashboard className={iconClass} /> },
-  { href: "/advisor/advisees", label: "My Advisees", icon: <Users className={iconClass} /> }
+  { href: "/advisor/advisees", label: "My Advisees", icon: <Users className={iconClass} /> },
+  { href: "/advisor/requests", label: "Pending Requests", icon: <ListChecks className={iconClass} /> }
 ];
 
 const areaMeta: Record<AppArea, { label: string; items: NavItem[]; subtitle: string }> = {
@@ -160,7 +161,7 @@ export function AppShell({
         : area === "faculty"
           ? [{ label: "Instruction", hrefs: ["/faculty/dashboard", "/faculty/sections"] }]
           : area === "advisor"
-            ? [{ label: "Advising", hrefs: ["/advisor/dashboard", "/advisor/advisees"] }]
+            ? [{ label: "Advising", hrefs: ["/advisor/dashboard", "/advisor/advisees", "/advisor/requests"] }]
         : [
             { label: "Overview", hrefs: ["/student/dashboard", "/student/notifications", "/student/announcements"] },
             { label: "Registration", hrefs: ["/student/catalog", "/student/planner", "/student/cart", "/student/schedule"] },
