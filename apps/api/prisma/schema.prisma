@@ -60,6 +60,8 @@ model User {
   adviseeAssignments      AdvisorAssignment[]      @relation("StudentAdvisorAssignments")
   advisorAssignments      AdvisorAssignment[]      @relation("AdvisorAssignments")
   assignedAdvisorActions  AdvisorAssignment[]      @relation("AdvisorAssignmentActor")
+  adviseeNotes            AdvisorNote[]            @relation("StudentAdvisorNotes")
+  advisorNotes            AdvisorNote[]            @relation("AdvisorNotes")
 
   @@index([role, deletedAt])
 }
@@ -118,6 +120,20 @@ model AdvisorAssignment {
 
   @@index([studentId, active])
   @@index([advisorId, active])
+}
+
+model AdvisorNote {
+  id        String   @id @default(uuid())
+  studentId String
+  advisorId String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  student   User     @relation("StudentAdvisorNotes", fields: [studentId], references: [id], onDelete: Cascade)
+  advisor   User     @relation("AdvisorNotes", fields: [advisorId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, createdAt])
+  @@index([advisorId, createdAt])
 }
 
 model InviteCode {

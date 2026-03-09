@@ -71,7 +71,7 @@ The minimum v1 target for formal institutional use is:
 - billing should be integrated externally unless the product team commits to building a real student account ledger
 - institution timezone must stay configurable and term-aware
 
-## Immediate Foundation Already Added
+## Implemented Now
 
 This repo now includes:
 
@@ -79,7 +79,28 @@ This repo now includes:
 - `FacultyProfile`
 - `AdvisorProfile`
 - `AdvisorAssignment`
+- `AdvisorNote`
 - `Section.instructorUserId`
 - admin APIs to create faculty, create advisors, and assign advisors
+- faculty login path to `/faculty/dashboard`
+- faculty-owned section listing scoped by `instructorUserId`
+- faculty-owned roster access
+- faculty final-grade submission for owned sections only
+- audit logging for faculty roster views and grade submission
+- advisor login path to `/advisor/dashboard`
+- advisor-scoped advisee listing based on active advisor assignments
+- advisor advisee overview and private advisor notes
+- audit logging for advisor advisee views and note creation
 
-These changes are scaffolding, not a completed faculty/advisor portal.
+These changes establish the first real institutional workflow slice. They do **not** complete the faculty/advisor domain.
+
+## Still Missing After This Slice
+
+- faculty grade-change workflow or registrar correction approval
+- faculty attendance, assignment, or LMS-facing instructional tools
+- advisor approval workflows for overload/override/exception requests
+- advisor standing review workflow beyond notes and read-only enrollment visibility
+- student holds and override domain
+- programs, majors, minors, catalog years, and degree requirements
+- degree audit and graduation clearance
+- finance/bursar integration and hold synchronization
