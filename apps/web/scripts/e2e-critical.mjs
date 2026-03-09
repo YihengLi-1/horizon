@@ -121,7 +121,7 @@ async function runStudentSuite(browser) {
   await openChecked(page, "/student/dashboard", "student-dashboard", ["Dashboard"]);
   await openChecked(page, "/student/catalog", "student-catalog", ["Course Catalog", "Catalog Summary"]);
   await openChecked(page, "/student/cart", "student-cart", ["Registration Cart", "Submit Readiness"]);
-  await openChecked(page, "/student/schedule", "student-schedule", ["Class Schedule", "Week View (Mon-Fri, 08:00-18:00)"]);
+  await openChecked(page, "/student/schedule", "student-schedule", ["Class Schedule", "列表 📋", "今日课程"]);
   await openChecked(page, "/student/grades", "student-grades", ["Grades"]);
   await openChecked(page, "/student/profile", "student-profile", ["Student Profile", "Personal Information"]);
 

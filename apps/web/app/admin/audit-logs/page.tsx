@@ -52,12 +52,17 @@ export default function AuditLogsPage() {
   const [actionFilter, setActionFilter] = useState(searchParams.get("action") ?? "");
   const [entityFilter, setEntityFilter] = useState("");
   const [page, setPage] = useState(1);
+  const [todayLabel, setTodayLabel] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [search]);
+
+  useEffect(() => {
+    setTodayLabel(new Date().toLocaleDateString("en-US"));
+  }, []);
 
   // Press "/" to focus search
   useEffect(() => {
@@ -155,9 +160,11 @@ export default function AuditLogsPage() {
             <div className="flex flex-wrap gap-2 pt-1">
               <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{total} matched events</span>
               <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Page {safePage} / {totalPages}</span>
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">
-                As of {new Date().toLocaleDateString()}
-              </span>
+              {todayLabel ? (
+                <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">
+                  As of {todayLabel}
+                </span>
+              ) : null}
             </div>
           </div>
           <div className="flex gap-2">
