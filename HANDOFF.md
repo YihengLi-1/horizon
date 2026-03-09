@@ -96,11 +96,31 @@ pnpm test:e2e
 pnpm test:e2e:web
 ```
 
+## Clean Governance Rehearsal
+Required for governance delivery validation:
+```bash
+bash scripts/rehearse-governance-clean-db.sh
+```
+
+Prerequisites:
+- Docker Compose Postgres is running
+- `docker`, `jq`, `curl`, and `pnpm` are installed on the operator machine
+
+Success criteria:
+- creates a disposable database
+- runs `prisma migrate deploy` only
+- runs seed successfully
+- boots the API on an isolated port
+- proves hold create/resolve, student hold visibility, hold blocking, overload request submission, advisor approval, and approved overload precheck behavior
+- drops the disposable database on exit
+
+Do not substitute `prisma db push` for this rehearsal. This is the required migration-only proof path.
+
 ## UAT Reference
 Use [docs/UAT.md](/Users/yihengli/Desktop/TA/访达/地平线/docs/UAT.md) as the acceptance checklist for student and registrar/admin scenarios.
 
 ## Known Risks
-- No faculty/advisor domain exists.
+- Faculty/advisor workflows are intentionally narrow and not yet a full institutional domain.
 - No finance domain exists.
 - Some analytics/report wording is registrar-focused, not institution-wide SIS terminology.
 - Admin session tracking is not durable across process restarts.
