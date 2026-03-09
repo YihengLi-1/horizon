@@ -171,6 +171,30 @@ describe("GovernanceService", () => {
     expect(decided.status).toBe("APPROVED");
   });
 
+  it("rejects invalid lifecycle transitions once a request is already terminal", async () => {
+    const { prisma, service } = createGovernanceService();
+    prisma.academicRequest.findFirst.mockResolvedValue({
+      id: "request-1",
+      studentId: "student-1",
+      termId: "term-1",
+      type: "CREDIT_OVERLOAD",
+      requiredApproverRole: "ADVISOR",
+      ownerUserId: "advisor-1",
+      status: "APPROVED",
+      student: { adviseeAssignments: [{ id: "assignment-1" }] },
+      term: { id: "term-1", name: "Fall 2026" }
+    });
+
+    await expect(
+      service.decideAdvisorRequest("advisor-1", "request-1", {
+        decision: "REJECTED",
+        decisionNote: "Reversing a terminal state is not allowed"
+      })
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: "REQUEST_ALREADY_DECIDED" })
+    });
+  });
+
   it("rejects duplicate pending overload requests for the same student and term", async () => {
     const { prisma, service } = createGovernanceService();
     prisma.systemSetting.findUnique.mockResolvedValue({ value: "18" });
@@ -180,10 +204,12 @@ describe("GovernanceService", () => {
       advisorId: "advisor-1",
       advisor: { id: "advisor-1", role: "ADVISOR", email: "advisor1@sis.edu", advisorProfile: { displayName: "Advisor One" } }
     });
-    prisma.academicRequest.findFirst.mockResolvedValueOnce({
-      id: "request-pending",
-      status: "SUBMITTED"
-    });
+    prisma.academicRequest.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "request-pending",
+        status: "SUBMITTED"
+      });
 
     await expect(
       service.submitCreditOverloadRequest("student-1", {
@@ -234,6 +260,18 @@ describe("GovernanceService", () => {
     ]);
 
     await expect(service.assertNoBlockingHolds(prisma, "student-1")).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("applies approved overload effect through the request policy", async () => {
+    const { prisma, service } = createGovernanceService();
+    prisma.academicRequest.findFirst
+      .mockResolvedValueOnce({ requestedCredits: 21 })
+      .mockResolvedValueOnce({ requestedCredits: 15 })
+      .mockResolvedValueOnce(null);
+
+    await expect(service.getApprovedCreditLimit(prisma, "student-1", "term-1", 18)).resolves.toBe(21);
+    await expect(service.getApprovedCreditLimit(prisma, "student-1", "term-1", 18)).resolves.toBe(18);
+    await expect(service.getApprovedCreditLimit(prisma, "student-1", "term-1", 18)).resolves.toBe(18);
   });
 
   it("creates and resolves holds only for admins", async () => {
