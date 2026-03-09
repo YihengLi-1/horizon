@@ -11,7 +11,8 @@
     "test": "jest --runInBand",
     "lint": "echo 'no lint for api'",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts"
   },
   "prisma": {

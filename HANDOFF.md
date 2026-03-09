@@ -51,7 +51,7 @@ Recommended default institution setting:
 1. Copy env files and set production values.
 2. Install dependencies: `pnpm install`
 3. Generate Prisma client: `pnpm db:generate`
-4. Apply schema changes: `pnpm db:migrate`
+4. Apply committed schema changes: `pnpm db:migrate:deploy`
 5. Seed demo data only if needed: `pnpm db:seed`
 6. Build and validate:
    - `pnpm --filter web exec tsc --noEmit`
@@ -62,6 +62,11 @@ Recommended default institution setting:
    - local dev: `pnpm dev`
    - Docker: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d`
 8. Run smoke/UAT before handoff.
+
+Migration command model:
+- Local developer schema work only: `pnpm db:migrate:dev`
+- Staging / production / Docker handoff / operator rehearsal: `pnpm db:migrate:deploy`
+- Do not use `prisma migrate dev` in a deployment or handoff environment.
 
 ## Demo / Seed Credentials
 - Admin: `admin@sis.edu / Admin@2026!`
