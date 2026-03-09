@@ -398,6 +398,54 @@ const sections: SectionSeed[] = [
     meetingTimes: [
       { id: "mt-cs350-f1-1", weekday: 5, startMinutes: 810, endMinutes: 885 }
     ]
+  },
+  {
+    id: "section-eng205-f1",
+    termId: IDS.fall2026,
+    courseId: "course-eng205",
+    sectionCode: "ENG205-F1",
+    modality: Modality.ON_CAMPUS,
+    capacity: 24,
+    credits: 2,
+    instructorName: "Prof. Harper",
+    location: "HUM-210",
+    requireApproval: false,
+    startDate: "2026-08-24T00:00:00.000Z",
+    meetingTimes: [
+      { id: "mt-eng205-f1-1", weekday: 2, startMinutes: 1020, endMinutes: 1080 }
+    ]
+  },
+  {
+    id: "section-eng250-f1",
+    termId: IDS.fall2026,
+    courseId: "course-eng250",
+    sectionCode: "ENG250-F1",
+    modality: Modality.HYBRID,
+    capacity: 20,
+    credits: 2,
+    instructorName: "Prof. Nolan",
+    location: "HUM-310",
+    requireApproval: false,
+    startDate: "2026-08-24T00:00:00.000Z",
+    meetingTimes: [
+      { id: "mt-eng250-f1-1", weekday: 3, startMinutes: 1020, endMinutes: 1080 }
+    ]
+  },
+  {
+    id: "section-bus320-f1",
+    termId: IDS.fall2026,
+    courseId: "course-bus320",
+    sectionCode: "BUS320-F1",
+    modality: Modality.HYBRID,
+    capacity: 18,
+    credits: 2,
+    instructorName: "Dr. Patel",
+    location: "BUS-410",
+    requireApproval: false,
+    startDate: "2026-08-24T00:00:00.000Z",
+    meetingTimes: [
+      { id: "mt-bus320-f1-1", weekday: 1, startMinutes: 1020, endMinutes: 1080 }
+    ]
   }
 ];
 
