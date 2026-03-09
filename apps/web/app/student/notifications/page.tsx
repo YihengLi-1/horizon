@@ -19,12 +19,15 @@ const TYPE_CLS: Record<string, string> = {
 
 export default function NotificationsPage() {
   const [items, setItems] = useState<Notif[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     window.localStorage.setItem("notif_last_seen", String(Date.now()));
     void apiFetch<Notif[]>("/students/notifications")
       .then((data) => setItems(data ?? []))
-      .catch(() => {});
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load notifications"))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
@@ -35,7 +38,13 @@ export default function NotificationsPage() {
           {items.length} notification{items.length !== 1 ? "s" : ""}
         </p>
       </div>
-      {items.length === 0 ? (
+      {error ? (
+        <div className="campus-card border-red-200 bg-red-50 p-6 text-sm text-red-700">
+          无法加载通知。{error}
+        </div>
+      ) : loading ? (
+        <div className="campus-card p-12 text-center text-slate-400">Loading notifications…</div>
+      ) : items.length === 0 ? (
         <div className="campus-card p-12 text-center">
           <span className="text-4xl">🔔</span>
           <p className="mt-3 text-slate-500">No notifications yet.</p>

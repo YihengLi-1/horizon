@@ -1,4 +1,4 @@
-# GPT Handoff Report — University SIS "地平线"
+# GPT Handoff Report — Student Portal / Registrar Ops "地平线"
 **Date:** 2026-03-06 | **Gate:** 170 pass, 0 warn, 0 fail | **Tests:** 44 (all passing)
 
 ---
@@ -30,7 +30,14 @@ pnpm --filter @sis/api build         # API build check
 
 ---
 
-## Current State — Fully Implemented
+## Scope Note
+
+Current delivery scope is a student self-service portal plus registrar/admin academic operations console. It is not a full institutional SIS:
+- no faculty/advisor actor accounts
+- no billing/bursar/financial aid domain
+- no public schedule sharing in production handoff mode
+
+## Current State — Implemented
 
 ### Auth & Security
 - JWT (2h) + RefreshToken (30d rotation) via httpOnly cookies
@@ -80,7 +87,7 @@ Key indexes: `(studentId, status)` on Enrollment, soft-delete `deletedAt` on Use
 | `/student/announcements` | Public announcements |
 | `/student/notifications` | Notification history |
 | `/student/profile` | Gradient avatar, enrollment summary, goal field, privacy settings |
-| `/student/contact` | Contact advisor form |
+| `/student/contact` | Registrar / support request form |
 | `/student/help` | FAQ page |
 
 ### Key API Endpoints (NestJS)

@@ -85,7 +85,6 @@ export default function InviteCodesPage() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [bulkCount, setBulkCount] = useState(5);
   const [bulkMaxUses, setBulkMaxUses] = useState<number | "">(10);
-  const [bulkRole, setBulkRole] = useState<"STUDENT" | "ADMIN">("STUDENT");
   const [bulkGenerating, setBulkGenerating] = useState(false);
   const [lastGenerated, setLastGenerated] = useState<string[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -227,7 +226,7 @@ export default function InviteCodesPage() {
             method: "POST",
             body: JSON.stringify({
               maxUses: bulkMaxUses || null,
-              role: bulkRole
+              active: true
             })
           });
           if (response?.code) generated.push(response.code);
@@ -288,7 +287,7 @@ export default function InviteCodesPage() {
             <p className="campus-eyebrow">Access Control</p>
             <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">Invite Codes</h1>
             <p className="text-sm text-slate-600 md:text-base">
-              Issue registration invite codes, define usage limits, and toggle availability.
+              Issue student registration invite codes, define usage limits, and toggle availability.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
               <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Total {stats.total}</span>
@@ -389,17 +388,6 @@ export default function InviteCodesPage() {
         <summary className="cursor-pointer select-none text-sm font-semibold text-slate-700">⚡ Bulk Generate Codes</summary>
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <div className="space-y-1">
-            <label className="text-xs font-medium text-slate-500">Role</label>
-            <select
-              value={bulkRole}
-              onChange={(event) => setBulkRole(event.target.value as "STUDENT" | "ADMIN")}
-              className="campus-select text-sm"
-            >
-              <option value="STUDENT">Student</option>
-              <option value="ADMIN">Admin</option>
-            </select>
-          </div>
-          <div className="space-y-1">
             <label className="text-xs font-medium text-slate-500">Count (1–20)</label>
             <input
               type="number"
@@ -429,6 +417,9 @@ export default function InviteCodesPage() {
             {bulkGenerating ? "Generating…" : "Generate"}
           </button>
         </div>
+        <p className="mt-3 text-xs text-slate-500">
+          Registration invites currently create student accounts only. Admin accounts must be assigned separately by an existing administrator.
+        </p>
         {lastGenerated.length > 0 ? (
           <div className="mt-3 space-y-1">
             <p className="text-xs font-medium text-slate-500">Generated codes (click to copy):</p>

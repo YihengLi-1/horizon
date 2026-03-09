@@ -179,7 +179,7 @@ function issueGuidance(reasonCode: string): string {
   if (reasonCode === "PREREQUISITE_NOT_MET") return "Complete prerequisites first or request departmental override.";
   if (reasonCode === "TIME_CONFLICT") return "Adjust cart to remove overlapping meeting times.";
   if (reasonCode === "CREDIT_LIMIT_EXCEEDED") return "Reduce load or request credit overload approval.";
-  if (reasonCode === "SECTION_ALREADY_STARTED") return "Contact advisor/registrar for manual enrollment options.";
+  if (reasonCode === "SECTION_ALREADY_STARTED") return "Contact registrar/support for manual enrollment options.";
   if (reasonCode === "ALREADY_REGISTERED") return "Section is already active in your enrollments.";
   return "Review cart details and update registration plan.";
 }
@@ -374,7 +374,7 @@ export default async function StudentDashboardPage() {
       alerts.push({
         level: "critical",
         title: "Drop deadline has passed",
-        description: `Drop requests for ENROLLED/PENDING sections now require advisor or registrar support.`,
+        description: `Drop requests for ENROLLED/PENDING sections now require registrar or support review.`,
         href: term ? `/student/schedule?termId=${term.id}` : "/student/schedule",
         cta: "Open schedule"
       });
@@ -637,7 +637,7 @@ export default async function StudentDashboardPage() {
                 {dropDaysLeft !== null ? (
                   <p className={`rounded-xl border px-3 py-2 text-sm font-semibold ${dropDaysLeft < 0 ? "border-red-200 bg-red-50 text-red-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
                     {dropDaysLeft < 0
-                      ? `Drop deadline passed ${Math.abs(dropDaysLeft)} day(s) ago. Contact advisor/registrar for changes.`
+                      ? `Drop deadline passed ${Math.abs(dropDaysLeft)} day(s) ago. Contact registrar/support for changes.`
                       : `${dropDaysLeft} day(s) remaining until drop deadline.`}
                   </p>
                 ) : null}

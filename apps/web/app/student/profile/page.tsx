@@ -274,6 +274,7 @@ export default function StudentProfilePage() {
   const [completedCredits, setCompletedCredits] = useState(0);
   const [enrolledCredits, setEnrolledCredits] = useState(0);
   const [currentGpa, setCurrentGpa] = useState<number | null>(null);
+  const [summaryError, setSummaryError] = useState("");
   const [goal, setGoal] = useState("");
   const [goalDraft, setGoalDraft] = useState("");
   const [currentTermId, setCurrentTermId] = useState("current");
@@ -309,50 +310,53 @@ export default function StudentProfilePage() {
 
   useEffect(() => {
     let alive = true;
-    void Promise.all([
-      apiFetch<TranscriptTerm[]>("/students/transcript").catch(() => [] as TranscriptTerm[]),
-      apiFetch<EnrollmentRow[]>("/registration/enrollments").catch(() => [] as EnrollmentRow[])
-    ]).then(([transcriptTerms, enrollments]) => {
-      if (!alive) return;
+    void Promise.all([apiFetch<TranscriptTerm[]>("/students/transcript"), apiFetch<EnrollmentRow[]>("/registration/enrollments")])
+      .then(([transcriptTerms, enrollments]) => {
+        if (!alive) return;
 
-      setCurrentTermId(transcriptTerms[0]?.termId ?? "current");
+        setSummaryError("");
+        setCurrentTermId(transcriptTerms[0]?.termId ?? "current");
 
-      const transcript = transcriptTerms.flatMap((term) => term.enrollments ?? []);
+        const transcript = transcriptTerms.flatMap((term) => term.enrollments ?? []);
 
-      const gradePoints: Record<string, number> = {
-        "A+": 4,
-        A: 4,
-        "A-": 3.7,
-        "B+": 3.3,
-        B: 3,
-        "B-": 2.7,
-        "C+": 2.3,
-        C: 2,
-        "C-": 1.7,
-        "D+": 1.3,
-        D: 1,
-        "D-": 0.7,
-        F: 0
-      };
+        const gradePoints: Record<string, number> = {
+          "A+": 4,
+          A: 4,
+          "A-": 3.7,
+          "B+": 3.3,
+          B: 3,
+          "B-": 2.7,
+          "C+": 2.3,
+          C: 2,
+          "C-": 1.7,
+          "D+": 1.3,
+          D: 1,
+          "D-": 0.7,
+          F: 0
+        };
 
-      const completed = transcript.reduce((sum, row) => sum + (row.section?.credits ?? 0), 0);
-      const enrolled = enrollments
-        .filter((row) => row.status === "ENROLLED")
-        .reduce((sum, row) => sum + (row.section?.credits ?? 0), 0);
+        const completed = transcript.reduce((sum, row) => sum + (row.section?.credits ?? 0), 0);
+        const enrolled = enrollments
+          .filter((row) => row.status === "ENROLLED")
+          .reduce((sum, row) => sum + (row.section?.credits ?? 0), 0);
 
-      let weighted = 0;
-      let credits = 0;
-      for (const row of transcript) {
-        const points = row.finalGrade ? gradePoints[row.finalGrade] : undefined;
-        if (points === undefined) continue;
-        weighted += points * (row.section?.credits ?? 0);
-        credits += row.section?.credits ?? 0;
-      }
+        let weighted = 0;
+        let credits = 0;
+        for (const row of transcript) {
+          const points = row.finalGrade ? gradePoints[row.finalGrade] : undefined;
+          if (points === undefined) continue;
+          weighted += points * (row.section?.credits ?? 0);
+          credits += row.section?.credits ?? 0;
+        }
 
-      setCompletedCredits(completed);
-      setEnrolledCredits(enrolled);
-      setCurrentGpa(credits > 0 ? Math.round((weighted / credits) * 1000) / 1000 : null);
-    });
+        setCompletedCredits(completed);
+        setEnrolledCredits(enrolled);
+        setCurrentGpa(credits > 0 ? Math.round((weighted / credits) * 1000) / 1000 : null);
+      })
+      .catch((err) => {
+        if (!alive) return;
+        setSummaryError(err instanceof Error ? err.message : "Failed to load enrollment summary");
+      });
 
     return () => {
       alive = false;
@@ -553,6 +557,11 @@ export default function StudentProfilePage() {
           <aside className="space-y-4">
             <section className="campus-card p-4">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Enrollment Summary</h3>
+              {summaryError ? (
+                <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                  无法加载学业汇总。{summaryError}
+                </div>
+              ) : null}
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div className="campus-kpi">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">总已修学分</p>

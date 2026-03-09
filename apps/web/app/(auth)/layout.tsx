@@ -13,7 +13,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               </h1>
               <p className="mt-4 max-w-md text-sm text-slate-200">
                 A focused academic workspace inspired by modern university service portals:
-                clear tasks, registration readiness, and advisor-friendly workflows.
+                clear tasks, registration readiness, and registrar-friendly workflows.
               </p>
             </div>
             <div className="space-y-2 text-xs text-slate-200/90">

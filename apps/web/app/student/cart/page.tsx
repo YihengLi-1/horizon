@@ -121,7 +121,7 @@ function statusBadgeClass(status: string): string {
 }
 
 function issueHint(reasonCode: string): string | null {
-  if (reasonCode === "SECTION_ALREADY_STARTED") return "Section already started. Contact advisor/registrar for support.";
+  if (reasonCode === "SECTION_ALREADY_STARTED") return "Section already started. Contact registrar/support for help.";
   if (reasonCode === "PREREQUISITE_NOT_MET") return "Complete prerequisite course(s) first or request departmental override.";
   if (reasonCode === "TIME_CONFLICT") return "Remove or swap one of the conflicting sections.";
   if (reasonCode === "CREDIT_LIMIT_EXCEEDED") return "Reduce planned credits or request an overload approval.";

@@ -56,7 +56,7 @@ export default function HelpPage() {
       <div className="campus-card border-blue-200 bg-blue-50 p-4 dark:bg-blue-900/20">
         <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">Still need help?</p>
         <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">
-          Contact your academic advisor or the registrar&apos;s office.
+          Submit a registrar/support request from the Support page.
         </p>
       </div>
     </div>
