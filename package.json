@@ -15,7 +15,8 @@
     "readiness:check": "bash scripts/readiness-check.sh",
     "backup:restore:drill": "bash scripts/backup-restore-drill.sh",
     "autopilot:check": "bash scripts/autopilot-check.sh",
-    "db:migrate": "pnpm --filter @sis/api db:migrate",
+    "db:migrate:dev": "pnpm --filter @sis/api db:migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @sis/api db:migrate:deploy",
     "db:seed": "pnpm --filter @sis/api db:seed",
     "db:generate": "pnpm --filter @sis/api db:generate"
   },

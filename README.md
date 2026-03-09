@@ -43,9 +43,9 @@ cp apps/web/.env.example apps/web/.env.local
 - Set `SIS_TIMEZONE` to the institution timezone used for academic calendar and iCal export.
 - Keep `ENABLE_PUBLIC_SCHEDULE_SHARING=false` and `NEXT_PUBLIC_ENABLE_PUBLIC_SCHEDULE_SHARING=false` unless you have added expiry/revocation controls and approved the privacy risk.
 
-4. Migrate + seed
+4. Create local development schema + seed
 ```bash
-pnpm db:migrate
+pnpm db:migrate:dev
 pnpm db:seed
 ```
 
@@ -68,7 +68,8 @@ pnpm dev
 
 ## Monorepo Scripts
 - `pnpm dev` - run API + Web
-- `pnpm db:migrate` - run Prisma migration
+- `pnpm db:migrate:dev` - development-only Prisma migration workflow (`prisma migrate dev`)
+- `pnpm db:migrate:deploy` - apply committed migrations in staging/production/handoff environments (`prisma migrate deploy`)
 - `pnpm db:seed` - seed sample data
 - `pnpm db:generate` - generate Prisma client
 - `pnpm readiness:check` - static production-readiness checks
@@ -94,6 +95,11 @@ pnpm dev
 - Public schedule sharing is disabled by default for privacy reasons.
 - Admin session tracking is operational only and resets when the API process restarts.
 - Governance demos should use `Fall 2026`; seeded Spring 2026 sections are already in progress.
+
+## Migration Safety
+- `pnpm db:migrate:dev` is for local schema development only.
+- `pnpm db:migrate:deploy` is the only repo-level migration command that should be used for staging, production, Docker handoff environments, and delivery rehearsal.
+- Do not use `prisma migrate dev` during deployment or handoff validation.
 
 ## Project Tree (key)
 ```text

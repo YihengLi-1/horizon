@@ -8,7 +8,9 @@
   3. `cp .env.example .env`
   4. 填写 `.env` 中的必填项
   5. `pnpm install`
-  6. `pnpm dev`
+  6. `pnpm db:migrate:dev`
+  7. `pnpm db:seed`
+  8. `pnpm dev`
 
 ## 生产部署（Docker Compose）
 - 前置要求：Docker 24+、Docker Compose v2
@@ -17,7 +19,7 @@
   1. `cp .env.example .env` 并填写所有生产值
   2. `docker compose build`
   3. `docker compose up -d postgres`
-  4. `pnpm db:migrate` 或 `docker compose exec api npx prisma migrate deploy`
+  4. `pnpm db:migrate:deploy` 或 `docker compose exec api npx prisma migrate deploy`
   5. `pnpm db:seed`（首次初始化演示数据）
   6. `docker compose up -d`
   7. `pnpm readiness:check`
@@ -31,6 +33,15 @@
   - 浏览器流量统一走 nginx 时，将 `NEXT_PUBLIC_API_URL` 设置为 `https://your-domain/api`
   - `WEB_URL` 和 `CSRF_ALLOWED_ORIGINS` 填为外部访问域名
   - 首次启动后立即修改默认密码与 Grafana 管理员密码
+
+## 迁移命令约定
+- `pnpm db:migrate:dev`：
+  - 仅用于本地开发修改 schema 时创建/应用开发迁移
+  - 底层命令是 `prisma migrate dev`
+- `pnpm db:migrate:deploy`：
+  - 仅用于 staging / production / Docker handoff / clean rehearsal
+  - 底层命令是 `prisma migrate deploy`
+- 不要在部署环境执行 `prisma migrate dev`
 
 ## 必填环境变量说明
 - `DATABASE_URL`：PostgreSQL 连接串
