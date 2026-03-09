@@ -110,6 +110,16 @@ The repo now also includes the first real governance workflow slice:
 
 This establishes the first policy-driven academic workflow. It does **not** complete the broader approvals/holds domain.
 
+The governance implementation now also has a Phase 1 workflow-engine foundation:
+
+- explicit academic request lifecycle transition rules
+- separation between generic workflow handling and request-type-specific policy logic
+- request-type policy ownership/routing isolated from controller flow
+- request-effect handling isolated from registration service call sites
+
+That foundation is still intentionally narrow, but it changes the shape of future work:
+adding a second governed request type should extend a policy surface, not duplicate the current overload logic.
+
 ## Still Missing After This Slice
 
 - faculty grade-change workflow or registrar correction approval
