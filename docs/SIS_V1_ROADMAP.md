@@ -98,12 +98,14 @@ The repo now also includes the first real governance workflow slice:
 
 - `StudentHold` with real hold types: `REGISTRATION`, `ACADEMIC`, `FINANCIAL`
 - admin-governed hold creation and resolution APIs
+- admin holds UI for creating, filtering, and resolving holds
 - registration enforcement that blocks self-service add/enroll/precheck/submit/swap when active blocking holds exist
 - `AcademicRequest` for `CREDIT_OVERLOAD`
 - student overload request submission for a specific term
 - advisor-owned overload request review and approve/reject decisions
+- durable single-pending-request invariant for overload requests per student+term
 - credit-limit enforcement that respects an approved overload limit
-- student cart UI that shows active holds and overload request status
+- student cart UI that shows active holds and overload request status and surfaces governance load failures honestly
 - advisor request review page for assigned advisee overload requests
 
 This establishes the first policy-driven academic workflow. It does **not** complete the broader approvals/holds domain.

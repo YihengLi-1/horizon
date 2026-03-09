@@ -217,6 +217,12 @@ export default function StudentCartPage() {
   const [submitting, setSubmitting] = useState(false);
   const [activeHolds, setActiveHolds] = useState<StudentHold[]>([]);
   const [overloadRequests, setOverloadRequests] = useState<AcademicRequest[]>([]);
+  const [holdsLoading, setHoldsLoading] = useState(false);
+  const [holdsLoaded, setHoldsLoaded] = useState(false);
+  const [holdsError, setHoldsError] = useState("");
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [requestsLoaded, setRequestsLoaded] = useState(false);
+  const [requestsError, setRequestsError] = useState("");
   const [overloadReason, setOverloadReason] = useState("");
   const [submittingOverloadRequest, setSubmittingOverloadRequest] = useState(false);
   const [removingInvalid, setRemovingInvalid] = useState(false);
@@ -394,6 +400,9 @@ export default function StudentCartPage() {
     () => overloadRequests.find((request) => request.status === "APPROVED") ?? null,
     [overloadRequests]
   );
+  const governanceLoading = holdsLoading || requestsLoading;
+  const governanceError = [holdsError, requestsError].filter(Boolean).join(" ");
+  const governanceReady = holdsLoaded && requestsLoaded && !governanceError;
   const overloadRequestNeeded = useMemo(
     () =>
       cartMetrics.maxCredits !== null &&
@@ -455,7 +464,16 @@ export default function StudentCartPage() {
   const readinessChecks = useMemo(
     () => [
       { label: "Term selected", ok: Boolean(termId) },
-      { label: "No active registration hold", ok: activeHolds.length === 0 },
+      {
+        label: "Governance status available",
+        ok: governanceReady,
+        hint: governanceLoading ? "Loading" : governanceError ? "Retry required" : ""
+      },
+      {
+        label: "No active registration hold",
+        ok: governanceReady ? activeHolds.length === 0 : false,
+        hint: governanceReady ? "" : "Unavailable"
+      },
       { label: "Registration window open", ok: registrationWindow.isOpen },
       { label: "Cart has items", ok: items.length > 0 },
       {
@@ -464,7 +482,7 @@ export default function StudentCartPage() {
         hint: precheckRan ? "" : "Run precheck"
       }
     ],
-    [termId, activeHolds.length, registrationWindow.isOpen, items.length, precheckRan, hasBlockingIssues]
+    [termId, governanceReady, governanceLoading, governanceError, activeHolds.length, registrationWindow.isOpen, items.length, precheckRan, hasBlockingIssues]
   );
 
   const updateUrlTerm = (nextTermId: string) => {
@@ -529,26 +547,46 @@ export default function StudentCartPage() {
   };
 
   const loadActiveHolds = async () => {
+    setHoldsLoading(true);
+    setHoldsError("");
     try {
       const data = await apiFetch<StudentHold[]>("/governance/my-holds");
       setActiveHolds(data);
-    } catch {
+      setHoldsLoaded(true);
+    } catch (err) {
       setActiveHolds([]);
+      setHoldsLoaded(false);
+      setHoldsError(err instanceof Error ? err.message : "Unable to load registration holds");
+    } finally {
+      setHoldsLoading(false);
     }
   };
 
   const loadAcademicRequests = async (selectedTermId: string) => {
     if (!selectedTermId) {
       setOverloadRequests([]);
+      setRequestsLoaded(true);
+      setRequestsError("");
       return;
     }
 
+    setRequestsLoading(true);
+    setRequestsError("");
     try {
       const data = await apiFetch<AcademicRequest[]>(`/governance/my-requests?termId=${selectedTermId}`);
       setOverloadRequests(data.filter((request) => request.type === "CREDIT_OVERLOAD"));
-    } catch {
+      setRequestsLoaded(true);
+    } catch (err) {
       setOverloadRequests([]);
+      setRequestsLoaded(false);
+      setRequestsError(err instanceof Error ? err.message : "Unable to load academic requests");
+    } finally {
+      setRequestsLoading(false);
     }
+  };
+
+  const reloadGovernanceState = async (selectedTermId: string) => {
+    await Promise.all([loadActiveHolds(), loadAcademicRequests(selectedTermId)]);
   };
 
   useEffect(() => {
@@ -573,8 +611,7 @@ export default function StudentCartPage() {
             loadCart(initialTermId),
             loadCurrentEnrollments(initialTermId),
             loadSections(initialTermId),
-            loadActiveHolds(),
-            loadAcademicRequests(initialTermId)
+            reloadGovernanceState(initialTermId)
           ]);
         }
       } catch (err) {
@@ -596,8 +633,7 @@ export default function StudentCartPage() {
       loadCart(nextTermId),
       loadCurrentEnrollments(nextTermId),
       loadSections(nextTermId),
-      loadActiveHolds(),
-      loadAcademicRequests(nextTermId)
+      reloadGovernanceState(nextTermId)
     ]);
   };
 
@@ -661,6 +697,8 @@ export default function StudentCartPage() {
         toast(buildIssueToastMessage(issues, activeTerm?.maxCredits ?? null), "error");
       } else if (err instanceof ApiError && err.code === "ACTIVE_REGISTRATION_HOLD" && Array.isArray(err.details)) {
         setActiveHolds(err.details as StudentHold[]);
+        setHoldsLoaded(true);
+        setHoldsError("");
         const message = err.message || "Registration is blocked by an active hold.";
         setPrecheckError(message);
         toast(message, "error");
@@ -709,6 +747,8 @@ export default function StudentCartPage() {
         toast(buildIssueToastMessage(issues, activeTerm?.maxCredits ?? null), "error");
       } else if (err instanceof ApiError && err.code === "ACTIVE_REGISTRATION_HOLD" && Array.isArray(err.details)) {
         setActiveHolds(err.details as StudentHold[]);
+        setHoldsLoaded(true);
+        setHoldsError("");
         const message = err.message || "Registration is blocked by an active hold.";
         setError(message);
         toast(message, "error");
@@ -814,6 +854,23 @@ export default function StudentCartPage() {
         buttonLabel: "Browse Catalog",
         buttonTone: "neutral",
         href: catalogHref
+      };
+    }
+    if (governanceLoading) {
+      return {
+        title: "Load governance status",
+        detail: "Checking active holds and overload request status before you rely on this cart summary.",
+        tone: "slate"
+      };
+    }
+    if (governanceError) {
+      return {
+        title: "Retry governance checks",
+        detail: "Hold or request data could not be loaded. Retry before relying on governance status shown on this page.",
+        tone: "amber",
+        buttonLabel: "Retry Governance Status",
+        buttonTone: "neutral",
+        onClick: () => void reloadGovernanceState(termId)
       };
     }
     if (activeHolds.length > 0) {
@@ -1158,6 +1215,28 @@ export default function StudentCartPage() {
         {error ? <Alert type="error" message={error} /> : null}
         {precheckError ? <Alert type="error" message={precheckError} /> : null}
       </div>
+      {(governanceLoading || governanceError) ? (
+        <section className={`campus-card p-4 md:p-5 ${governanceError ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-white"}`}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">Governance Status</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Hold and overload-request data must load successfully before this page can describe your academic restrictions accurately.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void reloadGovernanceState(termId)}
+              disabled={governanceLoading}
+              className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {governanceLoading ? "Loading…" : "Retry"}
+            </button>
+          </div>
+          {holdsError ? <p className="mt-3 text-sm text-amber-800">Holds unavailable: {holdsError}</p> : null}
+          {requestsError ? <p className="mt-1 text-sm text-amber-800">Requests unavailable: {requestsError}</p> : null}
+        </section>
+      ) : null}
       {activeHolds.length > 0 ? (
         <section className="campus-card border-red-200 bg-red-50 p-4 md:p-5">
           <h2 className="text-base font-semibold text-red-900">Active Registration Holds</h2>

@@ -26,7 +26,8 @@ function createGovernanceService() {
       create: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn()
-    }
+    },
+    $transaction: jest.fn()
   } as any;
 
   const auditService = {
@@ -49,6 +50,7 @@ describe("GovernanceService", () => {
     const { prisma, auditService, service } = createGovernanceService();
     prisma.systemSetting.findUnique.mockResolvedValue({ value: "18" });
     prisma.term.findUnique.mockResolvedValue({ id: "term-1", name: "Fall 2026", maxCredits: 18 });
+    prisma.$transaction.mockImplementation(async (callback: (tx: any) => Promise<unknown>) => callback(prisma));
     prisma.advisorAssignment.findFirst.mockResolvedValue({
       advisorId: "advisor-1",
       advisor: { id: "advisor-1", role: "ADVISOR", email: "advisor1@sis.edu", advisorProfile: { displayName: "Advisor One" } }
@@ -74,6 +76,7 @@ describe("GovernanceService", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           studentId: "student-1",
+          activeRequestKey: "student-1:term-1:CREDIT_OVERLOAD",
           ownerUserId: "advisor-1",
           requiredApproverRole: "ADVISOR"
         })
@@ -93,6 +96,7 @@ describe("GovernanceService", () => {
     const { prisma, service } = createGovernanceService();
     prisma.systemSetting.findUnique.mockResolvedValue({ value: "18" });
     prisma.term.findUnique.mockResolvedValue({ id: "term-1", name: "Fall 2026", maxCredits: 18 });
+    prisma.$transaction.mockImplementation(async (callback: (tx: any) => Promise<unknown>) => callback(prisma));
     prisma.advisorAssignment.findFirst.mockResolvedValue(null);
 
     await expect(
@@ -150,6 +154,7 @@ describe("GovernanceService", () => {
         where: { id: "request-1" },
         data: expect.objectContaining({
           status: "APPROVED",
+          activeRequestKey: null,
           ownerUserId: null,
           requiredApproverRole: null,
           decidedByUserId: "advisor-1"
@@ -164,6 +169,56 @@ describe("GovernanceService", () => {
       })
     );
     expect(decided.status).toBe("APPROVED");
+  });
+
+  it("rejects duplicate pending overload requests for the same student and term", async () => {
+    const { prisma, service } = createGovernanceService();
+    prisma.systemSetting.findUnique.mockResolvedValue({ value: "18" });
+    prisma.term.findUnique.mockResolvedValue({ id: "term-1", name: "Fall 2026", maxCredits: 18 });
+    prisma.$transaction.mockImplementation(async (callback: (tx: any) => Promise<unknown>) => callback(prisma));
+    prisma.advisorAssignment.findFirst.mockResolvedValue({
+      advisorId: "advisor-1",
+      advisor: { id: "advisor-1", role: "ADVISOR", email: "advisor1@sis.edu", advisorProfile: { displayName: "Advisor One" } }
+    });
+    prisma.academicRequest.findFirst.mockResolvedValueOnce({
+      id: "request-pending",
+      status: "SUBMITTED"
+    });
+
+    await expect(
+      service.submitCreditOverloadRequest("student-1", {
+        termId: "term-1",
+        requestedCredits: 21,
+        reason: "Need one additional overload course"
+      })
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: "REQUEST_ALREADY_PENDING" })
+    });
+  });
+
+  it("maps academic request unique key violations to a clean duplicate-request error", async () => {
+    const { prisma, service } = createGovernanceService();
+    prisma.systemSetting.findUnique.mockResolvedValue({ value: "18" });
+    prisma.term.findUnique.mockResolvedValue({ id: "term-1", name: "Fall 2026", maxCredits: 18 });
+    prisma.$transaction.mockImplementation(async (callback: (tx: any) => Promise<unknown>) => {
+      prisma.advisorAssignment.findFirst.mockResolvedValue({
+        advisorId: "advisor-1",
+        advisor: { id: "advisor-1", role: "ADVISOR", email: "advisor1@sis.edu", advisorProfile: { displayName: "Advisor One" } }
+      });
+      prisma.academicRequest.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+      prisma.academicRequest.create.mockRejectedValue({ code: "P2002" });
+      return callback(prisma);
+    });
+
+    await expect(
+      service.submitCreditOverloadRequest("student-1", {
+        termId: "term-1",
+        requestedCredits: 21,
+        reason: "Need one additional overload course"
+      })
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: "REQUEST_ALREADY_PENDING" })
+    });
   });
 
   it("throws when a blocking registration hold is active", async () => {
