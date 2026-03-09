@@ -440,6 +440,28 @@ describe("RegistrationService", () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
+    it("blocks submitCart when an active registration hold exists", async () => {
+      const { governanceService, service } = createRegistrationService();
+      governanceService.assertNoBlockingHolds.mockRejectedValue(
+        new BadRequestException({ code: "ACTIVE_REGISTRATION_HOLD", message: "Registration blocked" })
+      );
+
+      await expect(
+        service.submitCart("student-1", { termId: "term-1" } as never, {} as never)
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("blocks swap when an active registration hold exists", async () => {
+      const { governanceService, service } = createRegistrationService();
+      governanceService.assertNoBlockingHolds.mockRejectedValue(
+        new BadRequestException({ code: "ACTIVE_REGISTRATION_HOLD", message: "Registration blocked" })
+      );
+      const transaction = jest.fn(async (callback: (tx: any) => Promise<unknown>) => callback({}));
+      (service as any).prisma.$transaction = transaction;
+
+      await expect(service.swap("student-1", "section-1", "section-2")).rejects.toBeInstanceOf(BadRequestException);
+    });
+
     it("precheckCart honors an approved overload limit", async () => {
       const { prisma, governanceService, service } = createRegistrationService();
       prisma.term.findUnique.mockResolvedValue({

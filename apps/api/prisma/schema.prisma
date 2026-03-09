@@ -414,6 +414,7 @@ model AcademicRequest {
   studentId            String
   type                 AcademicRequestType
   status               AcademicRequestStatus @default(SUBMITTED)
+  activeRequestKey     String?               @unique
   termId               String?
   sectionId            String?
   reason               String                @db.Text

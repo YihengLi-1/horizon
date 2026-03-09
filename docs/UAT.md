@@ -93,7 +93,36 @@ Pass/fail notes:
 - iCal export uses `SIS_TIMEZONE`
 - Public share endpoints are disabled unless explicitly enabled via env
 
-## 5. Transcript and Notifications Behavior
+## 5. Governance Holds and Overload Workflow
+Preconditions:
+- Admin, student, and advisor seeded accounts exist
+- Use `Fall 2026` for validation because its sections are future-dated and the registration window is already open
+
+Steps:
+1. Sign in as admin and open `/admin/holds`
+2. Search for `student2@sis.edu` or `S2602`
+3. Create a `REGISTRATION` hold with a clear note
+4. Sign in as `student2@sis.edu` and open `/student/cart?termId=seed-term-fall-2026`
+5. Confirm the hold is visible in the cart governance section
+6. Attempt to add or submit a section and confirm the action is blocked
+7. Sign back in as admin and resolve the hold from `/admin/holds`
+8. Sign in as `student1@sis.edu` and build a `Fall 2026` cart above 18 credits
+9. Submit a credit overload request from `/student/cart?termId=seed-term-fall-2026`
+10. Sign in as `advisor1@sis.edu` and open `/advisor/requests`
+11. Approve the request with a decision note
+12. Sign back in as `student1@sis.edu`, reopen the cart, and rerun precheck
+
+Expected result:
+- Admin can create and resolve holds without API tooling
+- Student sees authoritative hold state or an explicit governance load failure message
+- Active hold blocks registration actions explicitly
+- Approved overload request changes effective registration credit-limit behavior for `Fall 2026`
+
+Pass/fail notes:
+- No manual database date edits should be required
+- Duplicate pending overload submissions for the same student and term should be rejected cleanly
+
+## 6. Transcript and Notifications Behavior
 Preconditions:
 - Student logged in
 
@@ -111,7 +140,7 @@ Expected result:
 Pass/fail notes:
 - Verified from code: transcript and notification service methods now throw explicit server errors on failure
 
-## 6. Support Request Flow
+## 7. Support Request Flow
 Preconditions:
 - Student logged in
 - Admin account exists
@@ -130,7 +159,7 @@ Expected result:
 Pass/fail notes:
 - This is not a helpdesk queue; it is an admin-routed support request log
 
-## 7. Registrar/Admin Student Management
+## 8. Registrar/Admin Student Management
 Preconditions:
 - Admin logged in
 
@@ -150,7 +179,7 @@ Expected result:
 Pass/fail notes:
 - There is no faculty/advisor user management domain in current scope
 
-## 8. Invite Code Management
+## 9. Invite Code Management
 Preconditions:
 - Admin logged in
 
@@ -169,7 +198,7 @@ Expected result:
 Pass/fail notes:
 - Admin account creation is not driven by invite-code role semantics in this delivery scope
 
-## 9. Reports and Registrar Ops Pages
+## 10. Reports and Registrar Ops Pages
 Preconditions:
 - Admin logged in
 - Seeded data present
@@ -189,7 +218,7 @@ Expected result:
 Pass/fail notes:
 - Reports are registrar-focused operational reports, not institution-wide compliance reporting
 
-## 10. Unauthenticated Access Control
+## 11. Unauthenticated Access Control
 Preconditions:
 - No active session
 

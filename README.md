@@ -7,12 +7,14 @@ Student self-service and registrar/admin academic operations portal built as a p
 This repository is not a full institutional SIS. It currently covers:
 - student self-service registration, schedule, grades, and profile workflows
 - registrar/admin operations for courses, sections, terms, enrollments, reports, and imports
+- minimal faculty-owned section roster and grade submission
+- minimal advisor-owned advisee and credit overload review workflow
 
 It does not currently implement:
-- faculty/instructor user accounts and faculty-owned workflows
-- advisor assignment/work queues
 - billing, tuition, bursar, or financial-aid operations
 - public schedule sharing by default in production handoff mode
+- multi-step approval chains beyond credit overload
+- program, degree, and graduation audit domains
 
 ## Stack
 - `apps/web`: Next.js App Router + TypeScript + Tailwind + shadcn-style UI components
@@ -59,7 +61,10 @@ pnpm dev
 - Admin: `admin@sis.edu / Admin@2026!`
 - Student 1: `student1@sis.edu` or `S2601` / `Student@2026!`
 - Student 2: seed file contains additional sample student records; check [seed.ts](/Users/yihengli/Desktop/TA/访达/地平线/apps/api/prisma/seed.ts) before client demos
+- Faculty: `faculty1@sis.edu / Faculty@2026!`
+- Advisor: `advisor1@sis.edu / Advisor@2026!`
 - Student invite codes seeded for demos: `OPEN-2026`, `LIMIT10-2026`
+- Governance/UAT term: `Fall 2026` has future sections and an open registration window for hold and overload validation
 
 ## Monorepo Scripts
 - `pnpm dev` - run API + Web
@@ -84,10 +89,11 @@ pnpm dev
 
 ## Known Limitations
 - Invite codes create student registrations only. Admin role assignment is a separate admin action.
-- Faculty/advisor actor scaffolding exists, but there is no faculty or advisor self-service portal yet.
+- Faculty and advisor flows are real but narrow. Faculty can only manage owned section rosters and grades; advisors can only review assigned students and overload requests.
 - Student support requests are routed to admin notification logs. There is no separate helpdesk/ticketing subsystem yet.
 - Public schedule sharing is disabled by default for privacy reasons.
 - Admin session tracking is operational only and resets when the API process restarts.
+- Governance demos should use `Fall 2026`; seeded Spring 2026 sections are already in progress.
 
 ## Project Tree (key)
 ```text

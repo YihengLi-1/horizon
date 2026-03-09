@@ -6,13 +6,15 @@ This repository is ready to hand off as a student self-service plus registrar/ad
 Included scope:
 - student login, profile, schedule, transcript, notifications, cart, planner, and catalog browsing
 - registrar/admin operations for students, courses, sections, terms, enrollments, announcements, reports, imports, invite codes, and system settings
+- minimal faculty-owned section roster and grade submission
+- minimal advisor-owned advisee and credit overload review workflow
 - monitoring, health endpoints, backup scripts, Docker deployment, and static readiness checks
 
 Out of scope:
-- faculty/instructor actor accounts and faculty-owned workflows
-- advisor assignment, advising queues, and degree audit
 - billing, tuition, bursar, financial aid, refunds
 - public schedule sharing in production handoff mode
+- multi-step approvals beyond the current overload workflow
+- degree requirements, program audit, and graduation clearance
 
 ## Current Delivery Position
 Treat this as a registrar/student portal, not a full institutional SIS.
@@ -64,14 +66,17 @@ Recommended default institution setting:
 ## Demo / Seed Credentials
 - Admin: `admin@sis.edu / Admin@2026!`
 - Student: `student1@sis.edu` or `S2601` / `Student@2026!`
+- Faculty: `faculty1@sis.edu / Faculty@2026!`
+- Advisor: `advisor1@sis.edu / Advisor@2026!`
 - Seeded student invite codes: `OPEN-2026`, `LIMIT10-2026`
+- Governance/UAT term: `Fall 2026`
 
 ## Operational Limitations
 - `/admin/sessions` is operational-only session tracking backed by in-memory state. It resets on API restart.
 - `/student/contact` is a registrar/support request logger, not a helpdesk ticket queue.
 - Public schedule sharing is disabled by default and should remain disabled unless expiry/revocation/privacy controls are added.
 - If SMTP is not configured, email-dependent workflows are not institution-ready.
-- Instructor names are free-text informational fields on sections.
+- Governance validation should use the seeded `Fall 2026` term; Spring 2026 is intentionally historical/in-progress data.
 
 ## Go-Live Caveats
 - Change all seeded/demo passwords before any non-demo rollout.

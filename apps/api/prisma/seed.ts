@@ -296,6 +296,108 @@ const sections: SectionSeed[] = [
       { id: "mt-bus210-a-1", weekday: 1, startMinutes: 1020, endMinutes: 1095 },
       { id: "mt-bus210-a-2", weekday: 3, startMinutes: 1020, endMinutes: 1095 }
     ]
+  },
+  {
+    id: "section-cs201-f1",
+    termId: IDS.fall2026,
+    courseId: "course-cs201",
+    sectionCode: "CS201-F1",
+    modality: Modality.HYBRID,
+    capacity: 24,
+    credits: 4,
+    instructorName: "Prof. Ada Stone",
+    instructorUserId: IDS.faculty,
+    location: "SCI-210",
+    requireApproval: true,
+    startDate: "2026-08-24T00:00:00.000Z",
+    meetingTimes: [
+      { id: "mt-cs201-f1-1", weekday: 1, startMinutes: 540, endMinutes: 615 },
+      { id: "mt-cs201-f1-2", weekday: 3, startMinutes: 540, endMinutes: 615 }
+    ]
+  },
+  {
+    id: "section-cs220-f1",
+    termId: IDS.fall2026,
+    courseId: "course-cs220",
+    sectionCode: "CS220-F1",
+    modality: Modality.ON_CAMPUS,
+    capacity: 26,
+    credits: 3,
+    instructorName: "Prof. Gomez",
+    location: "SCI-115",
+    requireApproval: false,
+    startDate: "2026-08-24T00:00:00.000Z",
+    meetingTimes: [
+      { id: "mt-cs220-f1-1", weekday: 2, startMinutes: 630, endMinutes: 705 },
+      { id: "mt-cs220-f1-2", weekday: 4, startMinutes: 630, endMinutes: 705 }
+    ]
+  },
+  {
+    id: "section-math201-f1",
+    termId: IDS.fall2026,
+    courseId: "course-math201",
+    sectionCode: "MATH201-F1",
+    modality: Modality.ON_CAMPUS,
+    capacity: 28,
+    credits: 4,
+    instructorName: "Prof. Sullivan",
+    location: "MATH-220",
+    requireApproval: false,
+    startDate: "2026-08-24T00:00:00.000Z",
+    meetingTimes: [
+      { id: "mt-math201-f1-1", weekday: 1, startMinutes: 720, endMinutes: 795 },
+      { id: "mt-math201-f1-2", weekday: 3, startMinutes: 720, endMinutes: 795 }
+    ]
+  },
+  {
+    id: "section-eng101-f1",
+    termId: IDS.fall2026,
+    courseId: "course-eng101",
+    sectionCode: "ENG101-F1",
+    modality: Modality.ON_CAMPUS,
+    capacity: 30,
+    credits: 3,
+    instructorName: "Prof. Ada Stone",
+    instructorUserId: IDS.faculty,
+    location: "HUM-110",
+    requireApproval: false,
+    startDate: "2026-08-24T00:00:00.000Z",
+    meetingTimes: [
+      { id: "mt-eng101-f1-1", weekday: 2, startMinutes: 780, endMinutes: 855 },
+      { id: "mt-eng101-f1-2", weekday: 4, startMinutes: 780, endMinutes: 855 }
+    ]
+  },
+  {
+    id: "section-bus101-f1",
+    termId: IDS.fall2026,
+    courseId: "course-bus101",
+    sectionCode: "BUS101-F1",
+    modality: Modality.ON_CAMPUS,
+    capacity: 26,
+    credits: 3,
+    instructorName: "Dr. Kim",
+    location: "BUS-201",
+    requireApproval: false,
+    startDate: "2026-08-24T00:00:00.000Z",
+    meetingTimes: [
+      { id: "mt-bus101-f1-1", weekday: 5, startMinutes: 540, endMinutes: 660 }
+    ]
+  },
+  {
+    id: "section-cs350-f1",
+    termId: IDS.fall2026,
+    courseId: "course-cs350",
+    sectionCode: "CS350-F1",
+    modality: Modality.ONLINE,
+    capacity: 24,
+    credits: 3,
+    instructorName: "Prof. Rivera",
+    location: "Online",
+    requireApproval: false,
+    startDate: "2026-08-24T00:00:00.000Z",
+    meetingTimes: [
+      { id: "mt-cs350-f1-1", weekday: 5, startMinutes: 810, endMinutes: 885 }
+    ]
   }
 ];
 
@@ -512,8 +614,8 @@ async function main() {
       name: "Fall 2026",
       startDate: new Date("2026-08-24T00:00:00.000Z"),
       endDate: new Date("2026-12-18T23:59:59.000Z"),
-      registrationOpenAt: new Date("2026-07-15T15:00:00.000Z"),
-      registrationCloseAt: new Date("2026-08-28T23:59:59.000Z"),
+      registrationOpenAt: new Date("2026-02-15T15:00:00.000Z"),
+      registrationCloseAt: new Date("2026-09-10T23:59:59.000Z"),
       dropDeadline: new Date("2026-09-10T23:59:59.000Z"),
       maxCredits: 18,
       timezone: "America/Phoenix"
@@ -523,8 +625,8 @@ async function main() {
       name: "Fall 2026",
       startDate: new Date("2026-08-24T00:00:00.000Z"),
       endDate: new Date("2026-12-18T23:59:59.000Z"),
-      registrationOpenAt: new Date("2026-07-15T15:00:00.000Z"),
-      registrationCloseAt: new Date("2026-08-28T23:59:59.000Z"),
+      registrationOpenAt: new Date("2026-02-15T15:00:00.000Z"),
+      registrationCloseAt: new Date("2026-09-10T23:59:59.000Z"),
       dropDeadline: new Date("2026-09-10T23:59:59.000Z"),
       maxCredits: 18,
       timezone: "America/Phoenix"

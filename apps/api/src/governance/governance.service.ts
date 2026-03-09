@@ -73,87 +73,99 @@ export class GovernanceService {
         message: `Requested credits must exceed the standard limit of ${effectiveMaxCredits}`
       });
     }
+    const activeRequestKey = this.buildActiveRequestKey(studentId, input.termId, "CREDIT_OVERLOAD");
 
-    const assignment = await this.prisma.advisorAssignment.findFirst({
-      where: {
-        studentId,
-        active: true,
-        endedAt: null
-      },
-      include: {
-        advisor: {
-          select: {
-            id: true,
-            role: true,
-            advisorProfile: { select: { displayName: true } },
-            email: true
-          }
+    let request;
+    try {
+      request = await this.prisma.$transaction(async (tx) => {
+        const assignment = await tx.advisorAssignment.findFirst({
+          where: {
+            studentId,
+            active: true,
+            endedAt: null
+          },
+          include: {
+            advisor: {
+              select: {
+                id: true,
+                role: true,
+                advisorProfile: { select: { displayName: true } },
+                email: true
+              }
+            }
+          },
+          orderBy: { assignedAt: "desc" }
+        });
+
+        if (!assignment || assignment.advisor.role !== "ADVISOR") {
+          throw new BadRequestException({
+            code: "NO_ADVISOR_ASSIGNED",
+            message: "No active advisor is assigned to review overload requests"
+          });
         }
-      },
-      orderBy: { assignedAt: "desc" }
-    });
 
-    if (!assignment || assignment.advisor.role !== "ADVISOR") {
-      throw new BadRequestException({
-        code: "NO_ADVISOR_ASSIGNED",
-        message: "No active advisor is assigned to review overload requests"
-      });
-    }
-
-    const existingPending = await this.prisma.academicRequest.findFirst({
-      where: {
-        studentId,
-        termId: input.termId,
-        type: "CREDIT_OVERLOAD",
-        status: "SUBMITTED"
-      },
-      orderBy: { submittedAt: "desc" }
-    });
-    if (existingPending) {
-      throw new BadRequestException({
-        code: "REQUEST_ALREADY_PENDING",
-        message: "An overload request is already pending for this term"
-      });
-    }
-
-    const existingApproved = await this.prisma.academicRequest.findFirst({
-      where: {
-        studentId,
-        termId: input.termId,
-        type: "CREDIT_OVERLOAD",
-        status: "APPROVED"
-      },
-      orderBy: [{ decisionAt: "desc" }, { submittedAt: "desc" }]
-    });
-    if (existingApproved?.requestedCredits && existingApproved.requestedCredits >= input.requestedCredits) {
-      throw new BadRequestException({
-        code: "REQUEST_ALREADY_APPROVED",
-        message: `An approved overload request already covers up to ${existingApproved.requestedCredits} credits`
-      });
-    }
-
-    const request = await this.prisma.academicRequest.create({
-      data: {
-        studentId,
-        termId: input.termId,
-        type: "CREDIT_OVERLOAD",
-        status: "SUBMITTED",
-        reason: input.reason.trim(),
-        requestedCredits: input.requestedCredits,
-        requiredApproverRole: "ADVISOR",
-        ownerUserId: assignment.advisorId
-      },
-      include: {
-        term: { select: { id: true, name: true, maxCredits: true } },
-        owner: {
-          select: {
-            id: true,
-            email: true,
-            advisorProfile: { select: { displayName: true } }
-          }
+        const existingPending = await tx.academicRequest.findFirst({
+          where: {
+            activeRequestKey
+          },
+          orderBy: { submittedAt: "desc" }
+        });
+        if (existingPending) {
+          throw new BadRequestException({
+            code: "REQUEST_ALREADY_PENDING",
+            message: "An overload request is already pending for this term"
+          });
         }
+
+        const existingApproved = await tx.academicRequest.findFirst({
+          where: {
+            studentId,
+            termId: input.termId,
+            type: "CREDIT_OVERLOAD",
+            status: "APPROVED"
+          },
+          orderBy: [{ decisionAt: "desc" }, { submittedAt: "desc" }]
+        });
+        if (existingApproved?.requestedCredits && existingApproved.requestedCredits >= input.requestedCredits) {
+          throw new BadRequestException({
+            code: "REQUEST_ALREADY_APPROVED",
+            message: `An approved overload request already covers up to ${existingApproved.requestedCredits} credits`
+          });
+        }
+
+        return tx.academicRequest.create({
+          data: {
+            studentId,
+            termId: input.termId,
+            type: "CREDIT_OVERLOAD",
+            status: "SUBMITTED",
+            activeRequestKey,
+            reason: input.reason.trim(),
+            requestedCredits: input.requestedCredits,
+            requiredApproverRole: "ADVISOR",
+            ownerUserId: assignment.advisorId
+          },
+          include: {
+            term: { select: { id: true, name: true, maxCredits: true } },
+            owner: {
+              select: {
+                id: true,
+                email: true,
+                advisorProfile: { select: { displayName: true } }
+              }
+            }
+          }
+        });
+      });
+    } catch (error) {
+      if ((error as { code?: string } | undefined)?.code === "P2002") {
+        throw new BadRequestException({
+          code: "REQUEST_ALREADY_PENDING",
+          message: "An overload request is already pending for this term"
+        });
       }
-    });
+      throw error;
+    }
 
     await this.auditService.log({
       actorUserId: studentId,
@@ -250,6 +262,7 @@ export class GovernanceService {
       where: { id: requestId },
       data: {
         status: nextStatus,
+        activeRequestKey: null,
         decisionAt: new Date(),
         decisionNote: input.decisionNote.trim(),
         decidedByUserId: advisorUserId,
@@ -486,5 +499,9 @@ export class GovernanceService {
     if (!actor) {
       throw new ForbiddenException({ code: "ADMIN_FORBIDDEN", message: "Admin access required" });
     }
+  }
+
+  private buildActiveRequestKey(studentId: string, termId: string, type: AcademicRequestType) {
+    return `${studentId}:${termId}:${type}`;
   }
 }
