@@ -1,6 +1,7 @@
 import { Inject, Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
+import { Role } from "@prisma/client";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { PrismaService } from "../common/prisma.service";
 import { isSessionActive } from "./auth.service";
@@ -23,7 +24,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: { sub: string; role: "STUDENT" | "ADMIN"; sid?: string }) {
+  async validate(payload: { sub: string; role: Role; sid?: string }) {
     if (payload.sid && !isSessionActive(payload.sid)) {
       throw new UnauthorizedException({ code: "SESSION_REVOKED", message: "Session has been revoked" });
     }
