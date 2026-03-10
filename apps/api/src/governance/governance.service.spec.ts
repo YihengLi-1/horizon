@@ -9,11 +9,17 @@ function createGovernanceService() {
     term: {
       findUnique: jest.fn()
     },
+    section: {
+      findUnique: jest.fn()
+    },
     user: {
       findFirst: jest.fn()
     },
     advisorAssignment: {
       findFirst: jest.fn()
+    },
+    enrollment: {
+      findMany: jest.fn()
     },
     academicRequest: {
       findMany: jest.fn(),
@@ -123,6 +129,100 @@ describe("GovernanceService", () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  it("submits a prerequisite override request with the section faculty as owner", async () => {
+    const { prisma, auditService, service } = createGovernanceService();
+    prisma.$transaction.mockImplementation(async (callback: (tx: any) => Promise<unknown>) => callback(prisma));
+    prisma.section.findUnique.mockResolvedValue({
+      id: "section-1",
+      termId: "term-1",
+      instructorUserId: "faculty-1",
+      instructorUser: {
+        id: "faculty-1",
+        role: "FACULTY",
+        email: "faculty1@sis.edu",
+        facultyProfile: { displayName: "Faculty One" }
+      },
+      course: {
+        prerequisiteLinks: [
+          {
+            prerequisiteCourseId: "course-1",
+            prerequisiteCourse: { id: "course-1", code: "CS101" }
+          }
+        ]
+      }
+    });
+    prisma.enrollment.findMany.mockResolvedValue([]);
+    prisma.academicRequest.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+    prisma.academicRequest.create.mockResolvedValue({
+      id: "request-2",
+      type: "PREREQ_OVERRIDE",
+      termId: "term-1",
+      sectionId: "section-1",
+      ownerUserId: "faculty-1",
+      owner: { id: "faculty-1", email: "faculty1@sis.edu", facultyProfile: { displayName: "Faculty One" } },
+      term: { id: "term-1", name: "Fall 2026", maxCredits: 18 }
+    });
+
+    const request = await service.submitPrereqOverrideRequest("student-1", {
+      sectionId: "section-1",
+      reason: "I have equivalent prior experience and need instructor review"
+    });
+
+    expect(prisma.academicRequest.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          studentId: "student-1",
+          sectionId: "section-1",
+          ownerUserId: "faculty-1",
+          requiredApproverRole: "FACULTY",
+          activeRequestKey: "student-1:section-1:PREREQ_OVERRIDE"
+        })
+      })
+    );
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId: "student-1",
+        action: "academic_request_submit",
+        entityId: "request-2"
+      })
+    );
+    expect(request.id).toBe("request-2");
+  });
+
+  it("rejects prerequisite override when prerequisites are already satisfied", async () => {
+    const { prisma, service } = createGovernanceService();
+    prisma.$transaction.mockImplementation(async (callback: (tx: any) => Promise<unknown>) => callback(prisma));
+    prisma.section.findUnique.mockResolvedValue({
+      id: "section-1",
+      termId: "term-1",
+      instructorUserId: "faculty-1",
+      instructorUser: {
+        id: "faculty-1",
+        role: "FACULTY",
+        email: "faculty1@sis.edu",
+        facultyProfile: { displayName: "Faculty One" }
+      },
+      course: {
+        prerequisiteLinks: [
+          {
+            prerequisiteCourseId: "course-1",
+            prerequisiteCourse: { id: "course-1", code: "CS101" }
+          }
+        ]
+      }
+    });
+    prisma.enrollment.findMany.mockResolvedValue([{ section: { courseId: "course-1" } }]);
+
+    await expect(
+      service.submitPrereqOverrideRequest("student-1", {
+        sectionId: "section-1",
+        reason: "I have equivalent prior experience"
+      })
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: "PREREQ_OVERRIDE_NOT_REQUIRED" })
+    });
+  });
+
   it("allows the assigned advisor to approve a submitted overload request", async () => {
     const { prisma, auditService, service } = createGovernanceService();
     prisma.academicRequest.findFirst.mockResolvedValue({
@@ -169,6 +269,90 @@ describe("GovernanceService", () => {
       })
     );
     expect(decided.status).toBe("APPROVED");
+  });
+
+  it("prevents faculty from deciding prerequisite overrides for sections they do not own", async () => {
+    const { prisma, service } = createGovernanceService();
+    prisma.academicRequest.findFirst.mockResolvedValue({
+      id: "request-3",
+      studentId: "student-1",
+      termId: "term-1",
+      sectionId: "section-1",
+      type: "PREREQ_OVERRIDE",
+      requiredApproverRole: "FACULTY",
+      ownerUserId: "faculty-2",
+      status: "SUBMITTED",
+      student: { adviseeAssignments: [] },
+      section: {
+        id: "section-1",
+        instructorUserId: "faculty-2",
+        sectionCode: "CS201-F1",
+        course: { code: "CS201", title: "Data Structures" }
+      },
+      term: { id: "term-1", name: "Fall 2026" }
+    });
+
+    await expect(
+      service.decideFacultyRequest("faculty-1", "request-3", {
+        decision: "APPROVED",
+        decisionNote: "Approved"
+      })
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("allows the owning faculty to approve a prerequisite override request", async () => {
+    const { prisma, auditService, service } = createGovernanceService();
+    prisma.academicRequest.findFirst.mockResolvedValue({
+      id: "request-4",
+      studentId: "student-1",
+      termId: "term-1",
+      sectionId: "section-1",
+      type: "PREREQ_OVERRIDE",
+      requiredApproverRole: "FACULTY",
+      ownerUserId: "faculty-1",
+      status: "SUBMITTED",
+      student: { adviseeAssignments: [] },
+      section: {
+        id: "section-1",
+        instructorUserId: "faculty-1",
+        sectionCode: "CS201-F1",
+        course: { code: "CS201", title: "Data Structures" }
+      },
+      term: { id: "term-1", name: "Fall 2026" }
+    });
+    prisma.academicRequest.update.mockResolvedValue({
+      id: "request-4",
+      studentId: "student-1",
+      termId: "term-1",
+      sectionId: "section-1",
+      type: "PREREQ_OVERRIDE",
+      status: "APPROVED"
+    });
+
+    const decided = await service.decideFacultyRequest("faculty-1", "request-4", {
+      decision: "APPROVED",
+      decisionNote: "Instructor consent granted"
+    });
+
+    expect(decided.status).toBe("APPROVED");
+    expect(prisma.academicRequest.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "request-4" },
+        data: expect.objectContaining({
+          status: "APPROVED",
+          ownerUserId: null,
+          requiredApproverRole: null,
+          activeRequestKey: null
+        })
+      })
+    );
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId: "faculty-1",
+        action: "academic_request_decision",
+        entityId: "request-4"
+      })
+    );
   });
 
   it("rejects invalid lifecycle transitions once a request is already terminal", async () => {
@@ -272,6 +456,14 @@ describe("GovernanceService", () => {
     await expect(service.getApprovedCreditLimit(prisma, "student-1", "term-1", 18)).resolves.toBe(21);
     await expect(service.getApprovedCreditLimit(prisma, "student-1", "term-1", 18)).resolves.toBe(18);
     await expect(service.getApprovedCreditLimit(prisma, "student-1", "term-1", 18)).resolves.toBe(18);
+  });
+
+  it("uses the prerequisite override policy to check section-level approval effect", async () => {
+    const { prisma, service } = createGovernanceService();
+    prisma.academicRequest.findFirst.mockResolvedValueOnce({ id: "request-5" }).mockResolvedValueOnce(null);
+
+    await expect(service.hasApprovedPrerequisiteOverride(prisma, "student-1", "section-1")).resolves.toBe(true);
+    await expect(service.hasApprovedPrerequisiteOverride(prisma, "student-1", "section-1")).resolves.toBe(false);
   });
 
   it("creates and resolves holds only for admins", async () => {

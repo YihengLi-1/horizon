@@ -3,7 +3,8 @@ import {
   createHoldSchema,
   decideAcademicRequestSchema,
   resolveHoldSchema,
-  submitCreditOverloadRequestSchema
+  submitCreditOverloadRequestSchema,
+  submitPrereqOverrideRequestSchema
 } from "@sis/shared";
 import { CurrentUser } from "../common/current-user.decorator";
 import { JwtAuthGuard } from "../common/jwt-auth.guard";
@@ -39,6 +40,15 @@ export class GovernanceController {
     return ok(await this.governanceService.submitCreditOverloadRequest(user.userId, body as never));
   }
 
+  @Post("requests/prereq-override")
+  @Roles("STUDENT")
+  async submitPrereqOverrideRequest(
+    @CurrentUser() user: { userId: string },
+    @Body(new ZodValidationPipe(submitPrereqOverrideRequestSchema)) body: unknown
+  ) {
+    return ok(await this.governanceService.submitPrereqOverrideRequest(user.userId, body as never));
+  }
+
   @Get("advisor/requests")
   @Roles("ADVISOR")
   async listAdvisorRequests(@CurrentUser() user: { userId: string }) {
@@ -53,6 +63,22 @@ export class GovernanceController {
     @Body(new ZodValidationPipe(decideAcademicRequestSchema)) body: unknown
   ) {
     return ok(await this.governanceService.decideAdvisorRequest(user.userId, requestId, body as never));
+  }
+
+  @Get("faculty/requests")
+  @Roles("FACULTY")
+  async listFacultyRequests(@CurrentUser() user: { userId: string }) {
+    return ok(await this.governanceService.listFacultyRequests(user.userId));
+  }
+
+  @Post("faculty/requests/:requestId/decision")
+  @Roles("FACULTY")
+  async decideFacultyRequest(
+    @CurrentUser() user: { userId: string },
+    @Param("requestId") requestId: string,
+    @Body(new ZodValidationPipe(decideAcademicRequestSchema)) body: unknown
+  ) {
+    return ok(await this.governanceService.decideFacultyRequest(user.userId, requestId, body as never));
   }
 
   @Get("admin/holds")

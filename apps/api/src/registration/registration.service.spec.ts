@@ -50,7 +50,9 @@ function createRegistrationService(overrides?: Partial<Record<string, unknown>>)
 
   const governanceService = {
     assertNoBlockingHolds: jest.fn().mockResolvedValue(undefined),
-    getApprovedCreditLimit: jest.fn().mockImplementation(async (_client: unknown, _studentId: string, _termId: string, max: number) => max)
+    getApprovedCreditLimit: jest.fn().mockImplementation(async (_client: unknown, _studentId: string, _termId: string, max: number) => max),
+    hasApprovedPrerequisiteOverride: jest.fn().mockResolvedValue(false),
+    getApprovedPrerequisiteOverrideSectionIds: jest.fn().mockResolvedValue(new Set<string>())
   } as any;
 
   Object.assign(prisma, overrides);
@@ -138,6 +140,7 @@ describe("RegistrationService", () => {
         }
       ],
       passedCourseIds: new Set<string>(),
+      approvedPrereqOverrideSectionIds: new Set<string>(),
       enrolledCountBySection: new Map<string, number>(),
       maxWaitlistPositionBySection: new Map<string, number>()
     });
@@ -163,6 +166,7 @@ describe("RegistrationService", () => {
         }
       ],
       passedCourseIds: new Set<string>(),
+      approvedPrereqOverrideSectionIds: new Set<string>(),
       enrolledCountBySection: new Map<string, number>(),
       maxWaitlistPositionBySection: new Map<string, number>()
     });
@@ -251,6 +255,7 @@ describe("RegistrationService", () => {
       ],
       existingEnrollments: [],
       passedCourseIds: new Set<string>(["course-prereq"]),
+      approvedPrereqOverrideSectionIds: new Set<string>(),
       enrolledCountBySection: new Map<string, number>(),
       maxWaitlistPositionBySection: new Map<string, number>()
     });
@@ -290,6 +295,7 @@ describe("RegistrationService", () => {
       ],
       existingEnrollments: [],
       passedCourseIds: new Set<string>(),
+      approvedPrereqOverrideSectionIds: new Set<string>(),
       enrolledCountBySection: new Map<string, number>(),
       maxWaitlistPositionBySection: new Map<string, number>()
     });
@@ -297,6 +303,46 @@ describe("RegistrationService", () => {
     expect(result.issues).toEqual(
       expect.arrayContaining([expect.objectContaining({ reasonCode: "PREREQUISITE_NOT_MET" })])
     );
+  });
+
+  it("allows prerequisite-missing enrollment plans when a section override is approved", () => {
+    const { service } = createRegistrationService();
+    const result = (service as any).buildEnrollmentPlan({
+      studentId: "student-1",
+      termId: "term-1",
+      term: { startDate: new Date("2026-09-01T00:00:00Z"), maxCredits: 18 },
+      now: new Date("2026-08-01T00:00:00Z"),
+      cartItems: [
+        makeCartItem({
+          section: {
+            id: "section-1",
+            sectionCode: "SEC-1",
+            credits: 3,
+            capacity: 30,
+            requireApproval: false,
+            startDate: new Date("2026-09-01T00:00:00Z"),
+            meetingTimes: [],
+            course: {
+              code: "CS201",
+              prerequisiteLinks: [
+                {
+                  prerequisiteCourseId: "course-prereq",
+                  prerequisiteCourse: { code: "CS101" }
+                }
+              ]
+            }
+          }
+        })
+      ],
+      existingEnrollments: [],
+      passedCourseIds: new Set<string>(),
+      approvedPrereqOverrideSectionIds: new Set<string>(["section-1"]),
+      enrolledCountBySection: new Map<string, number>(),
+      maxWaitlistPositionBySection: new Map<string, number>()
+    });
+
+    expect(result.issues).toHaveLength(0);
+    expect(result.toCreate).toHaveLength(1);
   });
 
   it("returns waitlist position and ahead count", async () => {
@@ -426,6 +472,54 @@ describe("RegistrationService", () => {
         }
       });
     });
+
+    it("allows enrollment when an approved prerequisite override exists for the section", async () => {
+      const { prisma, governanceService, service } = createRegistrationService();
+      governanceService.hasApprovedPrerequisiteOverride.mockResolvedValue(true);
+      const created = {
+        id: "enrollment-2",
+        studentId: "student-1",
+        sectionId: "section-1",
+        termId: "term-1",
+        status: "ENROLLED"
+      };
+      const tx = {
+        $queryRaw: jest.fn().mockResolvedValue(undefined),
+        section: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: "section-1",
+            courseId: "course-2",
+            termId: "term-1",
+            capacity: 30,
+            requireApproval: false,
+            meetingTimes: [],
+            enrollments: [],
+            term: { id: "term-1", maxCredits: 18 },
+            course: { id: "course-2", code: "CS201" }
+          })
+        },
+        course: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: "course-2",
+            prerequisiteLinks: [
+              {
+                prerequisiteCourseId: "course-1",
+                prerequisiteCourse: { id: "course-1", code: "CS101" }
+              }
+            ]
+          })
+        },
+        enrollment: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          findMany: jest.fn().mockResolvedValue([]),
+          create: jest.fn().mockResolvedValue(created)
+        }
+      };
+      prisma.$transaction.mockImplementation(async (fn: (client: any) => Promise<unknown>) => fn(tx));
+
+      await expect(service.enroll("student-1", "section-1")).resolves.toEqual(created);
+      expect(governanceService.hasApprovedPrerequisiteOverride).toHaveBeenCalledWith(tx, "student-1", "section-1");
+    });
   });
 
   describe("governance enforcement", () => {
@@ -482,6 +576,7 @@ describe("RegistrationService", () => {
         ])
         .mockResolvedValueOnce([]);
       governanceService.getApprovedCreditLimit.mockResolvedValue(21);
+      governanceService.getApprovedPrerequisiteOverrideSectionIds.mockResolvedValue(new Set<string>());
       (service as any).getSectionEnrollmentStats = jest.fn().mockResolvedValue({
         enrolledCountBySection: new Map<string, number>(),
         maxWaitlistPositionBySection: new Map<string, number>()

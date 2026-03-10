@@ -96,7 +96,8 @@ const adminItems: NavItem[] = [
 
 const facultyItems: NavItem[] = [
   { href: "/faculty/dashboard", label: "Dashboard", icon: <LayoutDashboard className={iconClass} /> },
-  { href: "/faculty/sections", label: "My Sections", icon: <BookOpen className={iconClass} /> }
+  { href: "/faculty/sections", label: "My Sections", icon: <BookOpen className={iconClass} /> },
+  { href: "/faculty/requests", label: "Prereq Requests", icon: <ListChecks className={iconClass} /> }
 ];
 
 const advisorItems: NavItem[] = [
@@ -161,7 +162,7 @@ export function AppShell({
             { label: "系统", hrefs: ["/admin/announcements", "/admin/invite-codes", "/admin/import", "/admin/reports", "/admin/audit-logs", "/admin/notifications", "/admin/sessions", "/admin/settings"] }
           ]
         : area === "faculty"
-          ? [{ label: "Instruction", hrefs: ["/faculty/dashboard", "/faculty/sections"] }]
+          ? [{ label: "Instruction", hrefs: ["/faculty/dashboard", "/faculty/sections", "/faculty/requests"] }]
           : area === "advisor"
             ? [{ label: "Advising", hrefs: ["/advisor/dashboard", "/advisor/advisees", "/advisor/requests"] }]
         : [

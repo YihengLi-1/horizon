@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Fragment } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RegistrationStepper } from "@/components/registration-stepper";
 import { useToast } from "@/components/Toast";
@@ -110,13 +111,27 @@ type StudentHold = {
 
 type AcademicRequest = {
   id: string;
-  type: "CREDIT_OVERLOAD";
+  type: "CREDIT_OVERLOAD" | "PREREQ_OVERRIDE";
   status: "SUBMITTED" | "APPROVED" | "REJECTED" | "WITHDRAWN";
   requestedCredits?: number | null;
   reason: string;
   submittedAt: string;
   decisionAt?: string | null;
   decisionNote?: string | null;
+  section?: {
+    id: string;
+    sectionCode: string;
+    course: {
+      code: string;
+      title: string;
+    };
+  } | null;
+  owner?: {
+    id: string;
+    email: string;
+    advisorProfile?: { displayName?: string | null } | null;
+    facultyProfile?: { displayName?: string | null } | null;
+  } | null;
   term?: {
     id: string;
     name: string;
@@ -146,7 +161,7 @@ function statusBadgeClass(status: string): string {
 
 function issueHint(reasonCode: string): string | null {
   if (reasonCode === "SECTION_ALREADY_STARTED") return "Section already started. Contact registrar/support for help.";
-  if (reasonCode === "PREREQUISITE_NOT_MET") return "Complete prerequisite course(s) first or request departmental override.";
+  if (reasonCode === "PREREQUISITE_NOT_MET") return "Complete prerequisite course(s) first or request a faculty prerequisite override.";
   if (reasonCode === "TIME_CONFLICT") return "Remove or swap one of the conflicting sections.";
   if (reasonCode === "CREDIT_LIMIT_EXCEEDED") return "Reduce planned credits or request an overload approval.";
   if (reasonCode === "ALREADY_REGISTERED") return "This section is already active in your enrollments.";
@@ -216,7 +231,7 @@ export default function StudentCartPage() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [activeHolds, setActiveHolds] = useState<StudentHold[]>([]);
-  const [overloadRequests, setOverloadRequests] = useState<AcademicRequest[]>([]);
+  const [academicRequests, setAcademicRequests] = useState<AcademicRequest[]>([]);
   const [holdsLoading, setHoldsLoading] = useState(false);
   const [holdsLoaded, setHoldsLoaded] = useState(false);
   const [holdsError, setHoldsError] = useState("");
@@ -225,6 +240,9 @@ export default function StudentCartPage() {
   const [requestsError, setRequestsError] = useState("");
   const [overloadReason, setOverloadReason] = useState("");
   const [submittingOverloadRequest, setSubmittingOverloadRequest] = useState(false);
+  const [prereqOverrideReason, setPrereqOverrideReason] = useState("");
+  const [openPrereqRequestSectionId, setOpenPrereqRequestSectionId] = useState("");
+  const [submittingPrereqOverride, setSubmittingPrereqOverride] = useState(false);
   const [removingInvalid, setRemovingInvalid] = useState(false);
   const [removingItemId, setRemovingItemId] = useState("");
   const [waitlistPositions, setWaitlistPositions] = useState<Record<string, number>>({});
@@ -393,12 +411,25 @@ export default function StudentCartPage() {
     [submitIssues, precheckIssues]
   );
   const pendingOverloadRequest = useMemo(
-    () => overloadRequests.find((request) => request.status === "SUBMITTED") ?? null,
-    [overloadRequests]
+    () => academicRequests.find((request) => request.type === "CREDIT_OVERLOAD" && request.status === "SUBMITTED") ?? null,
+    [academicRequests]
   );
   const approvedOverloadRequest = useMemo(
-    () => overloadRequests.find((request) => request.status === "APPROVED") ?? null,
-    [overloadRequests]
+    () => academicRequests.find((request) => request.type === "CREDIT_OVERLOAD" && request.status === "APPROVED") ?? null,
+    [academicRequests]
+  );
+  const prereqOverrideRequests = useMemo(
+    () => academicRequests.filter((request) => request.type === "PREREQ_OVERRIDE"),
+    [academicRequests]
+  );
+  const prereqOverrideRequestBySectionId = useMemo(
+    () =>
+      new Map(
+        prereqOverrideRequests
+          .filter((request) => request.section?.id)
+          .map((request) => [request.section!.id, request] as const)
+      ),
+    [prereqOverrideRequests]
   );
   const governanceLoading = holdsLoading || requestsLoading;
   const governanceError = [holdsError, requestsError].filter(Boolean).join(" ");
@@ -564,7 +595,7 @@ export default function StudentCartPage() {
 
   const loadAcademicRequests = async (selectedTermId: string) => {
     if (!selectedTermId) {
-      setOverloadRequests([]);
+      setAcademicRequests([]);
       setRequestsLoaded(true);
       setRequestsError("");
       return;
@@ -574,10 +605,10 @@ export default function StudentCartPage() {
     setRequestsError("");
     try {
       const data = await apiFetch<AcademicRequest[]>(`/governance/my-requests?termId=${selectedTermId}`);
-      setOverloadRequests(data.filter((request) => request.type === "CREDIT_OVERLOAD"));
+      setAcademicRequests(data);
       setRequestsLoaded(true);
     } catch (err) {
-      setOverloadRequests([]);
+      setAcademicRequests([]);
       setRequestsLoaded(false);
       setRequestsError(err instanceof Error ? err.message : "Unable to load academic requests");
     } finally {
@@ -834,6 +865,29 @@ export default function StudentCartPage() {
       toast(err instanceof Error ? err.message : "提交超学分申请失败", "error");
     } finally {
       setSubmittingOverloadRequest(false);
+    }
+  };
+
+  const submitPrereqOverrideRequest = async (sectionId: string) => {
+    if (!sectionId || prereqOverrideReason.trim().length < 8) return;
+
+    try {
+      setSubmittingPrereqOverride(true);
+      await apiFetch("/governance/requests/prereq-override", {
+        method: "POST",
+        body: JSON.stringify({
+          sectionId,
+          reason: prereqOverrideReason.trim()
+        })
+      });
+      setPrereqOverrideReason("");
+      setOpenPrereqRequestSectionId("");
+      await loadAcademicRequests(termId);
+      toast("先修课豁免申请已提交，等待任课教师审核", "success");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "提交先修课豁免申请失败", "error");
+    } finally {
+      setSubmittingPrereqOverride(false);
     }
   };
   const issueAnchorHref =
@@ -1313,6 +1367,47 @@ export default function StudentCartPage() {
           ) : null}
         </section>
       ) : null}
+      {prereqOverrideRequests.length > 0 ? (
+        <section className="campus-card p-4 md:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">Prerequisite Override Requests</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Section-specific prerequisite override requests are reviewed by the faculty owner of that section.
+              </p>
+            </div>
+            <span className="campus-chip text-xs">{prereqOverrideRequests.length} request(s)</span>
+          </div>
+          <div className="mt-3 space-y-2">
+            {prereqOverrideRequests.map((request) => (
+              <div key={request.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold text-slate-900">
+                    {request.section?.course.code ?? "Course"} §{request.section?.sectionCode ?? "—"}
+                  </span>
+                  <span
+                    className={`campus-chip text-xs ${
+                      request.status === "APPROVED"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : request.status === "REJECTED"
+                          ? "border-red-200 bg-red-50 text-red-700"
+                          : "border-amber-200 bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    {request.status}
+                  </span>
+                </div>
+                <p className="mt-1">{request.reason}</p>
+                <p className="mt-2 text-xs text-slate-500">
+                  Submitted {formatDateTime(request.submittedAt)}
+                  {request.owner?.facultyProfile?.displayName ? ` · Reviewer ${request.owner.facultyProfile.displayName}` : ""}
+                </p>
+                {request.decisionNote ? <p className="mt-2 text-xs text-slate-500">Decision note: {request.decisionNote}</p> : null}
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
       {terms.length === 0 ? (
         <Alert
           type="info"
@@ -1433,6 +1528,10 @@ export default function StudentCartPage() {
           {!loading &&
             items.map((item) => {
               const rowIssues = issueMapBySectionId.get(item.section.id) ?? [];
+              const prereqIssue = rowIssues.find((issue) => issue.reasonCode === "PREREQUISITE_NOT_MET");
+              const prereqRequest = prereqOverrideRequestBySectionId.get(item.section.id) ?? null;
+              const prereqRequestBlocksNewSubmit =
+                prereqRequest?.status === "SUBMITTED" || prereqRequest?.status === "APPROVED";
               return (
                 <article
                   id={`cart-item-${item.id}`}
@@ -1475,6 +1574,57 @@ export default function StudentCartPage() {
                           {reasonCodeLabel(issue.reasonCode)}
                         </span>
                       ))}
+                    </div>
+                  ) : null}
+                  {prereqIssue ? (
+                    <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Prerequisite Override</p>
+                      <p className="mt-1 text-xs text-blue-900">{prereqIssue.message}</p>
+                      {prereqRequest && prereqRequestBlocksNewSubmit ? (
+                        <p className="mt-2 text-xs text-blue-700">
+                          Current request status: <span className="font-semibold">{prereqRequest.status}</span>
+                        </p>
+                      ) : openPrereqRequestSectionId === item.section.id ? (
+                        <div className="mt-3 space-y-2">
+                          <textarea
+                            className="campus-input min-h-24"
+                            value={prereqOverrideReason}
+                            onChange={(event) => setPrereqOverrideReason(event.target.value)}
+                            placeholder="Explain why you need this prerequisite override."
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => void submitPrereqOverrideRequest(item.section.id)}
+                              disabled={submittingPrereqOverride || prereqOverrideReason.trim().length < 8}
+                              className="inline-flex h-9 items-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {submittingPrereqOverride ? "Submitting…" : "Submit override request"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenPrereqRequestSectionId("");
+                                setPrereqOverrideReason("");
+                              }}
+                              className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenPrereqRequestSectionId(item.section.id);
+                            setPrereqOverrideReason("");
+                          }}
+                          className="mt-3 inline-flex h-9 items-center rounded-lg border border-blue-200 bg-white px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                        >
+                          Request prerequisite override
+                        </button>
+                      )}
                     </div>
                   ) : null}
                   <button
@@ -1543,10 +1693,14 @@ export default function StudentCartPage() {
               {!loading &&
                 items.map((item) => {
                   const rowIssues = issueMapBySectionId.get(item.section.id) ?? [];
+                  const prereqIssue = rowIssues.find((issue) => issue.reasonCode === "PREREQUISITE_NOT_MET");
+                  const prereqRequest = prereqOverrideRequestBySectionId.get(item.section.id) ?? null;
+                  const prereqRequestBlocksNewSubmit =
+                    prereqRequest?.status === "SUBMITTED" || prereqRequest?.status === "APPROVED";
                   return (
+                    <Fragment key={item.id}>
                     <tr
                       id={`cart-item-${item.id}`}
-                      key={item.id}
                       className={`border-b border-slate-100 transition-colors hover:bg-slate-100/60 target:bg-amber-50 ${
                         rowIssues.length > 0 ? "bg-red-50/60" : "odd:bg-white even:bg-slate-50/40"
                       } ${removingItemId === item.id ? "opacity-50" : ""}`}
@@ -1599,6 +1753,81 @@ export default function StudentCartPage() {
                         </button>
                       </td>
                     </tr>
+                    {prereqIssue ? (
+                      <tr key={`${item.id}-prereq`} className="border-b border-slate-100 bg-blue-50/70">
+                        <td colSpan={5} className="px-4 py-3">
+                          <div className="rounded-xl border border-blue-200 bg-white p-3">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Prerequisite Override</p>
+                                <p className="mt-1 text-sm text-slate-800">{prereqIssue.message}</p>
+                              </div>
+                              {prereqRequest ? (
+                                <span
+                                  className={`campus-chip text-xs ${
+                                    prereqRequest.status === "APPROVED"
+                                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                      : prereqRequest.status === "REJECTED"
+                                        ? "border-red-200 bg-red-50 text-red-700"
+                                        : "border-amber-200 bg-amber-50 text-amber-700"
+                                  }`}
+                                >
+                                  {prereqRequest.status}
+                                </span>
+                              ) : null}
+                            </div>
+                            {prereqRequest && prereqRequestBlocksNewSubmit ? (
+                              <div className="mt-2 text-xs text-slate-500">
+                                Submitted {formatDateTime(prereqRequest.submittedAt)}
+                                {prereqRequest.owner?.facultyProfile?.displayName ? ` · Reviewer ${prereqRequest.owner.facultyProfile.displayName}` : ""}
+                                {prereqRequest.decisionNote ? ` · ${prereqRequest.decisionNote}` : ""}
+                              </div>
+                            ) : openPrereqRequestSectionId === item.section.id ? (
+                              <div className="mt-3 space-y-2">
+                                <textarea
+                                  className="campus-input min-h-24"
+                                  value={prereqOverrideReason}
+                                  onChange={(event) => setPrereqOverrideReason(event.target.value)}
+                                  placeholder="Explain why you need this prerequisite override."
+                                />
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => void submitPrereqOverrideRequest(item.section.id)}
+                                    disabled={submittingPrereqOverride || prereqOverrideReason.trim().length < 8}
+                                    className="inline-flex h-9 items-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    {submittingPrereqOverride ? "Submitting…" : "Submit override request"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenPrereqRequestSectionId("");
+                                      setPrereqOverrideReason("");
+                                    }}
+                                    className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenPrereqRequestSectionId(item.section.id);
+                                  setPrereqOverrideReason("");
+                                }}
+                                className="mt-3 inline-flex h-9 items-center rounded-lg border border-blue-200 bg-white px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
+                              >
+                                Request prerequisite override
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                    </Fragment>
                   );
                 })}
             </tbody>

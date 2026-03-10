@@ -229,7 +229,7 @@ export class RegistrationService {
   private async assertPrerequisitesSatisfied(
     tx: Prisma.TransactionClient,
     studentId: string,
-    section: { courseId: string }
+    section: { id: string; courseId: string }
   ): Promise<void> {
     const courseWithPrereqs = await tx.course.findUnique({
       where: { id: section.courseId },
@@ -273,6 +273,10 @@ export class RegistrationService {
     const missing = prereqLinks.filter((link) => !completedIds.has(link.prerequisiteCourseId));
 
     if (missing.length > 0) {
+      const hasApprovedOverride = await this.governanceService.hasApprovedPrerequisiteOverride(tx, studentId, section.id);
+      if (hasApprovedOverride) {
+        return;
+      }
       const codes = missing.map((link) => link.prerequisiteCourse.code).join(", ");
       throw new BadRequestException(`PREREQ_NOT_MET: ${codes}`);
     }
@@ -329,6 +333,7 @@ export class RegistrationService {
     cartItems: CartItemWithSection[];
     existingEnrollments: ExistingEnrollmentWithMeetings[];
     passedCourseIds: Set<string>;
+    approvedPrereqOverrideSectionIds: Set<string>;
     enrolledCountBySection: Map<string, number>;
     maxWaitlistPositionBySection: Map<string, number>;
   }): {
@@ -343,6 +348,7 @@ export class RegistrationService {
       cartItems,
       existingEnrollments,
       passedCourseIds,
+      approvedPrereqOverrideSectionIds,
       enrolledCountBySection,
       maxWaitlistPositionBySection
     } = params;
@@ -395,7 +401,7 @@ export class RegistrationService {
         .map((link) => link.prerequisiteCourseId)
         .filter((courseId) => !passedCourseIds.has(courseId));
 
-      if (missingPrerequisites.length > 0) {
+      if (missingPrerequisites.length > 0 && !approvedPrereqOverrideSectionIds.has(section.id)) {
         const missingPrereqCodes = section.course.prerequisiteLinks
           .filter((link) => missingPrerequisites.includes(link.prerequisiteCourseId))
           .map((link) => link.prerequisiteCourse.code);
@@ -700,7 +706,7 @@ export class RegistrationService {
 
     const sectionIds = Array.from(new Set(cartItems.map((item) => item.sectionId)));
 
-    const [existingEnrollments, completedEnrollments, sectionStats] = await Promise.all([
+    const [existingEnrollments, completedEnrollments, sectionStats, approvedPrereqOverrideSectionIds] = await Promise.all([
       this.prisma.enrollment.findMany({
         where: {
           deletedAt: null,
@@ -724,7 +730,8 @@ export class RegistrationService {
           }
         }
       }),
-      this.getSectionEnrollmentStats(this.prisma, sectionIds)
+      this.getSectionEnrollmentStats(this.prisma, sectionIds),
+      this.governanceService.getApprovedPrerequisiteOverrideSectionIds(this.prisma, studentId, sectionIds)
     ]);
 
     const passedCourseIds = this.getPassedCourseIds(completedEnrollments);
@@ -740,6 +747,7 @@ export class RegistrationService {
       cartItems,
       existingEnrollments,
       passedCourseIds,
+      approvedPrereqOverrideSectionIds,
       enrolledCountBySection: new Map(sectionStats.enrolledCountBySection),
       maxWaitlistPositionBySection: new Map(sectionStats.maxWaitlistPositionBySection)
     });
@@ -812,7 +820,7 @@ export class RegistrationService {
 
     const sectionIds = Array.from(new Set(cartItems.map((item) => item.sectionId)));
 
-    const [existingEnrollments, completedEnrollments, sectionStats] = await Promise.all([
+    const [existingEnrollments, completedEnrollments, sectionStats, approvedPrereqOverrideSectionIds] = await Promise.all([
       this.prisma.enrollment.findMany({
         where: {
           deletedAt: null,
@@ -836,7 +844,8 @@ export class RegistrationService {
           }
         }
       }),
-      this.getSectionEnrollmentStats(this.prisma, sectionIds)
+      this.getSectionEnrollmentStats(this.prisma, sectionIds),
+      this.governanceService.getApprovedPrerequisiteOverrideSectionIds(this.prisma, studentId, sectionIds)
     ]);
 
     const passedCourseIds = this.getPassedCourseIds(completedEnrollments);
@@ -853,6 +862,7 @@ export class RegistrationService {
       cartItems,
       existingEnrollments,
       passedCourseIds,
+      approvedPrereqOverrideSectionIds,
       enrolledCountBySection: new Map(sectionStats.enrolledCountBySection),
       maxWaitlistPositionBySection: new Map(sectionStats.maxWaitlistPositionBySection)
     });
@@ -899,7 +909,7 @@ export class RegistrationService {
       const txSectionIds = Array.from(new Set(txCartItems.map((item) => item.sectionId)));
       await this.lockSectionsForUpdate(tx, txSectionIds);
 
-      const [txExistingEnrollments, txCompletedEnrollments, txSectionStats] = await Promise.all([
+      const [txExistingEnrollments, txCompletedEnrollments, txSectionStats, approvedTxPrereqOverrideSectionIds] = await Promise.all([
         tx.enrollment.findMany({
           where: {
             deletedAt: null,
@@ -923,7 +933,8 @@ export class RegistrationService {
             }
           }
         }),
-        this.getSectionEnrollmentStats(tx, txSectionIds)
+        this.getSectionEnrollmentStats(tx, txSectionIds),
+        this.governanceService.getApprovedPrerequisiteOverrideSectionIds(tx, studentId, txSectionIds)
       ]);
 
       const txPassedCourseIds = this.getPassedCourseIds(txCompletedEnrollments);
@@ -940,6 +951,7 @@ export class RegistrationService {
         cartItems: txCartItems,
         existingEnrollments: txExistingEnrollments,
         passedCourseIds: txPassedCourseIds,
+        approvedPrereqOverrideSectionIds: approvedTxPrereqOverrideSectionIds,
         enrolledCountBySection: new Map(txSectionStats.enrolledCountBySection),
         maxWaitlistPositionBySection: new Map(txSectionStats.maxWaitlistPositionBySection)
       });

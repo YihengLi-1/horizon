@@ -4,7 +4,8 @@ import type {
   CreateHoldInput,
   DecideAcademicRequestInput,
   ResolveHoldInput,
-  SubmitCreditOverloadRequestInput
+  SubmitCreditOverloadRequestInput,
+  SubmitPrereqOverrideRequestInput
 } from "@sis/shared";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../common/prisma.service";
@@ -47,7 +48,8 @@ export class GovernanceService {
           select: {
             id: true,
             email: true,
-            advisorProfile: { select: { displayName: true, department: true } }
+            advisorProfile: { select: { displayName: true, department: true } },
+            facultyProfile: { select: { displayName: true, department: true } }
           }
         },
         decidedBy: {
@@ -67,109 +69,24 @@ export class GovernanceService {
     return this.submitAcademicRequest(studentId, "CREDIT_OVERLOAD", input);
   }
 
+  async submitPrereqOverrideRequest(studentId: string, input: SubmitPrereqOverrideRequestInput) {
+    return this.submitAcademicRequest(studentId, "PREREQ_OVERRIDE", input);
+  }
+
   async listAdvisorRequests(advisorUserId: string) {
-    return this.prisma.academicRequest.findMany({
-      where: {
-        ownerUserId: advisorUserId,
-        requiredApproverRole: "ADVISOR",
-        status: "SUBMITTED",
-        student: {
-          adviseeAssignments: {
-            some: {
-              advisorId: advisorUserId,
-              active: true,
-              endedAt: null
-            }
-          }
-        }
-      },
-      include: {
-        student: {
-          select: {
-            id: true,
-            email: true,
-            studentId: true,
-            studentProfile: {
-              select: {
-                legalName: true,
-                programMajor: true,
-                academicStatus: true
-              }
-            }
-          }
-        },
-        term: { select: { id: true, name: true, maxCredits: true } }
-      },
-      orderBy: [{ submittedAt: "asc" }]
-    });
+    return this.listOwnedRequests(advisorUserId, "ADVISOR");
+  }
+
+  async listFacultyRequests(facultyUserId: string) {
+    return this.listOwnedRequests(facultyUserId, "FACULTY");
   }
 
   async decideAdvisorRequest(advisorUserId: string, requestId: string, input: DecideAcademicRequestInput) {
-    const request = await this.prisma.academicRequest.findFirst({
-      where: { id: requestId },
-      include: {
-        student: {
-          select: {
-            id: true,
-            adviseeAssignments: {
-              where: {
-                advisorId: advisorUserId,
-                active: true,
-                endedAt: null
-              },
-              select: { id: true }
-            }
-          }
-        },
-        term: { select: { id: true, name: true } }
-      }
-    });
+    return this.decideOwnedRequest(advisorUserId, "ADVISOR", requestId, input);
+  }
 
-    if (!request) {
-      throw new NotFoundException({ code: "REQUEST_NOT_FOUND", message: "Academic request not found" });
-    }
-    assertAcademicRequestOwnership({
-      actorUserId: advisorUserId,
-      actorRole: "ADVISOR",
-      ownerUserId: request.ownerUserId,
-      requiredApproverRole: request.requiredApproverRole
-    });
-    if (request.student.adviseeAssignments.length === 0) {
-      throw new ForbiddenException({ code: "REQUEST_FORBIDDEN", message: "Student is not assigned to this advisor" });
-    }
-
-    const nextStatus: AcademicRequestStatus = input.decision === "APPROVED" ? "APPROVED" : "REJECTED";
-    assertAcademicRequestTransition(request.status, nextStatus);
-    const decided = await this.prisma.academicRequest.update({
-      where: { id: requestId },
-      data: buildDecisionUpdate(advisorUserId, nextStatus, input.decisionNote),
-      include: {
-        student: {
-          select: {
-            id: true,
-            email: true,
-            studentId: true,
-            studentProfile: { select: { legalName: true } }
-          }
-        },
-        term: { select: { id: true, name: true } }
-      }
-    });
-
-    await this.auditService.log({
-      actorUserId: advisorUserId,
-      action: "academic_request_decision",
-      entityType: "academic_request",
-      entityId: decided.id,
-      metadata: {
-        decision: decided.status,
-        type: decided.type,
-        studentId: decided.studentId,
-        termId: decided.termId
-      }
-    });
-
-    return decided;
+  async decideFacultyRequest(facultyUserId: string, requestId: string, input: DecideAcademicRequestInput) {
+    return this.decideOwnedRequest(facultyUserId, "FACULTY", requestId, input);
   }
 
   async listHolds(actorUserId: string, studentId?: string) {
@@ -334,6 +251,34 @@ export class GovernanceService {
     return policy.applyApprovedEffect ? policy.applyApprovedEffect(approved, baseMaxCredits) : baseMaxCredits;
   }
 
+  async hasApprovedPrerequisiteOverride(
+    client: PrismaService | Prisma.TransactionClient,
+    studentId: string,
+    sectionId: string
+  ) {
+    const policy = getAcademicRequestPolicy<SubmitPrereqOverrideRequestInput>("PREREQ_OVERRIDE");
+    if (!policy.hasApprovedSectionEffect) return false;
+    return policy.hasApprovedSectionEffect({ client, studentId, sectionId });
+  }
+
+  async getApprovedPrerequisiteOverrideSectionIds(
+    client: PrismaService | Prisma.TransactionClient,
+    studentId: string,
+    sectionIds: string[]
+  ) {
+    if (sectionIds.length === 0) return new Set<string>();
+    const approved = await client.academicRequest.findMany({
+      where: {
+        studentId,
+        sectionId: { in: sectionIds },
+        type: "PREREQ_OVERRIDE",
+        status: "APPROVED"
+      },
+      select: { sectionId: true }
+    });
+    return new Set(approved.map((request) => request.sectionId).filter((value): value is string => Boolean(value)));
+  }
+
   private async getEffectiveMaxCredits(defaultMaxCredits: number) {
     const setting = await this.prisma.systemSetting.findUnique({
       where: { key: "max_credits_per_term" },
@@ -373,6 +318,158 @@ export class GovernanceService {
 
   private buildActiveRequestKey(studentId: string, termId: string, type: AcademicRequestType) {
     return `${studentId}:${termId}:${type}`;
+  }
+
+  private async listOwnedRequests(actorUserId: string, actorRole: Role) {
+    return this.prisma.academicRequest.findMany({
+      where: {
+        ownerUserId: actorUserId,
+        requiredApproverRole: actorRole,
+        status: "SUBMITTED",
+        ...(actorRole === "ADVISOR"
+          ? {
+              student: {
+                adviseeAssignments: {
+                  some: {
+                    advisorId: actorUserId,
+                    active: true,
+                    endedAt: null
+                  }
+                }
+              }
+            }
+          : {}),
+        ...(actorRole === "FACULTY"
+          ? {
+              section: {
+                instructorUserId: actorUserId
+              }
+            }
+          : {})
+      },
+      include: {
+        student: {
+          select: {
+            id: true,
+            email: true,
+            studentId: true,
+            studentProfile: {
+              select: {
+                legalName: true,
+                programMajor: true,
+                academicStatus: true
+              }
+            }
+          }
+        },
+        term: { select: { id: true, name: true, maxCredits: true } },
+        section: {
+          select: {
+            id: true,
+            sectionCode: true,
+            instructorUserId: true,
+            course: { select: { code: true, title: true } }
+          }
+        }
+      },
+      orderBy: [{ submittedAt: "asc" }]
+    });
+  }
+
+  private async decideOwnedRequest(
+    actorUserId: string,
+    actorRole: Role,
+    requestId: string,
+    input: DecideAcademicRequestInput
+  ) {
+    const request = await this.prisma.academicRequest.findFirst({
+      where: { id: requestId },
+      include: {
+        student: {
+          select: {
+            id: true,
+            adviseeAssignments: {
+              where: {
+                advisorId: actorUserId,
+                active: true,
+                endedAt: null
+              },
+              select: { id: true }
+            }
+          }
+        },
+        section: {
+          select: {
+            id: true,
+            instructorUserId: true,
+            sectionCode: true,
+            course: { select: { code: true, title: true } }
+          }
+        },
+        term: { select: { id: true, name: true } }
+      }
+    });
+
+    if (!request) {
+      throw new NotFoundException({ code: "REQUEST_NOT_FOUND", message: "Academic request not found" });
+    }
+
+    assertAcademicRequestOwnership({
+      actorUserId,
+      actorRole,
+      ownerUserId: request.ownerUserId,
+      requiredApproverRole: request.requiredApproverRole
+    });
+
+    if (actorRole === "ADVISOR" && request.student.adviseeAssignments.length === 0) {
+      throw new ForbiddenException({ code: "REQUEST_FORBIDDEN", message: "Student is not assigned to this advisor" });
+    }
+
+    if (actorRole === "FACULTY" && request.section?.instructorUserId !== actorUserId) {
+      throw new ForbiddenException({ code: "REQUEST_FORBIDDEN", message: "Section is not owned by this faculty member" });
+    }
+
+    const nextStatus: AcademicRequestStatus = input.decision === "APPROVED" ? "APPROVED" : "REJECTED";
+    assertAcademicRequestTransition(request.status, nextStatus);
+
+    const decided = await this.prisma.academicRequest.update({
+      where: { id: requestId },
+      data: buildDecisionUpdate(actorUserId, nextStatus, input.decisionNote),
+      include: {
+        student: {
+          select: {
+            id: true,
+            email: true,
+            studentId: true,
+            studentProfile: { select: { legalName: true } }
+          }
+        },
+        term: { select: { id: true, name: true } },
+        section: {
+          select: {
+            id: true,
+            sectionCode: true,
+            course: { select: { code: true, title: true } }
+          }
+        }
+      }
+    });
+
+    await this.auditService.log({
+      actorUserId,
+      action: "academic_request_decision",
+      entityType: "academic_request",
+      entityId: decided.id,
+      metadata: {
+        decision: decided.status,
+        type: decided.type,
+        studentId: decided.studentId,
+        termId: decided.termId,
+        sectionId: decided.sectionId
+      }
+    });
+
+    return decided;
   }
 
   private async submitAcademicRequest<TInput>(

@@ -120,12 +120,20 @@ The governance implementation now also has a Phase 1 workflow-engine foundation:
 That foundation is still intentionally narrow, but it changes the shape of future work:
 adding a second governed request type should extend a policy surface, not duplicate the current overload logic.
 
+The engine now proves that extension path with a second implemented request type:
+
+- `AcademicRequest` for `PREREQ_OVERRIDE`
+- student prerequisite-override submission for a specific target section
+- faculty-owned review for sections they teach
+- registration prerequisite enforcement that honors an approved override for that specific section only
+- student cart visibility for prerequisite-override request status
+- faculty request review page for owned prerequisite overrides
+
 ## Still Missing After This Slice
 
 - faculty grade-change workflow or registrar correction approval
 - faculty attendance, assignment, or LMS-facing instructional tools
 - faculty instructor-consent workflow
-- prereq override workflow and section-specific exception workflow
 - registrar finalization step for multi-actor approvals
 - advisor standing review workflow beyond notes and read-only enrollment visibility
 - programs, majors, minors, catalog years, and degree requirements
