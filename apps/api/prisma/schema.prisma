@@ -37,6 +37,7 @@ enum HoldType {
 
 enum AcademicRequestType {
   CREDIT_OVERLOAD
+  PREREQ_OVERRIDE
 }
 
 enum AcademicRequestStatus {

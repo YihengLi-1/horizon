@@ -11,7 +11,7 @@ export const enrollmentStatusSchema = z.enum([
   "COMPLETED"
 ]);
 export const holdTypeSchema = z.enum(["REGISTRATION", "ACADEMIC", "FINANCIAL"]);
-export const academicRequestTypeSchema = z.enum(["CREDIT_OVERLOAD"]);
+export const academicRequestTypeSchema = z.enum(["CREDIT_OVERLOAD", "PREREQ_OVERRIDE"]);
 export const academicRequestStatusSchema = z.enum(["SUBMITTED", "APPROVED", "REJECTED", "WITHDRAWN"]);
 
 export const registerSchema = z.object({
@@ -185,6 +185,11 @@ export const submitCreditOverloadRequestSchema = z.object({
   reason: z.string().min(8)
 });
 
+export const submitPrereqOverrideRequestSchema = z.object({
+  sectionId: z.string().min(1),
+  reason: z.string().min(8)
+});
+
 export const decideAcademicRequestSchema = z.object({
   decision: z.enum(["APPROVED", "REJECTED"]),
   decisionNote: z.string().min(3)
@@ -203,4 +208,5 @@ export type AssignAdvisorInput = z.infer<typeof assignAdvisorSchema>;
 export type CreateHoldInput = z.infer<typeof createHoldSchema>;
 export type ResolveHoldInput = z.infer<typeof resolveHoldSchema>;
 export type SubmitCreditOverloadRequestInput = z.infer<typeof submitCreditOverloadRequestSchema>;
+export type SubmitPrereqOverrideRequestInput = z.infer<typeof submitPrereqOverrideRequestSchema>;
 export type DecideAcademicRequestInput = z.infer<typeof decideAcademicRequestSchema>;
