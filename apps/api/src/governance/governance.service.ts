@@ -10,13 +10,72 @@ import type {
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../common/prisma.service";
 import {
+  assertAcademicRequestOpen,
   assertAcademicRequestOwnership,
-  assertAcademicRequestTransition,
-  buildDecisionUpdate
+  buildFinalDecisionUpdate,
+  buildStepDecisionUpdate,
+  buildWorkflowProgressionUpdate,
+  buildWorkflowStepSeeds,
+  getCurrentAcademicRequestStep
 } from "./academic-request.lifecycle";
 import { getAcademicRequestPolicy } from "./academic-request.policies";
 
 const HOLD_BLOCKING_TYPES: HoldType[] = ["REGISTRATION", "ACADEMIC", "FINANCIAL"];
+
+const actorSelect = {
+  id: true,
+  email: true,
+  advisorProfile: { select: { displayName: true, department: true } },
+  facultyProfile: { select: { displayName: true, department: true } }
+} satisfies Prisma.UserSelect;
+
+const academicRequestInclude = Prisma.validator<Prisma.AcademicRequestInclude>()({
+  term: { select: { id: true, name: true, maxCredits: true } },
+  section: {
+    select: {
+      id: true,
+      sectionCode: true,
+      instructorUserId: true,
+      course: { select: { code: true, title: true } }
+    }
+  },
+  student: {
+    select: {
+      id: true,
+      email: true,
+      studentId: true,
+      studentProfile: {
+        select: {
+          legalName: true,
+          programMajor: true,
+          academicStatus: true
+        }
+      }
+    }
+  },
+  owner: { select: actorSelect },
+  decidedBy: { select: actorSelect },
+  steps: {
+    orderBy: { stepOrder: "asc" },
+    include: {
+      owner: { select: actorSelect },
+      decidedBy: { select: actorSelect }
+    }
+  }
+});
+
+type StepDecisionAuditMeta = {
+  id: string;
+  stepOrder: number;
+  stepKey: string;
+};
+
+type NextOwnerAuditMeta = {
+  stepOrder: number;
+  stepKey: string;
+  ownerUserId: string | null;
+  requiredApproverRole: Role;
+};
 
 @Injectable()
 export class GovernanceService {
@@ -35,32 +94,7 @@ export class GovernanceService {
         studentId,
         ...(termId ? { termId } : {})
       },
-      include: {
-        term: { select: { id: true, name: true, maxCredits: true } },
-        section: {
-          select: {
-            id: true,
-            sectionCode: true,
-            course: { select: { code: true, title: true } }
-          }
-        },
-        owner: {
-          select: {
-            id: true,
-            email: true,
-            advisorProfile: { select: { displayName: true, department: true } },
-            facultyProfile: { select: { displayName: true, department: true } }
-          }
-        },
-        decidedBy: {
-          select: {
-            id: true,
-            email: true,
-            advisorProfile: { select: { displayName: true } },
-            facultyProfile: { select: { displayName: true } }
-          }
-        }
-      },
+      include: academicRequestInclude,
       orderBy: [{ submittedAt: "desc" }, { updatedAt: "desc" }]
     });
   }
@@ -81,12 +115,22 @@ export class GovernanceService {
     return this.listOwnedRequests(facultyUserId, "FACULTY");
   }
 
+  async listAdminRequests(adminUserId: string) {
+    await this.assertAdminActor(adminUserId);
+    return this.listOwnedRequests(adminUserId, "ADMIN");
+  }
+
   async decideAdvisorRequest(advisorUserId: string, requestId: string, input: DecideAcademicRequestInput) {
     return this.decideOwnedRequest(advisorUserId, "ADVISOR", requestId, input);
   }
 
   async decideFacultyRequest(facultyUserId: string, requestId: string, input: DecideAcademicRequestInput) {
     return this.decideOwnedRequest(facultyUserId, "FACULTY", requestId, input);
+  }
+
+  async decideAdminRequest(adminUserId: string, requestId: string, input: DecideAcademicRequestInput) {
+    await this.assertAdminActor(adminUserId);
+    return this.decideOwnedRequest(adminUserId, "ADMIN", requestId, input);
   }
 
   async listHolds(actorUserId: string, studentId?: string) {
@@ -316,8 +360,8 @@ export class GovernanceService {
     }
   }
 
-  private buildActiveRequestKey(studentId: string, termId: string, type: AcademicRequestType) {
-    return `${studentId}:${termId}:${type}`;
+  private buildActiveRequestKey(studentId: string, scopeId: string, type: string) {
+    return `${studentId}:${scopeId}:${type}`;
   }
 
   private async listOwnedRequests(actorUserId: string, actorRole: Role) {
@@ -325,6 +369,7 @@ export class GovernanceService {
       where: {
         ownerUserId: actorUserId,
         requiredApproverRole: actorRole,
+        currentStepOrder: { not: null },
         status: "SUBMITTED",
         ...(actorRole === "ADVISOR"
           ? {
@@ -347,31 +392,7 @@ export class GovernanceService {
             }
           : {})
       },
-      include: {
-        student: {
-          select: {
-            id: true,
-            email: true,
-            studentId: true,
-            studentProfile: {
-              select: {
-                legalName: true,
-                programMajor: true,
-                academicStatus: true
-              }
-            }
-          }
-        },
-        term: { select: { id: true, name: true, maxCredits: true } },
-        section: {
-          select: {
-            id: true,
-            sectionCode: true,
-            instructorUserId: true,
-            course: { select: { code: true, title: true } }
-          }
-        }
-      },
+      include: academicRequestInclude,
       orderBy: [{ submittedAt: "asc" }]
     });
   }
@@ -382,101 +403,187 @@ export class GovernanceService {
     requestId: string,
     input: DecideAcademicRequestInput
   ) {
-    const request = await this.prisma.academicRequest.findFirst({
-      where: { id: requestId },
-      include: {
-        student: {
-          select: {
-            id: true,
-            adviseeAssignments: {
-              where: {
-                advisorId: actorUserId,
-                active: true,
-                endedAt: null
+    const nextStatus: AcademicRequestStatus = input.decision === "APPROVED" ? "APPROVED" : "REJECTED";
+    let decidedStepMeta: StepDecisionAuditMeta | undefined;
+    let nextOwnerMeta: NextOwnerAuditMeta | undefined;
+
+    const request = await this.prisma.$transaction(async (tx) => {
+      const requestForDecision = await tx.academicRequest.findFirst({
+        where: { id: requestId },
+        include: {
+          term: academicRequestInclude.term,
+          section: academicRequestInclude.section,
+          owner: academicRequestInclude.owner,
+          decidedBy: academicRequestInclude.decidedBy,
+          steps: academicRequestInclude.steps,
+          student: {
+            select: {
+              id: true,
+              email: true,
+              studentId: true,
+              studentProfile: {
+                select: {
+                  legalName: true,
+                  programMajor: true,
+                  academicStatus: true
+                }
               },
-              select: { id: true }
+              adviseeAssignments: {
+                where: {
+                  advisorId: actorUserId,
+                  active: true,
+                  endedAt: null
+                },
+                select: { id: true }
+              }
             }
           }
-        },
-        section: {
-          select: {
-            id: true,
-            instructorUserId: true,
-            sectionCode: true,
-            course: { select: { code: true, title: true } }
-          }
-        },
-        term: { select: { id: true, name: true } }
-      }
-    });
-
-    if (!request) {
-      throw new NotFoundException({ code: "REQUEST_NOT_FOUND", message: "Academic request not found" });
-    }
-
-    assertAcademicRequestOwnership({
-      actorUserId,
-      actorRole,
-      ownerUserId: request.ownerUserId,
-      requiredApproverRole: request.requiredApproverRole
-    });
-
-    if (actorRole === "ADVISOR" && request.student.adviseeAssignments.length === 0) {
-      throw new ForbiddenException({ code: "REQUEST_FORBIDDEN", message: "Student is not assigned to this advisor" });
-    }
-
-    if (actorRole === "FACULTY" && request.section?.instructorUserId !== actorUserId) {
-      throw new ForbiddenException({ code: "REQUEST_FORBIDDEN", message: "Section is not owned by this faculty member" });
-    }
-
-    const nextStatus: AcademicRequestStatus = input.decision === "APPROVED" ? "APPROVED" : "REJECTED";
-    assertAcademicRequestTransition(request.status, nextStatus);
-
-    const decided = await this.prisma.academicRequest.update({
-      where: { id: requestId },
-      data: buildDecisionUpdate(actorUserId, nextStatus, input.decisionNote),
-      include: {
-        student: {
-          select: {
-            id: true,
-            email: true,
-            studentId: true,
-            studentProfile: { select: { legalName: true } }
-          }
-        },
-        term: { select: { id: true, name: true } },
-        section: {
-          select: {
-            id: true,
-            sectionCode: true,
-            course: { select: { code: true, title: true } }
-          }
         }
+      });
+
+      if (!requestForDecision) {
+        throw new NotFoundException({ code: "REQUEST_NOT_FOUND", message: "Academic request not found" });
       }
+
+      assertAcademicRequestOwnership({
+        actorUserId,
+        actorRole,
+        ownerUserId: requestForDecision.ownerUserId,
+        requiredApproverRole: requestForDecision.requiredApproverRole
+      });
+      assertAcademicRequestOpen(requestForDecision.status);
+
+      const currentStep = getCurrentAcademicRequestStep({
+        currentStepOrder: requestForDecision.currentStepOrder,
+        steps: requestForDecision.steps
+      });
+      decidedStepMeta = {
+        id: currentStep.id,
+        stepOrder: currentStep.stepOrder,
+        stepKey: currentStep.stepKey
+      };
+
+      if (
+        currentStep.requiredApproverRole !== requestForDecision.requiredApproverRole ||
+        currentStep.ownerUserId !== requestForDecision.ownerUserId
+      ) {
+        throw new BadRequestException({
+          code: "REQUEST_STEP_INVALID",
+          message: "Academic request owner does not match the current workflow step"
+        });
+      }
+
+      if (actorRole === "ADVISOR" && requestForDecision.student.adviseeAssignments.length === 0) {
+        throw new ForbiddenException({ code: "REQUEST_FORBIDDEN", message: "Student is not assigned to this advisor" });
+      }
+
+      if (actorRole === "FACULTY" && requestForDecision.section?.instructorUserId !== actorUserId) {
+        throw new ForbiddenException({ code: "REQUEST_FORBIDDEN", message: "Section is not owned by this faculty member" });
+      }
+
+      await tx.academicRequestStep.update({
+        where: { id: currentStep.id },
+        data: buildStepDecisionUpdate(actorUserId, input.decision, input.decisionNote)
+      });
+
+      const nextStep = input.decision === "APPROVED"
+        ? requestForDecision.steps.find((step) => step.stepOrder === currentStep.stepOrder + 1) ?? null
+        : null;
+
+      if (input.decision === "APPROVED" && nextStep) {
+        nextOwnerMeta = {
+          stepOrder: nextStep.stepOrder,
+          stepKey: nextStep.stepKey,
+          ownerUserId: nextStep.ownerUserId,
+          requiredApproverRole: nextStep.requiredApproverRole
+        };
+        await tx.academicRequestStep.update({
+          where: { id: nextStep.id },
+          data: { status: "PENDING" }
+        });
+
+        await tx.academicRequest.update({
+          where: { id: requestId },
+          data: buildWorkflowProgressionUpdate(nextStep)
+        });
+      } else {
+        await tx.academicRequestStep.updateMany({
+          where: {
+            requestId,
+            status: "WAITING"
+          },
+          data: {
+            status: "SKIPPED"
+          }
+        });
+
+        await tx.academicRequest.update({
+          where: { id: requestId },
+          data: buildFinalDecisionUpdate(actorUserId, nextStatus, input.decisionNote)
+        });
+      }
+
+      return tx.academicRequest.findUniqueOrThrow({
+        where: { id: requestId },
+        include: academicRequestInclude
+      });
     });
 
     await this.auditService.log({
       actorUserId,
-      action: "academic_request_decision",
-      entityType: "academic_request",
-      entityId: decided.id,
+      action: "academic_request_step_decision",
+      entityType: "academic_request_step",
+      entityId: decidedStepMeta?.id ?? request.id,
       metadata: {
-        decision: decided.status,
-        type: decided.type,
-        studentId: decided.studentId,
-        termId: decided.termId,
-        sectionId: decided.sectionId
+        requestId: request.id,
+        type: request.type,
+        studentId: request.studentId,
+        termId: request.termId,
+        sectionId: request.sectionId,
+        stepOrder: decidedStepMeta?.stepOrder ?? null,
+        stepKey: decidedStepMeta?.stepKey ?? null,
+        decision: input.decision,
+        requestStatus: request.status
       }
     });
 
-    return decided;
+    if (nextOwnerMeta) {
+      await this.auditService.log({
+        actorUserId,
+        action: "academic_request_owner_transition",
+        entityType: "academic_request",
+        entityId: request.id,
+        metadata: {
+          type: request.type,
+          studentId: request.studentId,
+          termId: request.termId,
+          sectionId: request.sectionId,
+          nextStepOrder: nextOwnerMeta.stepOrder,
+          nextStepKey: nextOwnerMeta.stepKey,
+          nextOwnerUserId: nextOwnerMeta.ownerUserId,
+          nextOwnerRole: nextOwnerMeta.requiredApproverRole
+        }
+      });
+    } else {
+      await this.auditService.log({
+        actorUserId,
+        action: "academic_request_decision",
+        entityType: "academic_request",
+        entityId: request.id,
+        metadata: {
+          decision: request.status,
+          type: request.type,
+          studentId: request.studentId,
+          termId: request.termId,
+          sectionId: request.sectionId
+        }
+      });
+    }
+
+    return request;
   }
 
-  private async submitAcademicRequest<TInput>(
-    studentId: string,
-    type: AcademicRequestType,
-    input: TInput
-  ) {
+  private async submitAcademicRequest<TInput>(studentId: string, type: AcademicRequestType, input: TInput) {
     const policy = getAcademicRequestPolicy<TInput>(type);
 
     let request;
@@ -489,16 +596,16 @@ export class GovernanceService {
           studentId,
           input,
           getEffectiveMaxCredits: (defaultMaxCredits) => this.getEffectiveMaxCredits(defaultMaxCredits),
-          buildActiveRequestKey: (requestStudentId, termId, requestType) =>
-            this.buildActiveRequestKey(requestStudentId, termId, requestType)
+          buildActiveRequestKey: (requestStudentId, scopeId, requestType) =>
+            this.buildActiveRequestKey(requestStudentId, scopeId, requestType)
         });
 
         auditMetadata = built.auditMetadata;
 
-        if (built.routing.activeRequestKey) {
+        if (built.activeRequestKey) {
           const existingPending = await tx.academicRequest.findFirst({
             where: {
-              activeRequestKey: built.routing.activeRequestKey
+              activeRequestKey: built.activeRequestKey
             },
             orderBy: { submittedAt: "desc" }
           });
@@ -507,29 +614,34 @@ export class GovernanceService {
           }
         }
 
+        const seededSteps = buildWorkflowStepSeeds(built.workflowSteps);
+        const currentStep = seededSteps[0];
+
         return tx.academicRequest.create({
           data: {
             studentId,
             type,
             status: "SUBMITTED",
+            currentStepOrder: currentStep.stepOrder,
             termId: built.payload.termId ?? null,
             sectionId: built.payload.sectionId ?? null,
             reason: built.payload.reason,
             requestedCredits: built.payload.requestedCredits ?? null,
-            requiredApproverRole: built.routing.requiredApproverRole,
-            ownerUserId: built.routing.ownerUserId,
-            activeRequestKey: built.routing.activeRequestKey ?? null
-          },
-          include: {
-            term: { select: { id: true, name: true, maxCredits: true } },
-            owner: {
-              select: {
-                id: true,
-                email: true,
-                advisorProfile: { select: { displayName: true } }
-              }
+            requiredApproverRole: currentStep.requiredApproverRole,
+            ownerUserId: currentStep.ownerUserId,
+            activeRequestKey: built.activeRequestKey ?? null,
+            steps: {
+              create: seededSteps.map((step) => ({
+                stepOrder: step.stepOrder,
+                stepKey: step.stepKey,
+                label: step.label,
+                requiredApproverRole: step.requiredApproverRole,
+                ownerUserId: step.ownerUserId,
+                status: step.status
+              }))
             }
-          }
+          },
+          include: academicRequestInclude
         });
       });
     } catch (error) {

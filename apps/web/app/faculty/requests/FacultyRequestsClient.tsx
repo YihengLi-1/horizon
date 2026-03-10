@@ -10,6 +10,7 @@ type FacultyRequest = {
   status: "SUBMITTED";
   reason: string;
   submittedAt: string;
+  currentStepOrder?: number | null;
   student: {
     id: string;
     email: string;
@@ -33,6 +34,15 @@ type FacultyRequest = {
       title: string;
     };
   } | null;
+  steps: Array<{
+    id: string;
+    stepOrder: number;
+    stepKey: string;
+    label: string;
+    status: "WAITING" | "PENDING" | "APPROVED" | "REJECTED" | "SKIPPED";
+    decisionNote?: string | null;
+    decidedAt?: string | null;
+  }>;
 };
 
 export default function FacultyRequestsClient() {
@@ -82,7 +92,7 @@ export default function FacultyRequestsClient() {
         delete next[requestId];
         return next;
       });
-      toast(decision === "APPROVED" ? "申请已批准" : "申请已拒绝", "success");
+      toast(decision === "APPROVED" ? "已提交给 registrar 终审" : "申请已拒绝", "success");
       await loadRequests();
     } catch (err) {
       if (err instanceof ApiError) {
@@ -101,7 +111,7 @@ export default function FacultyRequestsClient() {
         <p className="campus-eyebrow">Faculty Governance</p>
         <h1 className="font-heading text-3xl font-bold text-slate-900">Pending Prerequisite Overrides</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Review prerequisite override requests for sections you own. Approval allows the student to bypass prerequisite checks for that section only.
+          Review prerequisite override requests for sections you own. Faculty approval advances the request to registrar finalization.
         </p>
       </section>
 
@@ -126,8 +136,12 @@ export default function FacultyRequestsClient() {
 
       {!error && !loading && requests.length > 0 ? (
         <section className="grid gap-4 xl:grid-cols-2">
-          {requests.map((request) => (
-            <article key={request.id} className="campus-card p-5 space-y-4">
+          {requests.map((request) => {
+            const facultyStep = request.steps.find((step) => step.stepKey === "faculty_review") ?? null;
+            const finalStep = request.steps.find((step) => step.stepKey === "registrar_finalization") ?? null;
+
+            return (
+              <article key={request.id} className="campus-card p-5 space-y-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-base font-semibold text-slate-900">
@@ -148,6 +162,24 @@ export default function FacultyRequestsClient() {
                 <p className="mt-2 text-xs text-slate-500">
                   {request.term?.name ?? "Selected term"} · Submitted {new Date(request.submittedAt).toLocaleString()}
                 </p>
+              </div>
+
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Workflow Progress</p>
+                <div className="mt-2 space-y-2">
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-blue-100 bg-white px-3 py-2">
+                    <span className="font-medium">1. Faculty Review</span>
+                    <span className={`campus-chip text-[11px] ${facultyStep?.status === "PENDING" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                      {facultyStep?.status ?? "PENDING"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-blue-100 bg-white px-3 py-2">
+                    <span className="font-medium">2. Registrar Finalization</span>
+                    <span className={`campus-chip text-[11px] ${finalStep?.status === "WAITING" ? "border-slate-200 bg-slate-50 text-slate-700" : "border-blue-200 bg-blue-50 text-blue-700"}`}>
+                      {finalStep?.status ?? "WAITING"}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <label className="block">
@@ -172,7 +204,7 @@ export default function FacultyRequestsClient() {
                   disabled={savingId === request.id}
                   className="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {savingId === request.id ? "Saving…" : "Approve"}
+                  {savingId === request.id ? "Saving…" : "Forward to registrar"}
                 </button>
                 <button
                   type="button"
@@ -183,8 +215,9 @@ export default function FacultyRequestsClient() {
                   Reject
                 </button>
               </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </section>
       ) : null}
     </div>

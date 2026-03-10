@@ -109,6 +109,17 @@ type StudentHold = {
   expiresAt?: string | null;
 };
 
+type AcademicRequestStep = {
+  id: string;
+  stepOrder: number;
+  stepKey: string;
+  label: string;
+  requiredApproverRole: "ADVISOR" | "FACULTY" | "ADMIN";
+  status: "WAITING" | "PENDING" | "APPROVED" | "REJECTED" | "SKIPPED";
+  decisionNote?: string | null;
+  decidedAt?: string | null;
+};
+
 type AcademicRequest = {
   id: string;
   type: "CREDIT_OVERLOAD" | "PREREQ_OVERRIDE";
@@ -116,6 +127,7 @@ type AcademicRequest = {
   requestedCredits?: number | null;
   reason: string;
   submittedAt: string;
+  currentStepOrder?: number | null;
   decisionAt?: string | null;
   decisionNote?: string | null;
   section?: {
@@ -137,6 +149,7 @@ type AcademicRequest = {
     name: string;
     maxCredits: number;
   } | null;
+  steps: AcademicRequestStep[];
 };
 
 type NextAction = {
@@ -181,6 +194,48 @@ function formatDateTime(value: string): string {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function getCurrentWorkflowStep(request: AcademicRequest) {
+  if (!request.currentStepOrder) return null;
+  return request.steps.find((step) => step.stepOrder === request.currentStepOrder) ?? null;
+}
+
+function getRequestWorkflowLabel(request: AcademicRequest): string {
+  if (request.status === "APPROVED") return "Approved";
+  if (request.status === "REJECTED") return "Rejected";
+  if (request.status === "WITHDRAWN") return "Withdrawn";
+  const step = getCurrentWorkflowStep(request);
+  return step ? `Awaiting ${step.label}` : "Submitted";
+}
+
+function getRequestWorkflowTone(request: AcademicRequest): string {
+  if (request.status === "APPROVED") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (request.status === "REJECTED") return "border-red-200 bg-red-50 text-red-700";
+  return "border-amber-200 bg-amber-50 text-amber-700";
+}
+
+function getPreviousApprovedStep(request: AcademicRequest) {
+  return request.steps.filter((step) => step.status === "APPROVED").sort((a, b) => b.stepOrder - a.stepOrder)[0] ?? null;
+}
+
+function getWorkflowProgressNote(request: AcademicRequest) {
+  const currentStep = getCurrentWorkflowStep(request);
+  const previousApprovedStep = getPreviousApprovedStep(request);
+
+  if (request.status === "APPROVED" || request.status === "REJECTED") {
+    return null;
+  }
+
+  if (previousApprovedStep && currentStep) {
+    return `${previousApprovedStep.label} complete. Now awaiting ${currentStep.label.toLowerCase()}.`;
+  }
+
+  if (currentStep) {
+    return `${currentStep.label} is pending.`;
+  }
+
+  return null;
 }
 
 function fmt(minutes: number): string {
@@ -883,7 +938,7 @@ export default function StudentCartPage() {
       setPrereqOverrideReason("");
       setOpenPrereqRequestSectionId("");
       await loadAcademicRequests(termId);
-      toast("先修课豁免申请已提交，等待任课教师审核", "success");
+      toast("先修课豁免申请已提交，先等待任课教师审核，再进入 registrar 终审", "success");
     } catch (err) {
       toast(err instanceof Error ? err.message : "提交先修课豁免申请失败", "error");
     } finally {
@@ -1322,7 +1377,7 @@ export default function StudentCartPage() {
               </p>
             </div>
             {pendingOverloadRequest ? (
-              <span className="campus-chip border-amber-200 bg-amber-50 text-amber-700">Pending advisor review</span>
+              <span className={`campus-chip ${getRequestWorkflowTone(pendingOverloadRequest)}`}>{getRequestWorkflowLabel(pendingOverloadRequest)}</span>
             ) : approvedOverloadRequest ? (
               <span className="campus-chip border-emerald-200 bg-emerald-50 text-emerald-700">
                 Approved up to {approvedOverloadRequest.requestedCredits ?? "—"} credits
@@ -1335,6 +1390,11 @@ export default function StudentCartPage() {
                 Submitted {formatDateTime((pendingOverloadRequest ?? approvedOverloadRequest)!.submittedAt)}
               </p>
               <p className="mt-1">{(pendingOverloadRequest ?? approvedOverloadRequest)!.reason}</p>
+              {getWorkflowProgressNote((pendingOverloadRequest ?? approvedOverloadRequest)!) ? (
+                <p className="mt-2 text-xs text-slate-500">
+                  {getWorkflowProgressNote((pendingOverloadRequest ?? approvedOverloadRequest)!)}
+                </p>
+              ) : null}
               {(pendingOverloadRequest ?? approvedOverloadRequest)!.decisionNote ? (
                 <p className="mt-2 text-xs text-slate-500">
                   Decision note: {(pendingOverloadRequest ?? approvedOverloadRequest)!.decisionNote}
@@ -1373,7 +1433,7 @@ export default function StudentCartPage() {
             <div>
               <h2 className="text-base font-semibold text-slate-900">Prerequisite Override Requests</h2>
               <p className="mt-1 text-sm text-slate-600">
-                Section-specific prerequisite override requests are reviewed by the faculty owner of that section.
+                Section-specific prerequisite override requests move from faculty review to registrar finalization before the override takes effect.
               </p>
             </div>
             <span className="campus-chip text-xs">{prereqOverrideRequests.length} request(s)</span>
@@ -1385,23 +1445,14 @@ export default function StudentCartPage() {
                   <span className="font-semibold text-slate-900">
                     {request.section?.course.code ?? "Course"} §{request.section?.sectionCode ?? "—"}
                   </span>
-                  <span
-                    className={`campus-chip text-xs ${
-                      request.status === "APPROVED"
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : request.status === "REJECTED"
-                          ? "border-red-200 bg-red-50 text-red-700"
-                          : "border-amber-200 bg-amber-50 text-amber-700"
-                    }`}
-                  >
-                    {request.status}
-                  </span>
+                  <span className={`campus-chip text-xs ${getRequestWorkflowTone(request)}`}>{getRequestWorkflowLabel(request)}</span>
                 </div>
                 <p className="mt-1">{request.reason}</p>
                 <p className="mt-2 text-xs text-slate-500">
                   Submitted {formatDateTime(request.submittedAt)}
                   {request.owner?.facultyProfile?.displayName ? ` · Reviewer ${request.owner.facultyProfile.displayName}` : ""}
                 </p>
+                {getWorkflowProgressNote(request) ? <p className="mt-2 text-xs text-slate-500">{getWorkflowProgressNote(request)}</p> : null}
                 {request.decisionNote ? <p className="mt-2 text-xs text-slate-500">Decision note: {request.decisionNote}</p> : null}
               </div>
             ))}
@@ -1581,9 +1632,13 @@ export default function StudentCartPage() {
                       <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Prerequisite Override</p>
                       <p className="mt-1 text-xs text-blue-900">{prereqIssue.message}</p>
                       {prereqRequest && prereqRequestBlocksNewSubmit ? (
-                        <p className="mt-2 text-xs text-blue-700">
-                          Current request status: <span className="font-semibold">{prereqRequest.status}</span>
-                        </p>
+                        <div className="mt-2 space-y-1 text-xs text-blue-700">
+                          <p>
+                            Current request status: <span className="font-semibold">{getRequestWorkflowLabel(prereqRequest)}</span>
+                          </p>
+                          {getWorkflowProgressNote(prereqRequest) ? <p>{getWorkflowProgressNote(prereqRequest)}</p> : null}
+                          {prereqRequest.decisionNote ? <p>{prereqRequest.decisionNote}</p> : null}
+                        </div>
                       ) : openPrereqRequestSectionId === item.section.id ? (
                         <div className="mt-3 space-y-2">
                           <textarea
@@ -1763,16 +1818,8 @@ export default function StudentCartPage() {
                                 <p className="mt-1 text-sm text-slate-800">{prereqIssue.message}</p>
                               </div>
                               {prereqRequest ? (
-                                <span
-                                  className={`campus-chip text-xs ${
-                                    prereqRequest.status === "APPROVED"
-                                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                      : prereqRequest.status === "REJECTED"
-                                        ? "border-red-200 bg-red-50 text-red-700"
-                                        : "border-amber-200 bg-amber-50 text-amber-700"
-                                  }`}
-                                >
-                                  {prereqRequest.status}
+                                <span className={`campus-chip text-xs ${getRequestWorkflowTone(prereqRequest)}`}>
+                                  {getRequestWorkflowLabel(prereqRequest)}
                                 </span>
                               ) : null}
                             </div>
@@ -1780,7 +1827,11 @@ export default function StudentCartPage() {
                               <div className="mt-2 text-xs text-slate-500">
                                 Submitted {formatDateTime(prereqRequest.submittedAt)}
                                 {prereqRequest.owner?.facultyProfile?.displayName ? ` · Reviewer ${prereqRequest.owner.facultyProfile.displayName}` : ""}
-                                {prereqRequest.decisionNote ? ` · ${prereqRequest.decisionNote}` : ""}
+                                {getWorkflowProgressNote(prereqRequest)
+                                  ? ` · ${getWorkflowProgressNote(prereqRequest)}`
+                                  : prereqRequest.decisionNote
+                                    ? ` · ${prereqRequest.decisionNote}`
+                                    : ""}
                               </div>
                             ) : openPrereqRequestSectionId === item.section.id ? (
                               <div className="mt-3 space-y-2">

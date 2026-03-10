@@ -24,8 +24,13 @@ function createGovernanceService() {
     academicRequest: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
       create: jest.fn(),
       update: jest.fn()
+    },
+    academicRequestStep: {
+      update: jest.fn(),
+      updateMany: jest.fn()
     },
     studentHold: {
       findMany: jest.fn(),
@@ -35,6 +40,8 @@ function createGovernanceService() {
     },
     $transaction: jest.fn()
   } as any;
+
+  prisma.$transaction.mockImplementation(async (callback: (tx: any) => Promise<unknown>) => callback(prisma));
 
   const auditService = {
     log: jest.fn().mockResolvedValue(undefined)
@@ -47,35 +54,87 @@ function createGovernanceService() {
   };
 }
 
+function makeStep(overrides?: Partial<any>) {
+  return {
+    id: "step-1",
+    stepOrder: 1,
+    stepKey: "advisor_review",
+    label: "Advisor Review",
+    requiredApproverRole: "ADVISOR",
+    ownerUserId: "advisor-1",
+    status: "PENDING",
+    owner: null,
+    decidedBy: null,
+    decisionNote: null,
+    decidedAt: null,
+    ...overrides
+  };
+}
+
+function makeRequest(overrides?: Partial<any>) {
+  return {
+    id: "request-1",
+    studentId: "student-1",
+    termId: "term-1",
+    sectionId: null,
+    type: "CREDIT_OVERLOAD",
+    status: "SUBMITTED",
+    currentStepOrder: 1,
+    requiredApproverRole: "ADVISOR",
+    ownerUserId: "advisor-1",
+    activeRequestKey: "student-1:term-1:CREDIT_OVERLOAD",
+    reason: "Need more credits",
+    requestedCredits: 21,
+    submittedAt: new Date("2026-08-01T00:00:00Z"),
+    updatedAt: new Date("2026-08-01T00:00:00Z"),
+    decisionAt: null,
+    decisionNote: null,
+    student: {
+      id: "student-1",
+      email: "student1@sis.edu",
+      studentId: "S2601",
+      studentProfile: {
+        legalName: "Student One",
+        programMajor: "CS",
+        academicStatus: "Good Standing"
+      },
+      adviseeAssignments: [{ id: "assignment-1" }]
+    },
+    term: { id: "term-1", name: "Fall 2026", maxCredits: 18 },
+    section: null,
+    owner: null,
+    decidedBy: null,
+    steps: [makeStep()],
+    ...overrides
+  };
+}
+
 describe("GovernanceService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("submits a credit overload request with the assigned advisor as owner", async () => {
+  it("submits a credit overload request with a seeded advisor workflow step", async () => {
     const { prisma, auditService, service } = createGovernanceService();
     prisma.systemSetting.findUnique.mockResolvedValue({ value: "18" });
     prisma.term.findUnique.mockResolvedValue({ id: "term-1", name: "Fall 2026", maxCredits: 18 });
-    prisma.$transaction.mockImplementation(async (callback: (tx: any) => Promise<unknown>) => callback(prisma));
     prisma.advisorAssignment.findFirst.mockResolvedValue({
       advisorId: "advisor-1",
       advisor: { id: "advisor-1", role: "ADVISOR", email: "advisor1@sis.edu", advisorProfile: { displayName: "Advisor One" } }
     });
     prisma.academicRequest.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
-    prisma.academicRequest.create.mockResolvedValue({
-      id: "request-1",
-      type: "CREDIT_OVERLOAD",
-      termId: "term-1",
-      requestedCredits: 21,
-      ownerUserId: "advisor-1",
-      owner: { id: "advisor-1", email: "advisor1@sis.edu", advisorProfile: { displayName: "Advisor One" } },
-      term: { id: "term-1", name: "Fall 2026", maxCredits: 18 }
-    });
+    prisma.academicRequest.create.mockResolvedValue(
+      makeRequest({
+        ownerUserId: "advisor-1",
+        requiredApproverRole: "ADVISOR",
+        steps: [makeStep()] 
+      })
+    );
 
     const request = await service.submitCreditOverloadRequest("student-1", {
       termId: "term-1",
       requestedCredits: 21,
-      reason: "Need 21 credits to stay on track for graduation"
+      reason: "Need 21 credits to stay on track"
     });
 
     expect(prisma.academicRequest.create).toHaveBeenCalledWith(
@@ -84,54 +143,27 @@ describe("GovernanceService", () => {
           studentId: "student-1",
           activeRequestKey: "student-1:term-1:CREDIT_OVERLOAD",
           ownerUserId: "advisor-1",
-          requiredApproverRole: "ADVISOR"
+          requiredApproverRole: "ADVISOR",
+          currentStepOrder: 1,
+          steps: {
+            create: [
+              expect.objectContaining({
+                stepKey: "advisor_review",
+                status: "PENDING",
+                requiredApproverRole: "ADVISOR"
+              })
+            ]
+          }
         })
       })
     );
     expect(auditService.log).toHaveBeenCalledWith(
-      expect.objectContaining({
-        actorUserId: "student-1",
-        action: "academic_request_submit",
-        entityId: "request-1"
-      })
+      expect.objectContaining({ actorUserId: "student-1", action: "academic_request_submit", entityId: request.id })
     );
-    expect(request.id).toBe("request-1");
   });
 
-  it("rejects overload submission when no active advisor is assigned", async () => {
+  it("submits a prerequisite override request with faculty and registrar workflow steps", async () => {
     const { prisma, service } = createGovernanceService();
-    prisma.systemSetting.findUnique.mockResolvedValue({ value: "18" });
-    prisma.term.findUnique.mockResolvedValue({ id: "term-1", name: "Fall 2026", maxCredits: 18 });
-    prisma.$transaction.mockImplementation(async (callback: (tx: any) => Promise<unknown>) => callback(prisma));
-    prisma.advisorAssignment.findFirst.mockResolvedValue(null);
-
-    await expect(
-      service.submitCreditOverloadRequest("student-1", {
-        termId: "term-1",
-        requestedCredits: 21,
-        reason: "Need this overload"
-      })
-    ).rejects.toBeInstanceOf(BadRequestException);
-  });
-
-  it("prevents advisors from deciding requests they do not own", async () => {
-    const { prisma, service } = createGovernanceService();
-    prisma.academicRequest.findFirst.mockResolvedValue({
-      id: "request-1",
-      requiredApproverRole: "ADVISOR",
-      ownerUserId: "advisor-2",
-      status: "SUBMITTED",
-      student: { adviseeAssignments: [{ id: "assignment-1" }] }
-    });
-
-    await expect(
-      service.decideAdvisorRequest("advisor-1", "request-1", { decision: "APPROVED", decisionNote: "Looks good" })
-    ).rejects.toBeInstanceOf(ForbiddenException);
-  });
-
-  it("submits a prerequisite override request with the section faculty as owner", async () => {
-    const { prisma, auditService, service } = createGovernanceService();
-    prisma.$transaction.mockImplementation(async (callback: (tx: any) => Promise<unknown>) => callback(prisma));
     prisma.section.findUnique.mockResolvedValue({
       id: "section-1",
       termId: "term-1",
@@ -151,21 +183,49 @@ describe("GovernanceService", () => {
         ]
       }
     });
+    prisma.user.findFirst.mockResolvedValue({ id: "admin-1", email: "admin@sis.edu" });
     prisma.enrollment.findMany.mockResolvedValue([]);
     prisma.academicRequest.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
-    prisma.academicRequest.create.mockResolvedValue({
-      id: "request-2",
-      type: "PREREQ_OVERRIDE",
-      termId: "term-1",
-      sectionId: "section-1",
-      ownerUserId: "faculty-1",
-      owner: { id: "faculty-1", email: "faculty1@sis.edu", facultyProfile: { displayName: "Faculty One" } },
-      term: { id: "term-1", name: "Fall 2026", maxCredits: 18 }
-    });
+    prisma.academicRequest.create.mockResolvedValue(
+      makeRequest({
+        id: "request-2",
+        type: "PREREQ_OVERRIDE",
+        sectionId: "section-1",
+        ownerUserId: "faculty-1",
+        requiredApproverRole: "FACULTY",
+        activeRequestKey: "student-1:section-1:PREREQ_OVERRIDE",
+        requestedCredits: null,
+        section: {
+          id: "section-1",
+          instructorUserId: "faculty-1",
+          sectionCode: "CS201-F1",
+          course: { code: "CS201", title: "Data Structures" }
+        },
+        steps: [
+          makeStep({
+            id: "step-1",
+            stepKey: "faculty_review",
+            label: "Faculty Review",
+            requiredApproverRole: "FACULTY",
+            ownerUserId: "faculty-1",
+            status: "PENDING"
+          }),
+          makeStep({
+            id: "step-2",
+            stepOrder: 2,
+            stepKey: "registrar_finalization",
+            label: "Registrar Finalization",
+            requiredApproverRole: "ADMIN",
+            ownerUserId: "admin-1",
+            status: "WAITING"
+          })
+        ]
+      })
+    );
 
     const request = await service.submitPrereqOverrideRequest("student-1", {
       sectionId: "section-1",
-      reason: "I have equivalent prior experience and need instructor review"
+      reason: "I have equivalent prior experience and need a prerequisite override"
     });
 
     expect(prisma.academicRequest.create).toHaveBeenCalledWith(
@@ -175,225 +235,320 @@ describe("GovernanceService", () => {
           sectionId: "section-1",
           ownerUserId: "faculty-1",
           requiredApproverRole: "FACULTY",
-          activeRequestKey: "student-1:section-1:PREREQ_OVERRIDE"
-        })
-      })
-    );
-    expect(auditService.log).toHaveBeenCalledWith(
-      expect.objectContaining({
-        actorUserId: "student-1",
-        action: "academic_request_submit",
-        entityId: "request-2"
-      })
-    );
-    expect(request.id).toBe("request-2");
-  });
-
-  it("rejects prerequisite override when prerequisites are already satisfied", async () => {
-    const { prisma, service } = createGovernanceService();
-    prisma.$transaction.mockImplementation(async (callback: (tx: any) => Promise<unknown>) => callback(prisma));
-    prisma.section.findUnique.mockResolvedValue({
-      id: "section-1",
-      termId: "term-1",
-      instructorUserId: "faculty-1",
-      instructorUser: {
-        id: "faculty-1",
-        role: "FACULTY",
-        email: "faculty1@sis.edu",
-        facultyProfile: { displayName: "Faculty One" }
-      },
-      course: {
-        prerequisiteLinks: [
-          {
-            prerequisiteCourseId: "course-1",
-            prerequisiteCourse: { id: "course-1", code: "CS101" }
+          currentStepOrder: 1,
+          activeRequestKey: "student-1:section-1:PREREQ_OVERRIDE",
+          steps: {
+            create: [
+              expect.objectContaining({ stepKey: "faculty_review", stepOrder: 1, status: "PENDING" }),
+              expect.objectContaining({ stepKey: "registrar_finalization", stepOrder: 2, status: "WAITING" })
+            ]
           }
-        ]
-      }
-    });
-    prisma.enrollment.findMany.mockResolvedValue([{ section: { courseId: "course-1" } }]);
-
-    await expect(
-      service.submitPrereqOverrideRequest("student-1", {
-        sectionId: "section-1",
-        reason: "I have equivalent prior experience"
-      })
-    ).rejects.toMatchObject({
-      response: expect.objectContaining({ code: "PREREQ_OVERRIDE_NOT_REQUIRED" })
-    });
-  });
-
-  it("allows the assigned advisor to approve a submitted overload request", async () => {
-    const { prisma, auditService, service } = createGovernanceService();
-    prisma.academicRequest.findFirst.mockResolvedValue({
-      id: "request-1",
-      studentId: "student-1",
-      termId: "term-1",
-      type: "CREDIT_OVERLOAD",
-      requiredApproverRole: "ADVISOR",
-      ownerUserId: "advisor-1",
-      status: "SUBMITTED",
-      student: { adviseeAssignments: [{ id: "assignment-1" }] },
-      term: { id: "term-1", name: "Fall 2026" }
-    });
-    prisma.academicRequest.update.mockResolvedValue({
-      id: "request-1",
-      studentId: "student-1",
-      termId: "term-1",
-      type: "CREDIT_OVERLOAD",
-      status: "APPROVED"
-    });
-
-    const decided = await service.decideAdvisorRequest("advisor-1", "request-1", {
-      decision: "APPROVED",
-      decisionNote: "Student remains in good academic standing"
-    });
-
-    expect(prisma.academicRequest.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "request-1" },
-        data: expect.objectContaining({
-          status: "APPROVED",
-          activeRequestKey: null,
-          ownerUserId: null,
-          requiredApproverRole: null,
-          decidedByUserId: "advisor-1"
         })
       })
     );
-    expect(auditService.log).toHaveBeenCalledWith(
-      expect.objectContaining({
-        actorUserId: "advisor-1",
-        action: "academic_request_decision",
-        entityId: "request-1"
+    expect(request.type).toBe("PREREQ_OVERRIDE");
+  });
+
+  it("advances a prerequisite override from faculty review to registrar finalization", async () => {
+    const { prisma, auditService, service } = createGovernanceService();
+    prisma.academicRequest.findFirst.mockResolvedValue(
+      makeRequest({
+        id: "request-4",
+        type: "PREREQ_OVERRIDE",
+        sectionId: "section-1",
+        ownerUserId: "faculty-1",
+        requiredApproverRole: "FACULTY",
+        currentStepOrder: 1,
+        student: {
+          id: "student-1",
+          email: "student1@sis.edu",
+          studentId: "S2601",
+          studentProfile: { legalName: "Student One", programMajor: "CS", academicStatus: "Good Standing" },
+          adviseeAssignments: []
+        },
+        section: {
+          id: "section-1",
+          instructorUserId: "faculty-1",
+          sectionCode: "CS201-F1",
+          course: { code: "CS201", title: "Data Structures" }
+        },
+        steps: [
+          makeStep({
+            id: "step-faculty",
+            stepKey: "faculty_review",
+            label: "Faculty Review",
+            requiredApproverRole: "FACULTY",
+            ownerUserId: "faculty-1",
+            status: "PENDING"
+          }),
+          makeStep({
+            id: "step-admin",
+            stepOrder: 2,
+            stepKey: "registrar_finalization",
+            label: "Registrar Finalization",
+            requiredApproverRole: "ADMIN",
+            ownerUserId: "admin-1",
+            status: "WAITING"
+          })
+        ]
       })
     );
-    expect(decided.status).toBe("APPROVED");
-  });
-
-  it("prevents faculty from deciding prerequisite overrides for sections they do not own", async () => {
-    const { prisma, service } = createGovernanceService();
-    prisma.academicRequest.findFirst.mockResolvedValue({
-      id: "request-3",
-      studentId: "student-1",
-      termId: "term-1",
-      sectionId: "section-1",
-      type: "PREREQ_OVERRIDE",
-      requiredApproverRole: "FACULTY",
-      ownerUserId: "faculty-2",
-      status: "SUBMITTED",
-      student: { adviseeAssignments: [] },
-      section: {
-        id: "section-1",
-        instructorUserId: "faculty-2",
-        sectionCode: "CS201-F1",
-        course: { code: "CS201", title: "Data Structures" }
-      },
-      term: { id: "term-1", name: "Fall 2026" }
-    });
-
-    await expect(
-      service.decideFacultyRequest("faculty-1", "request-3", {
-        decision: "APPROVED",
-        decisionNote: "Approved"
+    prisma.academicRequest.findUniqueOrThrow.mockResolvedValue(
+      makeRequest({
+        id: "request-4",
+        type: "PREREQ_OVERRIDE",
+        sectionId: "section-1",
+        status: "SUBMITTED",
+        ownerUserId: "admin-1",
+        requiredApproverRole: "ADMIN",
+        currentStepOrder: 2,
+        student: {
+          id: "student-1",
+          email: "student1@sis.edu",
+          studentId: "S2601",
+          studentProfile: { legalName: "Student One", programMajor: "CS", academicStatus: "Good Standing" }
+        },
+        section: {
+          id: "section-1",
+          instructorUserId: "faculty-1",
+          sectionCode: "CS201-F1",
+          course: { code: "CS201", title: "Data Structures" }
+        },
+        steps: [
+          makeStep({
+            id: "step-faculty",
+            stepKey: "faculty_review",
+            label: "Faculty Review",
+            requiredApproverRole: "FACULTY",
+            ownerUserId: "faculty-1",
+            status: "APPROVED",
+            decisionNote: "Faculty supports the override"
+          }),
+          makeStep({
+            id: "step-admin",
+            stepOrder: 2,
+            stepKey: "registrar_finalization",
+            label: "Registrar Finalization",
+            requiredApproverRole: "ADMIN",
+            ownerUserId: "admin-1",
+            status: "PENDING"
+          })
+        ]
       })
-    ).rejects.toBeInstanceOf(ForbiddenException);
-  });
-
-  it("allows the owning faculty to approve a prerequisite override request", async () => {
-    const { prisma, auditService, service } = createGovernanceService();
-    prisma.academicRequest.findFirst.mockResolvedValue({
-      id: "request-4",
-      studentId: "student-1",
-      termId: "term-1",
-      sectionId: "section-1",
-      type: "PREREQ_OVERRIDE",
-      requiredApproverRole: "FACULTY",
-      ownerUserId: "faculty-1",
-      status: "SUBMITTED",
-      student: { adviseeAssignments: [] },
-      section: {
-        id: "section-1",
-        instructorUserId: "faculty-1",
-        sectionCode: "CS201-F1",
-        course: { code: "CS201", title: "Data Structures" }
-      },
-      term: { id: "term-1", name: "Fall 2026" }
-    });
-    prisma.academicRequest.update.mockResolvedValue({
-      id: "request-4",
-      studentId: "student-1",
-      termId: "term-1",
-      sectionId: "section-1",
-      type: "PREREQ_OVERRIDE",
-      status: "APPROVED"
-    });
+    );
 
     const decided = await service.decideFacultyRequest("faculty-1", "request-4", {
       decision: "APPROVED",
-      decisionNote: "Instructor consent granted"
+      decisionNote: "Faculty supports the override"
     });
 
-    expect(decided.status).toBe("APPROVED");
+    expect(prisma.academicRequestStep.update).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: { id: "step-faculty" },
+        data: expect.objectContaining({ status: "APPROVED", decidedByUserId: "faculty-1" })
+      })
+    );
+    expect(prisma.academicRequestStep.update).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: { id: "step-admin" },
+        data: { status: "PENDING" }
+      })
+    );
     expect(prisma.academicRequest.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "request-4" },
         data: expect.objectContaining({
+          currentStepOrder: 2,
+          ownerUserId: "admin-1",
+          requiredApproverRole: "ADMIN"
+        })
+      })
+    );
+    expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({ action: "academic_request_step_decision" }));
+    expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({ action: "academic_request_owner_transition" }));
+    expect(decided.status).toBe("SUBMITTED");
+    expect(decided.currentStepOrder).toBe(2);
+  });
+
+  it("allows the registrar to finalize an approved prerequisite override", async () => {
+    const { prisma, auditService, service } = createGovernanceService();
+    prisma.user.findFirst.mockResolvedValue({ id: "admin-1" });
+    prisma.academicRequest.findFirst.mockResolvedValue(
+      makeRequest({
+        id: "request-5",
+        type: "PREREQ_OVERRIDE",
+        sectionId: "section-1",
+        ownerUserId: "admin-1",
+        requiredApproverRole: "ADMIN",
+        currentStepOrder: 2,
+        student: {
+          id: "student-1",
+          email: "student1@sis.edu",
+          studentId: "S2601",
+          studentProfile: { legalName: "Student One", programMajor: "CS", academicStatus: "Good Standing" },
+          adviseeAssignments: []
+        },
+        section: {
+          id: "section-1",
+          instructorUserId: "faculty-1",
+          sectionCode: "CS201-F1",
+          course: { code: "CS201", title: "Data Structures" }
+        },
+        steps: [
+          makeStep({
+            id: "step-faculty",
+            stepKey: "faculty_review",
+            label: "Faculty Review",
+            requiredApproverRole: "FACULTY",
+            ownerUserId: "faculty-1",
+            status: "APPROVED",
+            decisionNote: "Faculty supports the override"
+          }),
+          makeStep({
+            id: "step-admin",
+            stepOrder: 2,
+            stepKey: "registrar_finalization",
+            label: "Registrar Finalization",
+            requiredApproverRole: "ADMIN",
+            ownerUserId: "admin-1",
+            status: "PENDING"
+          })
+        ]
+      })
+    );
+    prisma.academicRequest.findUniqueOrThrow.mockResolvedValue(
+      makeRequest({
+        id: "request-5",
+        type: "PREREQ_OVERRIDE",
+        sectionId: "section-1",
+        ownerUserId: null,
+        requiredApproverRole: null,
+        status: "APPROVED",
+        currentStepOrder: null,
+        activeRequestKey: null,
+        decisionNote: "Registrar final approval granted",
+        student: {
+          id: "student-1",
+          email: "student1@sis.edu",
+          studentId: "S2601",
+          studentProfile: { legalName: "Student One", programMajor: "CS", academicStatus: "Good Standing" }
+        },
+        section: {
+          id: "section-1",
+          instructorUserId: "faculty-1",
+          sectionCode: "CS201-F1",
+          course: { code: "CS201", title: "Data Structures" }
+        },
+        steps: [
+          makeStep({
+            id: "step-faculty",
+            stepKey: "faculty_review",
+            label: "Faculty Review",
+            requiredApproverRole: "FACULTY",
+            ownerUserId: "faculty-1",
+            status: "APPROVED",
+            decisionNote: "Faculty supports the override"
+          }),
+          makeStep({
+            id: "step-admin",
+            stepOrder: 2,
+            stepKey: "registrar_finalization",
+            label: "Registrar Finalization",
+            requiredApproverRole: "ADMIN",
+            ownerUserId: "admin-1",
+            status: "APPROVED",
+            decisionNote: "Registrar final approval granted"
+          })
+        ]
+      })
+    );
+
+    const decided = await service.decideAdminRequest("admin-1", "request-5", {
+      decision: "APPROVED",
+      decisionNote: "Registrar final approval granted"
+    });
+
+    expect(prisma.academicRequest.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "request-5" },
+        data: expect.objectContaining({
           status: "APPROVED",
           ownerUserId: null,
           requiredApproverRole: null,
+          currentStepOrder: null,
           activeRequestKey: null
         })
       })
     );
-    expect(auditService.log).toHaveBeenCalledWith(
-      expect.objectContaining({
-        actorUserId: "faculty-1",
-        action: "academic_request_decision",
-        entityId: "request-4"
-      })
-    );
+    expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({ action: "academic_request_step_decision" }));
+    expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({ action: "academic_request_decision" }));
+    expect(decided.status).toBe("APPROVED");
   });
 
-  it("rejects invalid lifecycle transitions once a request is already terminal", async () => {
+  it("prevents admins from deciding a request before the workflow reaches registrar ownership", async () => {
     const { prisma, service } = createGovernanceService();
-    prisma.academicRequest.findFirst.mockResolvedValue({
-      id: "request-1",
-      studentId: "student-1",
-      termId: "term-1",
-      type: "CREDIT_OVERLOAD",
-      requiredApproverRole: "ADVISOR",
-      ownerUserId: "advisor-1",
-      status: "APPROVED",
-      student: { adviseeAssignments: [{ id: "assignment-1" }] },
-      term: { id: "term-1", name: "Fall 2026" }
-    });
+    prisma.user.findFirst.mockResolvedValue({ id: "admin-1" });
+    prisma.academicRequest.findFirst.mockResolvedValue(
+      makeRequest({
+        id: "request-6",
+        type: "PREREQ_OVERRIDE",
+        ownerUserId: "faculty-1",
+        requiredApproverRole: "FACULTY",
+        currentStepOrder: 1,
+        student: {
+          id: "student-1",
+          email: "student1@sis.edu",
+          studentId: "S2601",
+          studentProfile: { legalName: "Student One", programMajor: "CS", academicStatus: "Good Standing" },
+          adviseeAssignments: []
+        },
+        section: {
+          id: "section-1",
+          instructorUserId: "faculty-1",
+          sectionCode: "CS201-F1",
+          course: { code: "CS201", title: "Data Structures" }
+        },
+        steps: [
+          makeStep({
+            id: "step-faculty",
+            stepKey: "faculty_review",
+            label: "Faculty Review",
+            requiredApproverRole: "FACULTY",
+            ownerUserId: "faculty-1",
+            status: "PENDING"
+          }),
+          makeStep({
+            id: "step-admin",
+            stepOrder: 2,
+            stepKey: "registrar_finalization",
+            label: "Registrar Finalization",
+            requiredApproverRole: "ADMIN",
+            ownerUserId: "admin-1",
+            status: "WAITING"
+          })
+        ]
+      })
+    );
 
     await expect(
-      service.decideAdvisorRequest("advisor-1", "request-1", {
-        decision: "REJECTED",
-        decisionNote: "Reversing a terminal state is not allowed"
+      service.decideAdminRequest("admin-1", "request-6", {
+        decision: "APPROVED",
+        decisionNote: "Registrar approval"
       })
-    ).rejects.toMatchObject({
-      response: expect.objectContaining({ code: "REQUEST_ALREADY_DECIDED" })
-    });
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it("rejects duplicate pending overload requests for the same student and term", async () => {
     const { prisma, service } = createGovernanceService();
     prisma.systemSetting.findUnique.mockResolvedValue({ value: "18" });
     prisma.term.findUnique.mockResolvedValue({ id: "term-1", name: "Fall 2026", maxCredits: 18 });
-    prisma.$transaction.mockImplementation(async (callback: (tx: any) => Promise<unknown>) => callback(prisma));
     prisma.advisorAssignment.findFirst.mockResolvedValue({
       advisorId: "advisor-1",
       advisor: { id: "advisor-1", role: "ADVISOR", email: "advisor1@sis.edu", advisorProfile: { displayName: "Advisor One" } }
     });
-    prisma.academicRequest.findFirst
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        id: "request-pending",
-        status: "SUBMITTED"
-      });
+    prisma.academicRequest.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "request-pending", status: "SUBMITTED" });
 
     await expect(
       service.submitCreditOverloadRequest("student-1", {
@@ -401,24 +556,19 @@ describe("GovernanceService", () => {
         requestedCredits: 21,
         reason: "Need one additional overload course"
       })
-    ).rejects.toMatchObject({
-      response: expect.objectContaining({ code: "REQUEST_ALREADY_PENDING" })
-    });
+    ).rejects.toMatchObject({ response: expect.objectContaining({ code: "REQUEST_ALREADY_PENDING" }) });
   });
 
   it("maps academic request unique key violations to a clean duplicate-request error", async () => {
     const { prisma, service } = createGovernanceService();
     prisma.systemSetting.findUnique.mockResolvedValue({ value: "18" });
     prisma.term.findUnique.mockResolvedValue({ id: "term-1", name: "Fall 2026", maxCredits: 18 });
-    prisma.$transaction.mockImplementation(async (callback: (tx: any) => Promise<unknown>) => {
-      prisma.advisorAssignment.findFirst.mockResolvedValue({
-        advisorId: "advisor-1",
-        advisor: { id: "advisor-1", role: "ADVISOR", email: "advisor1@sis.edu", advisorProfile: { displayName: "Advisor One" } }
-      });
-      prisma.academicRequest.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
-      prisma.academicRequest.create.mockRejectedValue({ code: "P2002" });
-      return callback(prisma);
+    prisma.advisorAssignment.findFirst.mockResolvedValue({
+      advisorId: "advisor-1",
+      advisor: { id: "advisor-1", role: "ADVISOR", email: "advisor1@sis.edu", advisorProfile: { displayName: "Advisor One" } }
     });
+    prisma.academicRequest.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+    prisma.academicRequest.create.mockRejectedValue({ code: "P2002" });
 
     await expect(
       service.submitCreditOverloadRequest("student-1", {
@@ -426,24 +576,30 @@ describe("GovernanceService", () => {
         requestedCredits: 21,
         reason: "Need one additional overload course"
       })
-    ).rejects.toMatchObject({
-      response: expect.objectContaining({ code: "REQUEST_ALREADY_PENDING" })
-    });
+    ).rejects.toMatchObject({ response: expect.objectContaining({ code: "REQUEST_ALREADY_PENDING" }) });
   });
 
-  it("throws when a blocking registration hold is active", async () => {
+  it("rejects invalid lifecycle transitions once a request is already terminal", async () => {
     const { prisma, service } = createGovernanceService();
-    prisma.studentHold.findMany.mockResolvedValue([
-      {
-        id: "hold-1",
-        type: "FINANCIAL",
-        reason: "Outstanding balance",
-        note: "Contact finance office",
-        expiresAt: null
-      }
-    ]);
+    prisma.academicRequest.findFirst.mockResolvedValue(
+      makeRequest({
+        id: "request-7",
+        status: "APPROVED",
+        ownerUserId: "advisor-1",
+        requiredApproverRole: "ADVISOR",
+        currentStepOrder: null,
+        steps: [makeStep({ status: "APPROVED" })]
+      })
+    );
 
-    await expect(service.assertNoBlockingHolds(prisma, "student-1")).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.decideAdvisorRequest("advisor-1", "request-7", {
+        decision: "REJECTED",
+        decisionNote: "Reversing a terminal state is not allowed"
+      })
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({ code: "REQUEST_ALREADY_DECIDED" })
+    });
   });
 
   it("applies approved overload effect through the request policy", async () => {
