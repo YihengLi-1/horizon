@@ -1,11 +1,12 @@
 import { BadRequestException, ForbiddenException } from "@nestjs/common";
-import { AcademicRequestStatus, AcademicRequestStepStatus, Role } from "@prisma/client";
+import { AcademicRequestStatus, AcademicRequestStepOwnerStrategy, AcademicRequestStepStatus, Role } from "@prisma/client";
 
 export type WorkflowStepTemplate = {
   stepKey: string;
   label: string;
   requiredApproverRole: Role;
-  ownerUserId: string | null;
+  ownerStrategy: AcademicRequestStepOwnerStrategy;
+  ownerResolutionRefId?: string | null;
 };
 
 export type WorkflowRequestStep = {
@@ -14,6 +15,9 @@ export type WorkflowRequestStep = {
   stepKey: string;
   label: string;
   requiredApproverRole: Role;
+  ownerStrategy: AcademicRequestStepOwnerStrategy;
+  ownerResolutionRefId: string | null;
+  ownerResolvedAt: Date | null;
   initialOwnerUserId: string | null;
   ownerUserId: string | null;
   status: AcademicRequestStepStatus;
@@ -33,7 +37,10 @@ export function buildWorkflowStepSeeds(templates: WorkflowStepTemplate[]) {
 
   return templates.map((step, index) => ({
     ...step,
-    initialOwnerUserId: step.ownerUserId,
+    ownerResolutionRefId: step.ownerResolutionRefId ?? null,
+    ownerResolvedAt: null,
+    initialOwnerUserId: null,
+    ownerUserId: null,
     stepOrder: index + 1,
     status: index === 0 ? ("PENDING" as const) : ("WAITING" as const)
   }));
@@ -81,6 +88,13 @@ export function getCurrentAcademicRequestStep(request: {
     });
   }
 
+  if (!step.ownerUserId) {
+    throw new BadRequestException({
+      code: "REQUEST_STEP_UNRESOLVED",
+      message: "Academic request current step has no resolved owner"
+    });
+  }
+
   return step;
 }
 
@@ -121,5 +135,17 @@ export function buildWorkflowProgressionUpdate(nextStep: WorkflowRequestStep) {
 export function buildStepReassignmentUpdate(ownerUserId: string | null) {
   return {
     ownerUserId
+  } as const;
+}
+
+export function buildStepOwnerResolutionUpdate(
+  ownerUserId: string,
+  initialOwnerUserId: string | null,
+  ownerResolvedAt: Date
+) {
+  return {
+    ownerUserId,
+    initialOwnerUserId: initialOwnerUserId ?? ownerUserId,
+    ownerResolvedAt
   } as const;
 }

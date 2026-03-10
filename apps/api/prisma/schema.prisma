@@ -55,6 +55,13 @@ enum AcademicRequestStepStatus {
   SKIPPED
 }
 
+enum AcademicRequestStepOwnerStrategy {
+  DIRECT_USER
+  PRIMARY_ADVISOR
+  SECTION_INSTRUCTOR
+  ADMIN_REVIEWER
+}
+
 model User {
   id                      String                   @id @default(uuid())
   email                   String                   @unique
@@ -459,6 +466,9 @@ model AcademicRequestStep {
   stepKey              String
   label                String
   requiredApproverRole Role
+  ownerStrategy        AcademicRequestStepOwnerStrategy @default(DIRECT_USER)
+  ownerResolutionRefId String?
+  ownerResolvedAt      DateTime?
   initialOwnerUserId   String?
   ownerUserId          String?
   status               AcademicRequestStepStatus @default(WAITING)
@@ -473,6 +483,7 @@ model AcademicRequestStep {
   decidedBy            User?                     @relation("AcademicRequestStepDecisionActor", fields: [decidedByUserId], references: [id], onDelete: SetNull)
 
   @@unique([requestId, stepOrder])
+  @@index([ownerStrategy, status])
   @@index([initialOwnerUserId])
   @@index([ownerUserId, status])
   @@index([requiredApproverRole, status])
