@@ -14,6 +14,7 @@ export type WorkflowRequestStep = {
   stepKey: string;
   label: string;
   requiredApproverRole: Role;
+  initialOwnerUserId: string | null;
   ownerUserId: string | null;
   status: AcademicRequestStepStatus;
 };
@@ -32,6 +33,7 @@ export function buildWorkflowStepSeeds(templates: WorkflowStepTemplate[]) {
 
   return templates.map((step, index) => ({
     ...step,
+    initialOwnerUserId: step.ownerUserId,
     stepOrder: index + 1,
     status: index === 0 ? ("PENDING" as const) : ("WAITING" as const)
   }));
@@ -113,5 +115,11 @@ export function buildWorkflowProgressionUpdate(nextStep: WorkflowRequestStep) {
     currentStepOrder: nextStep.stepOrder,
     requiredApproverRole: nextStep.requiredApproverRole,
     ownerUserId: nextStep.ownerUserId
+  } as const;
+}
+
+export function buildStepReassignmentUpdate(ownerUserId: string | null) {
+  return {
+    ownerUserId
   } as const;
 }

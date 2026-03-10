@@ -95,6 +95,7 @@ model User {
   ownedAcademicRequests   AcademicRequest[]        @relation("AcademicRequestOwner")
   decidedAcademicRequests AcademicRequest[]        @relation("AcademicRequestDecisionActor")
   ownedAcademicRequestSteps AcademicRequestStep[]  @relation("AcademicRequestStepOwner")
+  initialAcademicRequestSteps AcademicRequestStep[] @relation("AcademicRequestStepInitialOwner")
   decidedAcademicRequestSteps AcademicRequestStep[] @relation("AcademicRequestStepDecisionActor")
 
   @@index([role, deletedAt])
@@ -458,6 +459,7 @@ model AcademicRequestStep {
   stepKey              String
   label                String
   requiredApproverRole Role
+  initialOwnerUserId   String?
   ownerUserId          String?
   status               AcademicRequestStepStatus @default(WAITING)
   decisionNote         String?                   @db.Text
@@ -466,10 +468,12 @@ model AcademicRequestStep {
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt
   request              AcademicRequest           @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  initialOwner         User?                     @relation("AcademicRequestStepInitialOwner", fields: [initialOwnerUserId], references: [id], onDelete: SetNull)
   owner                User?                     @relation("AcademicRequestStepOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   decidedBy            User?                     @relation("AcademicRequestStepDecisionActor", fields: [decidedByUserId], references: [id], onDelete: SetNull)
 
   @@unique([requestId, stepOrder])
+  @@index([initialOwnerUserId])
   @@index([ownerUserId, status])
   @@index([requiredApproverRole, status])
 }
