@@ -57,14 +57,32 @@ function createGovernanceService() {
 }
 
 function makeStep(overrides?: Partial<any>) {
+  const ownerUserId = Object.prototype.hasOwnProperty.call(overrides ?? {}, "ownerUserId")
+    ? overrides?.ownerUserId ?? null
+    : "advisor-1";
+  const initialOwnerUserId = Object.prototype.hasOwnProperty.call(overrides ?? {}, "initialOwnerUserId")
+    ? overrides?.initialOwnerUserId ?? null
+    : ownerUserId;
+  const ownerResolvedAt = Object.prototype.hasOwnProperty.call(overrides ?? {}, "ownerResolvedAt")
+    ? overrides?.ownerResolvedAt ?? null
+    : ownerUserId
+      ? new Date("2026-08-01T00:00:00Z")
+      : null;
+  const ownerResolutionRefId = Object.prototype.hasOwnProperty.call(overrides ?? {}, "ownerResolutionRefId")
+    ? overrides?.ownerResolutionRefId ?? null
+    : ownerUserId;
+
   return {
     id: "step-1",
     stepOrder: 1,
     stepKey: "advisor_review",
     label: "Advisor Review",
     requiredApproverRole: "ADVISOR",
-    initialOwnerUserId: "advisor-1",
-    ownerUserId: "advisor-1",
+    ownerStrategy: "DIRECT_USER",
+    ownerResolutionRefId,
+    ownerResolvedAt,
+    initialOwnerUserId,
+    ownerUserId,
     status: "PENDING",
     owner: null,
     decidedBy: null,
@@ -121,6 +139,7 @@ describe("GovernanceService", () => {
     const { prisma, auditService, service } = createGovernanceService();
     prisma.systemSetting.findUnique.mockResolvedValue({ value: "18" });
     prisma.term.findUnique.mockResolvedValue({ id: "term-1", name: "Fall 2026", maxCredits: 18 });
+    prisma.user.findFirst.mockResolvedValue({ id: "advisor-1" });
     prisma.advisorAssignment.findFirst.mockResolvedValue({
       advisorId: "advisor-1",
       advisor: { id: "advisor-1", role: "ADVISOR", email: "advisor1@sis.edu", advisorProfile: { displayName: "Advisor One" } }
@@ -153,7 +172,11 @@ describe("GovernanceService", () => {
               expect.objectContaining({
                 stepKey: "advisor_review",
                 status: "PENDING",
-                requiredApproverRole: "ADVISOR"
+                requiredApproverRole: "ADVISOR",
+                ownerStrategy: "DIRECT_USER",
+                ownerResolutionRefId: "advisor-1",
+                ownerUserId: "advisor-1",
+                initialOwnerUserId: "advisor-1"
               })
             ]
           }
@@ -174,8 +197,7 @@ describe("GovernanceService", () => {
       instructorUser: {
         id: "faculty-1",
         role: "FACULTY",
-        email: "faculty1@sis.edu",
-        facultyProfile: { displayName: "Faculty One" }
+        deletedAt: null
       },
       course: {
         prerequisiteLinks: [
@@ -186,9 +208,9 @@ describe("GovernanceService", () => {
         ]
       }
     });
-    prisma.user.findFirst.mockResolvedValue({ id: "admin-1", email: "admin@sis.edu" });
     prisma.enrollment.findMany.mockResolvedValue([]);
     prisma.academicRequest.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+    prisma.user.findFirst.mockResolvedValue({ id: "faculty-1" });
     prisma.academicRequest.create.mockResolvedValue(
       makeRequest({
         id: "request-2",
@@ -210,6 +232,8 @@ describe("GovernanceService", () => {
             stepKey: "faculty_review",
             label: "Faculty Review",
             requiredApproverRole: "FACULTY",
+            ownerStrategy: "SECTION_INSTRUCTOR",
+            ownerResolutionRefId: "section-1",
             ownerUserId: "faculty-1",
             status: "PENDING"
           }),
@@ -219,7 +243,11 @@ describe("GovernanceService", () => {
             stepKey: "registrar_finalization",
             label: "Registrar Finalization",
             requiredApproverRole: "ADMIN",
-            ownerUserId: "admin-1",
+            ownerStrategy: "ADMIN_REVIEWER",
+            ownerResolutionRefId: null,
+            ownerUserId: null,
+            initialOwnerUserId: null,
+            ownerResolvedAt: null,
             status: "WAITING"
           })
         ]
@@ -242,8 +270,24 @@ describe("GovernanceService", () => {
           activeRequestKey: "student-1:section-1:PREREQ_OVERRIDE",
           steps: {
             create: [
-              expect.objectContaining({ stepKey: "faculty_review", stepOrder: 1, status: "PENDING" }),
-              expect.objectContaining({ stepKey: "registrar_finalization", stepOrder: 2, status: "WAITING" })
+              expect.objectContaining({
+                stepKey: "faculty_review",
+                stepOrder: 1,
+                status: "PENDING",
+                ownerStrategy: "SECTION_INSTRUCTOR",
+                ownerResolutionRefId: "section-1",
+                ownerUserId: "faculty-1",
+                initialOwnerUserId: "faculty-1"
+              }),
+              expect.objectContaining({
+                stepKey: "registrar_finalization",
+                stepOrder: 2,
+                status: "WAITING",
+                ownerStrategy: "ADMIN_REVIEWER",
+                ownerResolutionRefId: null,
+                ownerUserId: null,
+                initialOwnerUserId: null
+              })
             ]
           }
         })
@@ -252,8 +296,39 @@ describe("GovernanceService", () => {
     expect(request.type).toBe("PREREQ_OVERRIDE");
   });
 
+  it("fails prerequisite override submission when the active faculty step cannot resolve an owner", async () => {
+    const { prisma, service } = createGovernanceService();
+    prisma.section.findUnique.mockResolvedValue({
+      id: "section-1",
+      termId: "term-1",
+      instructorUserId: null,
+      course: {
+        prerequisiteLinks: [
+          {
+            prerequisiteCourseId: "course-1",
+            prerequisiteCourse: { id: "course-1", code: "CS101" }
+          }
+        ]
+      }
+    });
+    prisma.enrollment.findMany.mockResolvedValue([]);
+    prisma.academicRequest.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+
+    await expect(
+      service.submitPrereqOverrideRequest("student-1", {
+        sectionId: "section-1",
+        reason: "Need faculty review for prerequisite override"
+      })
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        code: "REQUEST_STEP_UNRESOLVED"
+      })
+    });
+  });
+
   it("advances a prerequisite override from faculty review to registrar finalization", async () => {
     const { prisma, auditService, service } = createGovernanceService();
+    prisma.user.findFirst.mockResolvedValue({ id: "admin-1" });
     prisma.academicRequest.findFirst.mockResolvedValue(
       makeRequest({
         id: "request-4",
@@ -281,6 +356,8 @@ describe("GovernanceService", () => {
             stepKey: "faculty_review",
             label: "Faculty Review",
             requiredApproverRole: "FACULTY",
+            ownerStrategy: "SECTION_INSTRUCTOR",
+            ownerResolutionRefId: "section-1",
             ownerUserId: "faculty-1",
             status: "PENDING"
           }),
@@ -290,7 +367,11 @@ describe("GovernanceService", () => {
             stepKey: "registrar_finalization",
             label: "Registrar Finalization",
             requiredApproverRole: "ADMIN",
-            ownerUserId: "admin-1",
+            ownerStrategy: "ADMIN_REVIEWER",
+            ownerResolutionRefId: null,
+            ownerUserId: null,
+            initialOwnerUserId: null,
+            ownerResolvedAt: null,
             status: "WAITING"
           })
         ]
@@ -323,6 +404,8 @@ describe("GovernanceService", () => {
             stepKey: "faculty_review",
             label: "Faculty Review",
             requiredApproverRole: "FACULTY",
+            ownerStrategy: "SECTION_INSTRUCTOR",
+            ownerResolutionRefId: "section-1",
             ownerUserId: "faculty-1",
             status: "APPROVED",
             decisionNote: "Faculty supports the override"
@@ -333,7 +416,10 @@ describe("GovernanceService", () => {
             stepKey: "registrar_finalization",
             label: "Registrar Finalization",
             requiredApproverRole: "ADMIN",
+            ownerStrategy: "ADMIN_REVIEWER",
+            ownerResolutionRefId: null,
             ownerUserId: "admin-1",
+            initialOwnerUserId: "admin-1",
             status: "PENDING"
           })
         ]
@@ -356,7 +442,12 @@ describe("GovernanceService", () => {
       2,
       expect.objectContaining({
         where: { id: "step-admin" },
-        data: { status: "PENDING" }
+        data: expect.objectContaining({
+          status: "PENDING",
+          ownerUserId: "admin-1",
+          initialOwnerUserId: "admin-1",
+          ownerResolvedAt: expect.any(Date)
+        })
       })
     );
     expect(prisma.academicRequest.update).toHaveBeenCalledWith(
@@ -691,6 +782,7 @@ describe("GovernanceService", () => {
 
   it("allows the reassigned faculty owner to decide the active step", async () => {
     const { prisma, auditService, service } = createGovernanceService();
+    prisma.user.findFirst.mockResolvedValue({ id: "admin-1" });
     prisma.academicRequest.findFirst.mockResolvedValue(
       makeRequest({
         id: "request-9b",
@@ -718,6 +810,8 @@ describe("GovernanceService", () => {
             stepKey: "faculty_review",
             label: "Faculty Review",
             requiredApproverRole: "FACULTY",
+            ownerStrategy: "SECTION_INSTRUCTOR",
+            ownerResolutionRefId: "section-1",
             initialOwnerUserId: "faculty-1",
             ownerUserId: "faculty-2",
             status: "PENDING"
@@ -728,8 +822,11 @@ describe("GovernanceService", () => {
             stepKey: "registrar_finalization",
             label: "Registrar Finalization",
             requiredApproverRole: "ADMIN",
-            initialOwnerUserId: "admin-1",
-            ownerUserId: "admin-1",
+            ownerStrategy: "ADMIN_REVIEWER",
+            ownerResolutionRefId: null,
+            initialOwnerUserId: null,
+            ownerUserId: null,
+            ownerResolvedAt: null,
             status: "WAITING"
           })
         ]
@@ -761,6 +858,8 @@ describe("GovernanceService", () => {
             stepKey: "faculty_review",
             label: "Faculty Review",
             requiredApproverRole: "FACULTY",
+            ownerStrategy: "SECTION_INSTRUCTOR",
+            ownerResolutionRefId: "section-1",
             initialOwnerUserId: "faculty-1",
             ownerUserId: "faculty-2",
             status: "APPROVED",
@@ -772,6 +871,8 @@ describe("GovernanceService", () => {
             stepKey: "registrar_finalization",
             label: "Registrar Finalization",
             requiredApproverRole: "ADMIN",
+            ownerStrategy: "ADMIN_REVIEWER",
+            ownerResolutionRefId: null,
             initialOwnerUserId: "admin-1",
             ownerUserId: "admin-1",
             status: "PENDING"
@@ -813,6 +914,7 @@ describe("GovernanceService", () => {
     const { prisma, service } = createGovernanceService();
     prisma.systemSetting.findUnique.mockResolvedValue({ value: "18" });
     prisma.term.findUnique.mockResolvedValue({ id: "term-1", name: "Fall 2026", maxCredits: 18 });
+    prisma.user.findFirst.mockResolvedValue({ id: "advisor-1" });
     prisma.advisorAssignment.findFirst.mockResolvedValue({
       advisorId: "advisor-1",
       advisor: { id: "advisor-1", role: "ADVISOR", email: "advisor1@sis.edu", advisorProfile: { displayName: "Advisor One" } }

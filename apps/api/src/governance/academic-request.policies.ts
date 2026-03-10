@@ -125,7 +125,8 @@ const creditOverloadPolicy: AcademicRequestPolicy<SubmitCreditOverloadRequestInp
           stepKey: "advisor_review",
           label: "Advisor Review",
           requiredApproverRole: "ADVISOR",
-          ownerUserId: assignment.advisorId
+          ownerStrategy: "DIRECT_USER",
+          ownerResolutionRefId: assignment.advisorId
         }
       ],
       auditMetadata: {
@@ -163,14 +164,6 @@ const prereqOverridePolicy: AcademicRequestPolicy<SubmitPrereqOverrideRequestInp
               }
             }
           }
-        },
-        instructorUser: {
-          select: {
-            id: true,
-            role: true,
-            email: true,
-            facultyProfile: { select: { displayName: true } }
-          }
         }
       }
     });
@@ -183,32 +176,6 @@ const prereqOverridePolicy: AcademicRequestPolicy<SubmitPrereqOverrideRequestInp
       throw new BadRequestException({
         code: "PREREQ_OVERRIDE_NOT_REQUIRED",
         message: "This section does not require a prerequisite override"
-      });
-    }
-
-    if (!section.instructorUserId || !section.instructorUser || section.instructorUser.role !== "FACULTY") {
-      throw new BadRequestException({
-        code: "PREREQ_OVERRIDE_UNAVAILABLE",
-        message: "This section does not have an assigned faculty reviewer"
-      });
-    }
-
-    const registrar = await tx.user.findFirst({
-      where: {
-        role: "ADMIN",
-        deletedAt: null
-      },
-      orderBy: [{ createdAt: "asc" }],
-      select: {
-        id: true,
-        email: true
-      }
-    });
-
-    if (!registrar) {
-      throw new BadRequestException({
-        code: "PREREQ_OVERRIDE_UNAVAILABLE",
-        message: "No registrar reviewer is available for prerequisite overrides"
       });
     }
 
@@ -272,20 +239,20 @@ const prereqOverridePolicy: AcademicRequestPolicy<SubmitPrereqOverrideRequestInp
           stepKey: "faculty_review",
           label: "Faculty Review",
           requiredApproverRole: "FACULTY",
-          ownerUserId: section.instructorUserId
+          ownerStrategy: "SECTION_INSTRUCTOR",
+          ownerResolutionRefId: section.id
         },
         {
           stepKey: "registrar_finalization",
           label: "Registrar Finalization",
           requiredApproverRole: "ADMIN",
-          ownerUserId: registrar.id
+          ownerStrategy: "ADMIN_REVIEWER",
+          ownerResolutionRefId: null
         }
       ],
       auditMetadata: {
         termId: section.termId,
         sectionId: section.id,
-        ownerUserId: section.instructorUserId,
-        finalOwnerUserId: registrar.id,
         missingPrereqCodes
       }
     };

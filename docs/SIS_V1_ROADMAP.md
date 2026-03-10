@@ -118,6 +118,8 @@ The governance implementation now also has a Phase 1 workflow-engine foundation:
 - request-effect handling isolated from registration service call sites
 - explicit workflow-step records with current-step ownership and step status
 - active-step reassignment with auditable routing changes and preserved initial-owner context
+- step-level owner resolution strategies (`DIRECT_USER`, `SECTION_INSTRUCTOR`, `ADMIN_REVIEWER`) captured in workflow data
+- activation-time owner resolution for workflow steps instead of requiring all reviewers to be fixed permanently at submission
 
 That foundation is still intentionally narrow, but it changes the shape of future work:
 adding a second governed request type should extend a policy surface, not duplicate the current overload logic.

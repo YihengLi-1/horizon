@@ -1,5 +1,12 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { AcademicRequestStatus, AcademicRequestType, HoldType, Prisma, Role } from "@prisma/client";
+import {
+  AcademicRequestStatus,
+  AcademicRequestStepOwnerStrategy,
+  AcademicRequestType,
+  HoldType,
+  Prisma,
+  Role
+} from "@prisma/client";
 import type {
   CreateHoldInput,
   DecideAcademicRequestInput,
@@ -14,6 +21,7 @@ import {
   assertAcademicRequestOpen,
   assertAcademicRequestOwnership,
   buildFinalDecisionUpdate,
+  buildStepOwnerResolutionUpdate,
   buildStepReassignmentUpdate,
   buildStepDecisionUpdate,
   buildWorkflowProgressionUpdate,
@@ -78,6 +86,8 @@ type NextOwnerAuditMeta = {
   stepKey: string;
   ownerUserId: string | null;
   requiredApproverRole: Role;
+  ownerStrategy: AcademicRequestStepOwnerStrategy;
+  ownerResolutionRefId: string | null;
 };
 
 type StepReassignmentAuditMeta = {
@@ -88,6 +98,32 @@ type StepReassignmentAuditMeta = {
   currentOwnerUserId: string | null;
   initialOwnerUserId: string | null;
   requiredApproverRole: Role;
+  ownerStrategy: AcademicRequestStepOwnerStrategy;
+};
+
+type RequestRoutingContext = {
+  type: AcademicRequestType;
+  studentId: string;
+  termId: string | null;
+  sectionId: string | null;
+};
+
+type ResolvableAcademicRequestStep = {
+  id: string;
+  stepOrder: number;
+  stepKey: string;
+  label: string;
+  requiredApproverRole: Role;
+  ownerStrategy: AcademicRequestStepOwnerStrategy;
+  ownerResolutionRefId: string | null;
+  initialOwnerUserId: string | null;
+  ownerUserId: string | null;
+};
+
+type ResolvedStepOwner = {
+  ownerUserId: string;
+  initialOwnerUserId: string;
+  ownerResolvedAt: Date;
 };
 
 @Injectable()
@@ -275,7 +311,8 @@ export class GovernanceService {
         previousOwnerUserId: currentStep.ownerUserId,
         currentOwnerUserId: nextOwner.id,
         initialOwnerUserId: currentStep.initialOwnerUserId,
-        requiredApproverRole: currentStep.requiredApproverRole
+        requiredApproverRole: currentStep.requiredApproverRole,
+        ownerStrategy: currentStep.ownerStrategy
       };
 
       await tx.academicRequestStep.update({
@@ -311,6 +348,7 @@ export class GovernanceService {
         currentOwnerUserId: reassignmentMeta?.currentOwnerUserId ?? null,
         initialOwnerUserId: reassignmentMeta?.initialOwnerUserId ?? null,
         requiredApproverRole: reassignmentMeta?.requiredApproverRole ?? null,
+        ownerStrategy: reassignmentMeta?.ownerStrategy ?? null,
         note: input.note?.trim() || null
       }
     });
@@ -508,6 +546,140 @@ export class GovernanceService {
     return new Set(approved.map((request) => request.sectionId).filter((value): value is string => Boolean(value)));
   }
 
+  private async resolveStepOwner(
+    tx: Prisma.TransactionClient,
+    context: RequestRoutingContext,
+    step: ResolvableAcademicRequestStep
+  ): Promise<ResolvedStepOwner> {
+    let ownerUserId: string | null = null;
+
+    switch (step.ownerStrategy) {
+      case "DIRECT_USER": {
+        const directUserId = step.ownerResolutionRefId ?? step.ownerUserId ?? step.initialOwnerUserId;
+        if (!directUserId) {
+          throw this.requestStepUnresolved(step, "This workflow step does not have a direct reviewer assigned");
+        }
+        ownerUserId = await this.validateResolvedOwner(tx, directUserId, step.requiredApproverRole, step);
+        break;
+      }
+      case "PRIMARY_ADVISOR": {
+        const assignment = await tx.advisorAssignment.findFirst({
+          where: {
+            studentId: step.ownerResolutionRefId ?? context.studentId,
+            active: true,
+            endedAt: null
+          },
+          orderBy: { assignedAt: "desc" },
+          select: {
+            advisorId: true,
+            advisor: {
+              select: {
+                id: true,
+                role: true,
+                deletedAt: true
+              }
+            }
+          }
+        });
+
+        if (!assignment || assignment.advisor.role !== step.requiredApproverRole || assignment.advisor.deletedAt) {
+          throw this.requestStepUnresolved(step, "No active advisor could be resolved for this workflow step");
+        }
+        ownerUserId = assignment.advisorId;
+        break;
+      }
+      case "SECTION_INSTRUCTOR": {
+        const sectionId = step.ownerResolutionRefId ?? context.sectionId;
+        if (!sectionId) {
+          throw this.requestStepUnresolved(step, "This workflow step is missing a target section");
+        }
+        const section = await tx.section.findUnique({
+          where: { id: sectionId },
+          select: {
+            instructorUserId: true,
+            instructorUser: {
+              select: {
+                id: true,
+                role: true,
+                deletedAt: true
+              }
+            }
+          }
+        });
+
+        if (
+          !section?.instructorUserId ||
+          !section.instructorUser ||
+          section.instructorUser.role !== step.requiredApproverRole ||
+          section.instructorUser.deletedAt
+        ) {
+          throw this.requestStepUnresolved(step, "No assigned faculty reviewer could be resolved for this workflow step");
+        }
+        ownerUserId = section.instructorUserId;
+        break;
+      }
+      case "ADMIN_REVIEWER": {
+        const admin = await tx.user.findFirst({
+          where: {
+            role: step.requiredApproverRole,
+            deletedAt: null
+          },
+          orderBy: [{ createdAt: "asc" }],
+          select: { id: true }
+        });
+
+        if (!admin) {
+          throw this.requestStepUnresolved(step, "No registrar reviewer is currently available for this workflow step");
+        }
+        ownerUserId = admin.id;
+        break;
+      }
+      default:
+        throw this.requestStepUnresolved(step, "Workflow step owner strategy is not supported");
+    }
+
+    return {
+      ownerUserId,
+      initialOwnerUserId: step.initialOwnerUserId ?? ownerUserId,
+      ownerResolvedAt: new Date()
+    };
+  }
+
+  private async validateResolvedOwner(
+    tx: Prisma.TransactionClient,
+    ownerUserId: string,
+    requiredRole: Role,
+    step: ResolvableAcademicRequestStep
+  ) {
+    const user = await tx.user.findFirst({
+      where: {
+        id: ownerUserId,
+        role: requiredRole,
+        deletedAt: null
+      },
+      select: { id: true }
+    });
+
+    if (!user) {
+      throw this.requestStepUnresolved(step, "The configured reviewer for this workflow step is unavailable");
+    }
+
+    return user.id;
+  }
+
+  private requestStepUnresolved(step: ResolvableAcademicRequestStep, message: string) {
+    return new BadRequestException({
+      code: "REQUEST_STEP_UNRESOLVED",
+      message,
+      details: {
+        stepKey: step.stepKey,
+        stepOrder: step.stepOrder,
+        ownerStrategy: step.ownerStrategy,
+        requiredApproverRole: step.requiredApproverRole
+      }
+    });
+  }
+
   private async getEffectiveMaxCredits(defaultMaxCredits: number) {
     const setting = await this.prisma.systemSetting.findUnique({
       where: { key: "max_credits_per_term" },
@@ -665,20 +837,41 @@ export class GovernanceService {
         : null;
 
       if (input.decision === "APPROVED" && nextStep) {
+        const resolvedNextOwner = await this.resolveStepOwner(tx, {
+          type: requestForDecision.type,
+          studentId: requestForDecision.studentId,
+          termId: requestForDecision.termId,
+          sectionId: requestForDecision.sectionId
+        }, nextStep);
+
         nextOwnerMeta = {
           stepOrder: nextStep.stepOrder,
           stepKey: nextStep.stepKey,
-          ownerUserId: nextStep.ownerUserId,
-          requiredApproverRole: nextStep.requiredApproverRole
+          ownerUserId: resolvedNextOwner.ownerUserId,
+          requiredApproverRole: nextStep.requiredApproverRole,
+          ownerStrategy: nextStep.ownerStrategy,
+          ownerResolutionRefId: nextStep.ownerResolutionRefId
         };
         await tx.academicRequestStep.update({
           where: { id: nextStep.id },
-          data: { status: "PENDING" }
+          data: {
+            status: "PENDING",
+            ...buildStepOwnerResolutionUpdate(
+              resolvedNextOwner.ownerUserId,
+              nextStep.initialOwnerUserId,
+              resolvedNextOwner.ownerResolvedAt
+            )
+          }
         });
 
         await tx.academicRequest.update({
           where: { id: requestId },
-          data: buildWorkflowProgressionUpdate(nextStep)
+          data: buildWorkflowProgressionUpdate({
+            ...nextStep,
+            ownerUserId: resolvedNextOwner.ownerUserId,
+            initialOwnerUserId: resolvedNextOwner.initialOwnerUserId,
+            ownerResolvedAt: resolvedNextOwner.ownerResolvedAt
+          })
         });
       } else {
         await tx.academicRequestStep.updateMany({
@@ -735,7 +928,9 @@ export class GovernanceService {
           nextStepOrder: nextOwnerMeta.stepOrder,
           nextStepKey: nextOwnerMeta.stepKey,
           nextOwnerUserId: nextOwnerMeta.ownerUserId,
-          nextOwnerRole: nextOwnerMeta.requiredApproverRole
+          nextOwnerRole: nextOwnerMeta.requiredApproverRole,
+          nextOwnerStrategy: nextOwnerMeta.ownerStrategy,
+          nextOwnerResolutionRefId: nextOwnerMeta.ownerResolutionRefId
         }
       });
     } else {
@@ -790,6 +985,24 @@ export class GovernanceService {
 
         const seededSteps = buildWorkflowStepSeeds(built.workflowSteps);
         const currentStep = seededSteps[0];
+        const resolvedCurrentOwner = await this.resolveStepOwner(
+          tx,
+          {
+            type,
+            studentId,
+            termId: built.payload.termId ?? null,
+            sectionId: built.payload.sectionId ?? null
+          },
+          {
+            ...currentStep,
+            id: `seed-${currentStep.stepOrder}`
+          }
+        );
+
+        auditMetadata = {
+          ...(auditMetadata ?? {}),
+          ownerUserId: resolvedCurrentOwner.ownerUserId
+        };
 
         return tx.academicRequest.create({
           data: {
@@ -802,7 +1015,7 @@ export class GovernanceService {
             reason: built.payload.reason,
             requestedCredits: built.payload.requestedCredits ?? null,
             requiredApproverRole: currentStep.requiredApproverRole,
-            ownerUserId: currentStep.ownerUserId,
+            ownerUserId: resolvedCurrentOwner.ownerUserId,
             activeRequestKey: built.activeRequestKey ?? null,
             steps: {
               create: seededSteps.map((step) => ({
@@ -810,8 +1023,12 @@ export class GovernanceService {
                 stepKey: step.stepKey,
                 label: step.label,
                 requiredApproverRole: step.requiredApproverRole,
-                initialOwnerUserId: step.initialOwnerUserId,
-                ownerUserId: step.ownerUserId,
+                ownerStrategy: step.ownerStrategy,
+                ownerResolutionRefId: step.ownerResolutionRefId,
+                ownerResolvedAt: step.stepOrder === currentStep.stepOrder ? resolvedCurrentOwner.ownerResolvedAt : null,
+                initialOwnerUserId:
+                  step.stepOrder === currentStep.stepOrder ? resolvedCurrentOwner.initialOwnerUserId : step.initialOwnerUserId,
+                ownerUserId: step.stepOrder === currentStep.stepOrder ? resolvedCurrentOwner.ownerUserId : step.ownerUserId,
                 status: step.status
               }))
             }
