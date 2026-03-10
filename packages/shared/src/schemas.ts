@@ -195,6 +195,11 @@ export const decideAcademicRequestSchema = z.object({
   decisionNote: z.string().min(3)
 });
 
+export const reassignAcademicRequestSchema = z.object({
+  ownerUserId: z.string().min(1),
+  note: z.string().min(3).max(500).optional().nullable()
+});
+
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -210,3 +215,4 @@ export type ResolveHoldInput = z.infer<typeof resolveHoldSchema>;
 export type SubmitCreditOverloadRequestInput = z.infer<typeof submitCreditOverloadRequestSchema>;
 export type SubmitPrereqOverrideRequestInput = z.infer<typeof submitPrereqOverrideRequestSchema>;
 export type DecideAcademicRequestInput = z.infer<typeof decideAcademicRequestSchema>;
+export type ReassignAcademicRequestInput = z.infer<typeof reassignAcademicRequestSchema>;

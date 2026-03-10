@@ -3,6 +3,7 @@ import { AcademicRequestStatus, AcademicRequestType, HoldType, Prisma, Role } fr
 import type {
   CreateHoldInput,
   DecideAcademicRequestInput,
+  ReassignAcademicRequestInput,
   ResolveHoldInput,
   SubmitCreditOverloadRequestInput,
   SubmitPrereqOverrideRequestInput
@@ -13,6 +14,7 @@ import {
   assertAcademicRequestOpen,
   assertAcademicRequestOwnership,
   buildFinalDecisionUpdate,
+  buildStepReassignmentUpdate,
   buildStepDecisionUpdate,
   buildWorkflowProgressionUpdate,
   buildWorkflowStepSeeds,
@@ -58,6 +60,7 @@ const academicRequestInclude = Prisma.validator<Prisma.AcademicRequestInclude>()
   steps: {
     orderBy: { stepOrder: "asc" },
     include: {
+      initialOwner: { select: actorSelect },
       owner: { select: actorSelect },
       decidedBy: { select: actorSelect }
     }
@@ -74,6 +77,16 @@ type NextOwnerAuditMeta = {
   stepOrder: number;
   stepKey: string;
   ownerUserId: string | null;
+  requiredApproverRole: Role;
+};
+
+type StepReassignmentAuditMeta = {
+  stepId: string;
+  stepOrder: number;
+  stepKey: string;
+  previousOwnerUserId: string | null;
+  currentOwnerUserId: string | null;
+  initialOwnerUserId: string | null;
   requiredApproverRole: Role;
 };
 
@@ -117,7 +130,15 @@ export class GovernanceService {
 
   async listAdminRequests(adminUserId: string) {
     await this.assertAdminActor(adminUserId);
-    return this.listOwnedRequests(adminUserId, "ADMIN");
+    return this.prisma.academicRequest.findMany({
+      where: {
+        type: "PREREQ_OVERRIDE",
+        status: "SUBMITTED",
+        currentStepOrder: { not: null }
+      },
+      include: academicRequestInclude,
+      orderBy: [{ submittedAt: "asc" }]
+    });
   }
 
   async decideAdvisorRequest(advisorUserId: string, requestId: string, input: DecideAcademicRequestInput) {
@@ -131,6 +152,170 @@ export class GovernanceService {
   async decideAdminRequest(adminUserId: string, requestId: string, input: DecideAcademicRequestInput) {
     await this.assertAdminActor(adminUserId);
     return this.decideOwnedRequest(adminUserId, "ADMIN", requestId, input);
+  }
+
+  async listReassignmentCandidates(adminUserId: string, requestId: string) {
+    await this.assertAdminActor(adminUserId);
+
+    const request = await this.prisma.academicRequest.findUnique({
+      where: { id: requestId },
+      include: {
+        steps: {
+          orderBy: { stepOrder: "asc" }
+        }
+      }
+    });
+
+    if (!request) {
+      throw new NotFoundException({ code: "REQUEST_NOT_FOUND", message: "Academic request not found" });
+    }
+
+    assertAcademicRequestOpen(request.status);
+    const currentStep = getCurrentAcademicRequestStep({
+      currentStepOrder: request.currentStepOrder,
+      steps: request.steps
+    });
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        role: currentStep.requiredApproverRole,
+        deletedAt: null
+      },
+      orderBy: [{ createdAt: "asc" }],
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        facultyProfile: { select: { displayName: true } },
+        advisorProfile: { select: { displayName: true } }
+      }
+    });
+
+    return users.map((user) => ({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      displayName:
+        user.facultyProfile?.displayName ??
+        user.advisorProfile?.displayName ??
+        user.email,
+      currentAssigned: user.id === currentStep.ownerUserId,
+      initialAssigned: user.id === currentStep.initialOwnerUserId
+    }));
+  }
+
+  async reassignCurrentRequestStep(adminUserId: string, requestId: string, input: ReassignAcademicRequestInput) {
+    await this.assertAdminActor(adminUserId);
+
+    let reassignmentMeta: StepReassignmentAuditMeta | undefined;
+
+    const request = await this.prisma.$transaction(async (tx) => {
+      const requestForRouting = await tx.academicRequest.findUnique({
+        where: { id: requestId },
+        include: {
+          term: academicRequestInclude.term,
+          section: academicRequestInclude.section,
+          owner: academicRequestInclude.owner,
+          decidedBy: academicRequestInclude.decidedBy,
+          steps: academicRequestInclude.steps,
+          student: {
+            select: {
+              id: true,
+              email: true,
+              studentId: true,
+              studentProfile: {
+                select: {
+                  legalName: true,
+                  programMajor: true,
+                  academicStatus: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!requestForRouting) {
+        throw new NotFoundException({ code: "REQUEST_NOT_FOUND", message: "Academic request not found" });
+      }
+
+      assertAcademicRequestOpen(requestForRouting.status);
+      const currentStep = getCurrentAcademicRequestStep({
+        currentStepOrder: requestForRouting.currentStepOrder,
+        steps: requestForRouting.steps
+      });
+
+      const nextOwner = await tx.user.findFirst({
+        where: {
+          id: input.ownerUserId,
+          role: currentStep.requiredApproverRole,
+          deletedAt: null
+        },
+        select: { id: true }
+      });
+
+      if (!nextOwner) {
+        throw new BadRequestException({
+          code: "REQUEST_REASSIGNMENT_INVALID",
+          message: "Selected reviewer is not eligible for the active workflow step"
+        });
+      }
+
+      if (currentStep.ownerUserId === nextOwner.id) {
+        throw new BadRequestException({
+          code: "REQUEST_ALREADY_ASSIGNED",
+          message: "This workflow step is already assigned to the selected reviewer"
+        });
+      }
+
+      reassignmentMeta = {
+        stepId: currentStep.id,
+        stepOrder: currentStep.stepOrder,
+        stepKey: currentStep.stepKey,
+        previousOwnerUserId: currentStep.ownerUserId,
+        currentOwnerUserId: nextOwner.id,
+        initialOwnerUserId: currentStep.initialOwnerUserId,
+        requiredApproverRole: currentStep.requiredApproverRole
+      };
+
+      await tx.academicRequestStep.update({
+        where: { id: currentStep.id },
+        data: buildStepReassignmentUpdate(nextOwner.id)
+      });
+
+      await tx.academicRequest.update({
+        where: { id: requestId },
+        data: { ownerUserId: nextOwner.id }
+      });
+
+      return tx.academicRequest.findUniqueOrThrow({
+        where: { id: requestId },
+        include: academicRequestInclude
+      });
+    });
+
+    await this.auditService.log({
+      actorUserId: adminUserId,
+      action: "academic_request_step_reassigned",
+      entityType: "academic_request_step",
+      entityId: reassignmentMeta?.stepId ?? request.id,
+      metadata: {
+        requestId: request.id,
+        type: request.type,
+        studentId: request.studentId,
+        termId: request.termId,
+        sectionId: request.sectionId,
+        stepOrder: reassignmentMeta?.stepOrder ?? null,
+        stepKey: reassignmentMeta?.stepKey ?? null,
+        previousOwnerUserId: reassignmentMeta?.previousOwnerUserId ?? null,
+        currentOwnerUserId: reassignmentMeta?.currentOwnerUserId ?? null,
+        initialOwnerUserId: reassignmentMeta?.initialOwnerUserId ?? null,
+        requiredApproverRole: reassignmentMeta?.requiredApproverRole ?? null,
+        note: input.note?.trim() || null
+      }
+    });
+
+    return request;
   }
 
   async listHolds(actorUserId: string, studentId?: string) {
@@ -383,13 +568,6 @@ export class GovernanceService {
                 }
               }
             }
-          : {}),
-        ...(actorRole === "FACULTY"
-          ? {
-              section: {
-                instructorUserId: actorUserId
-              }
-            }
           : {})
       },
       include: academicRequestInclude,
@@ -475,10 +653,6 @@ export class GovernanceService {
 
       if (actorRole === "ADVISOR" && requestForDecision.student.adviseeAssignments.length === 0) {
         throw new ForbiddenException({ code: "REQUEST_FORBIDDEN", message: "Student is not assigned to this advisor" });
-      }
-
-      if (actorRole === "FACULTY" && requestForDecision.section?.instructorUserId !== actorUserId) {
-        throw new ForbiddenException({ code: "REQUEST_FORBIDDEN", message: "Section is not owned by this faculty member" });
       }
 
       await tx.academicRequestStep.update({
@@ -636,6 +810,7 @@ export class GovernanceService {
                 stepKey: step.stepKey,
                 label: step.label,
                 requiredApproverRole: step.requiredApproverRole,
+                initialOwnerUserId: step.initialOwnerUserId,
                 ownerUserId: step.ownerUserId,
                 status: step.status
               }))

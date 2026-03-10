@@ -117,6 +117,7 @@ The governance implementation now also has a Phase 1 workflow-engine foundation:
 - request-type policy ownership/routing isolated from controller flow
 - request-effect handling isolated from registration service call sites
 - explicit workflow-step records with current-step ownership and step status
+- active-step reassignment with auditable routing changes and preserved initial-owner context
 
 That foundation is still intentionally narrow, but it changes the shape of future work:
 adding a second governed request type should extend a policy surface, not duplicate the current overload logic.
@@ -137,7 +138,7 @@ The engine now proves that extension path with a second implemented request type
 - faculty grade-change workflow or registrar correction approval
 - faculty attendance, assignment, or LMS-facing instructional tools
 - faculty instructor-consent workflow
-- registrar finalization step for multi-actor approvals
+- registrar escalation or fallback routing rules beyond direct reassignment
 - advisor standing review workflow beyond notes and read-only enrollment visibility
 - programs, majors, minors, catalog years, and degree requirements
 - degree audit and graduation clearance

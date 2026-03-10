@@ -13,7 +13,8 @@ function createGovernanceService() {
       findUnique: jest.fn()
     },
     user: {
-      findFirst: jest.fn()
+      findFirst: jest.fn(),
+      findMany: jest.fn()
     },
     advisorAssignment: {
       findFirst: jest.fn()
@@ -24,6 +25,7 @@ function createGovernanceService() {
     academicRequest: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       findUniqueOrThrow: jest.fn(),
       create: jest.fn(),
       update: jest.fn()
@@ -61,6 +63,7 @@ function makeStep(overrides?: Partial<any>) {
     stepKey: "advisor_review",
     label: "Advisor Review",
     requiredApproverRole: "ADVISOR",
+    initialOwnerUserId: "advisor-1",
     ownerUserId: "advisor-1",
     status: "PENDING",
     owner: null,
@@ -538,6 +541,253 @@ describe("GovernanceService", () => {
         decisionNote: "Registrar approval"
       })
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("allows admins to reassign the active workflow step to another valid reviewer", async () => {
+    const { prisma, auditService, service } = createGovernanceService();
+    prisma.user.findFirst
+      .mockResolvedValueOnce({ id: "admin-1" })
+      .mockResolvedValueOnce({ id: "faculty-2" });
+    prisma.academicRequest.findUnique.mockResolvedValue(
+      makeRequest({
+        id: "request-8",
+        type: "PREREQ_OVERRIDE",
+        sectionId: "section-1",
+        ownerUserId: "faculty-1",
+        requiredApproverRole: "FACULTY",
+        currentStepOrder: 1,
+        steps: [
+          makeStep({
+            id: "step-faculty",
+            stepKey: "faculty_review",
+            label: "Faculty Review",
+            requiredApproverRole: "FACULTY",
+            initialOwnerUserId: "faculty-1",
+            ownerUserId: "faculty-1",
+            status: "PENDING"
+          }),
+          makeStep({
+            id: "step-admin",
+            stepOrder: 2,
+            stepKey: "registrar_finalization",
+            label: "Registrar Finalization",
+            requiredApproverRole: "ADMIN",
+            initialOwnerUserId: "admin-1",
+            ownerUserId: "admin-1",
+            status: "WAITING"
+          })
+        ]
+      })
+    );
+    prisma.academicRequest.findUniqueOrThrow.mockResolvedValue(
+      makeRequest({
+        id: "request-8",
+        type: "PREREQ_OVERRIDE",
+        sectionId: "section-1",
+        ownerUserId: "faculty-2",
+        requiredApproverRole: "FACULTY",
+        currentStepOrder: 1,
+        steps: [
+          makeStep({
+            id: "step-faculty",
+            stepKey: "faculty_review",
+            label: "Faculty Review",
+            requiredApproverRole: "FACULTY",
+            initialOwnerUserId: "faculty-1",
+            ownerUserId: "faculty-2",
+            status: "PENDING"
+          }),
+          makeStep({
+            id: "step-admin",
+            stepOrder: 2,
+            stepKey: "registrar_finalization",
+            label: "Registrar Finalization",
+            requiredApproverRole: "ADMIN",
+            initialOwnerUserId: "admin-1",
+            ownerUserId: "admin-1",
+            status: "WAITING"
+          })
+        ]
+      })
+    );
+
+    const request = await service.reassignCurrentRequestStep("admin-1", "request-8", {
+      ownerUserId: "faculty-2",
+      note: "Faculty workload balancing"
+    });
+
+    expect(prisma.academicRequestStep.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "step-faculty" },
+        data: { ownerUserId: "faculty-2" }
+      })
+    );
+    expect(prisma.academicRequest.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "request-8" },
+        data: { ownerUserId: "faculty-2" }
+      })
+    );
+    expect(auditService.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "academic_request_step_reassigned" })
+    );
+    expect(request.ownerUserId).toBe("faculty-2");
+  });
+
+  it("removes decision authority from the previous owner after reassignment", async () => {
+    const { prisma, service } = createGovernanceService();
+    prisma.academicRequest.findFirst.mockResolvedValue(
+      makeRequest({
+        id: "request-9",
+        type: "PREREQ_OVERRIDE",
+        sectionId: "section-1",
+        ownerUserId: "faculty-2",
+        requiredApproverRole: "FACULTY",
+        currentStepOrder: 1,
+        student: {
+          id: "student-1",
+          email: "student1@sis.edu",
+          studentId: "S2601",
+          studentProfile: { legalName: "Student One", programMajor: "CS", academicStatus: "Good Standing" },
+          adviseeAssignments: []
+        },
+        section: {
+          id: "section-1",
+          instructorUserId: "faculty-1",
+          sectionCode: "CS201-F1",
+          course: { code: "CS201", title: "Data Structures" }
+        },
+        steps: [
+          makeStep({
+            id: "step-faculty",
+            stepKey: "faculty_review",
+            label: "Faculty Review",
+            requiredApproverRole: "FACULTY",
+            initialOwnerUserId: "faculty-1",
+            ownerUserId: "faculty-2",
+            status: "PENDING"
+          }),
+          makeStep({
+            id: "step-admin",
+            stepOrder: 2,
+            stepKey: "registrar_finalization",
+            label: "Registrar Finalization",
+            requiredApproverRole: "ADMIN",
+            initialOwnerUserId: "admin-1",
+            ownerUserId: "admin-1",
+            status: "WAITING"
+          })
+        ]
+      })
+    );
+
+    await expect(
+      service.decideFacultyRequest("faculty-1", "request-9", {
+        decision: "APPROVED",
+        decisionNote: "Old owner should not retain access"
+      })
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("allows the reassigned faculty owner to decide the active step", async () => {
+    const { prisma, auditService, service } = createGovernanceService();
+    prisma.academicRequest.findFirst.mockResolvedValue(
+      makeRequest({
+        id: "request-9b",
+        type: "PREREQ_OVERRIDE",
+        sectionId: "section-1",
+        ownerUserId: "faculty-2",
+        requiredApproverRole: "FACULTY",
+        currentStepOrder: 1,
+        student: {
+          id: "student-1",
+          email: "student1@sis.edu",
+          studentId: "S2601",
+          studentProfile: { legalName: "Student One", programMajor: "CS", academicStatus: "Good Standing" },
+          adviseeAssignments: []
+        },
+        section: {
+          id: "section-1",
+          instructorUserId: "faculty-1",
+          sectionCode: "CS201-F1",
+          course: { code: "CS201", title: "Data Structures" }
+        },
+        steps: [
+          makeStep({
+            id: "step-faculty",
+            stepKey: "faculty_review",
+            label: "Faculty Review",
+            requiredApproverRole: "FACULTY",
+            initialOwnerUserId: "faculty-1",
+            ownerUserId: "faculty-2",
+            status: "PENDING"
+          }),
+          makeStep({
+            id: "step-admin",
+            stepOrder: 2,
+            stepKey: "registrar_finalization",
+            label: "Registrar Finalization",
+            requiredApproverRole: "ADMIN",
+            initialOwnerUserId: "admin-1",
+            ownerUserId: "admin-1",
+            status: "WAITING"
+          })
+        ]
+      })
+    );
+    prisma.academicRequest.findUniqueOrThrow.mockResolvedValue(
+      makeRequest({
+        id: "request-9b",
+        type: "PREREQ_OVERRIDE",
+        sectionId: "section-1",
+        ownerUserId: "admin-1",
+        requiredApproverRole: "ADMIN",
+        currentStepOrder: 2,
+        student: {
+          id: "student-1",
+          email: "student1@sis.edu",
+          studentId: "S2601",
+          studentProfile: { legalName: "Student One", programMajor: "CS", academicStatus: "Good Standing" }
+        },
+        section: {
+          id: "section-1",
+          instructorUserId: "faculty-1",
+          sectionCode: "CS201-F1",
+          course: { code: "CS201", title: "Data Structures" }
+        },
+        steps: [
+          makeStep({
+            id: "step-faculty",
+            stepKey: "faculty_review",
+            label: "Faculty Review",
+            requiredApproverRole: "FACULTY",
+            initialOwnerUserId: "faculty-1",
+            ownerUserId: "faculty-2",
+            status: "APPROVED",
+            decisionNote: "Reassigned faculty approved"
+          }),
+          makeStep({
+            id: "step-admin",
+            stepOrder: 2,
+            stepKey: "registrar_finalization",
+            label: "Registrar Finalization",
+            requiredApproverRole: "ADMIN",
+            initialOwnerUserId: "admin-1",
+            ownerUserId: "admin-1",
+            status: "PENDING"
+          })
+        ]
+      })
+    );
+
+    const decided = await service.decideFacultyRequest("faculty-2", "request-9b", {
+      decision: "APPROVED",
+      decisionNote: "Reassigned faculty approved"
+    });
+
+    expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({ action: "academic_request_owner_transition" }));
+    expect(decided.currentStepOrder).toBe(2);
+    expect(decided.ownerUserId).toBe("admin-1");
   });
 
   it("rejects duplicate pending overload requests for the same student and term", async () => {

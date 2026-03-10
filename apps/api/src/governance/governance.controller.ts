@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@ne
 import {
   createHoldSchema,
   decideAcademicRequestSchema,
+  reassignAcademicRequestSchema,
   resolveHoldSchema,
   submitCreditOverloadRequestSchema,
   submitPrereqOverrideRequestSchema
@@ -87,6 +88,12 @@ export class GovernanceController {
     return ok(await this.governanceService.listAdminRequests(user.userId));
   }
 
+  @Get("admin/requests/:requestId/reassignment-options")
+  @Roles("ADMIN")
+  async listReassignmentCandidates(@CurrentUser() user: { userId: string }, @Param("requestId") requestId: string) {
+    return ok(await this.governanceService.listReassignmentCandidates(user.userId, requestId));
+  }
+
   @Post("admin/requests/:requestId/decision")
   @Roles("ADMIN")
   async decideAdminRequest(
@@ -95,6 +102,16 @@ export class GovernanceController {
     @Body(new ZodValidationPipe(decideAcademicRequestSchema)) body: unknown
   ) {
     return ok(await this.governanceService.decideAdminRequest(user.userId, requestId, body as never));
+  }
+
+  @Post("admin/requests/:requestId/reassign")
+  @Roles("ADMIN")
+  async reassignAdminRequest(
+    @CurrentUser() user: { userId: string },
+    @Param("requestId") requestId: string,
+    @Body(new ZodValidationPipe(reassignAcademicRequestSchema)) body: unknown
+  ) {
+    return ok(await this.governanceService.reassignCurrentRequestStep(user.userId, requestId, body as never));
   }
 
   @Get("admin/holds")
