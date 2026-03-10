@@ -47,6 +47,14 @@ enum AcademicRequestStatus {
   WITHDRAWN
 }
 
+enum AcademicRequestStepStatus {
+  WAITING
+  PENDING
+  APPROVED
+  REJECTED
+  SKIPPED
+}
+
 model User {
   id                      String                   @id @default(uuid())
   email                   String                   @unique
@@ -86,6 +94,8 @@ model User {
   academicRequests        AcademicRequest[]        @relation("StudentAcademicRequests")
   ownedAcademicRequests   AcademicRequest[]        @relation("AcademicRequestOwner")
   decidedAcademicRequests AcademicRequest[]        @relation("AcademicRequestDecisionActor")
+  ownedAcademicRequestSteps AcademicRequestStep[]  @relation("AcademicRequestStepOwner")
+  decidedAcademicRequestSteps AcademicRequestStep[] @relation("AcademicRequestStepDecisionActor")
 
   @@index([role, deletedAt])
 }
@@ -416,6 +426,7 @@ model AcademicRequest {
   type                 AcademicRequestType
   status               AcademicRequestStatus @default(SUBMITTED)
   activeRequestKey     String?               @unique
+  currentStepOrder     Int?
   termId               String?
   sectionId            String?
   reason               String                @db.Text
@@ -432,11 +443,35 @@ model AcademicRequest {
   section              Section?              @relation(fields: [sectionId], references: [id], onDelete: SetNull)
   owner                User?                 @relation("AcademicRequestOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   decidedBy            User?                 @relation("AcademicRequestDecisionActor", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+  steps                AcademicRequestStep[]
 
   @@index([studentId, status])
   @@index([ownerUserId, status])
   @@index([termId, type, status])
   @@index([sectionId, type, status])
+}
+
+model AcademicRequestStep {
+  id                   String                    @id @default(uuid())
+  requestId            String
+  stepOrder            Int
+  stepKey              String
+  label                String
+  requiredApproverRole Role
+  ownerUserId          String?
+  status               AcademicRequestStepStatus @default(WAITING)
+  decisionNote         String?                   @db.Text
+  decidedByUserId      String?
+  decidedAt            DateTime?
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  request              AcademicRequest           @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  owner                User?                     @relation("AcademicRequestStepOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  decidedBy            User?                     @relation("AcademicRequestStepDecisionActor", fields: [decidedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([requestId, stepOrder])
+  @@index([ownerUserId, status])
+  @@index([requiredApproverRole, status])
 }
 
 model SectionWatch {

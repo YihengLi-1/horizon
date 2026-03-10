@@ -81,6 +81,22 @@ export class GovernanceController {
     return ok(await this.governanceService.decideFacultyRequest(user.userId, requestId, body as never));
   }
 
+  @Get("admin/requests")
+  @Roles("ADMIN")
+  async listAdminRequests(@CurrentUser() user: { userId: string }) {
+    return ok(await this.governanceService.listAdminRequests(user.userId));
+  }
+
+  @Post("admin/requests/:requestId/decision")
+  @Roles("ADMIN")
+  async decideAdminRequest(
+    @CurrentUser() user: { userId: string },
+    @Param("requestId") requestId: string,
+    @Body(new ZodValidationPipe(decideAcademicRequestSchema)) body: unknown
+  ) {
+    return ok(await this.governanceService.decideAdminRequest(user.userId, requestId, body as never));
+  }
+
   @Get("admin/holds")
   @Roles("ADMIN")
   async listHolds(@CurrentUser() user: { userId: string }, @Query("studentId") studentId?: string) {

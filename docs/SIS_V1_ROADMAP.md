@@ -116,6 +116,7 @@ The governance implementation now also has a Phase 1 workflow-engine foundation:
 - separation between generic workflow handling and request-type-specific policy logic
 - request-type policy ownership/routing isolated from controller flow
 - request-effect handling isolated from registration service call sites
+- explicit workflow-step records with current-step ownership and step status
 
 That foundation is still intentionally narrow, but it changes the shape of future work:
 adding a second governed request type should extend a policy surface, not duplicate the current overload logic.
@@ -125,9 +126,11 @@ The engine now proves that extension path with a second implemented request type
 - `AcademicRequest` for `PREREQ_OVERRIDE`
 - student prerequisite-override submission for a specific target section
 - faculty-owned review for sections they teach
-- registration prerequisite enforcement that honors an approved override for that specific section only
+- registrar finalization after faculty approval
+- registration prerequisite enforcement that honors an approved override for that specific section only after final approval
 - student cart visibility for prerequisite-override request status
 - faculty request review page for owned prerequisite overrides
+- admin request review page for registrar finalization
 
 ## Still Missing After This Slice
 

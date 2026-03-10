@@ -21,6 +21,7 @@ const COMMANDS = [
   { id: "admin-sections", label: "Sections", path: "/admin/sections", group: "Admin", role: "admin", icon: "🗂" },
   { id: "admin-enrollments", label: "Enrollments", path: "/admin/enrollments", group: "Admin", role: "admin", icon: "📋" },
   { id: "admin-holds", label: "Student Holds", path: "/admin/holds", group: "Admin", role: "admin", icon: "🛑" },
+  { id: "admin-requests", label: "Approval Requests", path: "/admin/requests", group: "Admin", role: "admin", icon: "🪪" },
   { id: "reports", label: "Admin Reports", path: "/admin/reports", group: "Admin", role: "admin", icon: "📈" },
   { id: "announcements", label: "Announcements", path: "/admin/announcements", group: "Admin", role: "admin", icon: "📢" },
   { id: "settings", label: "System Settings", path: "/admin/settings", group: "Admin", role: "admin", icon: "🔧" }

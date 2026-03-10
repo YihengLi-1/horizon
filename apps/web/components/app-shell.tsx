@@ -84,6 +84,7 @@ const adminItems: NavItem[] = [
   { href: "/admin/enrollments", label: "注册管理", icon: <GraduationCap className={iconClass} /> },
   { href: "/admin/waitlist", label: "候补名单", icon: <Clock className={iconClass} /> },
   { href: "/admin/holds", label: "学生限制", icon: <ShieldAlert className={iconClass} /> },
+  { href: "/admin/requests", label: "审批请求", icon: <ListChecks className={iconClass} /> },
   { href: "/admin/announcements", label: "公告", icon: <Megaphone className={iconClass} /> },
   { href: "/admin/invite-codes", label: "邀请码", icon: <KeyRound className={iconClass} /> },
   { href: "/admin/import", label: "数据导入", icon: <Upload className={iconClass} /> },
@@ -158,7 +159,7 @@ export function AppShell({
         ? [
             { label: "概览", hrefs: ["/admin/dashboard"] },
             { label: "学术管理", hrefs: ["/admin/students", "/admin/courses", "/admin/sections", "/admin/terms"] },
-            { label: "注册管理", hrefs: ["/admin/enrollments", "/admin/waitlist", "/admin/holds"] },
+            { label: "注册管理", hrefs: ["/admin/enrollments", "/admin/waitlist", "/admin/holds", "/admin/requests"] },
             { label: "系统", hrefs: ["/admin/announcements", "/admin/invite-codes", "/admin/import", "/admin/reports", "/admin/audit-logs", "/admin/notifications", "/admin/sessions", "/admin/settings"] }
           ]
         : area === "faculty"

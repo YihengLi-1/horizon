@@ -2,12 +2,7 @@ import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { AcademicRequestType, Prisma, Role } from "@prisma/client";
 import type { SubmitCreditOverloadRequestInput, SubmitPrereqOverrideRequestInput } from "@sis/shared";
 import { PrismaService } from "../common/prisma.service";
-
-type SubmissionRouting = {
-  requiredApproverRole: Role | null;
-  ownerUserId: string | null;
-  activeRequestKey?: string | null;
-};
+import type { WorkflowStepTemplate } from "./academic-request.lifecycle";
 
 type SubmissionPayload = {
   termId?: string | null;
@@ -17,8 +12,9 @@ type SubmissionPayload = {
 };
 
 type SubmissionBuildResult = {
-  routing: SubmissionRouting;
+  activeRequestKey?: string | null;
   payload: SubmissionPayload;
+  workflowSteps: [WorkflowStepTemplate, ...WorkflowStepTemplate[]];
   auditMetadata?: Record<string, unknown>;
 };
 
@@ -118,16 +114,20 @@ const creditOverloadPolicy: AcademicRequestPolicy<SubmitCreditOverloadRequestInp
     }
 
     return {
-      routing: {
-        requiredApproverRole: "ADVISOR",
-        ownerUserId: assignment.advisorId,
-        activeRequestKey: buildActiveRequestKey(studentId, input.termId, "CREDIT_OVERLOAD")
-      },
+      activeRequestKey: buildActiveRequestKey(studentId, input.termId, "CREDIT_OVERLOAD"),
       payload: {
         termId: input.termId,
         reason: input.reason.trim(),
         requestedCredits: input.requestedCredits
       },
+      workflowSteps: [
+        {
+          stepKey: "advisor_review",
+          label: "Advisor Review",
+          requiredApproverRole: "ADVISOR",
+          ownerUserId: assignment.advisorId
+        }
+      ],
       auditMetadata: {
         termId: input.termId,
         requestedCredits: input.requestedCredits,
@@ -193,6 +193,25 @@ const prereqOverridePolicy: AcademicRequestPolicy<SubmitPrereqOverrideRequestInp
       });
     }
 
+    const registrar = await tx.user.findFirst({
+      where: {
+        role: "ADMIN",
+        deletedAt: null
+      },
+      orderBy: [{ createdAt: "asc" }],
+      select: {
+        id: true,
+        email: true
+      }
+    });
+
+    if (!registrar) {
+      throw new BadRequestException({
+        code: "PREREQ_OVERRIDE_UNAVAILABLE",
+        message: "No registrar reviewer is available for prerequisite overrides"
+      });
+    }
+
     const prereqCourseIds = section.course.prerequisiteLinks.map((link) => link.prerequisiteCourseId);
     const completed = await tx.enrollment.findMany({
       where: {
@@ -242,20 +261,31 @@ const prereqOverridePolicy: AcademicRequestPolicy<SubmitPrereqOverrideRequestInp
     const missingPrereqCodes = missingLinks.map((link) => link.prerequisiteCourse.code);
 
     return {
-      routing: {
-        requiredApproverRole: "FACULTY",
-        ownerUserId: section.instructorUserId,
-        activeRequestKey: buildActiveRequestKey(studentId, section.id, "PREREQ_OVERRIDE")
-      },
+      activeRequestKey: buildActiveRequestKey(studentId, section.id, "PREREQ_OVERRIDE"),
       payload: {
         termId: section.termId,
         sectionId: section.id,
         reason: input.reason.trim()
       },
+      workflowSteps: [
+        {
+          stepKey: "faculty_review",
+          label: "Faculty Review",
+          requiredApproverRole: "FACULTY",
+          ownerUserId: section.instructorUserId
+        },
+        {
+          stepKey: "registrar_finalization",
+          label: "Registrar Finalization",
+          requiredApproverRole: "ADMIN",
+          ownerUserId: registrar.id
+        }
+      ],
       auditMetadata: {
         termId: section.termId,
         sectionId: section.id,
         ownerUserId: section.instructorUserId,
+        finalOwnerUserId: registrar.id,
         missingPrereqCodes
       }
     };
