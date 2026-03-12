@@ -89,6 +89,11 @@ model User {
   auditLogs               AuditLog[]               @relation("AuditActor")
   watches                 SectionWatch[]
   scheduleSnapshots       ScheduleSnapshot[]
+  gradeAppealsAsStudent   GradeAppeal[]            @relation("StudentGradeAppeals")
+  gradeAppealsAsAdmin     GradeAppeal[]            @relation("AdminGradeAppeals")
+  studentNotesReceived    StudentNote[]            @relation("StudentNotesReceived")
+  studentNotesWritten     StudentNote[]            @relation("StudentNotesWritten")
+  createdCalendarEvents   CalendarEvent[]          @relation("CreatedCalendarEvents")
   instructedSections      Section[]                @relation("SectionInstructor")
   adviseeAssignments      AdvisorAssignment[]      @relation("StudentAdvisorAssignments")
   advisorAssignments      AdvisorAssignment[]      @relation("AdvisorAssignments")
@@ -243,6 +248,25 @@ model Term {
   cartItems           CartItem[]
   scheduleSnapshots   ScheduleSnapshot[]
   academicRequests    AcademicRequest[]
+  calendarEvents      CalendarEvent[]
+}
+
+model CalendarEvent {
+  id          String    @id @default(cuid())
+  title       String
+  description String?   @db.Text
+  eventDate   DateTime
+  endDate     DateTime?
+  type        String    @default("INFO") // INFO | EXAM | HOLIDAY | DEADLINE | REGISTRATION
+  termId      String?
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  term        Term?     @relation(fields: [termId], references: [id], onDelete: SetNull)
+  createdBy   User      @relation("CreatedCalendarEvents", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([eventDate])
+  @@index([termId, eventDate])
 }
 
 model Course {
@@ -251,12 +275,15 @@ model Course {
   title                 String
   description           String?
   credits               Int
+  weeklyHours           Float?
   deletedAt             DateTime?
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
   sections              Section[]
   prerequisiteLinks     CoursePrerequisite[] @relation("CoursePrerequisites")
   requiredForLinks      CoursePrerequisite[] @relation("RequiredForCourses")
+  pairingsA             CoursePairing[]      @relation("PairingCourseA")
+  pairingsB             CoursePairing[]      @relation("PairingCourseB")
 }
 
 model CoursePrerequisite {
@@ -324,6 +351,7 @@ model Enrollment {
   student         User             @relation("StudentEnrollments", fields: [studentId], references: [id], onDelete: Cascade)
   term            Term             @relation(fields: [termId], references: [id], onDelete: Cascade)
   section         Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  gradeAppeals    GradeAppeal[]
 
   @@index([studentId, termId, deletedAt])
   @@index([sectionId, status, deletedAt])
@@ -368,18 +396,35 @@ model AuditLog {
 }
 
 model CourseRating {
-  id        String   @id @default(cuid())
-  studentId String
-  sectionId String
-  rating    Int
-  comment   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  studentId      String
+  sectionId      String
+  rating         Int
+  difficulty     Int?
+  workload       Int?
+  wouldRecommend Boolean?
+  comment        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  student        User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  section        Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, sectionId])
   @@index([sectionId])
+}
+
+model CoursePairing {
+  id          String   @id @default(cuid())
+  courseAId   String
+  courseBId   String
+  coCount     Int      @default(1)
+  updatedAt   DateTime @updatedAt
+  courseA     Course   @relation("PairingCourseA", fields: [courseAId], references: [id], onDelete: Cascade)
+  courseB     Course   @relation("PairingCourseB", fields: [courseBId], references: [id], onDelete: Cascade)
+
+  @@unique([courseAId, courseBId])
+  @@index([courseAId, coCount])
+  @@index([courseBId, coCount])
 }
 
 model Announcement {
@@ -518,4 +563,39 @@ model SystemSetting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+model GradeAppeal {
+  id               String    @id @default(cuid())
+  studentId        String
+  enrollmentId     String
+  contestedGrade   String
+  requestedGrade   String?
+  reason           String    @db.Text
+  status           String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  adminNote        String?   @db.Text
+  reviewedById     String?
+  reviewedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  student          User      @relation("StudentGradeAppeals", fields: [studentId], references: [id], onDelete: Cascade)
+  enrollment       Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  reviewedBy       User?     @relation("AdminGradeAppeals", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([studentId, status])
+  @@index([status, createdAt])
+}
+
+model StudentNote {
+  id        String   @id @default(cuid())
+  studentId String
+  adminId   String
+  content   String   @db.Text
+  flag      String?  // "urgent" | "academic" | "financial" | "positive" | null
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  student   User     @relation("StudentNotesReceived", fields: [studentId], references: [id], onDelete: Cascade)
+  admin     User     @relation("StudentNotesWritten", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, createdAt])
 }

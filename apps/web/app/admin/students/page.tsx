@@ -57,6 +57,14 @@ type NotificationLogItem = {
   sentAt: string;
 };
 
+type StudentNoteItem = {
+  id: string;
+  content: string;
+  flag: string | null;
+  createdAt: string;
+  admin: { email: string };
+};
+
 const ENROLLMENT_STATUSES = ["New", "Continuing", "Returning", "Graduated", "Withdrawn"];
 const ACADEMIC_STATUSES = ["Active", "Probation", "Suspended", "Graduated"];
 const PAGE_SIZE = 50;
@@ -100,10 +108,14 @@ export default function AdminStudentsPage() {
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
   const [roleSaving, setRoleSaving] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
-  const [activeTab, setActiveTab] = useState<"profile" | "grades" | "security" | "notifications">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "grades" | "security" | "notifications" | "notes">("profile");
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [notificationLog, setNotificationLog] = useState<NotificationLogItem[]>([]);
   const [notificationLoading, setNotificationLoading] = useState(false);
+  const [studentNotes, setStudentNotes] = useState<StudentNoteItem[]>([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [newNoteContent, setNewNoteContent] = useState("");
+  const [newNoteFlag, setNewNoteFlag] = useState("");
 
   const loadStudents = async () => {
     try {
@@ -150,6 +162,39 @@ export default function AdminStudentsPage() {
       alive = false;
     };
   }, [activeTab, detailStudent]);
+
+  // Load student notes
+  useEffect(() => {
+    if (activeTab !== "notes" || !detailStudent) return;
+    let alive = true;
+    setNotesLoading(true);
+    void apiFetch<StudentNoteItem[]>(`/admin/students/${detailStudent.id}/notes`)
+      .then((data) => { if (alive) setStudentNotes(data); })
+      .catch(() => { if (alive) setStudentNotes([]); })
+      .finally(() => { if (alive) setNotesLoading(false); });
+    return () => { alive = false; };
+  }, [activeTab, detailStudent]);
+
+  const addNote = async () => {
+    if (!detailStudent || !newNoteContent.trim()) return;
+    try {
+      const note = await apiFetch<StudentNoteItem>(`/admin/students/${detailStudent.id}/notes`, {
+        method: "POST",
+        body: JSON.stringify({ content: newNoteContent.trim(), flag: newNoteFlag || undefined })
+      });
+      setStudentNotes((prev) => [note, ...prev]);
+      setNewNoteContent("");
+      setNewNoteFlag("");
+    } catch { /* ignore */ }
+  };
+
+  const deleteNote = async (noteId: string) => {
+    if (!detailStudent) return;
+    try {
+      await apiFetch(`/admin/students/${detailStudent.id}/notes/${noteId}`, { method: "DELETE" });
+      setStudentNotes((prev) => prev.filter((n) => n.id !== noteId));
+    } catch { /* ignore */ }
+  };
 
   const onCreate = async (event: FormEvent) => {
     event.preventDefault();
@@ -233,6 +278,9 @@ export default function AdminStudentsPage() {
     try {
       setDetailLoadingId(id);
       setActiveTab("profile");
+      setStudentNotes([]);
+      setNewNoteContent("");
+      setNewNoteFlag("");
       const [student, loginHistory] = await Promise.all([
         apiFetch<Student>(`/students/${id}`),
         apiFetch<Pick<Student, "lastLoginAt" | "loginAttempts" | "lockedUntil" | "role">>(`/admin/users/${id}/login-history`)
@@ -873,7 +921,7 @@ export default function AdminStudentsPage() {
             </div>
             <div className="space-y-5 p-6">
               <div className="mb-4 flex border-b border-slate-100 dark:border-slate-700">
-                {(["profile", "grades", "security", "notifications"] as const).map((tab) => (
+                {(["profile", "grades", "security", "notifications", "notes"] as const).map((tab) => (
                   <button
                     key={tab}
                     type="button"
@@ -1040,7 +1088,7 @@ export default function AdminStudentsPage() {
                     ) : null}
                   </div>
                 </div>
-              ) : (
+              ) : activeTab === "notifications" ? (
                 <div className="space-y-3">
                   {notificationLoading ? (
                     <p className="text-sm text-slate-400">Loading notification log…</p>
@@ -1066,6 +1114,83 @@ export default function AdminStudentsPage() {
                         </div>
                       </div>
                     ))
+                  )}
+                </div>
+              ) : (
+                /* Notes tab */
+                <div className="space-y-3">
+                  <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
+                    <p className="text-xs font-semibold uppercase text-slate-500">添加备注</p>
+                    <textarea
+                      className="campus-input w-full min-h-[72px] resize-y text-sm"
+                      placeholder="输入备注内容…"
+                      value={newNoteContent}
+                      onChange={(e) => setNewNoteContent(e.target.value)}
+                    />
+                    <div className="flex items-center gap-2">
+                      <select
+                        className="campus-select text-xs flex-1"
+                        value={newNoteFlag}
+                        onChange={(e) => setNewNoteFlag(e.target.value)}
+                      >
+                        <option value="">无标签</option>
+                        <option value="urgent">🔴 紧急</option>
+                        <option value="academic">📚 学业</option>
+                        <option value="financial">💰 财务</option>
+                        <option value="positive">✅ 正面</option>
+                      </select>
+                      <button
+                        type="button"
+                        disabled={!newNoteContent.trim()}
+                        onClick={() => void addNote()}
+                        className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-40"
+                      >
+                        添加
+                      </button>
+                    </div>
+                  </div>
+                  {notesLoading ? (
+                    <p className="text-sm text-slate-400">加载中…</p>
+                  ) : studentNotes.length === 0 ? (
+                    <p className="text-sm text-slate-400">暂无备注</p>
+                  ) : (
+                    studentNotes.map((note) => {
+                      const flagColors: Record<string, string> = {
+                        urgent: "border-red-200 bg-red-50",
+                        academic: "border-indigo-200 bg-indigo-50",
+                        financial: "border-amber-200 bg-amber-50",
+                        positive: "border-emerald-200 bg-emerald-50"
+                      };
+                      const flagLabels: Record<string, string> = {
+                        urgent: "🔴 紧急",
+                        academic: "📚 学业",
+                        financial: "💰 财务",
+                        positive: "✅ 正面"
+                      };
+                      return (
+                        <div key={note.id} className={`rounded-lg border px-3 py-2 ${note.flag ? (flagColors[note.flag] ?? "border-slate-100 bg-white") : "border-slate-100 bg-white"} dark:border-slate-700 dark:bg-slate-800`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              {note.flag && (
+                                <span className="mb-1 inline-block text-xs font-semibold text-slate-600">{flagLabels[note.flag] ?? note.flag}</span>
+                              )}
+                              <p className="text-sm text-slate-800 dark:text-slate-100 whitespace-pre-wrap">{note.content}</p>
+                              <p className="mt-1 text-xs text-slate-400">
+                                {note.admin.email} · {new Date(note.createdAt).toLocaleString()}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => void deleteNote(note.id)}
+                              className="text-slate-300 hover:text-red-500 text-sm"
+                              title="删除备注"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               )}

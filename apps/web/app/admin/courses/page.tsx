@@ -2,12 +2,14 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import PrereqGraph from "@/components/PrereqGraph";
 
 type Course = {
   id: string;
   code: string;
   title: string;
   credits: number;
+  weeklyHours?: number | null;
   description?: string | null;
   prerequisiteLinks?: Array<{ prerequisiteCourse?: { id?: string; code?: string } }>;
 };
@@ -16,6 +18,7 @@ type EditForm = {
   code: string;
   title: string;
   credits: number;
+  weeklyHours: number | "";
   description: string;
   prerequisiteCourseIds: string[];
 };
@@ -29,7 +32,7 @@ function getDept(code: string): string {
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
-  const [form, setForm] = useState({ code: "", title: "", credits: 3, description: "", prerequisiteCourseIds: [] as string[] });
+  const [form, setForm] = useState({ code: "", title: "", credits: 3, weeklyHours: "" as number | "", description: "", prerequisiteCourseIds: [] as string[] });
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterDept, setFilterDept] = useState("ALL");
@@ -62,8 +65,9 @@ export default function CoursesPage() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  const [graphCourseId, setGraphCourseId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>({ code: "", title: "", credits: 3, description: "", prerequisiteCourseIds: [] });
+  const [editForm, setEditForm] = useState<EditForm>({ code: "", title: "", credits: 3, weeklyHours: "", description: "", prerequisiteCourseIds: [] });
   const [savingEdit, setSavingEdit] = useState(false);
 
   const load = async () => {
@@ -100,11 +104,12 @@ export default function CoursesPage() {
           code: form.code,
           title: form.title,
           credits: Number(form.credits),
+          weeklyHours: form.weeklyHours !== "" ? Number(form.weeklyHours) : null,
           description: form.description || null,
           prerequisiteCourseIds: form.prerequisiteCourseIds
         })
       });
-      setForm({ code: "", title: "", credits: 3, description: "", prerequisiteCourseIds: [] });
+      setForm({ code: "", title: "", credits: 3, weeklyHours: "", description: "", prerequisiteCourseIds: [] });
       setNotice("Course created successfully.");
       await load();
     } catch (err) {
@@ -120,6 +125,7 @@ export default function CoursesPage() {
       code: course.code,
       title: course.title,
       credits: course.credits,
+      weeklyHours: course.weeklyHours ?? "",
       description: course.description ?? "",
       prerequisiteCourseIds: (course.prerequisiteLinks ?? [])
         .map((link) => link.prerequisiteCourse?.id)
@@ -144,6 +150,7 @@ export default function CoursesPage() {
           code: editForm.code,
           title: editForm.title,
           credits: Number(editForm.credits),
+          weeklyHours: editForm.weeklyHours !== "" ? Number(editForm.weeklyHours) : null,
           description: editForm.description || null,
           prerequisiteCourseIds: editForm.prerequisiteCourseIds
         })
@@ -366,6 +373,18 @@ export default function CoursesPage() {
               required
             />
           </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Weekly Hours</label>
+            <input
+              className="campus-input"
+              type="number"
+              min={0.5}
+              step={0.5}
+              placeholder="e.g. 8"
+              value={form.weeklyHours}
+              onChange={(e) => setForm((p) => ({ ...p, weeklyHours: e.target.value === "" ? "" : Number(e.target.value) }))}
+            />
+          </div>
           <div className="md:flex md:items-end">
             <button
               type="submit"
@@ -452,6 +471,18 @@ export default function CoursesPage() {
                 value={editForm.credits}
                 onChange={(e) => setEditForm((p) => ({ ...p, credits: Number(e.target.value) }))}
                 required
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Weekly Hours</label>
+              <input
+                className="campus-input"
+                type="number"
+                min={0.5}
+                step={0.5}
+                placeholder="e.g. 8"
+                value={editForm.weeklyHours}
+                onChange={(e) => setEditForm((p) => ({ ...p, weeklyHours: e.target.value === "" ? "" : Number(e.target.value) }))}
               />
             </div>
             <div className="md:flex md:items-end">
@@ -638,6 +669,9 @@ export default function CoursesPage() {
                       }`}>
                         {course.credits} cr
                       </span>
+                      {course.weeklyHours ? (
+                        <span className="ml-1 text-xs text-slate-400">{course.weeklyHours}h/wk</span>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3">
                       {(() => {
@@ -648,15 +682,27 @@ export default function CoursesPage() {
                           return <span className="text-slate-300">No prereqs</span>;
                         }
                         return (
-                          <div className="flex items-center gap-1 text-xs text-slate-500">
-                            {prereqCodes.map((code, index) => (
-                              <span key={code}>
-                                {index > 0 ? <span className="mx-1 text-slate-300">→</span> : null}
-                                <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-300">
-                                  {code}
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-1 text-xs text-slate-500">
+                              {prereqCodes.map((code, index) => (
+                                <span key={code}>
+                                  {index > 0 ? <span className="mx-1 text-slate-300">→</span> : null}
+                                  <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                                    {code}
+                                  </span>
                                 </span>
-                              </span>
-                            ))}
+                              ))}
+                              <button
+                                type="button"
+                                onClick={() => setGraphCourseId(graphCourseId === course.id ? null : course.id)}
+                                className="ml-1 rounded border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 hover:bg-indigo-100"
+                              >
+                                {graphCourseId === course.id ? "Hide Graph" : "Graph"}
+                              </button>
+                            </div>
+                            {graphCourseId === course.id && (
+                              <PrereqGraph courseId={course.id} courses={courses} />
+                            )}
                           </div>
                         );
                       })()}

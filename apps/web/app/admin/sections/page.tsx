@@ -3,6 +3,7 @@
 import { FormEvent, Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { apiFetch } from "@/lib/api";
+import SectionEnrollmentTimeline from "@/components/SectionEnrollmentTimeline";
 
 type Enrollment = {
   id: string;
@@ -209,6 +210,7 @@ export default function AdminSectionsPage() {
   const [notifyForm, setNotifyForm] = useState({ subject: "", message: "" });
   const [notifySending, setNotifySending] = useState(false);
   const [editingCapacity, setEditingCapacity] = useState<{ id: string; val: number } | null>(null);
+  const [timelineId, setTimelineId] = useState<string | null>(null);
 
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -1582,6 +1584,13 @@ export default function AdminSectionsPage() {
                             </button>
                             <button
                               type="button"
+                              onClick={() => setTimelineId(timelineId === section.id ? null : section.id)}
+                              className={`rounded border px-2 py-1 text-xs font-medium transition ${timelineId === section.id ? "border-indigo-300 bg-indigo-100 text-indigo-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                            >
+                              📈 Timeline
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => editingId === section.id ? cancelEdit() : startEdit(section)}
                               className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
                             >
@@ -1632,6 +1641,15 @@ export default function AdminSectionsPage() {
                                   Cancel
                                 </button>
                               </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                      {timelineId === section.id ? (
+                        <tr className="border-b border-slate-100 bg-white">
+                          <td colSpan={12} className="px-4 pb-4">
+                            <div className="mt-2 rounded-lg border border-indigo-100 bg-indigo-50 p-3">
+                              <SectionEnrollmentTimeline sectionId={section.id} />
                             </div>
                           </td>
                         </tr>

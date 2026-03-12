@@ -253,6 +253,9 @@ export default async function StudentDashboardPage() {
     : [];
 
   const cumulativeGpa = calcGPA(grades);
+  const DEGREE_CREDITS = 120;
+  const completedCredits = grades.reduce((sum, g) => sum + g.section.credits, 0);
+  const degreeProgress = Math.min(100, Math.round((completedCredits / DEGREE_CREDITS) * 100));
 
   const precheck =
     term && cartItems.length > 0
@@ -520,6 +523,22 @@ export default async function StudentDashboardPage() {
           </div>
         )}
       </section>
+
+      {/* Degree progress bar */}
+      {completedCredits > 0 ? (
+        <section className="campus-card p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-slate-800">Degree Progress</p>
+            <p className="text-sm text-slate-500">{completedCredits} / {DEGREE_CREDITS} credits completed ({degreeProgress}%)</p>
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+            <div
+              className={`h-full rounded-full transition-all ${degreeProgress >= 100 ? "bg-emerald-500" : degreeProgress >= 75 ? "bg-indigo-500" : degreeProgress >= 50 ? "bg-blue-500" : "bg-slate-400"}`}
+              style={{ width: `${degreeProgress}%` }}
+            />
+          </div>
+        </section>
+      ) : null}
 
       <PinnedAnnouncements announcements={announcements.slice(0, 3)} />
 

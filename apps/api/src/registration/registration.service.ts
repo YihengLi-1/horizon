@@ -1537,16 +1537,57 @@ export class RegistrationService {
     return { watching: false };
   }
 
+  async getMyWaitlist(studentId: string) {
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: { studentId, status: "WAITLISTED", deletedAt: null },
+      include: {
+        section: {
+          include: {
+            course: { select: { code: true, title: true } },
+            term: { select: { id: true, name: true } },
+            meetingTimes: true,
+            _count: {
+              select: {
+                enrollments: { where: { status: "WAITLISTED", deletedAt: null } }
+              }
+            }
+          }
+        }
+      },
+      orderBy: { waitlistPosition: "asc" }
+    });
+
+    // Attach queue size (total waitlisted in that section)
+    return enrollments.map((e) => ({
+      id: e.id,
+      sectionId: e.sectionId,
+      waitlistPosition: e.waitlistPosition,
+      queueSize: e.section._count.enrollments,
+      section: {
+        id: e.section.id,
+        sectionCode: e.section.sectionCode,
+        capacity: e.section.capacity,
+        instructorName: e.section.instructorName,
+        course: e.section.course,
+        term: e.section.term,
+        meetingTimes: e.section.meetingTimes
+      }
+    }));
+  }
+
   async getWatches(userId: string) {
     return this.prisma.sectionWatch.findMany({
       where: { userId },
       include: {
         section: {
           include: {
-            course: true
+            course: true,
+            term: { select: { id: true, name: true } },
+            _count: { select: { enrollments: { where: { status: "ENROLLED", deletedAt: null } } } }
           }
         }
-      }
+      },
+      orderBy: { createdAt: "desc" }
     });
   }
 

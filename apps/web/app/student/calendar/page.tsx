@@ -1,5 +1,6 @@
 import { serverApi } from "@/lib/server-api";
 import { requireRole } from "@/lib/server-auth";
+import CalendarExportButton from "./CalendarExportButton";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,17 @@ type Term = {
   registrationOpenAt: string;
   registrationCloseAt: string;
   dropDeadline?: string;
+};
+
+type CalendarEvent = {
+  id: string;
+  title: string;
+  description: string | null;
+  eventDate: string;
+  endDate: string | null;
+  type: string;
+  termId: string | null;
+  term?: { id: string; name: string } | null;
 };
 
 function daysUntil(value: string): number {
@@ -35,20 +47,78 @@ function rowTone(date: string) {
   };
 }
 
+const EVENT_TYPE_META: Record<string, { emoji: string; cls: string }> = {
+  INFO:         { emoji: "ℹ️",  cls: "border-slate-200 bg-slate-50 text-slate-600" },
+  EXAM:         { emoji: "📝",  cls: "border-red-200 bg-red-50 text-red-700" },
+  HOLIDAY:      { emoji: "🏖️",  cls: "border-emerald-200 bg-emerald-50 text-emerald-700" },
+  DEADLINE:     { emoji: "⏰",  cls: "border-amber-200 bg-amber-50 text-amber-700" },
+  REGISTRATION: { emoji: "🗂️",  cls: "border-indigo-200 bg-indigo-50 text-indigo-700" }
+};
+
 export default async function StudentCalendarPage() {
   await requireRole("STUDENT");
 
-  const terms = await serverApi<Term[]>("/academics/terms").catch(() => []);
+  const [terms, calendarEvents] = await Promise.all([
+    serverApi<Term[]>("/academics/terms").catch(() => [] as Term[]),
+    serverApi<CalendarEvent[]>("/academics/calendar-events").catch(() => [] as CalendarEvent[])
+  ]);
+
+  const upcomingEvents = calendarEvents.filter((e) => daysUntil(e.eventDate) >= -7).slice(0, 20);
 
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Academic Timeline</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">Term Calendar</h1>
-        <p className="text-sm text-slate-600 md:text-base">
-          Key registration and term deadlines, organized as a rolling timeline.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="campus-eyebrow">Academic Timeline</p>
+            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">Term Calendar</h1>
+            <p className="mt-1 text-sm text-slate-600 md:text-base">
+              Key registration and term deadlines, organized as a rolling timeline.
+            </p>
+          </div>
+          <CalendarExportButton terms={terms} />
+        </div>
       </section>
+
+      {/* Custom Calendar Events from admin */}
+      {upcomingEvents.length > 0 && (
+        <section className="campus-card p-5 space-y-3">
+          <h2 className="text-sm font-bold text-slate-900">📅 学术日历事件</h2>
+          <div className="space-y-2">
+            {upcomingEvents.map((event) => {
+              const meta = EVENT_TYPE_META[event.type] ?? EVENT_TYPE_META.INFO;
+              const days = daysUntil(event.eventDate);
+              const isPast = days < 0;
+              return (
+                <div
+                  key={event.id}
+                  className={`flex items-start justify-between gap-3 rounded-lg border px-3 py-2 ${isPast ? "opacity-50" : meta.cls}`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span>{meta.emoji}</span>
+                      <span className="text-sm font-semibold text-slate-800">{event.title}</span>
+                      {event.term && (
+                        <span className="campus-chip border-slate-200 bg-white/80 text-slate-500 text-xs">{event.term.name}</span>
+                      )}
+                    </div>
+                    {event.description && (
+                      <p className="mt-0.5 text-xs text-slate-500 truncate">{event.description}</p>
+                    )}
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      {new Date(event.eventDate).toLocaleDateString("zh-CN")}
+                      {event.endDate && ` — ${new Date(event.endDate).toLocaleDateString("zh-CN")}`}
+                    </p>
+                  </div>
+                  <span className={`shrink-0 inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${chipTone(Math.max(days, 0))}`}>
+                    {isPast ? `${Math.abs(days)}d 前` : days === 0 ? "今天" : `${days}d`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {terms.length === 0 ? (
         <section className="campus-card px-6 py-14 text-center">

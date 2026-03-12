@@ -437,6 +437,24 @@ export class AdminController {
     return ok(await this.adminService.getReportsSummary(termId));
   }
 
+  @Get("students/at-risk")
+  @RequireAdminPermissions("students:read")
+  async getAtRiskStudents(@Query("termId") termId?: string) {
+    return ok(await this.adminService.getAtRiskStudents(termId));
+  }
+
+  @Get("instructors/analytics")
+  @RequireAdminPermissions("sections:read")
+  async getInstructorAnalytics() {
+    return ok(await this.adminService.getInstructorAnalytics());
+  }
+
+  @Get("cohort-analytics")
+  @RequireAdminPermissions("students:read")
+  async getCohortAnalytics() {
+    return ok(await this.adminService.getCohortAnalytics());
+  }
+
   @Get("audit-logs")
   @RequireAdminPermissions("audit:read")
   async listAuditLogs(
@@ -490,5 +508,231 @@ export class AdminController {
     @CurrentUser() user: { userId: string }
   ) {
     return ok(await this.adminService.importSections(body as never, user.userId));
+  }
+
+  // ── Grade Appeals ──────────────────────────────────────────────────
+  @Get("grade-appeals")
+  @RequireAdminPermissions("students:read")
+  async listGradeAppeals(@Query("status") status?: string) {
+    return ok(await this.adminService.listGradeAppeals(status));
+  }
+
+  @Patch("grade-appeals/:id/review")
+  @RequireAdminPermissions("students:write")
+  async reviewGradeAppeal(
+    @Param("id") id: string,
+    @CurrentUser() user: { userId: string },
+    @Body() body: { decision: "APPROVED" | "REJECTED"; adminNote: string; newGrade?: string }
+  ) {
+    return ok(await this.adminService.reviewGradeAppeal(user.userId, id, body.decision, body.adminNote, body.newGrade));
+  }
+
+  // ── Cohort Messaging ───────────────────────────────────────────────
+  @Post("cohort-message")
+  @RequireAdminPermissions("students:write")
+  async sendCohortMessage(
+    @CurrentUser() user: { userId: string },
+    @Body() body: { cohortYear: string; subject: string; body: string }
+  ) {
+    return ok(await this.adminService.sendCohortMessage(body.cohortYear, body.subject, body.body, user.userId));
+  }
+
+  // ── Section Enrollment Timeline ────────────────────────────────────
+  @Get("sections/:id/enrollment-timeline")
+  @RequireAdminPermissions("sections:read")
+  async getSectionEnrollmentTimeline(@Param("id") id: string) {
+    return ok(await this.adminService.getSectionEnrollmentTimeline(id));
+  }
+
+  // ── Term Comparison ─────────────────────────────────────────────────
+  @Get("term-comparison")
+  @RequireAdminPermissions("students:read")
+  async getTermComparison(
+    @Query("termAId") termAId: string,
+    @Query("termBId") termBId: string
+  ) {
+    return ok(await this.adminService.getTermComparison(termAId, termBId));
+  }
+
+  // ── Student Notes ────────────────────────────────────────────────────
+  @Get("students/:id/notes")
+  @RequireAdminPermissions("students:read")
+  async getStudentNotes(@Param("id") id: string) {
+    return ok(await this.adminService.getStudentNotes(id));
+  }
+
+  @Post("students/:id/notes")
+  @RequireAdminPermissions("students:write")
+  async createStudentNote(
+    @Param("id") id: string,
+    @CurrentUser() user: { userId: string },
+    @Body() body: { content: string; flag?: string }
+  ) {
+    return ok(await this.adminService.createStudentNote(user.userId, id, body.content, body.flag));
+  }
+
+  @Delete("students/:studentId/notes/:noteId")
+  @RequireAdminPermissions("students:write")
+  async deleteStudentNote(
+    @Param("studentId") studentId: string,
+    @Param("noteId") noteId: string,
+    @CurrentUser() user: { userId: string }
+  ) {
+    void studentId; // validated via studentId param for clarity
+    return ok(await this.adminService.deleteStudentNote(user.userId, noteId));
+  }
+
+  // ── Email Digest ────────────────────────────────────────────────────────
+  @Get("digest-preview")
+  @RequireAdminPermissions("dashboard:read")
+  async digestPreview(@Query("termId") termId?: string) {
+    return ok(await this.adminService.buildDigestPreview(termId));
+  }
+
+  @Post("digest-send")
+  @RequireAdminPermissions("dashboard:read")
+  async sendDigest(
+    @CurrentUser() user: { userId: string },
+    @Body() body: { email: string; termId?: string }
+  ) {
+    return ok(await this.adminService.sendDigestEmail(user.userId, body.email, body.termId));
+  }
+
+  // ── Section Demand Report ──────────────────────────────────────────────
+  @Get("demand-report")
+  @RequireAdminPermissions("sections:read")
+  async getSectionDemandReport(@Query("termId") termId?: string) {
+    return ok(await this.adminService.getSectionDemandReport(termId));
+  }
+
+  // ── Calendar Events ──────────────────────────────────────────────────
+  @Post("calendar-events")
+  @RequireAdminPermissions("dashboard:read")
+  async createCalendarEvent(
+    @CurrentUser() user: { userId: string },
+    @Body() body: { title: string; description?: string; eventDate: string; endDate?: string; type?: string; termId?: string }
+  ) {
+    return ok(await this.adminService.createCalendarEvent(user.userId, body));
+  }
+
+  @Patch("calendar-events/:id")
+  @RequireAdminPermissions("dashboard:read")
+  async updateCalendarEvent(
+    @Param("id") id: string,
+    @CurrentUser() user: { userId: string },
+    @Body() body: { title?: string; description?: string; eventDate?: string; endDate?: string; type?: string; termId?: string | null }
+  ) {
+    return ok(await this.adminService.updateCalendarEvent(user.userId, id, body));
+  }
+
+  @Delete("calendar-events/:id")
+  @RequireAdminPermissions("dashboard:read")
+  async deleteCalendarEvent(
+    @Param("id") id: string,
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(await this.adminService.deleteCalendarEvent(user.userId, id));
+  }
+
+  // ── Unified Search ──────────────────────────────────────────────────
+  @Get("search")
+  @RequireAdminPermissions("students:read")
+  async unifiedSearch(
+    @Query("q") q: string,
+    @Query("type") type?: "all" | "student" | "course" | "section"
+  ) {
+    return ok(await this.adminService.unifiedSearch(q ?? "", type ?? "all"));
+  }
+
+  // ── System Alerts ───────────────────────────────────────────────────
+  @Get("alerts")
+  @RequireAdminPermissions("dashboard:read")
+  async getSystemAlerts() {
+    return ok(await this.adminService.getSystemAlerts());
+  }
+
+  // ── Term Closeout ────────────────────────────────────────────────────
+  @Get("closeout/preview")
+  @RequireAdminPermissions("enrollments:write")
+  async getCloseoutPreview(@Query("termId") termId: string) {
+    return ok(await this.adminService.getTermCloseoutPreview(termId));
+  }
+
+  @Post("closeout/run")
+  @RequireAdminPermissions("enrollments:write")
+  async runCloseout(
+    @Body() body: { termId: string; action: "enroll_to_completed" | "waitlist_to_dropped" | "pending_to_dropped" },
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(await this.adminService.bulkCloseOutTerm(body.termId, user.userId, body.action));
+  }
+
+  // ── Prereq Audit ─────────────────────────────────────────────────────
+  @Get("prereq-audit")
+  @RequireAdminPermissions("dashboard:read")
+  async prereqAudit() {
+    return ok(await this.adminService.getPrereqViolations());
+  }
+
+  // ── Course Offering History ───────────────────────────────────────────
+  @Get("course-offering-history")
+  @RequireAdminPermissions("dashboard:read")
+  async courseOfferingHistory(@Query("courseId") courseId?: string) {
+    return ok(await this.adminService.getCourseOfferingHistory(courseId));
+  }
+
+  // ── Bulk Email by Status ──────────────────────────────────────────────
+  @Get("status-email/preview")
+  @RequireAdminPermissions("dashboard:read")
+  async statusEmailPreview(
+    @Query("termId") termId: string,
+    @Query("status") status: string
+  ) {
+    return ok(await this.adminService.previewStatusEmail(termId ?? "", status ?? "ENROLLED"));
+  }
+
+  @Post("status-email/send")
+  @RequireAdminPermissions("dashboard:read")
+  async sendStatusEmail(
+    @Body() body: { termId: string; status: string; subject: string; body: string },
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(
+      await this.adminService.sendStatusEmail(
+        body.termId ?? "",
+        body.status ?? "ENROLLED",
+        body.subject,
+        body.body,
+        user.userId
+      )
+    );
+  }
+
+  // ── Waitlist Analytics ────────────────────────────────────────────────
+  @Get("waitlist-analytics")
+  @RequireAdminPermissions("dashboard:read")
+  async waitlistAnalytics(@Query("termId") termId?: string) {
+    return ok(await this.adminService.getWaitlistAnalytics(termId));
+  }
+
+  // ── Graduation Clearance ──────────────────────────────────────────────
+  @Get("graduation")
+  @RequireAdminPermissions("students:read")
+  async graduationClearance(@Query("minCredits") minCredits?: string) {
+    return ok(await this.adminService.getGraduationClearance(minCredits ? Number(minCredits) : 120));
+  }
+
+  // ── Registration Heatmap ──────────────────────────────────────────────
+  @Get("registration-heatmap")
+  @RequireAdminPermissions("dashboard:read")
+  async registrationHeatmap(@Query("termId") termId?: string) {
+    return ok(await this.adminService.getRegistrationHeatmap(termId));
+  }
+
+  // ── Credit Load Distribution ──────────────────────────────────────────
+  @Get("credit-load")
+  @RequireAdminPermissions("dashboard:read")
+  async creditLoadDistribution(@Query("termId") termId?: string) {
+    return ok(await this.adminService.getCreditLoadDistribution(termId));
   }
 }

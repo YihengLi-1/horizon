@@ -93,9 +93,15 @@ export class StudentsController {
   }
 
   @Roles("STUDENT")
+  @Get("gpa-stats")
+  async getGpaStats(@CurrentUser() user: { userId: string }) {
+    return ok(await this.studentsService.getGpaStats(user.userId));
+  }
+
+  @Roles("STUDENT")
   @Post("rate-section")
   async rateSection(@CurrentUser() user: { userId: string }, @Body() body: RateSectionDto) {
-    return ok(await this.studentsService.rateSection(user.userId, body.sectionId, body.rating, body.comment));
+    return ok(await this.studentsService.rateSection(user.userId, body.sectionId, body.rating, body.comment, body.difficulty, body.workload, body.wouldRecommend));
   }
 
   @Roles("STUDENT", "ADMIN")
@@ -123,6 +129,32 @@ export class StudentsController {
     @Body() body: { subject?: string; message?: string; category?: string }
   ) {
     return ok(await this.studentsService.submitContactMessage(user.userId, body));
+  }
+
+  @Roles("STUDENT")
+  @Get("appeals")
+  async getMyAppeals(@CurrentUser() user: { userId: string }) {
+    return ok(await this.studentsService.getMyGradeAppeals(user.userId));
+  }
+
+  @Roles("STUDENT")
+  @Post("appeals")
+  async submitAppeal(
+    @CurrentUser() user: { userId: string },
+    @Body() body: { enrollmentId: string; contestedGrade: string; requestedGrade?: string; reason: string }
+  ) {
+    return ok(await this.studentsService.submitGradeAppeal(user.userId, body));
+  }
+
+  @Roles("STUDENT")
+  @Get("completed-courses")
+  async getCompletedCourses(@CurrentUser() user: { userId: string }) {
+    return ok(await this.studentsService.getCompletedCourseCodes(user.userId));
+  }
+
+  @Get("my-advisor")
+  async getMyAdvisor(@CurrentUser() user: { userId: string }) {
+    return ok(await this.studentsService.getMyAdvisor(user.userId));
   }
 
   @Roles("ADMIN")

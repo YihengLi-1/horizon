@@ -934,7 +934,8 @@ export class AdminService {
         code: input.code,
         title: input.title,
         description: input.description ?? null,
-        credits: input.credits
+        credits: input.credits,
+        weeklyHours: input.weeklyHours ?? null
       }
     });
 
@@ -974,7 +975,8 @@ export class AdminService {
         code: input.code ?? course.code,
         title: input.title ?? course.title,
         description: input.description !== undefined ? input.description : course.description,
-        credits: input.credits ?? course.credits
+        credits: input.credits ?? course.credits,
+        weeklyHours: input.weeklyHours !== undefined ? input.weeklyHours : course.weeklyHours
       }
     });
 
@@ -1508,6 +1510,58 @@ export class AdminService {
     });
 
     return { approved: result.count };
+  }
+
+  // ── Term Closeout ────────────────────────────────────────────────────────────
+  async getTermCloseoutPreview(termId: string) {
+    const term = await this.prisma.term.findUnique({ where: { id: termId } });
+    if (!term) throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "Term not found" });
+
+    const [enrolled, waitlisted, pendingApproval, completed] = await Promise.all([
+      this.prisma.enrollment.count({ where: { section: { termId }, status: "ENROLLED", deletedAt: null } }),
+      this.prisma.enrollment.count({ where: { section: { termId }, status: "WAITLISTED", deletedAt: null } }),
+      this.prisma.enrollment.count({ where: { section: { termId }, status: "PENDING_APPROVAL", deletedAt: null } }),
+      this.prisma.enrollment.count({ where: { section: { termId }, status: "COMPLETED", deletedAt: null } })
+    ]);
+
+    return { termId, termName: term.name, enrolled, waitlisted, pendingApproval, completed };
+  }
+
+  async bulkCloseOutTerm(termId: string, actorUserId: string, action: "enroll_to_completed" | "waitlist_to_dropped" | "pending_to_dropped") {
+    const term = await this.prisma.term.findUnique({ where: { id: termId } });
+    if (!term) throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "Term not found" });
+
+    let updated = 0;
+
+    if (action === "enroll_to_completed") {
+      const result = await this.prisma.enrollment.updateMany({
+        where: { section: { termId }, status: "ENROLLED", deletedAt: null },
+        data: { status: "COMPLETED" }
+      });
+      updated = result.count;
+    } else if (action === "waitlist_to_dropped") {
+      const result = await this.prisma.enrollment.updateMany({
+        where: { section: { termId }, status: "WAITLISTED", deletedAt: null },
+        data: { status: "DROPPED" }
+      });
+      updated = result.count;
+    } else if (action === "pending_to_dropped") {
+      const result = await this.prisma.enrollment.updateMany({
+        where: { section: { termId }, status: "PENDING_APPROVAL", deletedAt: null },
+        data: { status: "DROPPED" }
+      });
+      updated = result.count;
+    }
+
+    await this.auditService.log({
+      actorUserId,
+      action: `TERM_CLOSEOUT_${action.toUpperCase()}`,
+      entityType: "term",
+      entityId: termId,
+      metadata: { termName: term.name, updated, action }
+    });
+
+    return { termId, termName: term.name, action, updated };
   }
 
   async adminDropEnrollment(id: string, actorUserId: string) {
@@ -3466,5 +3520,1338 @@ export class AdminService {
     const result: ImportResultPayload = { created };
     if (cacheKey) this.setImportIdempotentResult(cacheKey, result);
     return result;
+  }
+
+  async getAtRiskStudents(termId?: string) {
+    // Students considered at-risk: GPA < 2.0, or dropped 2+ courses this term, or no grades despite COMPLETED status
+    const term = termId
+      ? await this.prisma.term.findUnique({ where: { id: termId } })
+      : await this.prisma.term.findFirst({ orderBy: { startDate: "desc" } });
+
+    if (!term) return [];
+
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: { termId: term.id, deletedAt: null },
+      include: {
+        section: { select: { credits: true, course: { select: { code: true, title: true } } } },
+        student: {
+          select: {
+            id: true,
+            email: true,
+            studentId: true,
+            studentProfile: { select: { legalName: true } }
+          }
+        }
+      }
+    });
+
+    // Group by student
+    const byStudent = new Map<string, typeof enrollments>();
+    for (const e of enrollments) {
+      if (!byStudent.has(e.studentId)) byStudent.set(e.studentId, []);
+      byStudent.get(e.studentId)!.push(e);
+    }
+
+    const gradePoints: Record<string, number> = {
+      "A+": 4.0, A: 4.0, "A-": 3.7,
+      "B+": 3.3, B: 3.0, "B-": 2.7,
+      "C+": 2.3, C: 2.0, "C-": 1.7,
+      "D+": 1.3, D: 1.0, "D-": 0.7,
+      F: 0.0, W: 0.0
+    };
+
+    const results: Array<{
+      student: { id: string; email: string; legalName: string; studentId: string | null };
+      termGpa: number | null;
+      droppedCount: number;
+      enrolledCount: number;
+      riskFlags: string[];
+    }> = [];
+
+    for (const [, rows] of byStudent.entries()) {
+      const s = rows[0].student;
+      const student = {
+        id: s.id,
+        email: s.email,
+        studentId: s.studentId,
+        legalName: s.studentProfile?.legalName ?? s.email
+      };
+      const completed = rows.filter((r) => r.status === "COMPLETED" && r.finalGrade);
+      const dropped = rows.filter((r) => r.status === "DROPPED");
+      const enrolled = rows.filter((r) => r.status === "ENROLLED");
+
+      let termGpa: number | null = null;
+      if (completed.length > 0) {
+        let totalPoints = 0, totalCredits = 0;
+        for (const r of completed) {
+          const pts = gradePoints[r.finalGrade ?? ""] ?? null;
+          if (pts !== null) {
+            totalPoints += pts * r.section.credits;
+            totalCredits += r.section.credits;
+          }
+        }
+        termGpa = totalCredits > 0 ? Math.round((totalPoints / totalCredits) * 100) / 100 : null;
+      }
+
+      const riskFlags: string[] = [];
+      if (termGpa !== null && termGpa < 2.0) riskFlags.push("GPA < 2.0");
+      if (dropped.length >= 2) riskFlags.push(`Dropped ${dropped.length} courses`);
+      if (enrolled.length === 0 && completed.length === 0) riskFlags.push("No active enrollment");
+
+      if (riskFlags.length > 0) {
+        results.push({ student, termGpa, droppedCount: dropped.length, enrolledCount: enrolled.length, riskFlags });
+      }
+    }
+
+    return results.sort((a, b) => (a.termGpa ?? 4) - (b.termGpa ?? 4));
+  }
+
+  async getInstructorAnalytics() {
+    const sections = await this.prisma.section.findMany({
+      select: {
+        id: true,
+        instructorName: true,
+        course: { select: { code: true } },
+        enrollments: {
+          where: { deletedAt: null, status: { in: ["ENROLLED", "COMPLETED"] } },
+          select: { status: true }
+        },
+        ratings: {
+          select: { rating: true, difficulty: true, workload: true, wouldRecommend: true }
+        }
+      }
+    });
+
+    type InstructorStats = {
+      sectionCount: number;
+      totalEnrolled: number;
+      totalCompleted: number;
+      courses: Set<string>;
+      ratings: number[];
+      difficulties: number[];
+      workloads: number[];
+      recommends: number;
+      ratingCount: number;
+    };
+
+    const map = new Map<string, InstructorStats>();
+    for (const sec of sections) {
+      const name = sec.instructorName?.trim();
+      if (!name) continue;
+      if (!map.has(name)) {
+        map.set(name, { sectionCount: 0, totalEnrolled: 0, totalCompleted: 0, courses: new Set(), ratings: [], difficulties: [], workloads: [], recommends: 0, ratingCount: 0 });
+      }
+      const s = map.get(name)!;
+      s.sectionCount++;
+      s.courses.add(sec.course.code.replace(/\d+.*/, ""));
+      s.totalEnrolled += sec.enrollments.filter((e) => e.status === "ENROLLED").length;
+      s.totalCompleted += sec.enrollments.filter((e) => e.status === "COMPLETED").length;
+      for (const r of sec.ratings) {
+        s.ratings.push(r.rating);
+        if (r.difficulty != null) s.difficulties.push(r.difficulty);
+        if (r.workload != null) s.workloads.push(r.workload);
+        if (r.wouldRecommend === true) s.recommends++;
+        s.ratingCount++;
+      }
+    }
+
+    const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+
+    return Array.from(map.entries())
+      .map(([name, s]) => ({
+        name,
+        sectionCount: s.sectionCount,
+        totalEnrolled: s.totalEnrolled,
+        totalCompleted: s.totalCompleted,
+        depts: [...s.courses].sort(),
+        ratingCount: s.ratingCount,
+        avgRating: avg(s.ratings),
+        avgDifficulty: avg(s.difficulties),
+        avgWorkload: avg(s.workloads),
+        recommendPct: s.ratingCount > 0 ? Math.round((s.recommends / s.ratingCount) * 100) : null
+      }))
+      .sort((a, b) => b.sectionCount - a.sectionCount);
+  }
+
+  async getCohortAnalytics() {
+    const students = await this.prisma.user.findMany({
+      where: { role: "STUDENT", deletedAt: null },
+      select: {
+        id: true,
+        createdAt: true,
+        enrollments: {
+          where: { deletedAt: null },
+          select: { status: true, finalGrade: true, section: { select: { credits: true } } }
+        }
+      }
+    });
+
+    const GRADE_POINTS: Record<string, number> = {
+      "A+": 4, A: 4, "A-": 3.7, "B+": 3.3, B: 3, "B-": 2.7,
+      "C+": 2.3, C: 2, "C-": 1.7, "D+": 1.3, D: 1, "D-": 0.7, F: 0
+    };
+
+    type CohortAcc = {
+      count: number;
+      activeCount: number;
+      completedAtLeastOne: number;
+      gpaSum: number;
+      gpaCount: number;
+    };
+
+    const cohorts = new Map<string, CohortAcc>();
+
+    for (const s of students) {
+      const year = new Date(s.createdAt).getFullYear().toString();
+      if (!cohorts.has(year)) cohorts.set(year, { count: 0, activeCount: 0, completedAtLeastOne: 0, gpaSum: 0, gpaCount: 0 });
+      const c = cohorts.get(year)!;
+      c.count++;
+
+      const hasActive = s.enrollments.some((e) => e.status === "ENROLLED" || e.status === "PENDING_APPROVAL");
+      if (hasActive) c.activeCount++;
+
+      const completed = s.enrollments.filter((e) => e.status === "COMPLETED" && e.finalGrade != null);
+      if (completed.length > 0) c.completedAtLeastOne++;
+
+      let wp = 0, cr = 0;
+      for (const e of completed) {
+        const pts = GRADE_POINTS[e.finalGrade ?? ""];
+        if (pts !== undefined) { wp += pts * e.section.credits; cr += e.section.credits; }
+      }
+      if (cr > 0) { c.gpaSum += wp / cr; c.gpaCount++; }
+    }
+
+    return Array.from(cohorts.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([year, c]) => ({
+        year,
+        total: c.count,
+        active: c.activeCount,
+        retentionPct: c.count > 0 ? Math.round((c.activeCount / c.count) * 100) : 0,
+        completedPct: c.count > 0 ? Math.round((c.completedAtLeastOne / c.count) * 100) : 0,
+        avgGpa: c.gpaCount > 0 ? Math.round((c.gpaSum / c.gpaCount) * 100) / 100 : null
+      }));
+  }
+
+  // ── Cohort Messaging ───────────────────────────────────────────────
+  async sendCohortMessage(cohortYear: string, subject: string, body: string, adminUserId: string) {
+    const yearNum = parseInt(cohortYear, 10);
+    const students = await this.prisma.user.findMany({
+      where: {
+        role: "STUDENT",
+        deletedAt: null,
+        createdAt: {
+          gte: new Date(`${yearNum}-01-01T00:00:00Z`),
+          lt: new Date(`${yearNum + 1}-01-01T00:00:00Z`)
+        }
+      },
+      select: { id: true, email: true, studentProfile: { select: { legalName: true } } }
+    });
+
+    let sent = 0;
+    for (const student of students) {
+      try {
+        await this.notificationsService.sendMail({
+          to: student.email,
+          subject,
+          text: body,
+          html: `<p>${body.replace(/\n/g, "<br>")}</p>`
+        });
+        await this.prisma.notificationLog.create({
+          data: {
+            userId: student.id,
+            type: "COHORT_MESSAGE",
+            subject,
+            body: body.slice(0, 500)
+          }
+        });
+        sent++;
+      } catch {
+        /* ignore individual send failures */
+      }
+    }
+
+    await this.auditService.log({
+      actorUserId: adminUserId,
+      action: "admin_action",
+      entityType: "cohort_message",
+      entityId: cohortYear,
+      metadata: { cohortYear, subject, total: students.length, sent }
+    });
+
+    return { cohortYear, total: students.length, sent };
+  }
+
+  // ── Grade Appeals ──────────────────────────────────────────────────
+  async listGradeAppeals(status?: string) {
+    return this.prisma.gradeAppeal.findMany({
+      where: status ? { status } : undefined,
+      include: {
+        student: {
+          select: {
+            id: true,
+            email: true,
+            studentProfile: { select: { legalName: true } }
+          }
+        },
+        enrollment: {
+          include: {
+            section: {
+              include: {
+                course: { select: { code: true, title: true } },
+                term: { select: { name: true } }
+              }
+            }
+          }
+        },
+        reviewedBy: { select: { id: true, email: true } }
+      },
+      orderBy: [{ status: "asc" }, { createdAt: "asc" }]
+    });
+  }
+
+  async reviewGradeAppeal(
+    adminUserId: string,
+    appealId: string,
+    decision: "APPROVED" | "REJECTED",
+    adminNote: string,
+    newGrade?: string
+  ) {
+    const appeal = await this.prisma.gradeAppeal.findUnique({ where: { id: appealId } });
+    if (!appeal) throw new NotFoundException({ code: "APPEAL_NOT_FOUND" });
+    if (appeal.status !== "PENDING") throw new BadRequestException({ code: "APPEAL_ALREADY_RESOLVED" });
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.gradeAppeal.update({
+        where: { id: appealId },
+        data: { status: decision, adminNote, reviewedById: adminUserId, reviewedAt: new Date() }
+      });
+
+      if (decision === "APPROVED" && newGrade) {
+        await tx.enrollment.update({
+          where: { id: appeal.enrollmentId },
+          data: { finalGrade: newGrade }
+        });
+      }
+    });
+
+    return { id: appealId, status: decision };
+  }
+
+  // ── Section Enrollment Timeline ────────────────────────────────────
+  async getSectionEnrollmentTimeline(sectionId: string) {
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: { sectionId, deletedAt: null },
+      select: { status: true, createdAt: true, droppedAt: true },
+      orderBy: { createdAt: "asc" }
+    });
+
+    if (enrollments.length === 0) return { points: [], sectionId };
+
+    const start = enrollments[0].createdAt;
+    const end = new Date();
+    const dayMs = 86_400_000;
+    const totalDays = Math.ceil((end.getTime() - start.getTime()) / dayMs) + 1;
+
+    // Build a day-by-day running count
+    const points: Array<{ day: number; date: string; enrolled: number; waitlisted: number }> = [];
+    for (let d = 0; d <= Math.min(totalDays, 90); d++) {
+      const dayEnd = new Date(start.getTime() + (d + 1) * dayMs);
+      const enrolled = enrollments.filter(
+        (e) => e.createdAt <= dayEnd && e.status === "ENROLLED" && (!e.droppedAt || e.droppedAt > dayEnd)
+      ).length;
+      const waitlisted = enrollments.filter(
+        (e) => e.createdAt <= dayEnd && e.status === "WAITLISTED" && (!e.droppedAt || e.droppedAt > dayEnd)
+      ).length;
+      points.push({
+        day: d,
+        date: new Date(start.getTime() + d * dayMs).toISOString().slice(0, 10),
+        enrolled,
+        waitlisted
+      });
+    }
+
+    return { points, sectionId };
+  }
+
+  // ── Term Comparison ─────────────────────────────────────────────────
+  private readonly GRADE_POINTS_MAP: Record<string, number> = {
+    "A+": 4, A: 4, "A-": 3.7, "B+": 3.3, B: 3, "B-": 2.7,
+    "C+": 2.3, C: 2, "C-": 1.7, "D+": 1.3, D: 1, "D-": 0.7, F: 0
+  };
+
+  private async fetchTermStats(tid: string) {
+    const [enrollments, sections] = await Promise.all([
+      this.prisma.enrollment.findMany({
+        where: { termId: tid, deletedAt: null },
+        include: { section: { include: { course: { select: { code: true } } } } }
+      }),
+      this.prisma.section.findMany({
+        where: { termId: tid, course: { deletedAt: null } },
+        include: { _count: { select: { enrollments: { where: { status: "ENROLLED", deletedAt: null } } } } }
+      })
+    ]);
+
+    let wp = 0, cr = 0;
+    for (const e of enrollments) {
+      if (e.status !== "COMPLETED" || !e.finalGrade) continue;
+      const pts = this.GRADE_POINTS_MAP[e.finalGrade];
+      if (pts !== undefined) { wp += pts * e.section.credits; cr += e.section.credits; }
+    }
+
+    const deptMap = new Map<string, number>();
+    for (const e of enrollments.filter((e) => e.status === "ENROLLED")) {
+      const dept = e.section.course.code.slice(0, 2);
+      deptMap.set(dept, (deptMap.get(dept) ?? 0) + 1);
+    }
+
+    const totalCapacity = sections.reduce((s, sec) => s + sec.capacity, 0);
+    const totalSeatsUsed = sections.reduce((s, sec) => s + sec._count.enrollments, 0);
+
+    return {
+      totalEnrolled: enrollments.filter((e) => e.status === "ENROLLED").length,
+      totalWaitlisted: enrollments.filter((e) => e.status === "WAITLISTED").length,
+      totalDropped: enrollments.filter((e) => e.status === "DROPPED").length,
+      totalCompleted: enrollments.filter((e) => e.status === "COMPLETED").length,
+      sectionCount: sections.length,
+      avgGpa: cr > 0 ? Math.round((wp / cr) * 100) / 100 : null,
+      utilizationPct: totalCapacity > 0 ? Math.round((totalSeatsUsed / totalCapacity) * 100) : null,
+      topDepts: Array.from(deptMap.entries())
+        .sort(([, a], [, b]) => b - a).slice(0, 5)
+        .map(([dept, count]) => ({ dept, count }))
+    };
+  }
+
+  async getTermComparison(termAId: string, termBId: string) {
+    const [termA, termB] = await Promise.all([
+      this.prisma.term.findUnique({ where: { id: termAId }, select: { id: true, name: true } }),
+      this.prisma.term.findUnique({ where: { id: termBId }, select: { id: true, name: true } })
+    ]);
+    if (!termA || !termB) throw new NotFoundException({ code: "TERM_NOT_FOUND" });
+
+    const [statsA, statsB] = await Promise.all([
+      this.fetchTermStats(termAId),
+      this.fetchTermStats(termBId)
+    ]);
+
+    return { termA: { ...termA, ...statsA }, termB: { ...termB, ...statsB } };
+  }
+
+  // ── Student Notes ────────────────────────────────────────────────────
+
+  async getStudentNotes(studentId: string) {
+    const notes = await this.prisma.studentNote.findMany({
+      where: { studentId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        admin: { select: { email: true } }
+      }
+    });
+    return notes;
+  }
+
+  async createStudentNote(adminId: string, studentId: string, content: string, flag?: string) {
+    const student = await this.prisma.user.findUnique({ where: { id: studentId }, select: { id: true } });
+    if (!student) throw new NotFoundException({ code: "STUDENT_NOT_FOUND" });
+    const note = await this.prisma.studentNote.create({
+      data: { adminId, studentId, content: sanitizeHtml(content), flag: flag ?? null },
+      include: { admin: { select: { email: true } } }
+    });
+    await this.auditService.log({ actorUserId: adminId, action: "NOTE_CREATED", entityType: "StudentNote", entityId: note.id, metadata: { studentId, flag } });
+    return note;
+  }
+
+  async deleteStudentNote(adminId: string, noteId: string) {
+    const note = await this.prisma.studentNote.findUnique({ where: { id: noteId } });
+    if (!note) throw new NotFoundException({ code: "NOTE_NOT_FOUND" });
+    await this.prisma.studentNote.delete({ where: { id: noteId } });
+    await this.auditService.log({ actorUserId: adminId, action: "NOTE_DELETED", entityType: "StudentNote", entityId: noteId, metadata: { studentId: note.studentId } });
+    return { deleted: true };
+  }
+
+  // ── Email Digest ─────────────────────────────────────────────────────
+
+  async buildDigestPreview(termId?: string): Promise<{
+    enrolledCount: number;
+    waitlistedCount: number;
+    cartCount: number;
+    pendingAppeals: number;
+    upcomingDeadline: string | null;
+    topSections: Array<{ code: string; title: string; enrolled: number; capacity: number }>;
+    htmlPreview: string;
+  }> {
+    const [enrolledCount, waitlistedCount, cartCount, pendingAppeals, terms, sections] = await Promise.all([
+      this.prisma.enrollment.count({ where: { status: "ENROLLED", deletedAt: null } }),
+      this.prisma.enrollment.count({ where: { status: "WAITLISTED", deletedAt: null } }),
+      this.prisma.cartItem.count(),
+      this.prisma.gradeAppeal.count({ where: { status: "PENDING" } }),
+      this.prisma.term.findMany({ where: { registrationOpen: true }, orderBy: { dropDeadline: "asc" }, take: 1 }),
+      this.prisma.section.findMany({
+        where: termId ? { termId } : {},
+        include: {
+          course: { select: { code: true, title: true } },
+          _count: { select: { enrollments: { where: { status: "ENROLLED", deletedAt: null } } } }
+        },
+        orderBy: { createdAt: "asc" },
+        take: 5
+      })
+    ]);
+
+    const upcomingDeadline = terms[0]?.dropDeadline
+      ? new Date(terms[0].dropDeadline).toLocaleDateString()
+      : null;
+
+    const topSections = sections.map((s) => ({
+      code: s.course.code,
+      title: s.course.title,
+      enrolled: s._count.enrollments,
+      capacity: s.capacity
+    }));
+
+    const sectionRows = topSections.map((s) =>
+      `<tr><td style="padding:4px 8px;font-family:monospace">${s.code}</td><td style="padding:4px 8px">${s.title}</td><td style="padding:4px 8px;text-align:center">${s.enrolled}/${s.capacity}</td></tr>`
+    ).join("");
+
+    const htmlPreview = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"/></head>
+<body style="font-family:sans-serif;color:#1e293b;max-width:600px;margin:0 auto;padding:24px">
+  <div style="background:#4f46e5;color:#fff;padding:24px 32px;border-radius:12px 12px 0 0">
+    <h1 style="margin:0;font-size:22px">📊 注册管理周报</h1>
+    <p style="margin:6px 0 0;opacity:.8;font-size:13px">University SIS · 管理员摘要</p>
+  </div>
+  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;padding:24px;border-radius:0 0 12px 12px">
+    <h2 style="font-size:15px;color:#475569;margin-bottom:12px">本周概览</h2>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px">
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px">
+        <p style="margin:0;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em">已选课人数</p>
+        <p style="margin:4px 0 0;font-size:28px;font-weight:800;color:#4f46e5">${enrolledCount}</p>
+      </div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px">
+        <p style="margin:0;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em">候补人数</p>
+        <p style="margin:4px 0 0;font-size:28px;font-weight:800;color:#f59e0b">${waitlistedCount}</p>
+      </div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px">
+        <p style="margin:0;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em">购物车中</p>
+        <p style="margin:4px 0 0;font-size:28px;font-weight:800;color:#0ea5e9">${cartCount}</p>
+      </div>
+      <div style="background:#fff;border:1px solid #fef3c7;border-radius:8px;padding:12px;background:#fffbeb">
+        <p style="margin:0;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em">待审申诉</p>
+        <p style="margin:4px 0 0;font-size:28px;font-weight:800;color:#dc2626">${pendingAppeals}</p>
+      </div>
+    </div>
+    ${upcomingDeadline ? `<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:12px;margin-bottom:20px">
+      <p style="margin:0;font-size:13px;font-weight:600;color:#92400e">⏰ 即将到来的退课截止日期：${upcomingDeadline}</p>
+    </div>` : ""}
+    ${topSections.length > 0 ? `
+    <h2 style="font-size:15px;color:#475569;margin-bottom:8px">教学班一览</h2>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+      <thead><tr style="background:#f1f5f9"><th style="padding:8px;text-align:left">代码</th><th style="padding:8px;text-align:left">课程名</th><th style="padding:8px;text-align:center">选课/容量</th></tr></thead>
+      <tbody>${sectionRows}</tbody>
+    </table>` : ""}
+    <p style="margin-top:20px;font-size:11px;color:#94a3b8;text-align:center">University SIS — 管理员周报</p>
+  </div>
+</body>
+</html>`;
+
+    return { enrolledCount, waitlistedCount, cartCount, pendingAppeals, upcomingDeadline, topSections, htmlPreview };
+  }
+
+  async sendDigestEmail(adminId: string, recipientEmail: string, termId?: string) {
+    const digest = await this.buildDigestPreview(termId);
+    await this.notificationsService.sendMail({
+      to: recipientEmail,
+      subject: "📊 注册管理周报 — University SIS",
+      html: digest.htmlPreview,
+      text: `注册管理周报\n已选课: ${digest.enrolledCount}\n候补: ${digest.waitlistedCount}\n购物车: ${digest.cartCount}\n待审申诉: ${digest.pendingAppeals}`
+    });
+    await this.auditService.log({
+      actorUserId: adminId,
+      action: "DIGEST_SENT",
+      entityType: "DigestEmail",
+      entityId: recipientEmail,
+      metadata: { enrolledCount: digest.enrolledCount }
+    });
+    return { sent: true, to: recipientEmail };
+  }
+
+  // ── Section Demand Report ─────────────────────────────────────────────
+
+  async getSectionDemandReport(termId?: string) {
+    const sections = await this.prisma.section.findMany({
+      where: termId ? { termId } : {},
+      include: {
+        course: { select: { code: true, title: true, credits: true } },
+        term: { select: { id: true, name: true } },
+        _count: {
+          select: {
+            enrollments: { where: { status: "ENROLLED", deletedAt: null } },
+            cartItems: true,
+            watches: true
+          }
+        },
+        enrollments: {
+          where: { status: "WAITLISTED", deletedAt: null },
+          select: { id: true }
+        }
+      }
+    });
+
+    const rows = sections.map((s) => {
+      const enrolled = s._count.enrollments;
+      const inCart = s._count.cartItems;
+      const waitlisted = s.enrollments.length;
+      const watching = s._count.watches;
+      const demand = inCart + waitlisted + watching;
+      const utilizationPct = s.capacity > 0 ? Math.round((enrolled / s.capacity) * 100) : null;
+      return {
+        id: s.id,
+        sectionCode: s.sectionCode,
+        course: s.course,
+        term: s.term,
+        instructorName: s.instructorName,
+        capacity: s.capacity,
+        enrolled,
+        inCart,
+        waitlisted,
+        watching,
+        demand,
+        utilizationPct
+      };
+    });
+
+    return rows.sort((a, b) => b.demand - a.demand);
+  }
+
+  // ── Calendar Events ──────────────────────────────────────────────────
+
+  async createCalendarEvent(adminId: string, data: {
+    title: string;
+    description?: string;
+    eventDate: string;
+    endDate?: string;
+    type?: string;
+    termId?: string;
+  }) {
+    const event = await this.prisma.calendarEvent.create({
+      data: {
+        title: sanitizeHtml(data.title),
+        description: data.description ? sanitizeHtml(data.description) : null,
+        eventDate: new Date(data.eventDate),
+        endDate: data.endDate ? new Date(data.endDate) : null,
+        type: data.type ?? "INFO",
+        termId: data.termId ?? null,
+        createdById: adminId
+      },
+      include: { term: { select: { id: true, name: true } } }
+    });
+    await this.auditService.log({ actorUserId: adminId, action: "CALENDAR_EVENT_CREATED", entityType: "CalendarEvent", entityId: event.id, metadata: { title: event.title } });
+    return event;
+  }
+
+  async updateCalendarEvent(adminId: string, eventId: string, data: {
+    title?: string;
+    description?: string;
+    eventDate?: string;
+    endDate?: string;
+    type?: string;
+    termId?: string | null;
+  }) {
+    const existing = await this.prisma.calendarEvent.findUnique({ where: { id: eventId } });
+    if (!existing) throw new NotFoundException({ code: "EVENT_NOT_FOUND" });
+    const updated = await this.prisma.calendarEvent.update({
+      where: { id: eventId },
+      data: {
+        ...(data.title && { title: sanitizeHtml(data.title) }),
+        ...(data.description !== undefined && { description: data.description ? sanitizeHtml(data.description) : null }),
+        ...(data.eventDate && { eventDate: new Date(data.eventDate) }),
+        ...(data.endDate !== undefined && { endDate: data.endDate ? new Date(data.endDate) : null }),
+        ...(data.type && { type: data.type }),
+        ...(data.termId !== undefined && { termId: data.termId })
+      },
+      include: { term: { select: { id: true, name: true } } }
+    });
+    await this.auditService.log({ actorUserId: adminId, action: "CALENDAR_EVENT_UPDATED", entityType: "CalendarEvent", entityId: eventId, metadata: {} });
+    return updated;
+  }
+
+  async deleteCalendarEvent(adminId: string, eventId: string) {
+    const existing = await this.prisma.calendarEvent.findUnique({ where: { id: eventId } });
+    if (!existing) throw new NotFoundException({ code: "EVENT_NOT_FOUND" });
+    await this.prisma.calendarEvent.delete({ where: { id: eventId } });
+    await this.auditService.log({ actorUserId: adminId, action: "CALENDAR_EVENT_DELETED", entityType: "CalendarEvent", entityId: eventId, metadata: {} });
+    return { deleted: true };
+  }
+
+  // ── Unified Search ──────────────────────────────────────────────────
+
+  async unifiedSearch(q: string, type: "all" | "student" | "course" | "section" = "all") {
+    const term = q.trim();
+    if (!term) return { students: [], courses: [], sections: [] };
+
+    const [students, courses, sections] = await Promise.all([
+      type === "all" || type === "student"
+        ? this.prisma.user.findMany({
+            where: {
+              deletedAt: null,
+              role: "STUDENT",
+              OR: [
+                { email: { contains: term, mode: "insensitive" } },
+                { studentProfile: { legalName: { contains: term, mode: "insensitive" } } }
+              ]
+            },
+            select: {
+              id: true,
+              email: true,
+              studentProfile: { select: { legalName: true, programMajor: true } }
+            },
+            take: 10
+          })
+        : [],
+      type === "all" || type === "course"
+        ? this.prisma.course.findMany({
+            where: {
+              deletedAt: null,
+              OR: [
+                { code: { contains: term, mode: "insensitive" } },
+                { title: { contains: term, mode: "insensitive" } }
+              ]
+            },
+            select: { id: true, code: true, title: true, credits: true },
+            take: 10
+          })
+        : [],
+      type === "all" || type === "section"
+        ? this.prisma.section.findMany({
+            where: {
+              OR: [
+                { sectionCode: { contains: term, mode: "insensitive" } },
+                { instructorName: { contains: term, mode: "insensitive" } },
+                { course: { code: { contains: term, mode: "insensitive" } } },
+                { course: { title: { contains: term, mode: "insensitive" } } }
+              ]
+            },
+            include: {
+              course: { select: { code: true, title: true } },
+              term: { select: { name: true } },
+              _count: { select: { enrollments: { where: { status: "ENROLLED", deletedAt: null } } } }
+            },
+            take: 10
+          })
+        : []
+    ]);
+
+    return { students, courses, sections };
+  }
+
+  // ── System Alerts ────────────────────────────────────────────────────────────
+  async getSystemAlerts() {
+    type SystemAlert = {
+      id: string;
+      type: string;
+      severity: "error" | "warning" | "info";
+      title: string;
+      description: string;
+      actionUrl: string;
+      count: number;
+    };
+
+    const alerts: SystemAlert[] = [];
+    const now = new Date();
+
+    const [
+      pendingAppeals,
+      pendingEnrollments,
+      activeHolds,
+      missingGrades,
+      futureTerms
+    ] = await Promise.all([
+      this.prisma.gradeAppeal.count({ where: { status: "PENDING" } }),
+      this.prisma.enrollment.count({ where: { status: "PENDING_APPROVAL", deletedAt: null } }),
+      this.prisma.studentHold.count({ where: { active: true } }),
+      this.prisma.enrollment.count({ where: { status: "COMPLETED", finalGrade: null, deletedAt: null } }),
+      this.prisma.term.findMany({
+        where: { endDate: { gte: now } },
+        select: { id: true }
+      })
+    ]);
+
+    if (missingGrades > 0) {
+      alerts.push({
+        id: "missing-grades",
+        type: "MISSING_GRADE",
+        severity: "error",
+        title: `${missingGrades} 个已完成注册缺少成绩`,
+        description: "有课程状态为 COMPLETED 但缺少最终成绩，请联系教师补录。",
+        actionUrl: "/admin/enrollments",
+        count: missingGrades
+      });
+    }
+
+    if (pendingAppeals > 0) {
+      alerts.push({
+        id: "grade-appeals",
+        type: "GRADE_APPEAL",
+        severity: "error",
+        title: `${pendingAppeals} 个成绩申诉待审批`,
+        description: "学生提交了成绩申诉，等待管理员审核并作出决定。",
+        actionUrl: "/admin/appeals",
+        count: pendingAppeals
+      });
+    }
+
+    if (pendingEnrollments > 0) {
+      alerts.push({
+        id: "pending-enrollments",
+        type: "PENDING_ENROLLMENT",
+        severity: "warning",
+        title: `${pendingEnrollments} 个注册记录待审批`,
+        description: "有学生注册记录处于 PENDING_APPROVAL 状态，需要管理员处理。",
+        actionUrl: "/admin/enrollments",
+        count: pendingEnrollments
+      });
+    }
+
+    if (activeHolds > 0) {
+      alerts.push({
+        id: "active-holds",
+        type: "ACTIVE_HOLD",
+        severity: "warning",
+        title: `${activeHolds} 个学生限制生效中`,
+        description: "有学生因限制无法正常注册课程，请检查是否需要处理。",
+        actionUrl: "/admin/holds",
+        count: activeHolds
+      });
+    }
+
+    if (futureTerms.length > 0) {
+      const termIds = futureTerms.map((t) => t.id);
+      const sections = await this.prisma.section.findMany({
+        where: { termId: { in: termIds }, capacity: { gt: 0 } },
+        include: {
+          course: { select: { code: true } },
+          _count: { select: { enrollments: { where: { status: "ENROLLED", deletedAt: null } } } }
+        }
+      });
+      const nearCapacity = sections.filter(
+        (s) => s._count.enrollments / s.capacity >= 0.9
+      );
+      if (nearCapacity.length > 0) {
+        const sampleCodes = nearCapacity
+          .slice(0, 3)
+          .map((s) => s.course.code)
+          .join(", ");
+        alerts.push({
+          id: "near-capacity",
+          type: "NEAR_CAPACITY",
+          severity: "info",
+          title: `${nearCapacity.length} 个教学班即将满员 (≥90%)`,
+          description: `涉及教学班：${sampleCodes}${nearCapacity.length > 3 ? " 等" : ""}，可考虑扩容或开设新班。`,
+          actionUrl: "/admin/sections",
+          count: nearCapacity.length
+        });
+      }
+    }
+
+    // Past-term ENROLLED enrollments (not closed out)
+    const pastTerms = await this.prisma.term.findMany({
+      where: { endDate: { lt: now } },
+      select: { id: true }
+    });
+    if (pastTerms.length > 0) {
+      const notClosedOut = await this.prisma.enrollment.count({
+        where: {
+          status: "ENROLLED",
+          section: { termId: { in: pastTerms.map((t) => t.id) } },
+          deletedAt: null
+        }
+      });
+      if (notClosedOut > 0) {
+        alerts.push({
+          id: "not-closed-out",
+          type: "NOT_CLOSED_OUT",
+          severity: "warning",
+          title: `${notClosedOut} 个注册未完成结课`,
+          description: "有学生注册状态仍为 ENROLLED，但对应学期已结束，请检查并更新状态。",
+          actionUrl: "/admin/enrollments",
+          count: notClosedOut
+        });
+      }
+    }
+
+    return alerts;
+  }
+
+  // ── Course Offering History ───────────────────────────────────────────────────
+  async getCourseOfferingHistory(filterCourseId?: string) {
+    // Fetch raw rows joined with course+term+ratings
+    const raw = await this.prisma.$queryRaw<
+      Array<{
+        sid: string; sectionCode: string; instructorName: string; capacity: number;
+        courseId: string; courseCode: string; courseTitle: string; credits: number;
+        termId: string; termName: string; termEndDate: Date;
+        enrolledCount: bigint; avgRating: number | null;
+      }>
+    >`
+      SELECT
+        s.id AS sid,
+        s."sectionCode",
+        s."instructorName",
+        s.capacity,
+        c.id AS "courseId", c.code AS "courseCode", c.title AS "courseTitle", c.credits,
+        t.id AS "termId", t.name AS "termName", t."endDate" AS "termEndDate",
+        COALESCE((
+          SELECT COUNT(*) FROM "Enrollment" e
+          WHERE e."sectionId" = s.id AND e.status = 'ENROLLED' AND e."deletedAt" IS NULL
+        ), 0) AS "enrolledCount",
+        (
+          SELECT AVG(r."overallRating") FROM "CourseRating" r WHERE r."sectionId" = s.id
+        ) AS "avgRating"
+      FROM "Section" s
+      JOIN "Course" c ON c.id = s."courseId"
+      JOIN "Term" t ON t.id = s."termId"
+      WHERE s."deletedAt" IS NULL
+        AND c."deletedAt" IS NULL
+        ${filterCourseId ? Prisma.sql`AND s."courseId" = ${filterCourseId}` : Prisma.sql``}
+      ORDER BY t."endDate" DESC, c.code ASC
+    `;
+
+    type TermOffering = {
+      termId: string; termName: string; termEndDate: string;
+      sectionId: string; sectionCode: string; instructorName: string;
+      capacity: number; enrolled: number; utilizationPct: number; avgRating: number | null;
+    };
+    type CourseHistory = {
+      courseId: string; courseCode: string; courseTitle: string; credits: number;
+      termCount: number; avgUtilization: number; offerings: TermOffering[];
+    };
+
+    const byCourseMemo = new Map<string, CourseHistory>();
+
+    for (const s of raw) {
+      const enrolled = Number(s.enrolledCount);
+      const utilizationPct = s.capacity > 0 ? Math.round((enrolled / s.capacity) * 100) : 0;
+      const avgRating = s.avgRating !== null ? Math.round(Number(s.avgRating) * 10) / 10 : null;
+
+      if (!byCourseMemo.has(s.courseId)) {
+        byCourseMemo.set(s.courseId, {
+          courseId: s.courseId, courseCode: s.courseCode,
+          courseTitle: s.courseTitle, credits: s.credits,
+          termCount: 0, avgUtilization: 0, offerings: []
+        });
+      }
+      byCourseMemo.get(s.courseId)!.offerings.push({
+        termId: s.termId, termName: s.termName,
+        termEndDate: s.termEndDate instanceof Date ? s.termEndDate.toISOString() : String(s.termEndDate),
+        sectionId: s.sid, sectionCode: s.sectionCode, instructorName: s.instructorName,
+        capacity: s.capacity, enrolled, utilizationPct, avgRating
+      });
+    }
+
+    const results: CourseHistory[] = [];
+    for (const [, hist] of byCourseMemo) {
+      const termIds = new Set(hist.offerings.map((o) => o.termId));
+      hist.termCount = termIds.size;
+      hist.avgUtilization =
+        hist.offerings.length > 0
+          ? Math.round(hist.offerings.reduce((a, o) => a + o.utilizationPct, 0) / hist.offerings.length)
+          : 0;
+      results.push(hist);
+    }
+    return results.sort((a, b) => a.courseCode.localeCompare(b.courseCode));
+  }
+
+  // ── Prerequisite Integrity Audit ──────────────────────────────────────────────
+  async getPrereqViolations() {
+    // Courses that have prerequisites defined
+    const courses = await this.prisma.course.findMany({
+      where: { prerequisiteLinks: { some: {} }, deletedAt: null },
+      include: {
+        prerequisiteLinks: {
+          include: { prerequisiteCourse: { select: { id: true, code: true } } }
+        }
+      }
+    });
+
+    if (courses.length === 0) return [];
+
+    const violations: Array<{
+      courseCode: string;
+      courseTitle: string;
+      studentId: string;
+      studentEmail: string;
+      studentName: string | null;
+      termName: string;
+      enrollmentStatus: string;
+      missingPrereqs: string[];
+    }> = [];
+
+    for (const course of courses) {
+      const prereqCodes = course.prerequisiteLinks.map((l) => l.prerequisiteCourse.code);
+      if (prereqCodes.length === 0) continue;
+
+      const enrollments = await this.prisma.enrollment.findMany({
+        where: {
+          section: { courseId: course.id },
+          status: { in: ["ENROLLED", "COMPLETED"] },
+          deletedAt: null
+        },
+        include: {
+          student: {
+            select: {
+              id: true,
+              email: true,
+              studentProfile: { select: { legalName: true } }
+            }
+          },
+          section: { include: { term: { select: { name: true } } } }
+        }
+      });
+
+      for (const enrollment of enrollments) {
+        // Check which prereqs the student has completed
+        const completedPrereqEnrollments = await this.prisma.enrollment.findMany({
+          where: {
+            studentId: enrollment.studentId,
+            status: "COMPLETED",
+            finalGrade: { not: null, notIn: ["F", "W"] },
+            section: { course: { code: { in: prereqCodes } } },
+            deletedAt: null
+          },
+          select: { section: { select: { course: { select: { code: true } } } } }
+        });
+
+        const completedCodes = new Set(
+          completedPrereqEnrollments.map((e) => e.section.course.code)
+        );
+        const missing = prereqCodes.filter((code) => !completedCodes.has(code));
+
+        if (missing.length > 0) {
+          violations.push({
+            courseCode: course.code,
+            courseTitle: course.title,
+            studentId: enrollment.studentId,
+            studentEmail: enrollment.student.email,
+            studentName: enrollment.student.studentProfile?.legalName ?? null,
+            termName: enrollment.section.term.name,
+            enrollmentStatus: enrollment.status,
+            missingPrereqs: missing
+          });
+        }
+      }
+    }
+
+    return violations;
+  }
+
+  // ── Bulk Email by Enrollment Status ──────────────────────────────────────────
+  async previewStatusEmail(termId: string, status: string) {
+    const enumStatus = status as EnrollmentStatus;
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: {
+        status: enumStatus,
+        deletedAt: null,
+        section: termId ? { termId } : undefined
+      },
+      include: {
+        student: { select: { id: true, email: true, studentProfile: { select: { legalName: true } } } },
+        section: { include: { course: { select: { code: true, title: true } }, term: { select: { name: true } } } }
+      },
+      take: 500
+    });
+
+    const uniqueStudents = new Map<string, { email: string; name: string | null }>();
+    for (const e of enrollments) {
+      if (!uniqueStudents.has(e.studentId)) {
+        uniqueStudents.set(e.studentId, {
+          email: e.student.email,
+          name: e.student.studentProfile?.legalName ?? null
+        });
+      }
+    }
+
+    return {
+      recipientCount: uniqueStudents.size,
+      enrollmentCount: enrollments.length,
+      sampleRecipients: Array.from(uniqueStudents.values()).slice(0, 5)
+    };
+  }
+
+  async sendStatusEmail(
+    termId: string,
+    status: string,
+    subject: string,
+    body: string,
+    actorUserId: string
+  ) {
+    const enumStatus = status as EnrollmentStatus;
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: {
+        status: enumStatus,
+        deletedAt: null,
+        section: termId ? { termId } : undefined
+      },
+      include: {
+        student: { select: { id: true, email: true, studentProfile: { select: { legalName: true } } } }
+      },
+      take: 500
+    });
+
+    const uniqueStudents = new Map<string, { id: string; email: string; name: string | null }>();
+    for (const e of enrollments) {
+      if (!uniqueStudents.has(e.studentId)) {
+        uniqueStudents.set(e.studentId, {
+          id: e.studentId,
+          email: e.student.email,
+          name: e.student.studentProfile?.legalName ?? null
+        });
+      }
+    }
+
+    let sent = 0;
+    for (const student of uniqueStudents.values()) {
+      try {
+        await this.notificationsService.sendMail({
+          to: student.email,
+          subject,
+          text: body,
+          html: `<div style="font-family:sans-serif;max-width:560px"><p>${body.replace(/\n/g, "<br>")}</p></div>`
+        });
+        await this.prisma.notificationLog.create({
+          data: { userId: student.id, type: "STATUS_EMAIL", subject, body: body.slice(0, 500) }
+        });
+        sent++;
+      } catch { /* skip individual failures */ }
+    }
+
+    await this.auditService.log({
+      actorUserId,
+      action: "BULK_STATUS_EMAIL",
+      entityType: "enrollment",
+      entityId: "multiple",
+      metadata: { status, termId, sent, subject }
+    });
+
+    return { sent, total: uniqueStudents.size };
+  }
+
+  // ── Waitlist Analytics ────────────────────────────────────────────────────
+  async getWaitlistAnalytics(termId?: string) {
+    // Use raw SQL to avoid Prisma type inference issues with conditional where + include
+    type WLRow = {
+      enrollmentId: string; studentId: string; sectionId: string; sectionCode: string;
+      courseCode: string; courseTitle: string; termName: string; capacity: number;
+      enrolledCount: bigint; waitlistPosition: number | null; programMajor: string | null;
+    };
+    const rows = await this.prisma.$queryRaw<WLRow[]>`
+      SELECT e.id AS "enrollmentId", e."studentId", e."sectionId", e."waitlistPosition",
+             s."sectionCode", c.code AS "courseCode", c.title AS "courseTitle",
+             t.name AS "termName", s.capacity,
+             (SELECT COUNT(*) FROM "Enrollment" e2 WHERE e2."sectionId" = s.id AND e2.status = 'ENROLLED' AND e2."deletedAt" IS NULL) AS "enrolledCount",
+             sp."programMajor"
+      FROM "Enrollment" e
+      JOIN "Section" s ON s.id = e."sectionId"
+      JOIN "Course" c ON c.id = s."courseId"
+      JOIN "Term" t ON t.id = s."termId"
+      LEFT JOIN "StudentProfile" sp ON sp."userId" = e."studentId"
+      WHERE e.status = 'WAITLISTED' AND e."deletedAt" IS NULL
+        ${termId ? Prisma.sql`AND s."termId" = ${termId}` : Prisma.sql``}
+      ORDER BY e."waitlistPosition" ASC
+    `;
+
+    // Per-section summary
+    const sectionMap = new Map<string, {
+      sectionId: string; sectionCode: string; courseCode: string; courseTitle: string; termName: string;
+      capacity: number; enrolled: number; waitlistCount: number; avgPosition: number; maxPosition: number;
+    }>();
+
+    for (const r of rows) {
+      const sid = r.sectionId;
+      if (!sectionMap.has(sid)) {
+        sectionMap.set(sid, {
+          sectionId: sid, sectionCode: r.sectionCode, courseCode: r.courseCode,
+          courseTitle: r.courseTitle, termName: r.termName, capacity: r.capacity,
+          enrolled: Number(r.enrolledCount), waitlistCount: 0, avgPosition: 0, maxPosition: 0
+        });
+      }
+      const entry = sectionMap.get(sid)!;
+      entry.waitlistCount++;
+      entry.avgPosition += r.waitlistPosition ?? 0;
+      entry.maxPosition = Math.max(entry.maxPosition, r.waitlistPosition ?? 0);
+    }
+
+    const sections = Array.from(sectionMap.values()).map((s) => ({
+      ...s,
+      avgPosition: s.waitlistCount > 0 ? Math.round(s.avgPosition / s.waitlistCount) : 0,
+      utilizationPct: s.capacity > 0 ? Math.round((s.enrolled / s.capacity) * 100) : 0
+    })).sort((a, b) => b.waitlistCount - a.waitlistCount);
+
+    // Dept-level summary by programMajor
+    const deptMap = new Map<string, { dept: string; waitlistCount: number; sections: Set<string> }>();
+    for (const r of rows) {
+      const dept = r.programMajor ?? "Unknown";
+      if (!deptMap.has(dept)) deptMap.set(dept, { dept, waitlistCount: 0, sections: new Set() });
+      const d = deptMap.get(dept)!;
+      d.waitlistCount++;
+      d.sections.add(r.sectionId);
+    }
+    const byDept = Array.from(deptMap.values())
+      .map((d) => ({ dept: d.dept, waitlistCount: d.waitlistCount, sectionsAffected: d.sections.size }))
+      .sort((a, b) => b.waitlistCount - a.waitlistCount);
+
+    const uniqueStudents = new Set(rows.map((r) => r.studentId)).size;
+    return {
+      totalWaitlisted: rows.length,
+      uniqueStudents,
+      sectionsWithWaitlist: sections.length,
+      sections: sections.slice(0, 30),
+      byDept: byDept.slice(0, 15)
+    };
+  }
+
+  // ── Graduation Clearance ──────────────────────────────────────────────────
+  async getGraduationClearance(minCredits = 120) {
+    // Raw SQL to avoid Prisma type issues with complex includes
+    type GradRow = {
+      userId: string; email: string; legalName: string | null; programMajor: string | null;
+      enrollStatus: string; credits: number; finalGrade: string | null;
+    };
+    const rows = await this.prisma.$queryRaw<GradRow[]>`
+      SELECT u.id AS "userId", u.email, sp."legalName", sp."programMajor",
+             e.status AS "enrollStatus", c.credits, e."finalGrade"
+      FROM "User" u
+      LEFT JOIN "StudentProfile" sp ON sp."userId" = u.id
+      LEFT JOIN "Enrollment" e ON e."studentId" = u.id AND e."deletedAt" IS NULL
+      LEFT JOIN "Section" s ON s.id = e."sectionId"
+      LEFT JOIN "Course" c ON c.id = s."courseId"
+      WHERE u.role = 'STUDENT' AND u."deletedAt" IS NULL
+    `;
+
+    type AppealRow = { studentId: string; id: string };
+    const appeals = await this.prisma.$queryRaw<AppealRow[]>`
+      SELECT "studentId", id FROM "GradeAppeal" WHERE status = 'PENDING'
+    `;
+    const appealsByStudent = new Map<string, number>();
+    for (const a of appeals) {
+      appealsByStudent.set(a.studentId, (appealsByStudent.get(a.studentId) ?? 0) + 1);
+    }
+
+    // Aggregate per student
+    const studentMap = new Map<string, {
+      userId: string; email: string; legalName: string | null; programMajor: string | null;
+      creditsDone: number; creditsInProgress: number; missingGrades: number; pendingApproval: number;
+    }>();
+
+    for (const r of rows) {
+      if (!studentMap.has(r.userId)) {
+        studentMap.set(r.userId, {
+          userId: r.userId, email: r.email, legalName: r.legalName, programMajor: r.programMajor,
+          creditsDone: 0, creditsInProgress: 0, missingGrades: 0, pendingApproval: 0
+        });
+      }
+      const s = studentMap.get(r.userId)!;
+      if (!r.enrollStatus) continue; // no enrollments
+      if (r.enrollStatus === "COMPLETED") {
+        s.creditsDone += r.credits ?? 0;
+        if (!r.finalGrade) s.missingGrades++;
+      } else if (r.enrollStatus === "ENROLLED") {
+        s.creditsInProgress += r.credits ?? 0;
+      } else if (r.enrollStatus === "PENDING_APPROVAL") {
+        s.pendingApproval++;
+      }
+    }
+
+    return Array.from(studentMap.values()).map((s) => {
+      const openAppeals = appealsByStudent.get(s.userId) ?? 0;
+      const eligible = s.creditsDone >= minCredits && s.missingGrades === 0 && openAppeals === 0 && s.pendingApproval === 0;
+      return {
+        userId: s.userId, email: s.email, name: s.legalName, department: s.programMajor,
+        creditsDone: s.creditsDone, creditsInProgress: s.creditsInProgress,
+        creditsNeeded: Math.max(0, minCredits - s.creditsDone),
+        missingGrades: s.missingGrades, openAppeals, pendingApproval: s.pendingApproval, eligible
+      };
+    }).sort((a, b) => Number(b.eligible) - Number(a.eligible) || b.creditsDone - a.creditsDone);
+  }
+
+  // ── Registration Activity Heatmap ─────────────────────────────────────────
+  async getRegistrationHeatmap(termId?: string) {
+    // Use raw SQL to extract weekday + hour from createdAt
+    const rows = await this.prisma.$queryRaw<Array<{ dow: number; hour: number; count: bigint }>>`
+      SELECT
+        EXTRACT(DOW FROM e."createdAt")::int AS dow,
+        EXTRACT(HOUR FROM e."createdAt")::int AS hour,
+        COUNT(*) AS count
+      FROM "Enrollment" e
+      JOIN "Section" s ON s.id = e."sectionId"
+      WHERE e."deletedAt" IS NULL
+        ${termId ? Prisma.sql`AND s."termId" = ${termId}` : Prisma.sql``}
+      GROUP BY dow, hour
+      ORDER BY dow, hour
+    `;
+
+    // Build a 7×24 grid (dow 0=Sunday..6=Saturday, hour 0..23)
+    const grid: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
+    let maxCount = 0;
+    for (const row of rows) {
+      const count = Number(row.count);
+      grid[row.dow][row.hour] = count;
+      if (count > maxCount) maxCount = count;
+    }
+
+    const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const totalRegistrations = rows.reduce((s, r) => s + Number(r.count), 0);
+
+    // Top slots
+    const slots = rows
+      .map((r) => ({ day: dayLabels[r.dow], hour: r.hour, count: Number(r.count) }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    return { grid, dayLabels, maxCount, totalRegistrations, topSlots: slots };
+  }
+
+  // ── Student Credit Load Distribution ─────────────────────────────────────
+  async getCreditLoadDistribution(termId?: string) {
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: {
+        status: EnrollmentStatus.ENROLLED,
+        deletedAt: null,
+        section: termId ? { termId } : undefined
+      },
+      include: { section: { include: { course: { select: { credits: true } } } } }
+    });
+
+    // Sum credits per student
+    const studentCredits = new Map<string, number>();
+    for (const e of enrollments) {
+      const prev = studentCredits.get(e.studentId) ?? 0;
+      studentCredits.set(e.studentId, prev + (e.section.course.credits ?? 0));
+    }
+
+    const counts = { lt9: 0, n9to11: 0, n12to15: 0, n16to18: 0, gt18: 0 };
+    for (const credits of studentCredits.values()) {
+      if (credits < 9) counts.lt9++;
+      else if (credits <= 11) counts.n9to11++;
+      else if (credits <= 15) counts.n12to15++;
+      else if (credits <= 18) counts.n16to18++;
+      else counts.gt18++;
+    }
+
+    const mean = studentCredits.size > 0
+      ? Math.round((Array.from(studentCredits.values()).reduce((s, v) => s + v, 0) / studentCredits.size) * 10) / 10
+      : 0;
+
+    return {
+      totalStudents: studentCredits.size,
+      mean,
+      distribution: [
+        { label: "< 9", count: counts.lt9, tag: "underload" },
+        { label: "9–11", count: counts.n9to11, tag: "light" },
+        { label: "12–15", count: counts.n12to15, tag: "normal" },
+        { label: "16–18", count: counts.n16to18, tag: "heavy" },
+        { label: "> 18", count: counts.gt18, tag: "overload" }
+      ]
+    };
   }
 }

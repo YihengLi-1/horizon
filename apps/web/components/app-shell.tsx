@@ -27,6 +27,8 @@ import {
   Shield,
   ShieldAlert,
   ShoppingCart,
+  Star,
+  TrendingDown,
   Upload,
   X,
   User,
@@ -63,32 +65,66 @@ const studentItems: NavItem[] = [
   { href: "/student/notifications", label: "Notifications", icon: <Bell className={iconClass} /> },
   { href: "/student/announcements", label: "Announcements", icon: <Megaphone className={iconClass} /> },
   { href: "/student/catalog", label: "Catalog", icon: <BookOpen className={iconClass} /> },
+  { href: "/student/readiness", label: "可选课检测", icon: <ListChecks className={iconClass} /> },
   { href: "/student/planner", label: "选课规划", icon: <CalendarDays className={iconClass} /> },
+  { href: "/student/planner/4year", label: "四年规划", icon: <CalendarDays className={iconClass} /> },
   { href: "/student/cart", label: "Cart", icon: <ShoppingCart className={iconClass} /> },
+  { href: "/student/waitlist", label: "候补名单", icon: <Clock className={iconClass} /> },
+  { href: "/student/conflicts", label: "冲突检测", icon: <ListChecks className={iconClass} /> },
   { href: "/student/schedule", label: "Schedule", icon: <CalendarDays className={iconClass} /> },
   { href: "/student/grades", label: "Grades", icon: <GraduationCap className={iconClass} /> },
+  { href: "/student/degree", label: "毕业进度", icon: <GraduationCap className={iconClass} /> },
+  { href: "/student/gpa-sim", label: "GPA 模拟器", icon: <BarChart3 className={iconClass} /> },
+  { href: "/student/grade-estimator", label: "成绩估算", icon: <BarChart3 className={iconClass} /> },
   { href: "/student/calendar", label: "Calendar", icon: <CalendarRange className={iconClass} /> },
   { href: "/student/history", label: "History", icon: <History className={iconClass} /> },
   { href: "/student/bookmarks", label: "Bookmarks", icon: <Bookmark className={iconClass} /> },
+  { href: "/student/watched", label: "Watched", icon: <Bell className={iconClass} /> },
+  { href: "/student/study-timer", label: "学习计时器", icon: <Clock className={iconClass} /> },
+  { href: "/student/reviews", label: "My Reviews", icon: <Star className={iconClass} /> },
+  { href: "/student/transcript", label: "修课记录", icon: <ScrollText className={iconClass} /> },
+  { href: "/student/my-notes", label: "我的笔记", icon: <ScrollText className={iconClass} /> },
+  { href: "/student/appeals", label: "成绩申诉", icon: <ScrollText className={iconClass} /> },
+  { href: "/student/settings", label: "设置", icon: <Settings className={iconClass} /> },
+  { href: "/student/advisor", label: "我的顾问", icon: <User className={iconClass} /> },
   { href: "/student/contact", label: "Support", icon: <Mail className={iconClass} /> },
   { href: "/student/profile", label: "Profile", icon: <User className={iconClass} /> },
-  { href: "/student/help", label: "Help", icon: <HelpCircle className={iconClass} /> }
+  { href: "/student/help", label: "Help", icon: <HelpCircle className={iconClass} /> },
+  { href: "/student/peer-compare", label: "同伴对比", icon: <BarChart3 className={iconClass} /> }
 ];
 
 const adminItems: NavItem[] = [
   { href: "/admin/dashboard", label: "Dashboard", icon: <LayoutDashboard className={iconClass} /> },
+  { href: "/admin/alerts", label: "警报中心", icon: <ShieldAlert className={iconClass} /> },
+  { href: "/admin/search", label: "全局搜索", icon: <BookOpen className={iconClass} /> },
   { href: "/admin/students", label: "学生", icon: <Users className={iconClass} /> },
+  { href: "/admin/students/at-risk", label: "高风险学生", icon: <TrendingDown className={iconClass} /> },
+  { href: "/admin/graduation", label: "毕业审核", icon: <GraduationCap className={iconClass} /> },
+  { href: "/admin/instructors", label: "教师分析", icon: <GraduationCap className={iconClass} /> },
+  { href: "/admin/export", label: "Export Center", icon: <Upload className={iconClass} /> },
   { href: "/admin/courses", label: "课程", icon: <BookCopy className={iconClass} /> },
   { href: "/admin/sections", label: "教学班", icon: <ListChecks className={iconClass} /> },
   { href: "/admin/terms", label: "学期", icon: <CalendarRange className={iconClass} /> },
+  { href: "/admin/calendar", label: "日历事件", icon: <CalendarDays className={iconClass} /> },
   { href: "/admin/enrollments", label: "注册管理", icon: <GraduationCap className={iconClass} /> },
+  { href: "/admin/closeout", label: "结课处理", icon: <GraduationCap className={iconClass} /> },
   { href: "/admin/waitlist", label: "候补名单", icon: <Clock className={iconClass} /> },
+  { href: "/admin/waitlist-analytics", label: "候补分析", icon: <BarChart3 className={iconClass} /> },
   { href: "/admin/holds", label: "学生限制", icon: <ShieldAlert className={iconClass} /> },
   { href: "/admin/requests", label: "审批请求", icon: <ListChecks className={iconClass} /> },
+  { href: "/admin/appeals", label: "成绩申诉", icon: <ScrollText className={iconClass} /> },
+  { href: "/admin/cohort-message", label: "届次群发", icon: <Mail className={iconClass} /> },
+  { href: "/admin/status-email", label: "状态群发", icon: <Mail className={iconClass} /> },
+  { href: "/admin/digest", label: "邮件摘要", icon: <Mail className={iconClass} /> },
   { href: "/admin/announcements", label: "公告", icon: <Megaphone className={iconClass} /> },
   { href: "/admin/invite-codes", label: "邀请码", icon: <KeyRound className={iconClass} /> },
   { href: "/admin/import", label: "数据导入", icon: <Upload className={iconClass} /> },
   { href: "/admin/reports", label: "报表", icon: <BarChart3 className={iconClass} /> },
+  { href: "/admin/demand", label: "需求分析", icon: <BarChart3 className={iconClass} /> },
+  { href: "/admin/term-compare", label: "学期对比", icon: <BarChart3 className={iconClass} /> },
+  { href: "/admin/registration-heatmap", label: "注册热力图", icon: <BarChart3 className={iconClass} /> },
+  { href: "/admin/prereq-audit", label: "先修课审计", icon: <ListChecks className={iconClass} /> },
+  { href: "/admin/offering-history", label: "课程开设历史", icon: <BarChart3 className={iconClass} /> },
   { href: "/admin/audit-logs", label: "审计日志", icon: <ScrollText className={iconClass} /> },
   { href: "/admin/notifications", label: "通知记录", icon: <Bell className={iconClass} /> },
   { href: "/admin/sessions", label: "会话管理", icon: <Shield className={iconClass} /> },
@@ -157,10 +193,10 @@ export function AppShell({
     const groups: NavGroup[] =
       area === "admin"
         ? [
-            { label: "概览", hrefs: ["/admin/dashboard"] },
-            { label: "学术管理", hrefs: ["/admin/students", "/admin/courses", "/admin/sections", "/admin/terms"] },
-            { label: "注册管理", hrefs: ["/admin/enrollments", "/admin/waitlist", "/admin/holds", "/admin/requests"] },
-            { label: "系统", hrefs: ["/admin/announcements", "/admin/invite-codes", "/admin/import", "/admin/reports", "/admin/audit-logs", "/admin/notifications", "/admin/sessions", "/admin/settings"] }
+            { label: "概览", hrefs: ["/admin/dashboard", "/admin/alerts", "/admin/search"] },
+            { label: "学术管理", hrefs: ["/admin/students", "/admin/students/at-risk", "/admin/graduation", "/admin/instructors", "/admin/courses", "/admin/sections", "/admin/terms", "/admin/calendar"] },
+            { label: "注册管理", hrefs: ["/admin/enrollments", "/admin/closeout", "/admin/waitlist", "/admin/waitlist-analytics", "/admin/holds", "/admin/requests", "/admin/appeals"] },
+            { label: "系统", hrefs: ["/admin/announcements", "/admin/cohort-message", "/admin/status-email", "/admin/invite-codes", "/admin/import", "/admin/export", "/admin/reports", "/admin/demand", "/admin/term-compare", "/admin/registration-heatmap", "/admin/prereq-audit", "/admin/offering-history", "/admin/digest", "/admin/audit-logs", "/admin/notifications", "/admin/sessions", "/admin/settings"] }
           ]
         : area === "faculty"
           ? [{ label: "Instruction", hrefs: ["/faculty/dashboard", "/faculty/sections", "/faculty/requests"] }]
@@ -168,8 +204,8 @@ export function AppShell({
             ? [{ label: "Advising", hrefs: ["/advisor/dashboard", "/advisor/advisees", "/advisor/requests"] }]
         : [
             { label: "Overview", hrefs: ["/student/dashboard", "/student/notifications", "/student/announcements"] },
-            { label: "Registration", hrefs: ["/student/catalog", "/student/planner", "/student/cart", "/student/schedule"] },
-            { label: "Academic", hrefs: ["/student/grades", "/student/calendar", "/student/history", "/student/bookmarks", "/student/contact", "/student/profile", "/student/help"] }
+            { label: "Registration", hrefs: ["/student/catalog", "/student/readiness", "/student/planner", "/student/cart", "/student/waitlist", "/student/conflicts", "/student/schedule"] },
+            { label: "Academic", hrefs: ["/student/grades", "/student/degree", "/student/gpa-sim", "/student/grade-estimator", "/student/peer-compare", "/student/transcript", "/student/calendar", "/student/history", "/student/bookmarks", "/student/watched", "/student/study-timer", "/student/reviews", "/student/my-notes", "/student/appeals", "/student/advisor", "/student/settings", "/student/contact", "/student/profile", "/student/help"] }
           ];
 
     return groups

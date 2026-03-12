@@ -77,6 +77,11 @@ export class RegistrationController {
     return ok(await this.registrationService.getWaitlistPosition(user.userId, sectionId));
   }
 
+  @Get("my-waitlist")
+  async getMyWaitlist(@CurrentUser() user: { userId: string }) {
+    return ok(await this.registrationService.getMyWaitlist(user.userId));
+  }
+
   @Post("swap")
   async swap(
     @Body() body: { dropSectionId: string; addSectionId: string },

@@ -159,6 +159,15 @@ export default function SchedulePage() {
     () => !showEnrolled || !showPending || !showWaitlisted,
     [showEnrolled, showPending, showWaitlisted]
   );
+
+  // Total weekly meeting hours from enrolled sections
+  const weeklyMeetingHours = useMemo(() => {
+    const totalMinutes = enrollments
+      .filter((e) => e.status === "ENROLLED")
+      .flatMap((e) => e.section.meetingTimes ?? [])
+      .reduce((sum, mt) => sum + (mt.endMinutes - mt.startMinutes), 0);
+    return Math.round((totalMinutes / 60) * 10) / 10;
+  }, [enrollments]);
   const todayClasses = useMemo(
     () =>
       visibleEnrollments
@@ -430,6 +439,13 @@ export default function SchedulePage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Enrolled Credits</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{visibleCredits}</p>
         </div>
+        {weeklyMeetingHours > 0 ? (
+          <div className={`campus-kpi ${weeklyMeetingHours > 20 ? "border-red-200 bg-red-50" : weeklyMeetingHours > 15 ? "border-amber-200 bg-amber-50" : "border-indigo-200 bg-indigo-50"}`}>
+            <p className={`text-xs font-semibold uppercase tracking-wide ${weeklyMeetingHours > 20 ? "text-red-700" : weeklyMeetingHours > 15 ? "text-amber-700" : "text-indigo-700"}`}>Weekly Hours</p>
+            <p className={`mt-1 text-2xl font-semibold ${weeklyMeetingHours > 20 ? "text-red-900" : weeklyMeetingHours > 15 ? "text-amber-900" : "text-indigo-900"}`}>{weeklyMeetingHours}h</p>
+            <p className={`text-[10px] ${weeklyMeetingHours > 20 ? "text-red-500" : weeklyMeetingHours > 15 ? "text-amber-500" : "text-indigo-400"}`}>in-class per week</p>
+          </div>
+        ) : null}
       </section>
 
       {/* Drop deadline banner */}
