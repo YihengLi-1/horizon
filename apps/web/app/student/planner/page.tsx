@@ -68,6 +68,23 @@ function fmt(minutes: number) {
   return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 }
 
+function comboScore(combo: Section[]): number {
+  const credits = combo.reduce((s, sec) => s + (sec.credits ?? 0), 0);
+  const days = new Set(combo.flatMap((sec) => (sec.meetingTimes ?? []).map((m) => m.weekday))).size;
+  // Penalize very early starts (<8am) or very late ends (>20:00)
+  const earlyPenalty = combo.flatMap((sec) => sec.meetingTimes ?? []).filter((m) => m.startMinutes < 480).length;
+  const latePenalty = combo.flatMap((sec) => sec.meetingTimes ?? []).filter((m) => m.endMinutes > 1200).length;
+  // Lower score = better; prefer 15 credits, fewer days, no early/late
+  return Math.abs(credits - 15) * 2 + days + earlyPenalty + latePenalty;
+}
+
+function creditLoadLabel(credits: number): { label: string; cls: string } {
+  if (credits === 0) return { label: "", cls: "" };
+  if (credits < 12) return { label: "兼读生负荷（<12学分）", cls: "border-amber-200 bg-amber-50 text-amber-700" };
+  if (credits <= 18) return { label: "正常负荷（12-18学分）", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" };
+  return { label: "超载（>18学分）⚠️", cls: "border-red-200 bg-red-50 text-red-700" };
+}
+
 export default function PlannerPage() {
   const [termId, setTermId] = useState("");
   const [terms, setTerms] = useState<Term[]>([]);
@@ -96,8 +113,19 @@ export default function PlannerPage() {
 
   const generate = () => {
     const courseOptions = basket.map((code) => allSections.filter((section) => section.course.code === code));
-    setCombos(generateCombinations(courseOptions));
+    const raw = generateCombinations(courseOptions);
+    // Sort by score (lower = better) and put recommended first
+    setCombos([...raw].sort((a, b) => comboScore(a) - comboScore(b)));
   };
+
+  const basketCredits = useMemo(() => {
+    // sum up the minimum credits from any section of each basket course
+    return basket.reduce((sum, code) => {
+      const secs = allSections.filter((s) => s.course.code === code);
+      const minCr = secs.length > 0 ? Math.min(...secs.map((s) => s.credits ?? 0)) : 0;
+      return sum + minCr;
+    }, 0);
+  }, [basket, allSections]);
 
   return (
     <div className="campus-page space-y-5">
@@ -177,19 +205,34 @@ export default function PlannerPage() {
             {basket.length === 0 ? (
               <p className="text-xs text-slate-400">在上方搜索并添加课程</p>
             ) : (
-              basket.map((code) => (
-                <div key={code} className="flex items-center justify-between rounded-lg bg-blue-50 border border-blue-100 px-3 py-2">
-                  <span className="text-sm font-semibold text-blue-800">{code}</span>
-                  <button
-                    type="button"
-                    onClick={() => setBasket((prev) => prev.filter((item) => item !== code))}
-                    className="text-blue-400 hover:text-red-500 text-lg leading-none"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))
+              basket.map((code) => {
+                const secs = allSections.filter((s) => s.course.code === code);
+                const cr = secs.length > 0 ? Math.min(...secs.map((s) => s.credits ?? 0)) : 0;
+                return (
+                  <div key={code} className="flex items-center justify-between rounded-lg bg-blue-50 border border-blue-100 px-3 py-2">
+                    <div>
+                      <span className="text-sm font-semibold text-blue-800">{code}</span>
+                      {cr > 0 && <span className="ml-2 text-xs text-blue-500">{cr}学分</span>}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setBasket((prev) => prev.filter((item) => item !== code)); setCombos([]); }}
+                      className="text-blue-400 hover:text-red-500 text-lg leading-none"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })
             )}
+            {basket.length > 0 && basketCredits > 0 && (() => {
+              const load = creditLoadLabel(basketCredits);
+              return load.label ? (
+                <div className={`rounded-lg border px-3 py-2 text-xs font-medium ${load.cls}`}>
+                  📊 预计学分：{basketCredits} — {load.label}
+                </div>
+              ) : null;
+            })()}
             {basket.length >= 2 ? (
               <button
                 type="button"
@@ -214,19 +257,37 @@ export default function PlannerPage() {
               {combos.map((combo, idx) => {
                 const totalCredits = combo.reduce((sum, section) => sum + (section.credits ?? 0), 0);
                 const days = [...new Set(combo.flatMap((section) => (section.meetingTimes ?? []).map((meeting) => meeting.weekday)))].sort();
+                const isRecommended = idx === 0;
+                const load = creditLoadLabel(totalCredits);
                 return (
-                  <div key={idx} className="campus-card p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-slate-700">方案 {idx + 1}</span>
-                      <span className="campus-chip border-slate-200 bg-slate-50 text-slate-600 text-xs">
-                        {totalCredits} 学分 · {days.map((day) => WEEKDAY[day]).join("/")} 上课
-                      </span>
+                  <div key={idx} className={`campus-card p-4 space-y-3 ${isRecommended ? "ring-2 ring-indigo-400" : ""}`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-slate-700">方案 {idx + 1}</span>
+                        {isRecommended && (
+                          <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white">⭐ 推荐</span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="campus-chip border-slate-200 bg-slate-50 text-slate-600 text-xs">
+                          {totalCredits} 学分 · {days.length} 天
+                        </span>
+                        <span className="campus-chip text-xs border-slate-200 bg-slate-50 text-slate-600">
+                          {days.map((day) => WEEKDAY[day]).join("/")}
+                        </span>
+                        {load.label && (
+                          <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${load.cls}`}>
+                            {load.label}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-1">
                       {combo.map((section) => (
                         <div key={section.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs">
                           <span className="font-semibold text-slate-800">{section.course.code}</span>
                           <span className="text-slate-500">§{section.sectionCode}</span>
+                          {section.credits != null && <span className="text-slate-400">{section.credits}cr</span>}
                           <span className="text-slate-500">{section.instructorName}</span>
                           <span className="ml-auto text-slate-400">
                             {(section.meetingTimes ?? [])

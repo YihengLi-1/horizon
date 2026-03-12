@@ -5,6 +5,9 @@ import { Suspense, type ReactNode, useEffect, useMemo, useRef, useState } from "
 import { RegistrationStepper } from "@/components/registration-stepper";
 import { useToast } from "@/components/Toast";
 import GradeDistBar from "@/components/GradeDistBar";
+import CoursePairings from "@/components/CoursePairings";
+import MultiDimRating from "@/components/MultiDimRating";
+import SectionReviews from "@/components/SectionReviews";
 import { apiFetch } from "@/lib/api";
 import BookmarkButton from "./BookmarkButton";
 import RecommendedCourses from "./RecommendedCourses";
@@ -31,7 +34,7 @@ type Section = {
   modality: string;
   capacity: number;
   gradeDistribution?: { A: number; B: number; C: number; D: number; F: number; total: number };
-  ratings?: Array<{ rating: number }>;
+  ratings?: Array<{ rating: number; difficulty?: number | null; workload?: number | null; wouldRecommend?: boolean | null }>;
   instructorName: string;
   location: string | null;
   requireApproval: boolean;
@@ -42,6 +45,7 @@ type Section = {
     code: string;
     title: string;
     description: string | null;
+    weeklyHours?: number | null;
     prerequisiteLinks?: Array<{ prerequisiteCourse: { code: string } }>;
   };
 };
@@ -110,7 +114,24 @@ function getPrerequisiteCodes(section: Section): string[] {
 
 function averageRating(section: Section): number | null {
   if (!section.ratings || section.ratings.length === 0) return null;
-  return section.ratings.reduce((sum, rating) => sum + rating.rating, 0) / section.ratings.length;
+  return section.ratings.reduce((sum, r) => sum + r.rating, 0) / section.ratings.length;
+}
+
+function sectionStats(section: Section) {
+  const r = section.ratings;
+  if (!r || r.length === 0) return null;
+  const avg = (arr: (number | null | undefined)[]) => {
+    const v = arr.filter((x): x is number => x != null);
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+  };
+  const recommends = r.filter((x) => x.wouldRecommend === true).length;
+  return {
+    count: r.length,
+    avgRating: avg(r.map((x) => x.rating)),
+    avgDifficulty: avg(r.map((x) => x.difficulty)),
+    avgWorkload: avg(r.map((x) => x.workload)),
+    recommendPct: Math.round((recommends / r.length) * 100)
+  };
 }
 
 function Highlight({ text, query }: { text: string; query: string }) {
@@ -1177,6 +1198,9 @@ export default function StudentCatalogPage() {
                         <BookmarkButton sectionId={section.id} />
                         <Badge>§{section.sectionCode}</Badge>
                         <Badge>{section.credits} cr</Badge>
+                        {section.course.weeklyHours ? (
+                          <Badge color="amber">⏱ {section.course.weeklyHours}h/wk</Badge>
+                        ) : null}
                         <Badge modality={section.modality}>{section.modality.replace("_", " ")}</Badge>
                         {alreadyCompleted ? <Badge color="slate">已修</Badge> : null}
                         {section.requireApproval ? <Badge color="blue">Approval Required</Badge> : null}
@@ -1186,6 +1210,39 @@ export default function StudentCatalogPage() {
                     {section.course.description ? (
                       <p className="line-clamp-2 text-[15px] text-slate-600">{section.course.description}</p>
                     ) : null}
+
+                    {(() => {
+                      const stats = sectionStats(section);
+                      if (!stats) return null;
+                      return (
+                        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2">
+                          {stats.avgRating !== null ? (
+                            <span className="flex items-center gap-1 text-xs text-slate-600">
+                              <span className="font-bold text-indigo-600">{stats.avgRating.toFixed(1)}</span>
+                              <span className="text-amber-400">★</span>
+                              <span className="text-slate-400">({stats.count})</span>
+                            </span>
+                          ) : null}
+                          {stats.avgDifficulty !== null ? (
+                            <span className="flex items-center gap-1 text-xs text-slate-600">
+                              <span className="font-semibold text-rose-500">{stats.avgDifficulty.toFixed(1)}</span>
+                              <span className="text-slate-400">difficulty</span>
+                            </span>
+                          ) : null}
+                          {stats.avgWorkload !== null ? (
+                            <span className="flex items-center gap-1 text-xs text-slate-600">
+                              <span className="font-semibold text-amber-600">{stats.avgWorkload.toFixed(1)}</span>
+                              <span className="text-slate-400">workload</span>
+                            </span>
+                          ) : null}
+                          {stats.recommendPct !== null ? (
+                            <span className={`text-xs font-semibold ${stats.recommendPct >= 70 ? "text-emerald-600" : stats.recommendPct >= 40 ? "text-amber-600" : "text-red-500"}`}>
+                              {stats.recommendPct}% recommend
+                            </span>
+                          ) : null}
+                        </div>
+                      );
+                    })()}
 
                     <dl className="grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
                       <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2">
@@ -1244,6 +1301,15 @@ export default function StudentCatalogPage() {
                       <div className="border-t border-slate-100 px-0 pt-1">
                         <p className="mb-1 text-xs text-slate-400">历史成绩分布</p>
                         <GradeDistBar dist={section.gradeDistribution} />
+                      </div>
+                    ) : null}
+
+                    <CoursePairings courseId={section.course.id} />
+                    <SectionReviews sectionId={section.id} />
+
+                    {alreadyCompleted ? (
+                      <div className="border-t border-slate-100 pt-3">
+                        <MultiDimRating sectionId={section.id} />
                       </div>
                     ) : null}
                   </div>
@@ -1492,6 +1558,11 @@ export default function StudentCatalogPage() {
                     { label: "容量", fn: (s: Section) => `${getEnrolledCount(s)}/${s.capacity}` },
                     { label: "上课时间", fn: (s: Section) => s.meetingTimes.map(mt => meetingChip(mt)).join("; ") || "异步" },
                     { label: "平均评分", fn: (s: Section) => averageRating(s)?.toFixed(1) ? `${averageRating(s)?.toFixed(1)} ★` : "—" },
+                    { label: "难度", fn: (s: Section) => { const st = sectionStats(s); const d = st?.avgDifficulty; return d != null ? `${d.toFixed(1)}/5` : "—"; } },
+                    { label: "工作量", fn: (s: Section) => { const st = sectionStats(s); const w = st?.avgWorkload; return w != null ? `${w.toFixed(1)}/5` : "—"; } },
+                    { label: "推荐率", fn: (s: Section) => { const st = sectionStats(s); const r = st?.recommendPct; return r != null ? `${r}%` : "—"; } },
+                    { label: "每周学时", fn: (s: Section) => s.course.weeklyHours ? `${s.course.weeklyHours}h/wk` : "—" },
+                    { label: "先修课", fn: (s: Section) => getPrerequisiteCodes(s).join(", ") || "无" },
                   ].map(({ label, fn }) => (
                     <tr key={label} className="border-t border-slate-100 dark:border-gray-700 even:bg-slate-50/50 dark:even:bg-gray-800/50">
                       <td className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">{label}</td>
@@ -1517,11 +1588,12 @@ function Badge({
 }: {
   children: ReactNode;
   modality?: string;
-  color?: "blue" | "slate";
+  color?: "blue" | "slate" | "amber";
 }) {
   let cls = "bg-slate-100 text-slate-700";
   if (color === "blue") cls = "bg-blue-50 text-blue-700 border border-blue-200";
   else if (color === "slate") cls = "border border-slate-200 bg-slate-100 text-slate-600";
+  else if (color === "amber") cls = "border border-amber-200 bg-amber-50 text-amber-700";
   else if (modality === "ONLINE") cls = "bg-emerald-50 text-emerald-700";
   else if (modality === "HYBRID") cls = "bg-indigo-50 text-indigo-700";
 

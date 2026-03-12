@@ -3,6 +3,8 @@ import Link from "next/link";
 import { serverApi } from "@/lib/server-api";
 import CertificateButton from "./CertificateButton";
 import GpaCalculator from "./GpaCalculator";
+import GpaPeerWidget from "./GpaPeerWidget";
+import DropImpactCalc from "./DropImpactCalc";
 import GpaTrendChart from "./GpaTrendChart";
 import StarRating from "./StarRating";
 import TranscriptExportButton from "./TranscriptExportButton";
@@ -232,6 +234,19 @@ export default async function GradesPage({
     serverApi<Term[]>("/academics/terms").catch(() => [] as Term[]),
     getMeServer().catch(() => null)
   ]);
+
+  // Determine active term for drop impact calculator
+  const _activeTerm = termsData.find((t) => {
+    const now = Date.now();
+    return now >= new Date(t.startDate).getTime() && now <= new Date(t.endDate).getTime();
+  }) ?? null;
+  type ActiveEnrollment = { id: string; status: string; section: { credits: number; course: { code: string } } };
+  const activeEnrollments: ActiveEnrollment[] = _activeTerm
+    ? await serverApi<ActiveEnrollment[]>(`/registration/enrollments?termId=${_activeTerm.id}`).catch(() => [])
+    : [];
+  const currentEnrollments = activeEnrollments
+    .filter((e) => e.status === "ENROLLED")
+    .map((e) => ({ code: e.section.course.code, credits: e.section.credits }));
   const transcriptTerms = transcriptResult.data;
 
   const byTerm = new Map<string, GradeItem[]>();
@@ -573,7 +588,13 @@ export default async function GradesPage({
           </section>
         );
       })}
+      <DropImpactCalc
+        currentGpa={cumulative?.gpa ?? null}
+        completedCredits={completedCredits}
+        currentEnrollments={currentEnrollments}
+      />
       <GpaCalculator />
+      <GpaPeerWidget />
     </div>
   );
 }

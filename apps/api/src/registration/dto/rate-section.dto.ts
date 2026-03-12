@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 export class RateSectionDto {
   @IsString()
@@ -8,6 +8,22 @@ export class RateSectionDto {
   @Min(1)
   @Max(5)
   rating!: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  difficulty?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  workload?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  wouldRecommend?: boolean;
 
   @IsOptional()
   @IsString()

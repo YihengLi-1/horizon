@@ -1,4 +1,4 @@
-import { Controller, Get, Header, Param, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Header, Param, Post, Query, UseGuards } from "@nestjs/common";
 import { CurrentUser } from "../common/current-user.decorator";
 import { JwtAuthGuard } from "../common/jwt-auth.guard";
 import { Public } from "../common/public.decorator";
@@ -39,5 +39,31 @@ export class AcademicsController {
   @Get("sections/:id/grade-distribution")
   async getGradeDistribution(@Param("id") id: string) {
     return ok(await this.academicsService.getSectionGradeDistribution(id));
+  }
+
+  @Get("sections/:id/rating-summary")
+  async getRatingSummary(@Param("id") id: string) {
+    return ok(await this.academicsService.getSectionRatingSummary(id));
+  }
+
+  @Get("sections/:id/reviews")
+  async getSectionReviews(@Param("id") id: string) {
+    return ok(await this.academicsService.getSectionReviews(id));
+  }
+
+  @Get("courses/:id/pairings")
+  async getCoursePairings(@Param("id") id: string, @Query("limit") limit?: string) {
+    return ok(await this.academicsService.getCoursePairings(id, limit ? parseInt(limit) : 5));
+  }
+
+  @Roles("ADMIN")
+  @Post("pairings/recompute")
+  async recomputePairings() {
+    return ok(await this.academicsService.recomputeCoursePairings());
+  }
+
+  @Get("calendar-events")
+  async listCalendarEvents(@Query("termId") termId?: string) {
+    return ok(await this.academicsService.listCalendarEvents(termId));
   }
 }

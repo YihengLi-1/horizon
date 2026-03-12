@@ -106,6 +106,7 @@ export const createCourseSchema = z.object({
   title: z.string().min(2),
   description: z.string().optional().nullable(),
   credits: z.number().int().positive(),
+  weeklyHours: z.number().positive().optional().nullable(),
   prerequisiteCourseIds: z.array(z.string()).optional().default([])
 });
 

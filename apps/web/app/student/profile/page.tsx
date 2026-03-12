@@ -425,6 +425,24 @@ export default function StudentProfilePage() {
   );
   const expectedTerms = Math.max(0, Math.ceil((120 - completedCredits) / 15));
   const expectedGraduation = expectedTerms === 0 ? "Eligible now" : `${expectedTerms} term(s)`;
+  const DEGREE_CREDITS = 120;
+  const degreeProgress = Math.min(100, Math.round((completedCredits / DEGREE_CREDITS) * 100));
+  const academicStanding =
+    currentGpa === null || completedCredits === 0
+      ? "Enrolled"
+      : currentGpa >= 3.5
+        ? "Dean's List"
+        : currentGpa >= 2.0
+          ? "Good Standing"
+          : "Academic Probation";
+  const standingColor =
+    academicStanding === "Dean's List"
+      ? "text-indigo-600 bg-indigo-50 border-indigo-200"
+      : academicStanding === "Good Standing"
+        ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+        : academicStanding === "Academic Probation"
+          ? "text-red-600 bg-red-50 border-red-200"
+          : "text-slate-600 bg-slate-50 border-slate-200";
   const saveGoal = () => {
     const next = goalDraft.trim();
     setGoal(next);
@@ -562,6 +580,31 @@ export default function StudentProfilePage() {
                   无法加载学业汇总。{summaryError}
                 </div>
               ) : null}
+              {/* Academic standing badge */}
+              <div className="mt-3 flex items-center gap-2">
+                <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${standingColor}`}>
+                  {academicStanding === "Dean's List" ? "🏅 " : academicStanding === "Academic Probation" ? "⚠️ " : "✓ "}
+                  {academicStanding}
+                </span>
+                {currentGpa !== null && (
+                  <span className="text-xs text-slate-500">GPA {currentGpa.toFixed(2)}</span>
+                )}
+              </div>
+
+              {/* Degree progress bar */}
+              <div className="mt-3">
+                <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                  <span>Degree Progress</span>
+                  <span className="font-semibold text-slate-700">{completedCredits} / {DEGREE_CREDITS} cr ({degreeProgress}%)</span>
+                </div>
+                <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${degreeProgress >= 100 ? "bg-emerald-500" : degreeProgress >= 75 ? "bg-indigo-500" : degreeProgress >= 50 ? "bg-blue-400" : "bg-slate-300"}`}
+                    style={{ width: `${degreeProgress}%` }}
+                  />
+                </div>
+              </div>
+
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div className="campus-kpi">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">总已修学分</p>

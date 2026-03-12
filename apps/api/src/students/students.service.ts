@@ -69,6 +69,13 @@ export class StudentsService {
     return process.env.ENABLE_PUBLIC_SCHEDULE_SHARING === "true";
   }
 
+  private computeAcademicStanding(gpa: number | null, completedCredits: number): string {
+    if (gpa === null || completedCredits === 0) return "Enrolled";
+    if (gpa >= 3.5) return "Dean's List";
+    if (gpa >= 2.0) return "Good Standing";
+    return "Academic Probation";
+  }
+
   async getMyProfile(userId: string) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, deletedAt: null },
@@ -79,7 +86,11 @@ export class StudentsService {
         role: true,
         createdAt: true,
         updatedAt: true,
-        studentProfile: true
+        studentProfile: true,
+        enrollments: {
+          where: { deletedAt: null, status: "COMPLETED", finalGrade: { not: null } },
+          select: { finalGrade: true, section: { select: { credits: true } } }
+        }
       }
     });
 
@@ -87,9 +98,17 @@ export class StudentsService {
       throw new NotFoundException({ code: "PROFILE_NOT_FOUND", message: "Student profile not found" });
     }
 
+    const { enrollments, ...rest } = user;
+    const gpa = this.computeGpa(enrollments);
+    const completedCredits = enrollments.reduce((sum, e) => sum + (e.section?.credits ?? 0), 0);
+    const academicStanding = this.computeAcademicStanding(gpa, completedCredits);
+
     return {
       ...user.studentProfile,
-      user
+      user: rest,
+      gpa,
+      completedCredits,
+      academicStanding
     };
   }
 
@@ -245,8 +264,66 @@ export class StudentsService {
 
     return this.prisma.courseRating.findMany({
       where: { studentId: student.id },
+      include: {
+        section: {
+          select: {
+            sectionCode: true,
+            instructorName: true,
+            term: { select: { name: true } },
+            course: { select: { code: true, title: true } }
+          }
+        }
+      },
       orderBy: { updatedAt: "desc" }
     });
+  }
+
+  async getGpaStats(userId: string) {
+    const GRADE_POINTS: Record<string, number> = {
+      "A+": 4, A: 4, "A-": 3.7, "B+": 3.3, B: 3, "B-": 2.7,
+      "C+": 2.3, C: 2, "C-": 1.7, "D+": 1.3, D: 1, "D-": 0.7, F: 0
+    };
+
+    // Compute GPA for all students
+    const allStudents = await this.prisma.user.findMany({
+      where: { role: "STUDENT", deletedAt: null },
+      select: {
+        id: true,
+        enrollments: {
+          where: { status: "COMPLETED", deletedAt: null },
+          include: { section: { select: { credits: true } } }
+        }
+      }
+    });
+
+    function computeGpa(enrollments: Array<{ finalGrade: string | null; section: { credits: number } }>) {
+      let wp = 0, cr = 0;
+      for (const e of enrollments) {
+        const pts = GRADE_POINTS[e.finalGrade ?? ""];
+        if (pts !== undefined && e.section.credits > 0) {
+          wp += pts * e.section.credits;
+          cr += e.section.credits;
+        }
+      }
+      return cr > 0 ? wp / cr : null;
+    }
+
+    const gpas = allStudents
+      .map((s) => ({ id: s.id, gpa: computeGpa(s.enrollments as never) }))
+      .filter((s): s is { id: string; gpa: number } => s.gpa !== null)
+      .sort((a, b) => a.gpa - b.gpa);
+
+    if (gpas.length === 0) return { myGpa: null, count: 0, mean: null, median: null, percentile: null };
+
+    const myGpa = gpas.find((s) => s.id === userId)?.gpa ?? null;
+    const mean = Math.round((gpas.reduce((s, g) => s + g.gpa, 0) / gpas.length) * 100) / 100;
+    const mid = Math.floor(gpas.length / 2);
+    const median = Math.round((gpas.length % 2 === 0 ? (gpas[mid - 1].gpa + gpas[mid].gpa) / 2 : gpas[mid].gpa) * 100) / 100;
+    const percentile = myGpa != null
+      ? Math.round((gpas.filter((s) => s.gpa < myGpa).length / gpas.length) * 100)
+      : null;
+
+    return { myGpa: myGpa != null ? Math.round(myGpa * 1000) / 1000 : null, count: gpas.length, mean, median, percentile };
   }
 
   async getAnnouncements(role: "STUDENT" | "ADMIN" = "STUDENT") {
@@ -544,7 +621,15 @@ export class StudentsService {
     return { ok: true, routedToAdmins: adminRecipients.length };
   }
 
-  async rateSection(userId: string, sectionId: string, rating: number, comment?: string) {
+  async rateSection(
+    userId: string,
+    sectionId: string,
+    rating: number,
+    comment?: string,
+    difficulty?: number,
+    workload?: number,
+    wouldRecommend?: boolean
+  ) {
     const student = await this.prisma.user.findFirstOrThrow({
       where: { id: userId, role: "STUDENT", deletedAt: null },
       select: { id: true }
@@ -561,10 +646,16 @@ export class StudentsService {
         studentId: student.id,
         sectionId,
         rating,
+        difficulty,
+        workload,
+        wouldRecommend,
         comment
       },
       update: {
         rating,
+        difficulty,
+        workload,
+        wouldRecommend,
         comment
       }
     });
@@ -887,5 +978,119 @@ export class StudentsService {
     });
 
     return { id };
+  }
+
+  // ── Grade Appeals ──────────────────────────────────────────────────
+  async submitGradeAppeal(
+    userId: string,
+    dto: { enrollmentId: string; contestedGrade: string; requestedGrade?: string; reason: string }
+  ) {
+    const student = await this.prisma.user.findFirst({
+      where: { id: userId, role: "STUDENT", deletedAt: null }
+    });
+    if (!student) throw new NotFoundException({ code: "STUDENT_NOT_FOUND" });
+
+    const enrollment = await this.prisma.enrollment.findFirst({
+      where: { id: dto.enrollmentId, studentId: student.id }
+    });
+    if (!enrollment) throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND" });
+
+    const existing = await this.prisma.gradeAppeal.findFirst({
+      where: { enrollmentId: dto.enrollmentId, status: "PENDING" }
+    });
+    if (existing) return { error: "A pending appeal already exists for this enrollment" };
+
+    return this.prisma.gradeAppeal.create({
+      data: {
+        studentId: student.id,
+        enrollmentId: dto.enrollmentId,
+        contestedGrade: dto.contestedGrade,
+        requestedGrade: dto.requestedGrade ?? null,
+        reason: dto.reason,
+        status: "PENDING"
+      }
+    });
+  }
+
+  async getMyGradeAppeals(userId: string) {
+    const student = await this.prisma.user.findFirst({
+      where: { id: userId, role: "STUDENT", deletedAt: null }
+    });
+    if (!student) throw new NotFoundException({ code: "STUDENT_NOT_FOUND" });
+
+    return this.prisma.gradeAppeal.findMany({
+      where: { studentId: student.id },
+      include: {
+        enrollment: {
+          include: {
+            section: {
+              include: {
+                course: { select: { code: true, title: true } },
+                term: { select: { name: true } }
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+  }
+
+  /** Returns the set of course codes the student has successfully completed. */
+  async getCompletedCourseCodes(userId: string): Promise<string[]> {
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: {
+        studentId: userId,
+        status: "COMPLETED",
+        deletedAt: null,
+        finalGrade: { not: null }
+      },
+      select: { finalGrade: true, section: { select: { course: { select: { code: true } } } } }
+    });
+    // Exclude W (Withdrawal) — those don't count as completed
+    const FAILING = new Set(["F", "W"]);
+    return enrollments
+      .filter((e) => e.finalGrade && !FAILING.has(e.finalGrade))
+      .map((e) => e.section.course.code);
+  }
+
+  async getMyAdvisor(userId: string) {
+    const assignments = await this.prisma.advisorAssignment.findMany({
+      where: { studentId: userId, active: true },
+      include: {
+        advisor: {
+          select: {
+            id: true,
+            email: true,
+            advisorProfile: {
+              select: {
+                displayName: true,
+                department: true,
+                officeLocation: true
+              }
+            }
+          }
+        },
+        assignedBy: {
+          select: { id: true, email: true, role: true }
+        }
+      },
+      orderBy: { assignedAt: "desc" }
+    });
+
+    // Also fetch recent advisor notes visible to the student (public notes)
+    const advisorNotes = await this.prisma.advisorNote.findMany({
+      where: { studentId: userId },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: {
+        id: true,
+        body: true,
+        createdAt: true,
+        advisor: { select: { email: true, advisorProfile: { select: { displayName: true } } } }
+      }
+    });
+
+    return { assignments, advisorNotes };
   }
 }

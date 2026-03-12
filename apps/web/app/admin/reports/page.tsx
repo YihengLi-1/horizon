@@ -3,6 +3,9 @@ import { serverApi } from "@/lib/server-api";
 import { requireRole } from "@/lib/server-auth";
 import AllTranscriptsExport from "./AllTranscriptsExport";
 import PrintButton from "@/app/student/schedule/PrintButton";
+import PairingRecomputeButton from "./PairingRecomputeButton";
+import TimeSlotHeatmap from "./TimeSlotHeatmap";
+import CohortChart from "./CohortChart";
 
 export const dynamic = "force-dynamic";
 
@@ -215,6 +218,7 @@ export default async function ReportsPage({
                 finalGrade: enrollment.finalGrade ?? ""
               }))}
             />
+            <PairingRecomputeButton />
             <PrintButton label="Print Report" />
           </div>
         </div>
@@ -341,6 +345,10 @@ export default async function ReportsPage({
           ))}
         </div>
       </div>
+
+      <TimeSlotHeatmap termId={selectedTermId || undefined} />
+
+      <CohortChart />
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <div className="campus-card overflow-hidden">
