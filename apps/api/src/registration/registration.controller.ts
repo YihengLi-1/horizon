@@ -31,6 +31,11 @@ export class RegistrationController {
     return ok(await this.registrationService.removeCartItem(user.userId, id));
   }
 
+  @Post("enroll")
+  async enroll(@CurrentUser() user: { userId: string }, @Body() body: EnrollDto) {
+    return ok(await this.registrationService.enroll(user.userId, body.sectionId));
+  }
+
   @Post("submit")
   async submitCart(
     @CurrentUser() user: { userId: string },

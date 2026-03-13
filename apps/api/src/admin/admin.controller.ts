@@ -747,4 +747,16 @@ export class AdminController {
   async capacityPlan(@Query("termId") termId?: string) {
     return ok(await this.adminService.getCapacityPlan(termId));
   }
+
+  @Get("student-progress")
+  @RequireAdminPermissions("students:read")
+  async studentProgress(@Query("termId") termId?: string, @Query("dept") dept?: string) {
+    return ok(await this.adminService.getStudentProgress(termId, dept));
+  }
+
+  @Get("grade-distribution")
+  @RequireAdminPermissions("dashboard:read")
+  async gradeDistribution(@Query("termId") termId?: string, @Query("courseId") courseId?: string) {
+    return ok(await this.adminService.getGradeDistribution(termId, courseId));
+  }
 }
