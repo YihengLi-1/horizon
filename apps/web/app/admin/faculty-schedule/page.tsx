@@ -42,6 +42,7 @@ export default function FacultySchedulePage() {
   const [termId, setTermId] = useState("");
   const [data, setData] = useState<InstructorSchedule[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -51,18 +52,24 @@ export default function FacultySchedulePage() {
         const sorted = (d ?? []).sort((a, b) => b.name.localeCompare(a.name));
         setTerms(sorted);
         if (sorted[0]) setTermId(sorted[0].id);
-      }).catch(() => {});
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "加载学期失败"));
   }, []);
 
   useEffect(() => {
-    if (!termId) return;
+    if (!termId && terms.length === 0) return;
     setLoading(true);
     setData([]);
-    void apiFetch<InstructorSchedule[]>(`/admin/faculty-schedule?termId=${termId}`)
+    setError("");
+    const suffix = termId ? `?termId=${termId}` : "";
+    void apiFetch<InstructorSchedule[]>(`/admin/faculty-schedule${suffix}`)
       .then((d) => setData(d ?? []))
-      .catch(() => {})
+      .catch((err) => {
+        setData([]);
+        setError(err instanceof Error ? err.message : "加载教师课表失败");
+      })
       .finally(() => setLoading(false));
-  }, [termId]);
+  }, [termId, terms.length]);
 
   const filtered = data.filter((f) =>
     !search ||
@@ -92,6 +99,7 @@ export default function FacultySchedulePage() {
       {/* Controls */}
       <div className="campus-toolbar flex-wrap gap-2">
         <select className="campus-select" value={termId} onChange={(e) => setTermId(e.target.value)}>
+          <option value="">所有学期</option>
           {terms.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
         <input className="campus-input flex-1 min-w-40" placeholder="搜索教师姓名或邮箱…" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -102,6 +110,12 @@ export default function FacultySchedulePage() {
           全部收起
         </button>
       </div>
+
+      {error ? (
+        <div className="campus-card border-red-200 bg-red-50 px-6 py-4 text-sm text-red-700">
+          {error}
+        </div>
+      ) : null}
 
       {/* KPI summary */}
       {!loading && data.length > 0 && (
