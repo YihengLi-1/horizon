@@ -572,6 +572,20 @@ check_contains "apps/api/src/admin/admin.service.ts" "getCreditLoadDistribution"
 check_contains "apps/api/src/admin/admin.controller.ts" "credit-load" "Credit load endpoint"
 check_contains "apps/web/app/admin/registration-heatmap/page.tsx" "creditLoad|distribution" "Credit load rendering in heatmap page"
 
+# ── Session 18b (faculty-schedule / receipt / capacity-plan) ────────────────
+check_contains "apps/api/src/admin/admin.service.ts" "getFacultySchedule" "Faculty schedule service method"
+check_contains "apps/api/src/admin/admin.controller.ts" "faculty-schedule" "Faculty schedule endpoint"
+check_exists "apps/web/app/admin/faculty-schedule/page.tsx" "Admin faculty schedule page"
+check_contains "apps/web/components/app-shell.tsx" "/admin/faculty-schedule" "Faculty schedule nav link"
+check_contains "apps/api/src/students/students.service.ts" "getEnrollmentReceipt" "Enrollment receipt service method"
+check_contains "apps/api/src/students/students.controller.ts" "enrollment-receipt" "Enrollment receipt endpoint"
+check_exists "apps/web/app/student/receipt/page.tsx" "Student receipt page"
+check_contains "apps/web/components/app-shell.tsx" "/student/receipt" "Receipt nav link"
+check_contains "apps/api/src/admin/admin.service.ts" "getCapacityPlan" "Capacity plan service method"
+check_contains "apps/api/src/admin/admin.controller.ts" "capacity-plan" "Capacity plan endpoint"
+check_exists "apps/web/app/admin/capacity-plan/page.tsx" "Admin capacity plan page"
+check_contains "apps/web/components/app-shell.tsx" "/admin/capacity-plan" "Capacity plan nav link"
+
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"
 else
