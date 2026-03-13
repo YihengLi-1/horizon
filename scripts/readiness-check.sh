@@ -586,6 +586,21 @@ check_contains "apps/api/src/admin/admin.controller.ts" "capacity-plan" "Capacit
 check_exists "apps/web/app/admin/capacity-plan/page.tsx" "Admin capacity plan page"
 check_contains "apps/web/components/app-shell.tsx" "/admin/capacity-plan" "Capacity plan nav link"
 
+# ── Session 18c (student-progress / quick-add / grade-distribution) ──────────
+check_contains "apps/api/src/admin/admin.service.ts" "getStudentProgress" "Student progress service method"
+check_contains "apps/api/src/admin/admin.controller.ts" "student-progress" "Student progress endpoint"
+check_exists "apps/web/app/admin/student-progress/page.tsx" "Admin student progress page"
+check_contains "apps/web/components/app-shell.tsx" "/admin/student-progress" "Student progress nav link"
+check_contains "apps/web/app/admin/student-progress/page.tsx" "AtRisk.*Inactive|statusTone|enrollmentStatus" "Risk status rendering in student progress"
+check_exists "apps/web/app/student/quick-add/page.tsx" "Student quick-add page"
+check_contains "apps/web/components/app-shell.tsx" "/student/quick-add" "Quick-add nav link"
+check_contains "apps/web/app/student/quick-add/page.tsx" "handleEnroll" "Enroll action in quick-add page"
+check_contains "apps/api/src/admin/admin.service.ts" "getGradeDistribution" "Grade distribution service method"
+check_contains "apps/api/src/admin/admin.controller.ts" "grade-distribution" "Grade distribution endpoint"
+check_exists "apps/web/app/admin/grade-distribution/page.tsx" "Admin grade distribution page"
+check_contains "apps/web/components/app-shell.tsx" "/admin/grade-distribution" "Grade distribution nav link"
+check_contains "apps/web/app/admin/grade-distribution/page.tsx" "gradeBreakdown" "Grade stats in distribution page"
+
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"
 else
