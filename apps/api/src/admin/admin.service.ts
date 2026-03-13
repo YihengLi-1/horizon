@@ -4854,4 +4854,195 @@ export class AdminService {
       ]
     };
   }
+
+  async getFacultySchedule(termId?: string) {
+    const normalizedTermId = termId?.trim() ? termId : null;
+    const sectionRows = await this.prisma.$queryRaw<
+      Array<{
+        instructorId: string;
+        instructorName: string;
+        email: string;
+        sectionId: string;
+        sectionCode: string;
+        courseCode: string;
+        courseTitle: string;
+        capacity: number;
+        enrolled: number;
+        waitlisted: number;
+      }>
+    >(Prisma.sql`
+      SELECT
+        u.id AS "instructorId",
+        COALESCE(fp."displayName", s."instructorName", u.email) AS "instructorName",
+        u.email AS "email",
+        s.id AS "sectionId",
+        s."sectionCode" AS "sectionCode",
+        c.code AS "courseCode",
+        c.title AS "courseTitle",
+        s.capacity::int AS "capacity",
+        COALESCE(SUM(CASE WHEN e.status = 'ENROLLED' AND e."deletedAt" IS NULL THEN 1 ELSE 0 END), 0)::int AS "enrolled",
+        COALESCE(SUM(CASE WHEN e.status = 'WAITLISTED' AND e."deletedAt" IS NULL THEN 1 ELSE 0 END), 0)::int AS "waitlisted"
+      FROM "Section" s
+      JOIN "User" u
+        ON u.id = s."instructorUserId"
+      LEFT JOIN "FacultyProfile" fp
+        ON fp."userId" = u.id
+      JOIN "Course" c
+        ON c.id = s."courseId"
+      LEFT JOIN "Enrollment" e
+        ON e."sectionId" = s.id
+      WHERE s."instructorUserId" IS NOT NULL
+        AND (${normalizedTermId}::text IS NULL OR s."termId" = ${normalizedTermId})
+      GROUP BY
+        u.id,
+        fp."displayName",
+        s."instructorName",
+        u.email,
+        s.id,
+        s."sectionCode",
+        c.code,
+        c.title,
+        s.capacity
+      ORDER BY
+        COALESCE(fp."displayName", s."instructorName", u.email) ASC,
+        c.code ASC,
+        s."sectionCode" ASC
+    `);
+
+    const sectionIds = sectionRows.map((row) => row.sectionId);
+    const meetingTimes = sectionIds.length
+      ? await this.prisma.meetingTime.findMany({
+          where: { sectionId: { in: sectionIds } },
+          select: {
+            sectionId: true,
+            weekday: true,
+            startMinutes: true,
+            endMinutes: true
+          },
+          orderBy: [{ weekday: "asc" }, { startMinutes: "asc" }]
+        })
+      : [];
+
+    const meetingTimesBySection = new Map<string, Array<{ weekday: number; startMinutes: number; endMinutes: number }>>();
+    for (const meetingTime of meetingTimes) {
+      const rows = meetingTimesBySection.get(meetingTime.sectionId) ?? [];
+      rows.push({
+        weekday: meetingTime.weekday,
+        startMinutes: meetingTime.startMinutes,
+        endMinutes: meetingTime.endMinutes
+      });
+      meetingTimesBySection.set(meetingTime.sectionId, rows);
+    }
+
+    const byInstructor = new Map<
+      string,
+      {
+        instructorId: string;
+        instructorName: string;
+        email: string;
+        totalSections: number;
+        totalEnrolled: number;
+        totalCapacity: number;
+        sections: Array<{
+          sectionId: string;
+          sectionCode: string;
+          courseCode: string;
+          courseTitle: string;
+          capacity: number;
+          enrolled: number;
+          waitlisted: number;
+          meetingTimes: Array<{ weekday: number; startMinutes: number; endMinutes: number }>;
+        }>;
+      }
+    >();
+
+    for (const row of sectionRows) {
+      const bucket = byInstructor.get(row.instructorId) ?? {
+        instructorId: row.instructorId,
+        instructorName: row.instructorName,
+        email: row.email,
+        totalSections: 0,
+        totalEnrolled: 0,
+        totalCapacity: 0,
+        sections: []
+      };
+      bucket.totalSections += 1;
+      bucket.totalEnrolled += Number(row.enrolled);
+      bucket.totalCapacity += Number(row.capacity);
+      bucket.sections.push({
+        sectionId: row.sectionId,
+        sectionCode: row.sectionCode,
+        courseCode: row.courseCode,
+        courseTitle: row.courseTitle,
+        capacity: Number(row.capacity),
+        enrolled: Number(row.enrolled),
+        waitlisted: Number(row.waitlisted),
+        meetingTimes: meetingTimesBySection.get(row.sectionId) ?? []
+      });
+      byInstructor.set(row.instructorId, bucket);
+    }
+
+    return [...byInstructor.values()];
+  }
+
+  async getCapacityPlan(termId?: string) {
+    const normalizedTermId = termId?.trim() ? termId : null;
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        sectionId: string;
+        courseCode: string;
+        courseTitle: string;
+        sectionCode: string;
+        capacity: number;
+        enrolled: number;
+        waitlisted: number;
+        utilizationPct: number;
+        projectedDemand: number;
+      }>
+    >(Prisma.sql`
+      SELECT
+        s.id AS "sectionId",
+        c.code AS "courseCode",
+        c.title AS "courseTitle",
+        s."sectionCode" AS "sectionCode",
+        s.capacity::int AS "capacity",
+        COALESCE(SUM(CASE WHEN e.status = 'ENROLLED' AND e."deletedAt" IS NULL THEN 1 ELSE 0 END), 0)::int AS "enrolled",
+        COALESCE(SUM(CASE WHEN e.status = 'WAITLISTED' AND e."deletedAt" IS NULL THEN 1 ELSE 0 END), 0)::int AS "waitlisted",
+        CASE
+          WHEN s.capacity > 0 THEN ROUND(
+            (
+              COALESCE(SUM(CASE WHEN e.status = 'ENROLLED' AND e."deletedAt" IS NULL THEN 1 ELSE 0 END), 0)::numeric
+              / s.capacity::numeric
+            ) * 100,
+            1
+          )
+          ELSE 0
+        END AS "utilizationPct",
+        (
+          COALESCE(SUM(CASE WHEN e.status = 'ENROLLED' AND e."deletedAt" IS NULL THEN 1 ELSE 0 END), 0)
+          +
+          COALESCE(SUM(CASE WHEN e.status = 'WAITLISTED' AND e."deletedAt" IS NULL THEN 1 ELSE 0 END), 0)
+        )::int AS "projectedDemand"
+      FROM "Section" s
+      JOIN "Course" c
+        ON c.id = s."courseId"
+      LEFT JOIN "Enrollment" e
+        ON e."sectionId" = s.id
+      WHERE (${normalizedTermId}::text IS NULL OR s."termId" = ${normalizedTermId})
+      GROUP BY s.id, c.code, c.title, s."sectionCode", s.capacity
+      ORDER BY "utilizationPct" DESC, "projectedDemand" DESC, c.code ASC, s."sectionCode" ASC
+    `);
+
+    return rows.map((row) => ({
+      sectionId: row.sectionId,
+      courseCode: row.courseCode,
+      courseTitle: row.courseTitle,
+      sectionCode: row.sectionCode,
+      capacity: Number(row.capacity),
+      enrolled: Number(row.enrolled),
+      waitlisted: Number(row.waitlisted),
+      utilizationPct: Number(row.utilizationPct),
+      projectedDemand: Number(row.projectedDemand)
+    }));
+  }
 }

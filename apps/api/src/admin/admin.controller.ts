@@ -735,4 +735,16 @@ export class AdminController {
   async creditLoadDistribution(@Query("termId") termId?: string) {
     return ok(await this.adminService.getCreditLoadDistribution(termId));
   }
+
+  @Get("faculty-schedule")
+  @RequireAdminPermissions("sections:read")
+  async facultySchedule(@Query("termId") termId?: string) {
+    return ok(await this.adminService.getFacultySchedule(termId));
+  }
+
+  @Get("capacity-plan")
+  @RequireAdminPermissions("sections:read")
+  async capacityPlan(@Query("termId") termId?: string) {
+    return ok(await this.adminService.getCapacityPlan(termId));
+  }
 }

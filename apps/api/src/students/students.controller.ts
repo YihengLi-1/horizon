@@ -56,6 +56,12 @@ export class StudentsController {
     res.send(ical);
   }
 
+  @Roles("STUDENT")
+  @Get("enrollment-receipt")
+  async getEnrollmentReceipt(@CurrentUser() user: { userId: string }, @Query("termId") termId?: string) {
+    return ok(await this.studentsService.getEnrollmentReceipt(user.userId, termId));
+  }
+
   @Roles("STUDENT", "ADMIN")
   @Post("schedule/share")
   async shareSchedule(@CurrentUser() user: { userId: string }, @Body() body: { termId?: string }) {

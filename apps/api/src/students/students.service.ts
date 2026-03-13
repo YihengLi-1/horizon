@@ -476,6 +476,102 @@ export class StudentsService {
     ].join("\r\n");
   }
 
+  async getEnrollmentReceipt(userId: string, termId?: string) {
+    const now = new Date();
+
+    const targetTerm = termId
+      ? await this.prisma.term.findUnique({
+          where: { id: termId },
+          select: { id: true, name: true, startDate: true, endDate: true }
+        })
+      : (
+          await this.prisma.term.findFirst({
+            where: {
+              startDate: { lte: now },
+              endDate: { gte: now }
+            },
+            orderBy: { startDate: "desc" },
+            select: { id: true, name: true, startDate: true, endDate: true }
+          })
+        ) ??
+        (
+          await this.prisma.term.findFirst({
+            where: {
+              registrationOpen: true,
+              endDate: { gte: now }
+            },
+            orderBy: { startDate: "asc" },
+            select: { id: true, name: true, startDate: true, endDate: true }
+          })
+        ) ??
+        (
+          await this.prisma.term.findFirst({
+            orderBy: { startDate: "desc" },
+            select: { id: true, name: true, startDate: true, endDate: true }
+          })
+        );
+
+    if (!targetTerm) {
+      return {
+        term: null,
+        items: [],
+        totalCredits: 0
+      };
+    }
+
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: {
+        studentId: userId,
+        termId: targetTerm.id,
+        status: "ENROLLED",
+        deletedAt: null
+      },
+      include: {
+        section: {
+          include: {
+            course: {
+              select: {
+                code: true,
+                title: true,
+                credits: true
+              }
+            },
+            meetingTimes: {
+              select: {
+                weekday: true,
+                startMinutes: true,
+                endMinutes: true
+              },
+              orderBy: [{ weekday: "asc" }, { startMinutes: "asc" }]
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: "asc" }
+    });
+
+    const items = enrollments.map((enrollment) => ({
+      enrollmentId: enrollment.id,
+      courseCode: enrollment.section.course.code,
+      title: enrollment.section.course.title,
+      credits: enrollment.section.course.credits,
+      sectionCode: enrollment.section.sectionCode,
+      instructorName: enrollment.section.instructorName,
+      meetingTimes: enrollment.section.meetingTimes
+    }));
+
+    return {
+      term: {
+        id: targetTerm.id,
+        name: targetTerm.name,
+        startDate: targetTerm.startDate.toISOString(),
+        endDate: targetTerm.endDate.toISOString()
+      },
+      items,
+      totalCredits: items.reduce((sum, item) => sum + item.credits, 0)
+    };
+  }
+
   async createScheduleSnapshot(userId: string, termId: string) {
     if (!this.isScheduleSharingEnabled()) {
       throw new ForbiddenException({
