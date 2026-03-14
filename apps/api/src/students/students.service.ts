@@ -1275,7 +1275,7 @@ export class StudentsService {
 
     return {
       userId: user.id,
-      name: user.name ?? user.email,
+      name: user.email,
       email: user.email,
       major: user.studentProfile?.programMajor ?? null,
       enrollmentStatus: user.studentProfile?.enrollmentStatus ?? null,
@@ -1283,6 +1283,147 @@ export class StudentsService {
       totalCredits,
       standing,
       termHistory,
+    };
+  }
+
+  async getCourseRecommendations(userId: string) {
+    // Recommend courses that:
+    // 1. Students in the same major frequently take
+    // 2. The student hasn't enrolled in yet
+    const userProfile = await this.prisma.studentProfile.findUnique({ where: { userId } });
+    const major = userProfile?.programMajor;
+
+    // Get courses the student already took
+    const myEnrollments = await this.prisma.enrollment.findMany({
+      where: { studentId: userId, deletedAt: null },
+      select: { section: { select: { courseId: true } } }
+    });
+    const myCourseIds = new Set(myEnrollments.map((e) => e.section.courseId));
+
+    // Find popular courses among same-major students
+    const peers = await this.prisma.studentProfile.findMany({
+      where: major ? { programMajor: major, userId: { not: userId } } : { userId: { not: userId } },
+      select: { userId: true },
+      take: 200,
+    });
+    const peerIds = peers.map((p) => p.userId);
+
+    if (peerIds.length === 0) {
+      // Fall back to most popular courses overall
+      const popular = await this.prisma.enrollment.groupBy({
+        by: ["sectionId"],
+        where: { deletedAt: null, status: { in: ["ENROLLED", "COMPLETED"] } },
+        _count: { sectionId: true },
+        orderBy: { _count: { sectionId: "desc" } },
+        take: 30,
+      });
+      const sectionIds = popular.map((p) => p.sectionId);
+      const sections = await this.prisma.section.findMany({
+        where: { id: { in: sectionIds }, courseId: { notIn: Array.from(myCourseIds) } },
+        include: { course: { select: { id: true, code: true, title: true, credits: true } }, term: { select: { name: true } } },
+        take: 10,
+      });
+      return sections.map((s) => ({
+        courseId: s.course.id, courseCode: s.course.code, courseTitle: s.course.title,
+        credits: s.course.credits, termName: s.term.name, reason: "热门课程",
+        popularityScore: popular.find((p) => p.sectionId === s.id)?._count.sectionId ?? 0,
+      }));
+    }
+
+    const peerEnrollments = await this.prisma.enrollment.groupBy({
+      by: ["sectionId"],
+      where: {
+        studentId: { in: peerIds },
+        deletedAt: null,
+        status: { in: ["ENROLLED", "COMPLETED"] },
+      },
+      _count: { sectionId: true },
+      orderBy: { _count: { sectionId: "desc" } },
+      take: 50,
+    });
+
+    const candidateSectionIds = peerEnrollments.map((p) => p.sectionId);
+    const sections = await this.prisma.section.findMany({
+      where: { id: { in: candidateSectionIds }, courseId: { notIn: Array.from(myCourseIds) } },
+      include: { course: { select: { id: true, code: true, title: true, credits: true } }, term: { select: { name: true } } },
+      take: 10,
+    });
+
+    return sections.map((s) => ({
+      courseId: s.course.id, courseCode: s.course.code, courseTitle: s.course.title,
+      credits: s.course.credits, termName: s.term.name,
+      reason: major ? `同专业学生热选 (${major})` : "热门课程",
+      popularityScore: peerEnrollments.find((p) => p.sectionId === s.id)?._count.sectionId ?? 0,
+    }));
+  }
+
+  // ─── Student Course History ────────────────────────────────────────────────
+  async getCourseHistory(userId: string) {
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: { studentId: userId, deletedAt: null },
+      select: {
+        id: true,
+        status: true,
+        finalGrade: true,
+        createdAt: true,
+        updatedAt: true,
+        section: {
+          select: {
+            id: true,
+            credits: true,
+            sectionCode: true,
+            course: { select: { id: true, code: true, title: true, credits: true } },
+            term: { select: { id: true, name: true } },
+            instructorName: true,
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    const GRADE_POINTS: Record<string, number> = {
+      "A+": 4, "A": 4, "A-": 3.7, "B+": 3.3, "B": 3, "B-": 2.7,
+      "C+": 2.3, "C": 2, "C-": 1.7, "D+": 1.3, "D": 1, "D-": 0.7, "F": 0
+    };
+
+    const items = enrollments.map((e) => ({
+      enrollmentId: e.id,
+      status: e.status,
+      finalGrade: e.finalGrade,
+      enrolledAt: e.createdAt.toISOString().slice(0, 10),
+      gradePoints: e.finalGrade ? (GRADE_POINTS[e.finalGrade] ?? null) : null,
+      sectionCode: e.section.sectionCode,
+      courseId: e.section.course.id,
+      courseCode: e.section.course.code,
+      courseTitle: e.section.course.title,
+      credits: e.section.course.credits,
+      termId: e.section.term.id,
+      termName: e.section.term.name,
+      instructorName: e.section.instructorName,
+    }));
+
+    // Group by term
+    const termMap = new Map<string, { termId: string; termName: string; enrollments: typeof items }>();
+    for (const item of items) {
+      if (!termMap.has(item.termId)) termMap.set(item.termId, { termId: item.termId, termName: item.termName, enrollments: [] });
+      termMap.get(item.termId)!.enrollments.push(item);
+    }
+    const terms = Array.from(termMap.values());
+
+    const completed = items.filter((i) => i.status === "COMPLETED" && i.finalGrade);
+    const totalCredits = completed.reduce((s, i) => s + i.credits, 0);
+    const totalPoints = completed.reduce((s, i) => s + (i.gradePoints ?? 0) * i.credits, 0);
+    const cumulativeGpa = totalCredits > 0 ? Math.round((totalPoints / totalCredits) * 100) / 100 : null;
+
+    return {
+      terms,
+      summary: {
+        totalCourses: items.length,
+        completedCourses: completed.length,
+        droppedCourses: items.filter((i) => i.status === "DROPPED").length,
+        totalCredits,
+        cumulativeGpa,
+      }
     };
   }
 }

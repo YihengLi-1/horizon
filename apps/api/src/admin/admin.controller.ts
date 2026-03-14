@@ -798,9 +798,9 @@ export class AdminController {
   async sectionSwapExecute(
     @Param("enrollmentId") enrollmentId: string,
     @Query("targetSectionId") targetSectionId: string,
-    @CurrentUser() user: { id: string }
+    @CurrentUser() user: { userId: string }
   ) {
-    return ok(await this.adminService.executeSectionSwap(enrollmentId, targetSectionId, user.id));
+    return ok(await this.adminService.executeSectionSwap(enrollmentId, targetSectionId, user.userId));
   }
 
   @Get("cohort-by-major")
@@ -813,5 +813,77 @@ export class AdminController {
   @RequireAdminPermissions("dashboard:read")
   async termEnrollmentForecast() {
     return ok(await this.adminService.getTermEnrollmentForecast());
+  }
+
+  @Get("enrollment-audit")
+  @RequireAdminPermissions("enrollments:read")
+  async enrollmentAudit(
+    @Query("termId") termId?: string,
+    @Query("status") status?: string
+  ) {
+    return ok(await this.adminService.getEnrollmentAudit(termId, status));
+  }
+
+  @Get("top-performers")
+  @RequireAdminPermissions("students:read")
+  async topPerformers(
+    @Query("termId") termId?: string,
+    @Query("limit") limit?: string
+  ) {
+    return ok(await this.adminService.getTopPerformers(termId, limit ? parseInt(limit, 10) : 20));
+  }
+
+  @Get("dept-workload")
+  @RequireAdminPermissions("dashboard:read")
+  async deptWorkload(@Query("termId") termId?: string) {
+    return ok(await this.adminService.getDeptWorkload(termId));
+  }
+
+  @Get("enrollment-velocity")
+  @RequireAdminPermissions("enrollments:read")
+  async enrollmentVelocity(@Query("termId") termId?: string) {
+    return ok(await this.adminService.getEnrollmentVelocity(termId));
+  }
+
+  @Get("prereq-map")
+  @RequireAdminPermissions("courses:read")
+  async prereqMap() {
+    return ok(await this.adminService.getPrereqMap());
+  }
+
+  @Get("grade-curve/:sectionId/preview")
+  @RequireAdminPermissions("sections:read")
+  async gradeCurvePreview(
+    @Param("sectionId") sectionId: string,
+    @Query("steps") steps?: string
+  ) {
+    return ok(await this.adminService.previewGradeCurve(sectionId, steps ? parseInt(steps, 10) : 1));
+  }
+
+  @Get("section-roster/:sectionId")
+  @RequireAdminPermissions("sections:read")
+  async sectionRoster(@Param("sectionId") sectionId: string) {
+    return ok(await this.adminService.getSectionRoster(sectionId));
+  }
+
+  @Get("term-capacity")
+  @RequireAdminPermissions("sections:read")
+  async termCapacity(@Query("termId") termId?: string) {
+    return ok(await this.adminService.getTermCapacitySummary(termId));
+  }
+
+  @Get("major-trends")
+  @RequireAdminPermissions("students:read")
+  async majorTrends(@Query("termId") termId?: string) {
+    return ok(await this.adminService.getMajorEnrollmentTrends(termId));
+  }
+
+  @Get("late-drops")
+  @RequireAdminPermissions("enrollments:read")
+  async lateDrops(
+    @Query("termId") termId?: string,
+    @Query("minWeek") minWeek?: string
+  ) {
+    return ok(await this.adminService.getLateDropReport(termId, minWeek ? parseInt(minWeek, 10) : undefined));
   }
 }

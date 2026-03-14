@@ -68,6 +68,18 @@ export class StudentsController {
     return ok(await this.studentsService.getAcademicStanding(user.userId));
   }
 
+  @Roles("STUDENT")
+  @Get("recommendations")
+  async getRecommendations(@CurrentUser() user: { userId: string }) {
+    return ok(await this.studentsService.getCourseRecommendations(user.userId));
+  }
+
+  @Roles("STUDENT")
+  @Get("course-history")
+  async getCourseHistory(@CurrentUser() user: { userId: string }) {
+    return ok(await this.studentsService.getCourseHistory(user.userId));
+  }
+
   @Roles("STUDENT", "ADMIN")
   @Post("schedule/share")
   async shareSchedule(@CurrentUser() user: { userId: string }, @Body() body: { termId?: string }) {
