@@ -713,6 +713,20 @@ check_contains "apps/web/components/app-shell.tsx" "/admin/major-trends" "Major 
 check_contains "apps/web/components/app-shell.tsx" "/admin/late-drops" "Late drops nav link"
 check_contains "apps/web/components/app-shell.tsx" "/student/course-history" "Course history nav link"
 
+# ── Session 20d: instructor-performance, dept-gpa, graduation-checklist ─────
+check_contains "apps/api/src/admin/admin.service.ts" "getInstructorPerformance" "Instructor performance service"
+check_contains "apps/api/src/admin/admin.controller.ts" "instructor-performance" "Instructor performance endpoint"
+check_exists "apps/web/app/admin/instructor-performance/page.tsx" "Admin instructor performance page"
+check_contains "apps/web/components/app-shell.tsx" "/admin/instructor-performance" "Instructor performance nav link"
+check_contains "apps/api/src/admin/admin.service.ts" "getDeptGpaComparison" "Dept GPA comparison service"
+check_contains "apps/api/src/admin/admin.controller.ts" "dept-gpa" "Dept GPA endpoint"
+check_exists "apps/web/app/admin/dept-gpa/page.tsx" "Admin dept GPA page"
+check_contains "apps/web/components/app-shell.tsx" "/admin/dept-gpa" "Dept GPA nav link"
+check_contains "apps/api/src/students/students.service.ts" "getGraduationChecklist" "Graduation checklist service"
+check_contains "apps/api/src/students/students.controller.ts" "graduation-checklist" "Graduation checklist endpoint"
+check_exists "apps/web/app/student/graduation-checklist/page.tsx" "Student graduation checklist page"
+check_contains "apps/web/components/app-shell.tsx" "/student/graduation-checklist" "Graduation checklist nav link"
+
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"
 else
