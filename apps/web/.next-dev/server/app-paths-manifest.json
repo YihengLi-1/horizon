@@ -1,7 +1,5 @@
 {
-  "/student/grades/page": "app/student/grades/page.js",
-  "/student/degree/page": "app/student/degree/page.js",
-  "/student/conflicts/page": "app/student/conflicts/page.js",
-  "/student/receipt/page": "app/student/receipt/page.js",
+  "/admin/dashboard/page": "app/admin/dashboard/page.js",
+  "/page": "app/page.js",
   "/(auth)/login/page": "app/(auth)/login/page.js"
 }
