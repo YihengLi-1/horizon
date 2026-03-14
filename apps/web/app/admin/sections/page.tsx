@@ -1560,6 +1560,12 @@ export default function AdminSectionsPage() {
                             >
                               Roster →
                             </a>
+                            <a
+                              href={`/admin/section-analytics/${section.id}`}
+                              className="rounded border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100"
+                            >
+                              Analytics →
+                            </a>
                             <button
                               type="button"
                               onClick={() => openNotify(section.id)}

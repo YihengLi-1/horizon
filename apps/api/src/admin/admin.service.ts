@@ -5307,4 +5307,222 @@ export class AdminService {
       passRate: Number(summary[0]?.passRate ?? 0)
     };
   }
+
+  async getDropoutRisk() {
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        userId: string;
+        name: string;
+        email: string;
+        programMajor: string;
+        dropCount: number;
+        gpa: number;
+        enrolledCredits: number;
+        riskScore: number;
+      }>
+    >(Prisma.sql`
+      WITH dropped AS (
+        SELECT
+          e."studentId" AS "studentId",
+          COUNT(*)::int AS "dropCount"
+        FROM "Enrollment" e
+        WHERE e."deletedAt" IS NULL
+          AND (e.status = 'DROPPED' OR e."finalGrade" = 'W')
+        GROUP BY e."studentId"
+      ),
+      completed AS (
+        SELECT
+          e."studentId" AS "studentId",
+          COALESCE(
+            SUM(
+              CASE e."finalGrade"
+                WHEN 'A+' THEN 4.0 * s.credits
+                WHEN 'A' THEN 4.0 * s.credits
+                WHEN 'A-' THEN 3.7 * s.credits
+                WHEN 'B+' THEN 3.3 * s.credits
+                WHEN 'B' THEN 3.0 * s.credits
+                WHEN 'B-' THEN 2.7 * s.credits
+                WHEN 'C+' THEN 2.3 * s.credits
+                WHEN 'C' THEN 2.0 * s.credits
+                WHEN 'C-' THEN 1.7 * s.credits
+                WHEN 'D+' THEN 1.3 * s.credits
+                WHEN 'D' THEN 1.0 * s.credits
+                WHEN 'D-' THEN 0.7 * s.credits
+                WHEN 'F' THEN 0.0 * s.credits
+                ELSE 0
+              END
+            ),
+            0
+          )::numeric AS "weightedPoints",
+          COALESCE(
+            SUM(
+              CASE
+                WHEN e."finalGrade" IN ('A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-', 'F')
+                  THEN s.credits
+                ELSE 0
+              END
+            ),
+            0
+          )::numeric AS "gradedCredits"
+        FROM "Enrollment" e
+        JOIN "Section" s
+          ON s.id = e."sectionId"
+        WHERE e."deletedAt" IS NULL
+          AND e.status = 'COMPLETED'
+        GROUP BY e."studentId"
+      ),
+      enrolled AS (
+        SELECT
+          e."studentId" AS "studentId",
+          COALESCE(SUM(s.credits), 0)::int AS "enrolledCredits"
+        FROM "Enrollment" e
+        JOIN "Section" s
+          ON s.id = e."sectionId"
+        WHERE e."deletedAt" IS NULL
+          AND e.status = 'ENROLLED'
+        GROUP BY e."studentId"
+      )
+      SELECT
+        u.id AS "userId",
+        COALESCE(sp."legalName", u.email) AS "name",
+        u.email AS "email",
+        COALESCE(NULLIF(sp."programMajor", ''), 'Undeclared') AS "programMajor",
+        COALESCE(dropped."dropCount", 0)::int AS "dropCount",
+        CASE
+          WHEN COALESCE(completed."gradedCredits", 0) > 0
+            THEN ROUND((completed."weightedPoints" / completed."gradedCredits")::numeric, 2)
+          ELSE 0
+        END::numeric AS "gpa",
+        COALESCE(enrolled."enrolledCredits", 0)::int AS "enrolledCredits",
+        LEAST(
+          100,
+          COALESCE(dropped."dropCount", 0) * 30
+          + CASE
+              WHEN (
+                CASE
+                  WHEN COALESCE(completed."gradedCredits", 0) > 0
+                    THEN ROUND((completed."weightedPoints" / completed."gradedCredits")::numeric, 2)
+                  ELSE 0
+                END
+              ) < 2.0 THEN 40 ELSE 0
+            END
+          + CASE WHEN COALESCE(enrolled."enrolledCredits", 0) = 0 THEN 30 ELSE 0 END
+        )::int AS "riskScore"
+      FROM "User" u
+      JOIN "StudentProfile" sp
+        ON sp."userId" = u.id
+      LEFT JOIN dropped
+        ON dropped."studentId" = u.id
+      LEFT JOIN completed
+        ON completed."studentId" = u.id
+      LEFT JOIN enrolled
+        ON enrolled."studentId" = u.id
+      WHERE u.role = 'STUDENT'
+        AND u."deletedAt" IS NULL
+      ORDER BY "riskScore" DESC, "gpa" ASC, "name" ASC
+    `);
+
+    return rows
+      .map((row) => ({
+        userId: row.userId,
+        name: row.name,
+        email: row.email,
+        programMajor: row.programMajor,
+        dropCount: Number(row.dropCount),
+        gpa: Number(row.gpa),
+        enrolledCredits: Number(row.enrolledCredits),
+        riskScore: Number(row.riskScore)
+      }))
+      .filter((row) => row.riskScore >= 30);
+  }
+
+  async getSectionAnalytics(sectionId: string) {
+    const section = await this.prisma.section.findUnique({
+      where: { id: sectionId },
+      include: {
+        course: true,
+        term: true,
+        enrollments: {
+          where: { deletedAt: null },
+          select: {
+            status: true,
+            finalGrade: true
+          }
+        }
+      }
+    });
+
+    if (!section) {
+      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
+    }
+
+    const gradeRows = await this.prisma.$queryRaw<Array<{ grade: string; count: number }>>(Prisma.sql`
+      SELECT
+        e."finalGrade" AS "grade",
+        COUNT(*)::int AS "count"
+      FROM "Enrollment" e
+      WHERE e."deletedAt" IS NULL
+        AND e.status = 'COMPLETED'
+        AND e."sectionId" = ${sectionId}
+        AND e."finalGrade" IS NOT NULL
+      GROUP BY e."finalGrade"
+    `);
+
+    const summaryRows = await this.prisma.$queryRaw<Array<{ avgGpa: number }>>(Prisma.sql`
+      SELECT
+        COALESCE(
+          ROUND(AVG(
+            CASE e."finalGrade"
+              WHEN 'A+' THEN 4.0
+              WHEN 'A' THEN 4.0
+              WHEN 'A-' THEN 3.7
+              WHEN 'B+' THEN 3.3
+              WHEN 'B' THEN 3.0
+              WHEN 'B-' THEN 2.7
+              WHEN 'C+' THEN 2.3
+              WHEN 'C' THEN 2.0
+              WHEN 'C-' THEN 1.7
+              WHEN 'D+' THEN 1.3
+              WHEN 'D' THEN 1.0
+              WHEN 'D-' THEN 0.7
+              WHEN 'F' THEN 0.0
+              ELSE NULL
+            END
+          )::numeric, 2),
+          0
+        )::numeric AS "avgGpa"
+      FROM "Enrollment" e
+      WHERE e."deletedAt" IS NULL
+        AND e.status = 'COMPLETED'
+        AND e."sectionId" = ${sectionId}
+        AND e."finalGrade" IS NOT NULL
+    `);
+
+    const timeline = await this.getSectionEnrollmentTimeline(sectionId);
+    const enrolled = section.enrollments.filter((item) => item.status === "ENROLLED").length;
+    const waitlisted = section.enrollments.filter((item) => item.status === "WAITLISTED").length;
+    const dropCount = section.enrollments.filter((item) => item.status === "DROPPED" || item.finalGrade === "W").length;
+    const orderedGrades = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-", "F", "W"];
+    const counts = new Map(gradeRows.map((row) => [row.grade, Number(row.count)]));
+
+    return {
+      sectionId: section.id,
+      sectionCode: section.sectionCode,
+      courseCode: section.course.code,
+      courseTitle: section.course.title,
+      termName: section.term.name,
+      capacity: section.capacity,
+      enrolled,
+      waitlisted,
+      dropCount,
+      avgGpa: Number(summaryRows[0]?.avgGpa ?? 0),
+      gradeBreakdown: orderedGrades
+        .map((grade) => ({
+          grade,
+          count: counts.get(grade) ?? 0
+        }))
+        .filter((row) => row.count > 0),
+      enrollmentTimeline: timeline.points
+    };
+  }
 }

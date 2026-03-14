@@ -88,8 +88,32 @@ export class StudentsService {
         updatedAt: true,
         studentProfile: true,
         enrollments: {
-          where: { deletedAt: null, status: "COMPLETED", finalGrade: { not: null } },
-          select: { finalGrade: true, section: { select: { credits: true } } }
+          where: { deletedAt: null },
+          select: {
+            id: true,
+            status: true,
+            finalGrade: true,
+            waitlistPosition: true,
+            section: {
+              select: {
+                credits: true,
+                sectionCode: true,
+                course: {
+                  select: {
+                    id: true,
+                    code: true,
+                    title: true
+                  }
+                },
+                term: {
+                  select: {
+                    id: true,
+                    name: true
+                  }
+                }
+              }
+            }
+          }
         }
       }
     });
@@ -99,13 +123,15 @@ export class StudentsService {
     }
 
     const { enrollments, ...rest } = user;
-    const gpa = this.computeGpa(enrollments);
-    const completedCredits = enrollments.reduce((sum, e) => sum + (e.section?.credits ?? 0), 0);
+    const completedEnrollments = enrollments.filter((enrollment) => enrollment.status === "COMPLETED" && enrollment.finalGrade !== null);
+    const gpa = this.computeGpa(completedEnrollments);
+    const completedCredits = completedEnrollments.reduce((sum, e) => sum + (e.section?.credits ?? 0), 0);
     const academicStanding = this.computeAcademicStanding(gpa, completedCredits);
 
     return {
       ...user.studentProfile,
       user: rest,
+      enrollments,
       gpa,
       completedCredits,
       academicStanding

@@ -76,6 +76,7 @@ const studentItems: NavItem[] = [
   { href: "/student/receipt", label: "选课确认单", icon: <ScrollText className={iconClass} /> },
   { href: "/student/grades", label: "Grades", icon: <GraduationCap className={iconClass} /> },
   { href: "/student/degree", label: "毕业进度", icon: <GraduationCap className={iconClass} /> },
+  { href: "/student/degree-audit", label: "毕业审计", icon: <GraduationCap className={iconClass} /> },
   { href: "/student/gpa-sim", label: "GPA 模拟器", icon: <BarChart3 className={iconClass} /> },
   { href: "/student/grade-estimator", label: "成绩估算", icon: <BarChart3 className={iconClass} /> },
   { href: "/student/calendar", label: "Calendar", icon: <CalendarRange className={iconClass} /> },
@@ -102,6 +103,7 @@ const adminItems: NavItem[] = [
   { href: "/admin/students", label: "学生", icon: <Users className={iconClass} /> },
   { href: "/admin/students/at-risk", label: "高风险学生", icon: <TrendingDown className={iconClass} /> },
   { href: "/admin/student-progress", label: "学生进度", icon: <BarChart3 className={iconClass} /> },
+  { href: "/admin/dropout-risk", label: "退课风险", icon: <TrendingDown className={iconClass} /> },
   { href: "/admin/graduation", label: "毕业审核", icon: <GraduationCap className={iconClass} /> },
   { href: "/admin/instructors", label: "教师分析", icon: <GraduationCap className={iconClass} /> },
   { href: "/admin/faculty-schedule", label: "教师课表", icon: <CalendarDays className={iconClass} /> },
@@ -200,7 +202,7 @@ export function AppShell({
       area === "admin"
         ? [
             { label: "概览", hrefs: ["/admin/dashboard", "/admin/alerts", "/admin/search"] },
-            { label: "学术管理", hrefs: ["/admin/students", "/admin/students/at-risk", "/admin/student-progress", "/admin/graduation", "/admin/instructors", "/admin/faculty-schedule", "/admin/courses", "/admin/sections", "/admin/terms", "/admin/calendar"] },
+            { label: "学术管理", hrefs: ["/admin/students", "/admin/students/at-risk", "/admin/student-progress", "/admin/dropout-risk", "/admin/graduation", "/admin/instructors", "/admin/faculty-schedule", "/admin/courses", "/admin/sections", "/admin/terms", "/admin/calendar"] },
             { label: "注册管理", hrefs: ["/admin/enrollments", "/admin/closeout", "/admin/waitlist", "/admin/waitlist-analytics", "/admin/holds", "/admin/requests", "/admin/appeals"] },
             { label: "系统", hrefs: ["/admin/announcements", "/admin/cohort-message", "/admin/status-email", "/admin/invite-codes", "/admin/import", "/admin/export", "/admin/reports", "/admin/grade-distribution", "/admin/demand", "/admin/capacity-plan", "/admin/term-compare", "/admin/registration-heatmap", "/admin/prereq-audit", "/admin/offering-history", "/admin/digest", "/admin/audit-logs", "/admin/notifications", "/admin/sessions", "/admin/settings"] }
           ]
@@ -211,7 +213,7 @@ export function AppShell({
         : [
             { label: "Overview", hrefs: ["/student/dashboard", "/student/notifications", "/student/announcements"] },
             { label: "Registration", hrefs: ["/student/catalog", "/student/readiness", "/student/planner", "/student/cart", "/student/quick-add", "/student/waitlist", "/student/conflicts", "/student/schedule", "/student/receipt"] },
-            { label: "Academic", hrefs: ["/student/grades", "/student/degree", "/student/gpa-sim", "/student/grade-estimator", "/student/peer-compare", "/student/transcript", "/student/calendar", "/student/history", "/student/bookmarks", "/student/watched", "/student/study-timer", "/student/reviews", "/student/my-notes", "/student/appeals", "/student/advisor", "/student/settings", "/student/contact", "/student/profile", "/student/help"] }
+            { label: "Academic", hrefs: ["/student/grades", "/student/degree", "/student/degree-audit", "/student/gpa-sim", "/student/grade-estimator", "/student/peer-compare", "/student/transcript", "/student/calendar", "/student/history", "/student/bookmarks", "/student/watched", "/student/study-timer", "/student/reviews", "/student/my-notes", "/student/appeals", "/student/advisor", "/student/settings", "/student/contact", "/student/profile", "/student/help"] }
           ];
 
     return groups
