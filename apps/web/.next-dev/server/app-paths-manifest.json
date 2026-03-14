@@ -1,3 +1,7 @@
 {
-  "/(auth)/login/page": "app/(auth)/login/page.js"
+  "/page": "app/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/student/dashboard/page": "app/student/dashboard/page.js",
+  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/admin/dropout-risk/page": "app/admin/dropout-risk/page.js"
 }

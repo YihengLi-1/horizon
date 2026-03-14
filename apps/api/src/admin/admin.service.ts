@@ -5525,4 +5525,106 @@ export class AdminService {
       enrollmentTimeline: timeline.points
     };
   }
+
+  // ─── Cohort Analytics ───────────────────────────────────────────────────────
+  async getCohortAnalytics(termId?: string) {
+    const termFilter = termId ? Prisma.sql`AND s."termId" = ${termId}` : Prisma.sql``;
+    const rows = await this.prisma.$queryRaw<{
+      major: string;
+      studentCount: bigint;
+      avgGpa: string;
+      totalCredits: bigint;
+      activeCount: bigint;
+      completedCount: bigint;
+    }[]>`
+      SELECT
+        COALESCE(sp."programMajor", '未分配') AS "major",
+        COUNT(DISTINCT u.id) AS "studentCount",
+        ROUND(AVG(CASE
+          WHEN e.status = 'COMPLETED' AND e."finalGrade" IS NOT NULL THEN
+            CASE e."finalGrade"
+              WHEN 'A+' THEN 4.0 WHEN 'A' THEN 4.0 WHEN 'A-' THEN 3.7
+              WHEN 'B+' THEN 3.3 WHEN 'B' THEN 3.0 WHEN 'B-' THEN 2.7
+              WHEN 'C+' THEN 2.3 WHEN 'C' THEN 2.0 WHEN 'C-' THEN 1.7
+              WHEN 'D+' THEN 1.3 WHEN 'D' THEN 1.0 WHEN 'D-' THEN 0.7
+              ELSE 0
+            END
+        END)::numeric, 2) AS "avgGpa",
+        COALESCE(SUM(CASE WHEN e.status = 'COMPLETED' THEN c.credits ELSE 0 END), 0) AS "totalCredits",
+        COUNT(DISTINCT CASE WHEN e.status = 'ENROLLED' THEN u.id END) AS "activeCount",
+        COUNT(DISTINCT CASE WHEN e.status = 'COMPLETED' THEN u.id END) AS "completedCount"
+      FROM "User" u
+      JOIN "StudentProfile" sp ON sp."userId" = u.id
+      LEFT JOIN "Enrollment" e ON e."userId" = u.id AND e."deletedAt" IS NULL
+      LEFT JOIN "Section" s ON s.id = e."sectionId"
+      LEFT JOIN "Course" c ON c.id = s."courseId"
+      WHERE u.role = 'STUDENT'
+        ${termFilter}
+      GROUP BY COALESCE(sp."programMajor", '未分配')
+      ORDER BY "studentCount" DESC
+    `;
+
+    return rows.map((r) => ({
+      major: r.major,
+      studentCount: Number(r.studentCount),
+      avgGpa: Number(r.avgGpa ?? 0),
+      totalCredits: Number(r.totalCredits),
+      activeCount: Number(r.activeCount),
+      completedCount: Number(r.completedCount),
+    }));
+  }
+
+  // ─── Term Enrollment Forecast ────────────────────────────────────────────────
+  async getTermEnrollmentForecast() {
+    // Pull enrollment counts per term to show historical + simple linear trend
+    const rows = await this.prisma.$queryRaw<{
+      termId: string;
+      termName: string;
+      startDate: Date;
+      enrolled: bigint;
+      completed: bigint;
+      dropped: bigint;
+      waitlisted: bigint;
+    }[]>`
+      SELECT
+        t.id AS "termId",
+        t.name AS "termName",
+        t."startDate",
+        COUNT(CASE WHEN e.status = 'ENROLLED' THEN 1 END) AS "enrolled",
+        COUNT(CASE WHEN e.status = 'COMPLETED' THEN 1 END) AS "completed",
+        COUNT(CASE WHEN e.status = 'DROPPED' THEN 1 END) AS "dropped",
+        COUNT(CASE WHEN e.status = 'WAITLISTED' THEN 1 END) AS "waitlisted"
+      FROM "Term" t
+      LEFT JOIN "Section" s ON s."termId" = t.id
+      LEFT JOIN "Enrollment" e ON e."sectionId" = s.id AND e."deletedAt" IS NULL
+      GROUP BY t.id, t.name, t."startDate"
+      ORDER BY t."startDate" ASC
+    `;
+
+    const terms = rows.map((r) => ({
+      termId: r.termId,
+      termName: r.termName,
+      startDate: r.startDate.toISOString().slice(0, 10),
+      enrolled: Number(r.enrolled),
+      completed: Number(r.completed),
+      dropped: Number(r.dropped),
+      waitlisted: Number(r.waitlisted),
+      total: Number(r.enrolled) + Number(r.completed) + Number(r.dropped) + Number(r.waitlisted),
+    }));
+
+    // Simple linear regression on total enrollments
+    if (terms.length < 2) return { terms, forecast: null };
+    const n = terms.length;
+    const xs = terms.map((_, i) => i);
+    const ys = terms.map((t) => t.total);
+    const meanX = xs.reduce((a, b) => a + b, 0) / n;
+    const meanY = ys.reduce((a, b) => a + b, 0) / n;
+    const slope = xs.reduce((s, x, i) => s + (x - meanX) * (ys[i] - meanY), 0) /
+      xs.reduce((s, x) => s + (x - meanX) ** 2, 0);
+    const intercept = meanY - slope * meanX;
+    const forecast = Math.round(intercept + slope * n);
+    const trend = slope > 0 ? "up" : slope < 0 ? "down" : "flat";
+
+    return { terms, forecast: { value: Math.max(0, forecast), trend, slope: Math.round(slope * 10) / 10 } };
+  }
 }
