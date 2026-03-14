@@ -36,85 +36,30 @@
       "static/chunks/main-app.js",
       "static/chunks/app/(auth)/login/page.js"
     ],
-    "/_not-found/page": [
+    "/admin/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/_not-found/page.js"
+      "static/chunks/app/admin/layout.js"
     ],
-    "/student/layout": [
+    "/admin/error": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/student/layout.js"
+      "static/chunks/app/admin/error.js"
     ],
-    "/student/error": [
+    "/admin/dashboard/error": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/student/error.js"
+      "static/chunks/app/admin/dashboard/error.js"
     ],
-    "/student/dashboard/error": [
+    "/admin/dashboard/loading": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/student/dashboard/error.js"
+      "static/chunks/app/admin/dashboard/loading.js"
     ],
-    "/student/dashboard/loading": [
+    "/admin/dashboard/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/student/dashboard/loading.js"
-    ],
-    "/student/dashboard/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/student/dashboard/page.js"
-    ],
-    "/student/conflicts/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/student/conflicts/page.js"
-    ],
-    "/student/waitlist/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/student/waitlist/page.js"
-    ],
-    "/student/schedule/error": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/student/schedule/error.js"
-    ],
-    "/student/schedule/loading": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/student/schedule/loading.js"
-    ],
-    "/student/schedule/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/student/schedule/page.js"
-    ],
-    "/student/receipt/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/student/receipt/page.js"
-    ],
-    "/student/grades/error": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/student/grades/error.js"
-    ],
-    "/student/grades/loading": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/student/grades/loading.js"
-    ],
-    "/student/grades/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/student/grades/page.js"
-    ],
-    "/student/degree/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/student/degree/page.js"
+      "static/chunks/app/admin/dashboard/page.js"
     ]
   }
 }
