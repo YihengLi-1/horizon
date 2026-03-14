@@ -700,6 +700,20 @@ check_contains "apps/web/components/app-shell.tsx" "/admin/section-roster" "Sect
 check_contains "apps/web/components/app-shell.tsx" "/admin/term-capacity" "Term capacity nav link"
 check_contains "apps/web/components/app-shell.tsx" "/student/gpa-goal" "GPA goal nav link"
 
+# ── Session 20c: major-trends, late-drops, course-history ────────────────────
+check_contains "apps/api/src/admin/admin.service.ts" "getMajorEnrollmentTrends" "Major enrollment trends service"
+check_contains "apps/api/src/admin/admin.controller.ts" "major-trends" "Major trends endpoint"
+check_exists "apps/web/app/admin/major-trends/page.tsx" "Admin major trends page"
+check_contains "apps/api/src/admin/admin.service.ts" "getLateDropReport" "Late drop report service"
+check_contains "apps/api/src/admin/admin.controller.ts" "late-drops" "Late drops endpoint"
+check_exists "apps/web/app/admin/late-drops/page.tsx" "Admin late drops page"
+check_contains "apps/api/src/students/students.service.ts" "getCourseHistory" "Course history service"
+check_contains "apps/api/src/students/students.controller.ts" "course-history" "Course history endpoint"
+check_exists "apps/web/app/student/course-history/page.tsx" "Student course history page"
+check_contains "apps/web/components/app-shell.tsx" "/admin/major-trends" "Major trends nav link"
+check_contains "apps/web/components/app-shell.tsx" "/admin/late-drops" "Late drops nav link"
+check_contains "apps/web/components/app-shell.tsx" "/student/course-history" "Course history nav link"
+
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"
 else

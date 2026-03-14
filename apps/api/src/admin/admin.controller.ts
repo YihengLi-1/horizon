@@ -886,4 +886,16 @@ export class AdminController {
   ) {
     return ok(await this.adminService.getLateDropReport(termId, minWeek ? parseInt(minWeek, 10) : undefined));
   }
+
+  @Get("instructor-performance")
+  @RequireAdminPermissions("dashboard:read")
+  async instructorPerformance(@Query("termId") termId?: string) {
+    return ok(await this.adminService.getInstructorPerformance(termId));
+  }
+
+  @Get("dept-gpa")
+  @RequireAdminPermissions("dashboard:read")
+  async deptGpa(@Query("termId") termId?: string) {
+    return ok(await this.adminService.getDeptGpaComparison(termId));
+  }
 }

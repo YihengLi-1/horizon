@@ -6388,4 +6388,124 @@ export class AdminService {
       }
     };
   }
+
+  // ─── Instructor Performance Report ────────────────────────────────────────
+  async getInstructorPerformance(termId?: string) {
+    const termFilter = termId ? Prisma.sql`AND t.id = ${termId}` : Prisma.sql``;
+    type PerfRow = {
+      instructorName: string; instructorEmail: string | null;
+      sections: bigint; totalStudents: bigint; completedStudents: bigint;
+      droppedStudents: bigint; avgGpa: number | null;
+    };
+    const rows = await this.prisma.$queryRaw<PerfRow[]>`
+      SELECT
+        s."instructorName",
+        u.email AS "instructorEmail",
+        COUNT(DISTINCT s.id) AS "sections",
+        COUNT(e.id) AS "totalStudents",
+        COUNT(e.id) FILTER (WHERE e.status = 'COMPLETED') AS "completedStudents",
+        COUNT(e.id) FILTER (WHERE e.status = 'DROPPED') AS "droppedStudents",
+        ROUND(
+          AVG(CASE
+            WHEN e."finalGrade" = 'A+' THEN 4.0
+            WHEN e."finalGrade" = 'A' THEN 4.0
+            WHEN e."finalGrade" = 'A-' THEN 3.7
+            WHEN e."finalGrade" = 'B+' THEN 3.3
+            WHEN e."finalGrade" = 'B' THEN 3.0
+            WHEN e."finalGrade" = 'B-' THEN 2.7
+            WHEN e."finalGrade" = 'C+' THEN 2.3
+            WHEN e."finalGrade" = 'C' THEN 2.0
+            WHEN e."finalGrade" = 'C-' THEN 1.7
+            WHEN e."finalGrade" = 'D+' THEN 1.3
+            WHEN e."finalGrade" = 'D' THEN 1.0
+            WHEN e."finalGrade" = 'D-' THEN 0.7
+            WHEN e."finalGrade" = 'F' THEN 0.0
+            ELSE NULL
+          END)::numeric, 2
+        ) AS "avgGpa"
+      FROM "Section" s
+      JOIN "Term" t ON t.id = s."termId"
+      LEFT JOIN "User" u ON u.id = s."instructorUserId"
+      LEFT JOIN "Enrollment" e ON e."sectionId" = s.id AND e."deletedAt" IS NULL
+      WHERE s."deletedAt" IS NULL
+        ${termFilter}
+      GROUP BY s."instructorName", u.email
+      ORDER BY "sections" DESC, "totalStudents" DESC
+    `;
+
+    return rows.map((r) => ({
+      instructorName: r.instructorName,
+      instructorEmail: r.instructorEmail ?? "—",
+      sections: Number(r.sections),
+      totalStudents: Number(r.totalStudents),
+      completedStudents: Number(r.completedStudents),
+      droppedStudents: Number(r.droppedStudents),
+      avgGpa: r.avgGpa !== null ? Number(r.avgGpa) : null,
+      dropRate: Number(r.totalStudents) > 0
+        ? Math.round((Number(r.droppedStudents) / Number(r.totalStudents)) * 100)
+        : 0,
+    }));
+  }
+
+  // ─── Department GPA Comparison ─────────────────────────────────────────────
+  async getDeptGpaComparison(termId?: string) {
+    const termFilter = termId ? Prisma.sql`AND t.id = ${termId}` : Prisma.sql``;
+    type DeptGpaRow = {
+      dept: string; termName: string;
+      students: bigint; avgGpa: number | null; passRate: number | null;
+    };
+    const rows = await this.prisma.$queryRaw<DeptGpaRow[]>`
+      SELECT
+        SUBSTRING(c.code, 1, 4) AS dept,
+        t.name AS "termName",
+        COUNT(DISTINCT e."studentId") AS "students",
+        ROUND(
+          AVG(CASE
+            WHEN e."finalGrade" IN ('A+','A') THEN 4.0
+            WHEN e."finalGrade" = 'A-' THEN 3.7
+            WHEN e."finalGrade" = 'B+' THEN 3.3
+            WHEN e."finalGrade" = 'B' THEN 3.0
+            WHEN e."finalGrade" = 'B-' THEN 2.7
+            WHEN e."finalGrade" = 'C+' THEN 2.3
+            WHEN e."finalGrade" = 'C' THEN 2.0
+            WHEN e."finalGrade" = 'C-' THEN 1.7
+            WHEN e."finalGrade" = 'D+' THEN 1.3
+            WHEN e."finalGrade" = 'D' THEN 1.0
+            WHEN e."finalGrade" = 'D-' THEN 0.7
+            WHEN e."finalGrade" = 'F' THEN 0.0
+            ELSE NULL
+          END)::numeric, 2
+        ) AS "avgGpa",
+        ROUND(
+          100.0 * COUNT(e.id) FILTER (WHERE e."finalGrade" NOT IN ('D+','D','D-','F','W') AND e."finalGrade" IS NOT NULL)
+          / NULLIF(COUNT(e.id) FILTER (WHERE e."finalGrade" IS NOT NULL), 0)
+        ) AS "passRate"
+      FROM "Enrollment" e
+      JOIN "Section" s ON s.id = e."sectionId"
+      JOIN "Course" c ON c.id = s."courseId"
+      JOIN "Term" t ON t.id = s."termId"
+      WHERE e.status = 'COMPLETED' AND e."deletedAt" IS NULL
+        ${termFilter}
+      GROUP BY SUBSTRING(c.code, 1, 4), t.name
+      ORDER BY dept ASC, t.name DESC
+    `;
+
+    // Group by dept
+    const deptMap = new Map<string, { dept: string; terms: { termName: string; students: number; avgGpa: number | null; passRate: number | null }[] }>();
+    for (const r of rows) {
+      if (!deptMap.has(r.dept)) deptMap.set(r.dept, { dept: r.dept, terms: [] });
+      deptMap.get(r.dept)!.terms.push({
+        termName: r.termName,
+        students: Number(r.students),
+        avgGpa: r.avgGpa !== null ? Number(r.avgGpa) : null,
+        passRate: r.passRate !== null ? Number(r.passRate) : null,
+      });
+    }
+
+    return Array.from(deptMap.values()).map((d) => ({
+      ...d,
+      latestGpa: d.terms[0]?.avgGpa ?? null,
+      avgPassRate: d.terms.reduce((s, t) => s + (t.passRate ?? 0), 0) / Math.max(1, d.terms.filter((t) => t.passRate !== null).length),
+    }));
+  }
 }

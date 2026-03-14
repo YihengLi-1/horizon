@@ -1426,4 +1426,79 @@ export class StudentsService {
       }
     };
   }
+
+  // ─── Graduation Checklist ──────────────────────────────────────────────────
+  async getGraduationChecklist(userId: string) {
+    const REQUIRED_CREDITS = 120;
+    const MIN_GPA = 2.0;
+    const MAX_D_CREDITS = 12;
+
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: { studentId: userId, status: "COMPLETED", deletedAt: null },
+      select: {
+        finalGrade: true,
+        section: { select: { credits: true, course: { select: { code: true } } } }
+      }
+    });
+
+    const GRADE_POINTS: Record<string, number> = {
+      "A+": 4, "A": 4, "A-": 3.7, "B+": 3.3, "B": 3, "B-": 2.7,
+      "C+": 2.3, "C": 2, "C-": 1.7, "D+": 1.3, "D": 1, "D-": 0.7, "F": 0
+    };
+
+    const totalCredits = enrollments.reduce((s, e) => s + e.section.credits, 0);
+    const gradedEnrollments = enrollments.filter((e) => e.finalGrade && e.finalGrade in GRADE_POINTS);
+    const totalPoints = gradedEnrollments.reduce((s, e) => s + (GRADE_POINTS[e.finalGrade!] ?? 0) * e.section.credits, 0);
+    const totalGradedCredits = gradedEnrollments.reduce((s, e) => s + e.section.credits, 0);
+    const cumulativeGpa = totalGradedCredits > 0 ? Math.round((totalPoints / totalGradedCredits) * 100) / 100 : 0;
+
+    const dCredits = enrollments
+      .filter((e) => e.finalGrade && ["D+", "D", "D-"].includes(e.finalGrade))
+      .reduce((s, e) => s + e.section.credits, 0);
+
+    // Check holds
+    const holdsCount = await this.prisma.studentHold.count({ where: { studentId: userId, active: true } });
+
+    const checks = [
+      {
+        id: "credits",
+        label: "总学分达到 120 学分",
+        required: REQUIRED_CREDITS,
+        actual: totalCredits,
+        passed: totalCredits >= REQUIRED_CREDITS,
+        detail: `已修 ${totalCredits} / ${REQUIRED_CREDITS} 学分`,
+      },
+      {
+        id: "gpa",
+        label: "累计 GPA ≥ 2.0",
+        required: MIN_GPA,
+        actual: cumulativeGpa,
+        passed: cumulativeGpa >= MIN_GPA,
+        detail: `GPA: ${cumulativeGpa.toFixed(2)}`,
+      },
+      {
+        id: "d_credits",
+        label: "D 等级学分不超过 12 学分",
+        required: MAX_D_CREDITS,
+        actual: dCredits,
+        passed: dCredits <= MAX_D_CREDITS,
+        detail: `D 等级学分: ${dCredits} / ${MAX_D_CREDITS}`,
+      },
+      {
+        id: "holds",
+        label: "无未解除学业限制",
+        required: 0,
+        actual: holdsCount,
+        passed: holdsCount === 0,
+        detail: holdsCount === 0 ? "无限制" : `${holdsCount} 个未解除限制`,
+      },
+    ];
+
+    const allPassed = checks.every((c) => c.passed);
+    return {
+      checks,
+      allPassed,
+      summary: { totalCredits, cumulativeGpa, dCredits, holdsCount },
+    };
+  }
 }
