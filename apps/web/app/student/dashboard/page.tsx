@@ -97,10 +97,10 @@ function calcGPA(items: GradeItem[]): number | null {
 }
 
 function gpaTier(gpa: number): { text: string; kpi: string; label: string } {
-  if (gpa >= 3.7) return { text: "text-emerald-700", kpi: "border-emerald-200 bg-emerald-50", label: "Dean's List" };
-  if (gpa >= 3.0) return { text: "text-blue-700", kpi: "border-blue-200 bg-blue-50", label: "Good Standing" };
-  if (gpa >= 2.0) return { text: "text-slate-700", kpi: "border-slate-200 bg-slate-50", label: "Satisfactory" };
-  return { text: "text-amber-700", kpi: "border-amber-200 bg-amber-50", label: "Academic Warning" };
+  if (gpa >= 3.7) return { text: "text-emerald-700", kpi: "border-emerald-200 bg-emerald-50", label: "表现优秀" };
+  if (gpa >= 3.0) return { text: "text-blue-700", kpi: "border-blue-200 bg-blue-50", label: "状态良好" };
+  if (gpa >= 2.0) return { text: "text-slate-700", kpi: "border-slate-200 bg-slate-50", label: "正常" };
+  return { text: "text-amber-700", kpi: "border-amber-200 bg-amber-50", label: "需要关注" };
 }
 
 function gpaChipTone(gpa: number): string {
@@ -152,9 +152,9 @@ function alertTone(level: StudentAlert["level"]): string {
 }
 
 function alertBadge(level: StudentAlert["level"]): string {
-  if (level === "critical") return "Critical";
-  if (level === "warning") return "Warning";
-  return "Info";
+  if (level === "critical") return "紧急";
+  if (level === "warning") return "提醒";
+  return "提示";
 }
 
 function fmtDateTime(value: string): string {
@@ -166,28 +166,28 @@ function fmtDateTime(value: string): string {
     86_400_000
   );
   const timeStr = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  if (daysDiff === 0)  return `Today at ${timeStr}`;
-  if (daysDiff === 1)  return `Tomorrow at ${timeStr}`;
-  if (daysDiff === -1) return `Yesterday at ${timeStr}`;
-  return `${d.toLocaleDateString()} at ${timeStr}`;
+  if (daysDiff === 0)  return `今天 ${timeStr}`;
+  if (daysDiff === 1)  return `明天 ${timeStr}`;
+  if (daysDiff === -1) return `昨天 ${timeStr}`;
+  return `${d.toLocaleDateString()} ${timeStr}`;
 }
 
 function issueGuidance(reasonCode: string): string {
-  if (reasonCode === "PREREQUISITE_NOT_MET") return "Complete prerequisites first or request departmental override.";
-  if (reasonCode === "TIME_CONFLICT") return "Adjust cart to remove overlapping meeting times.";
-  if (reasonCode === "CREDIT_LIMIT_EXCEEDED") return "Reduce load or request credit overload approval.";
-  if (reasonCode === "SECTION_ALREADY_STARTED") return "Contact registrar/support for manual enrollment options.";
-  if (reasonCode === "ALREADY_REGISTERED") return "Section is already active in your enrollments.";
-  return "Review cart details and update registration plan.";
+  if (reasonCode === "PREREQUISITE_NOT_MET") return "先完成先修课，或提交先修课豁免审批。";
+  if (reasonCode === "TIME_CONFLICT") return "调整购物车，先消除上课时间冲突。";
+  if (reasonCode === "CREDIT_LIMIT_EXCEEDED") return "减少本学期学分，或提交超学分申请。";
+  if (reasonCode === "SECTION_ALREADY_STARTED") return "课程已经开课，如需处理请联系教务。";
+  if (reasonCode === "ALREADY_REGISTERED") return "该教学班已经在你的当前注册记录中。";
+  return "请检查购物车并调整当前选课计划。";
 }
 
 function issueTitle(reasonCode: string): string {
-  if (reasonCode === "PREREQUISITE_NOT_MET") return "Missing prerequisites";
-  if (reasonCode === "TIME_CONFLICT") return "Schedule conflicts detected";
-  if (reasonCode === "CREDIT_LIMIT_EXCEEDED") return "Credit limit risk";
-  if (reasonCode === "SECTION_ALREADY_STARTED") return "Section start-date block";
-  if (reasonCode === "ALREADY_REGISTERED") return "Already registered sections";
-  return "Registration issue";
+  if (reasonCode === "PREREQUISITE_NOT_MET") return "先修课未满足";
+  if (reasonCode === "TIME_CONFLICT") return "课表时间冲突";
+  if (reasonCode === "CREDIT_LIMIT_EXCEEDED") return "学分上限风险";
+  if (reasonCode === "SECTION_ALREADY_STARTED") return "课程已开课";
+  if (reasonCode === "ALREADY_REGISTERED") return "重复注册";
+  return "选课问题";
 }
 
 function getNextAction(enrollments: Enrollment[], cartItems: CartItem[], term: Term | null) {
@@ -199,36 +199,36 @@ function getNextAction(enrollments: Enrollment[], cartItems: CartItem[], term: T
   if (enrolled.length === 0 && cartCount === 0) {
     return {
       icon: "📚",
-      title: "Browse the Catalog",
-      desc: "Registration is open. Add courses to your cart.",
+      title: "开始选课",
+      desc: "当前可以开始浏览课程并加入购物车。",
       href: "/student/catalog",
-      cta: "Go to Catalog"
+      cta: "进入课程目录"
     };
   }
   if (cartCount > 0 && enrolled.length === 0) {
     return {
       icon: "🛒",
-      title: "Submit Your Cart",
-      desc: `You have ${cartCount} course(s) ready. Submit now to confirm enrollment.`,
+      title: "提交购物车",
+      desc: `当前有 ${cartCount} 门课程待提交，可以直接进入确认。`,
       href: "/student/cart",
-      cta: "Review Cart"
+      cta: "查看购物车"
     };
   }
   if (waitlisted.length > 0) {
     return {
       icon: "⏳",
-      title: "You're on Waitlists",
-      desc: `You're waitlisted for ${waitlisted.length} course(s). Keep checking.`,
+      title: "正在候补中",
+      desc: `你当前有 ${waitlisted.length} 门课程处于候补状态。`,
       href: "/student/schedule",
-      cta: "View Status"
+      cta: "查看状态"
     };
   }
   return {
     icon: "✅",
-    title: "You're All Set",
-    desc: `Enrolled in ${enrolled.length} course(s). Check your schedule.`,
+    title: "当前状态正常",
+    desc: `已注册 ${enrolled.length} 门课程，可以直接查看课表。`,
     href: "/student/schedule",
-    cta: "View Schedule"
+    cta: "查看课表"
   };
 }
 
@@ -291,73 +291,73 @@ export default async function StudentDashboardPage() {
   if (!term) {
     actionItems.push({
       title: "No active term is configured",
-      description: "Registration and schedule planning are unavailable until a term is published.",
+      description: "当前还没有可用学期，暂时无法进行选课或课表规划。",
       href: "/student/profile",
-      cta: "Open profile",
+      cta: "打开资料",
       tone: "amber"
     });
   } else if (registrationState === "PRE_OPEN") {
     actionItems.push({
-      title: "Registration has not opened yet",
-      description: `Opens on ${fmtDateTime(term.registrationOpenAt)}. Prepare your cart in advance.`,
+      title: "选课尚未开放",
+      description: `${fmtDateTime(term.registrationOpenAt)} 开放，建议先整理购物车。`,
       href: `/student/catalog?termId=${term.id}`,
-      cta: "Browse catalog",
+      cta: "查看课程目录",
       tone: "blue"
     });
   } else if (registrationState === "OPEN") {
     actionItems.push({
-      title: "Registration window is open",
-      description: `You can submit registration until ${fmtDateTime(term.registrationCloseAt)}.`,
+      title: "当前正在选课",
+      description: `可在 ${fmtDateTime(term.registrationCloseAt)} 前提交本学期选课。`,
       href: `/student/cart?termId=${term.id}`,
-      cta: "Open cart",
+      cta: "打开购物车",
       tone: "emerald"
     });
   } else {
     actionItems.push({
-      title: "Registration window is closed",
-      description: "You can still review schedule and completed academic records.",
+      title: "选课已结束",
+      description: "当前可以继续查看课表和历史成绩记录。",
       href: term ? `/student/schedule?termId=${term.id}` : "/student/schedule",
-      cta: "View schedule",
+      cta: "查看课表",
       tone: "amber"
     });
   }
 
   if (term && registrationState === "OPEN" && creditsRemaining > 0) {
     actionItems.push({
-      title: `${creditsRemaining} credit(s) still available`,
-      description: "You can continue adding sections until you reach your term max credits.",
+      title: `还可添加 ${creditsRemaining} 学分`,
+      description: "在达到本学期学分上限前，仍可继续加入课程。",
       href: `/student/catalog?termId=${term.id}`,
-      cta: "Add courses",
+      cta: "继续选课",
       tone: "blue"
     });
   }
 
   if (pendingApproval.length > 0) {
     actionItems.push({
-      title: `${pendingApproval.length} section(s) pending approval`,
-      description: "Track pending approvals in your schedule and watch for updates.",
+      title: `${pendingApproval.length} 门课程待审批`,
+      description: "请留意课表中的审批结果和状态变化。",
       href: term ? `/student/schedule?termId=${term.id}` : "/student/schedule",
-      cta: "Track status",
+      cta: "查看状态",
       tone: "blue"
     });
   }
 
   if (waitlistedCount > 0) {
     actionItems.push({
-      title: `${waitlistedCount} section(s) waitlisted`,
-      description: "Waitlist promotions are processed when ENROLLED seats open.",
+      title: `${waitlistedCount} 门课程正在候补`,
+      description: "有空位释放时，系统会按顺序推进候补。",
       href: term ? `/student/schedule?termId=${term.id}` : "/student/schedule",
-      cta: "View queue",
+      cta: "查看候补",
       tone: "amber"
     });
   }
 
   if (actionItems.length === 0) {
     actionItems.push({
-      title: "Everything is in good standing",
-      description: "Review your profile and schedule to keep records accurate.",
+      title: "当前状态正常",
+      description: "可以继续查看个人资料和本学期课表。",
       href: "/student/profile",
-      cta: "Review profile",
+      cta: "查看资料",
       tone: "emerald"
     });
   }
@@ -373,18 +373,18 @@ export default async function StudentDashboardPage() {
     if (dropDaysLeft < 0 && enrolledCount > 0) {
       alerts.push({
         level: "critical",
-        title: "Drop deadline has passed",
-        description: `Drop requests for ENROLLED/PENDING sections now require registrar or support review.`,
+        title: "退课期限已过",
+        description: "当前若仍需调整已选课程，需要联系教务或支持处理。",
         href: term ? `/student/schedule?termId=${term.id}` : "/student/schedule",
-        cta: "Open schedule"
+        cta: "打开课表"
       });
     } else if (dropDaysLeft <= 7 && enrolledCount > 0) {
       alerts.push({
         level: "warning",
-        title: "Drop deadline approaching",
-        description: `${dropDaysLeft} day(s) remaining before self-drop closes for enrolled classes.`,
+        title: "退课期限临近",
+        description: `距离自助退课关闭还剩 ${dropDaysLeft} 天。`,
         href: term ? `/student/schedule?termId=${term.id}` : "/student/schedule",
-        cta: "Review schedule"
+        cta: "检查课表"
       });
     }
   }
@@ -395,27 +395,27 @@ export default async function StudentDashboardPage() {
       title: `${issueTitle(reasonCode)} (${count})`,
       description: issueGuidance(reasonCode),
       href: term ? `/student/cart?termId=${term.id}` : "/student/cart",
-      cta: "Resolve in cart"
+      cta: "去购物车处理"
     });
   }
 
   if (waitlistedCount > 0) {
     alerts.push({
       level: "info",
-      title: "Waitlist queue active",
-      description: `${waitlistedCount} section(s) are currently waitlisted. Watch for promotion updates.`,
+      title: "候补队列进行中",
+      description: `当前有 ${waitlistedCount} 门课程处于候补，请留意补位通知。`,
       href: term ? `/student/schedule?termId=${term.id}` : "/student/schedule",
-      cta: "Track waitlist"
+      cta: "查看候补"
     });
   }
 
   if (alerts.length === 0) {
     alerts.push({
       level: "info",
-      title: "No immediate registration risks",
-      description: "You have no active prerequisite, conflict, or deadline alerts right now.",
+      title: "当前没有明显风险",
+      description: "目前没有先修课、时间冲突或期限类提醒。",
       href: term ? `/student/catalog?termId=${term.id}` : "/student/catalog",
-      cta: "Browse catalog"
+      cta: "查看课程目录"
     });
   }
 
@@ -426,12 +426,12 @@ export default async function StudentDashboardPage() {
       <section className="campus-hero">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
-            <p className="campus-eyebrow">Student Command Board</p>
+            <p className="campus-eyebrow">本学期概览</p>
             <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">
-              {me?.profile?.legalName ? `Welcome, ${me.profile.legalName}` : "Student Dashboard"}
+              {me?.profile?.legalName ? `${me.profile.legalName}，你好` : "学生概览"}
             </h1>
             <p className="text-base text-slate-600">
-              {term ? `Priority actions and timeline for ${term.name}.` : "No active term is configured yet."}
+              {term ? `${term.name} 的选课状态、提醒和学业进度都在这里。` : "当前还没有可用学期。"}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -453,37 +453,37 @@ export default async function StudentDashboardPage() {
         {/* Registration state — dynamically colored */}
         {(() => {
           const { bg, border, label: lbl, text } = {
-            OPEN:     { bg: "bg-emerald-50", border: "border-emerald-200", label: "Open",     text: "text-emerald-900" },
-            PRE_OPEN: { bg: "bg-blue-50",    border: "border-blue-200",    label: "Pre-Open", text: "text-blue-900" },
-            CLOSED:   { bg: "bg-amber-50",   border: "border-amber-200",   label: "Closed",   text: "text-amber-900" },
-            NO_TERM:  { bg: "bg-slate-50",   border: "border-slate-200",   label: "N/A",      text: "text-slate-700" },
+            OPEN:     { bg: "bg-emerald-50", border: "border-emerald-200", label: "开放中", text: "text-emerald-900" },
+            PRE_OPEN: { bg: "bg-blue-50",    border: "border-blue-200",    label: "未开放", text: "text-blue-900" },
+            CLOSED:   { bg: "bg-amber-50",   border: "border-amber-200",   label: "已关闭", text: "text-amber-900" },
+            NO_TERM:  { bg: "bg-slate-50",   border: "border-slate-200",   label: "暂无",   text: "text-slate-700" },
           }[registrationState];
           const lblColor = {
             OPEN: "text-emerald-600", PRE_OPEN: "text-blue-600", CLOSED: "text-amber-600", NO_TERM: "text-slate-500"
           }[registrationState];
           return (
             <div className={`campus-kpi ${border} ${bg}`}>
-              <p className={`text-[11px] font-semibold uppercase tracking-wide ${lblColor}`}>Registration</p>
+              <p className={`text-[11px] font-semibold tracking-wide ${lblColor}`}>选课状态</p>
               <p className={`mt-1 text-xl font-semibold ${text}`}>{lbl}</p>
             </div>
           );
         })()}
 
         <div className="campus-kpi border-emerald-200 bg-emerald-50/60">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Current Load</p>
+          <p className="text-[11px] font-semibold tracking-wide text-emerald-700">当前学分</p>
           <p className="mt-1 text-2xl font-semibold text-emerald-900">{enrolledCredits}</p>
           {term?.maxCredits ? (
-            <p className="text-[10px] text-emerald-600">{enrolledCount} section(s) · {term.maxCredits} max credits</p>
+            <p className="text-[10px] text-emerald-600">{enrolledCount} 门课程 · 上限 {term.maxCredits} 学分</p>
           ) : enrolledCredits > 0 ? (
-            <p className="text-[10px] text-emerald-600">{enrolledCredits} credits</p>
+            <p className="text-[10px] text-emerald-600">{enrolledCredits} 学分</p>
           ) : null}
         </div>
 
         <div className="campus-kpi border-amber-200 bg-amber-50/60">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Waitlisted</p>
+          <p className="text-[11px] font-semibold tracking-wide text-amber-700">候补课程</p>
           <p className="mt-1 text-2xl font-semibold text-amber-900">{waitlistedCount}</p>
           {pendingApproval.length > 0 ? (
-            <p className="text-[10px] text-amber-700">{pendingApproval.length} pending approval</p>
+            <p className="text-[10px] text-amber-700">{pendingApproval.length} 门待审批</p>
           ) : null}
         </div>
 
@@ -492,7 +492,7 @@ export default async function StudentDashboardPage() {
           const tier = gpaTier(cumulativeGpa);
           return (
             <div className={`campus-kpi ${tier.kpi}`}>
-              <p className={`text-[11px] font-semibold uppercase tracking-wide ${tier.text}`}>Cumulative GPA</p>
+              <p className={`text-[11px] font-semibold tracking-wide ${tier.text}`}>累计 GPA</p>
               <p className={`mt-1 text-2xl font-semibold ${tier.text}`}>{cumulativeGpa.toFixed(2)}</p>
               <span className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold border-current/30 ${tier.text}`}>
                 {tier.label}
@@ -501,9 +501,9 @@ export default async function StudentDashboardPage() {
           );
         })() : (
           <div className="campus-kpi border-slate-200 bg-slate-50">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Cumulative GPA</p>
+            <p className="text-[11px] font-semibold tracking-wide text-slate-500">累计 GPA</p>
             <p className="mt-1 text-2xl font-semibold text-slate-400">—</p>
-            <p className="text-[10px] text-slate-400">No grades yet</p>
+            <p className="text-[10px] text-slate-400">暂无成绩</p>
           </div>
         )}
       </section>
@@ -512,8 +512,8 @@ export default async function StudentDashboardPage() {
       {completedCredits > 0 ? (
         <section className="campus-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-slate-800">Degree Progress</p>
-            <p className="text-sm text-slate-500">{completedCredits} / {DEGREE_CREDITS} credits completed ({degreeProgress}%)</p>
+            <p className="text-sm font-semibold text-slate-800">毕业进度</p>
+            <p className="text-sm text-slate-500">已完成 {completedCredits} / {DEGREE_CREDITS} 学分（{degreeProgress}%）</p>
           </div>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
             <div
