@@ -754,9 +754,21 @@ export class AdminController {
     return ok(await this.adminService.getStudentProgress(termId, dept));
   }
 
+  @Get("dropout-risk")
+  @RequireAdminPermissions("students:read")
+  async dropoutRisk() {
+    return ok(await this.adminService.getDropoutRisk());
+  }
+
   @Get("grade-distribution")
   @RequireAdminPermissions("dashboard:read")
   async gradeDistribution(@Query("termId") termId?: string, @Query("courseId") courseId?: string) {
     return ok(await this.adminService.getGradeDistribution(termId, courseId));
+  }
+
+  @Get("sections/:id/analytics")
+  @RequireAdminPermissions("sections:read")
+  async sectionAnalytics(@Param("id") id: string) {
+    return ok(await this.adminService.getSectionAnalytics(id));
   }
 }
