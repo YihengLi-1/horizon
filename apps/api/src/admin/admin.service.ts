@@ -6484,4 +6484,246 @@ export class AdminService {
       avgPassRate: d.terms.reduce((s, t) => s + (t.passRate ?? 0), 0) / Math.max(1, d.terms.filter((t) => t.passRate !== null).length),
     }));
   }
+
+  // ─── Course Pairing Analysis ───────────────────────────────────────────────
+  async getCoursePairings() {
+    type PairingRow = {
+      courseAId: string;
+      courseACode: string;
+      courseATitle: string;
+      courseBId: string;
+      courseBCode: string;
+      courseBTitle: string;
+      termId: string;
+      termName: string;
+      termStartDate: Date;
+      coCount: bigint;
+    };
+
+    const rows = await this.prisma.$queryRaw<PairingRow[]>`
+      WITH active_enrollments AS (
+        SELECT DISTINCT
+          e."studentId",
+          s."termId",
+          s."courseId",
+          c.code AS "courseCode",
+          c.title AS "courseTitle"
+        FROM "Enrollment" e
+        JOIN "Section" s
+          ON s.id = e."sectionId"
+        JOIN "Course" c
+          ON c.id = s."courseId"
+        WHERE e."deletedAt" IS NULL
+          AND e.status IN ('ENROLLED', 'COMPLETED', 'PENDING_APPROVAL')
+      )
+      SELECT
+        a."courseId" AS "courseAId",
+        a."courseCode" AS "courseACode",
+        a."courseTitle" AS "courseATitle",
+        b."courseId" AS "courseBId",
+        b."courseCode" AS "courseBCode",
+        b."courseTitle" AS "courseBTitle",
+        t.id AS "termId",
+        t.name AS "termName",
+        t."startDate" AS "termStartDate",
+        COUNT(*)::bigint AS "coCount"
+      FROM active_enrollments a
+      JOIN active_enrollments b
+        ON a."studentId" = b."studentId"
+       AND a."termId" = b."termId"
+       AND a."courseId" < b."courseId"
+      JOIN "Term" t
+        ON t.id = a."termId"
+      GROUP BY
+        a."courseId",
+        a."courseCode",
+        a."courseTitle",
+        b."courseId",
+        b."courseCode",
+        b."courseTitle",
+        t.id,
+        t.name,
+        t."startDate"
+      ORDER BY "coCount" DESC, "termStartDate" DESC, "courseACode" ASC, "courseBCode" ASC
+    `;
+
+    const pairings = new Map<string, {
+      pairKey: string;
+      courseAId: string;
+      courseACode: string;
+      courseATitle: string;
+      courseBId: string;
+      courseBCode: string;
+      courseBTitle: string;
+      coCount: number;
+      terms: { termId: string; termName: string; coCount: number }[];
+    }>();
+
+    for (const row of rows) {
+      const pairKey = `${row.courseAId}|${row.courseBId}`;
+      if (!pairings.has(pairKey)) {
+        pairings.set(pairKey, {
+          pairKey,
+          courseAId: row.courseAId,
+          courseACode: row.courseACode,
+          courseATitle: row.courseATitle,
+          courseBId: row.courseBId,
+          courseBCode: row.courseBCode,
+          courseBTitle: row.courseBTitle,
+          coCount: 0,
+          terms: []
+        });
+      }
+
+      const pairing = pairings.get(pairKey)!;
+      const termCount = Number(row.coCount);
+      pairing.coCount += termCount;
+      pairing.terms.push({
+        termId: row.termId,
+        termName: row.termName,
+        coCount: termCount
+      });
+    }
+
+    return Array.from(pairings.values())
+      .map((pairing) => ({
+        ...pairing,
+        termCount: pairing.terms.length,
+        terms: pairing.terms.sort((a, b) => b.coCount - a.coCount || a.termName.localeCompare(b.termName))
+      }))
+      .sort((a, b) => b.coCount - a.coCount || b.termCount - a.termCount || a.courseACode.localeCompare(b.courseACode))
+      .slice(0, 150);
+  }
+
+  // ─── Student Retention Cohort ──────────────────────────────────────────────
+  async getRetentionCohort() {
+    type CohortRow = {
+      cohortTermId: string;
+      cohortTermName: string;
+      activeTermId: string;
+      activeTermName: string;
+      offset: number;
+      cohortSize: bigint;
+      activeStudents: bigint;
+    };
+
+    const rows = await this.prisma.$queryRaw<CohortRow[]>`
+      WITH ranked_terms AS (
+        SELECT
+          t.id,
+          t.name,
+          t."startDate",
+          ROW_NUMBER() OVER (ORDER BY t."startDate", t.name) - 1 AS term_index
+        FROM "Term" t
+      ),
+      active_enrollments AS (
+        SELECT DISTINCT
+          e."studentId",
+          rt.id AS term_id,
+          rt.term_index
+        FROM "Enrollment" e
+        JOIN "Section" s
+          ON s.id = e."sectionId"
+        JOIN ranked_terms rt
+          ON rt.id = s."termId"
+        WHERE e."deletedAt" IS NULL
+          AND e.status IN ('ENROLLED', 'COMPLETED', 'PENDING_APPROVAL')
+      ),
+      first_terms AS (
+        SELECT
+          ae."studentId",
+          MIN(ae.term_index) AS cohort_index
+        FROM active_enrollments ae
+        GROUP BY ae."studentId"
+      ),
+      student_activity AS (
+        SELECT
+          ft."studentId",
+          ft.cohort_index,
+          ae.term_index,
+          ae.term_index - ft.cohort_index AS offset
+        FROM first_terms ft
+        JOIN active_enrollments ae
+          ON ae."studentId" = ft."studentId"
+        WHERE ae.term_index >= ft.cohort_index
+      ),
+      cohort_sizes AS (
+        SELECT
+          cohort_index,
+          COUNT(*)::bigint AS cohort_size
+        FROM first_terms
+        GROUP BY cohort_index
+      )
+      SELECT
+        cohort_term.id AS "cohortTermId",
+        cohort_term.name AS "cohortTermName",
+        active_term.id AS "activeTermId",
+        active_term.name AS "activeTermName",
+        sa.offset::int AS offset,
+        cs.cohort_size AS "cohortSize",
+        COUNT(DISTINCT sa."studentId")::bigint AS "activeStudents"
+      FROM student_activity sa
+      JOIN cohort_sizes cs
+        ON cs.cohort_index = sa.cohort_index
+      JOIN ranked_terms cohort_term
+        ON cohort_term.term_index = sa.cohort_index
+      JOIN ranked_terms active_term
+        ON active_term.term_index = sa.term_index
+      GROUP BY
+        cohort_term.id,
+        cohort_term.name,
+        cohort_term."startDate",
+        active_term.id,
+        active_term.name,
+        active_term."startDate",
+        sa.offset,
+        cs.cohort_size
+      ORDER BY cohort_term."startDate" ASC, sa.offset ASC
+    `;
+
+    const offsetSet = new Set<number>();
+    const cohorts = new Map<string, {
+      cohortTermId: string;
+      cohortTermName: string;
+      cohortSize: number;
+      retention: {
+        offset: number;
+        activeTermId: string;
+        activeTermName: string;
+        activeStudents: number;
+        retentionPct: number;
+      }[];
+    }>();
+
+    for (const row of rows) {
+      offsetSet.add(Number(row.offset));
+      if (!cohorts.has(row.cohortTermId)) {
+        cohorts.set(row.cohortTermId, {
+          cohortTermId: row.cohortTermId,
+          cohortTermName: row.cohortTermName,
+          cohortSize: Number(row.cohortSize),
+          retention: []
+        });
+      }
+
+      const cohort = cohorts.get(row.cohortTermId)!;
+      const activeStudents = Number(row.activeStudents);
+      const cohortSize = Number(row.cohortSize);
+      cohort.retention.push({
+        offset: Number(row.offset),
+        activeTermId: row.activeTermId,
+        activeTermName: row.activeTermName,
+        activeStudents,
+        retentionPct: cohortSize > 0 ? Math.round((activeStudents / cohortSize) * 100) : 0
+      });
+    }
+
+    return {
+      offsets: Array.from(offsetSet).sort((a, b) => a - b),
+      cohorts: Array.from(cohorts.values()).map((cohort) => ({
+        ...cohort,
+        retention: cohort.retention.sort((a, b) => a.offset - b.offset)
+      }))
+    };
+  }
 }

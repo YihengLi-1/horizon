@@ -2,10 +2,10 @@
 
 ## Gate
 
-- 2026-03-14: 544 pass, 0 warn, 0 fail
+- 2026-03-14: 557 pass, 0 warn, 0 fail
 
 ## Entries
 
-- 272. Wired and gated `/admin/instructor-performance` finish-off checks, including nav presence and readiness assertions.
-- 273. Wired and gated `/admin/dept-gpa` finish-off checks, including nav presence and readiness assertions.
-- 274. Wired and gated `/student/graduation-checklist` finish-off checks, including nav presence and readiness assertions.
+- 272. Implemented `/admin/course-pairings` with raw SQL co-enrollment analysis, expandable term breakdown, admin nav wiring, and readiness coverage.
+- 273. Implemented `/student/deadlines` as a client-side localStorage deadline tracker with add/delete/complete states, overdue highlighting, and nav wiring.
+- 274. Implemented `/admin/retention` with raw SQL cohort retention analysis, offset-based retention matrix UI, admin nav wiring, and readiness coverage.

@@ -898,4 +898,16 @@ export class AdminController {
   async deptGpa(@Query("termId") termId?: string) {
     return ok(await this.adminService.getDeptGpaComparison(termId));
   }
+
+  @Get("course-pairings")
+  @RequireAdminPermissions("dashboard:read")
+  async coursePairings() {
+    return ok(await this.adminService.getCoursePairings());
+  }
+
+  @Get("retention")
+  @RequireAdminPermissions("students:read")
+  async retention() {
+    return ok(await this.adminService.getRetentionCohort());
+  }
 }

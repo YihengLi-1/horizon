@@ -119,7 +119,7 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="rounded-3xl border-slate-200/90 bg-white/95 shadow-[0_20px_50px_-32px_rgba(15,23,42,0.75)]">
+    <Card className="rounded-3xl border-slate-200/90 bg-gradient-to-br from-white via-white to-indigo-50/60 shadow-[0_20px_50px_-32px_rgba(15,23,42,0.75)]">
       <CardHeader className="pb-4">
         <p className="text-xs font-semibold tracking-[0.12em] text-slate-500">地平线</p>
         <CardTitle className="font-heading text-2xl text-slate-900">登录系统</CardTitle>
@@ -180,7 +180,7 @@ export default function LoginPage() {
               {error}
             </div>
           ) : null}
-          <Button disabled={loading} className="h-10 w-full bg-primary text-white hover:bg-primary/90" type="submit">
+          <Button disabled={loading} className="h-10 w-full bg-primary text-white shadow-md transition-all duration-200 hover:bg-primary/90 hover:shadow-lg" type="submit">
             {loading ? (
               <span className="inline-flex items-center gap-2">
                 <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
@@ -200,7 +200,7 @@ export default function LoginPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                className="h-10 border-slate-300 bg-white text-slate-700 shadow-md transition-all duration-200 hover:bg-slate-100 hover:shadow-lg"
                 onClick={fillStudentDemo}
               >
                 填充学生账号
@@ -208,7 +208,7 @@ export default function LoginPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                className="h-10 border-slate-300 bg-white text-slate-700 shadow-md transition-all duration-200 hover:bg-slate-100 hover:shadow-lg"
                 onClick={fillAdminDemo}
               >
                 填充管理账号
@@ -216,7 +216,7 @@ export default function LoginPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                className="h-10 border-slate-300 bg-white text-slate-700 shadow-md transition-all duration-200 hover:bg-slate-100 hover:shadow-lg"
                 onClick={fillFacultyDemo}
               >
                 填充教师账号
@@ -224,7 +224,7 @@ export default function LoginPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                className="h-10 border-slate-300 bg-white text-slate-700 shadow-md transition-all duration-200 hover:bg-slate-100 hover:shadow-lg"
                 onClick={fillAdvisorDemo}
               >
                 填充顾问账号
