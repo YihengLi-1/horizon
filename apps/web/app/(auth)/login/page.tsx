@@ -75,7 +75,7 @@ export default function LoginPage() {
       }
 
       await apiFetch("/auth/logout", { method: "POST" }).catch(() => undefined);
-      setError("Your account role is not supported in this build.");
+      setError("当前账号角色暂不支持登录。");
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.code === "ACCOUNT_LOCKED") {
@@ -123,12 +123,12 @@ export default function LoginPage() {
       <CardHeader className="pb-4">
         <p className="text-xs font-semibold tracking-[0.12em] text-slate-500">地平线</p>
         <CardTitle className="font-heading text-2xl text-slate-900">登录系统</CardTitle>
-        <CardDescription className="text-slate-600">使用学号或邮箱登录。</CardDescription>
+        <CardDescription className="text-slate-600">使用学号或邮箱与密码登录。</CardDescription>
       </CardHeader>
       <CardContent>
         <form aria-label="Sign in form" className="space-y-4" onSubmit={onSubmit}>
           <div className="space-y-1">
-            <label className="text-sm font-medium">Student ID or Email</label>
+            <label className="text-sm font-medium">学号或邮箱</label>
             <Input
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
@@ -143,7 +143,7 @@ export default function LoginPage() {
             </span>
           </div>
           <div className="space-y-1">
-            <label className="text-sm font-medium">Password</label>
+            <label className="text-sm font-medium">密码</label>
             <div className="relative">
               <Input
                 type={showPw ? "text" : "password"}
@@ -160,7 +160,7 @@ export default function LoginPage() {
                 tabIndex={-1}
                 onClick={() => setShowPw((v) => !v)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                aria-label={showPw ? "Hide password" : "Show password"}
+                aria-label={showPw ? "隐藏密码" : "显示密码"}
               >
                 {showPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
@@ -184,10 +184,10 @@ export default function LoginPage() {
             {loading ? (
               <span className="inline-flex items-center gap-2">
                 <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                Signing in...
+                登录中...
               </span>
             ) : (
-              "Sign in"
+              "登录"
             )}
           </Button>
         </form>
@@ -203,7 +203,7 @@ export default function LoginPage() {
                 className="h-10 border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                 onClick={fillStudentDemo}
               >
-                Fill Student
+                填充学生账号
               </Button>
               <Button
                 type="button"
@@ -211,7 +211,7 @@ export default function LoginPage() {
                 className="h-10 border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                 onClick={fillAdminDemo}
               >
-                Fill Admin
+                填充管理账号
               </Button>
               <Button
                 type="button"
@@ -219,7 +219,7 @@ export default function LoginPage() {
                 className="h-10 border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                 onClick={fillFacultyDemo}
               >
-                Fill Faculty
+                填充教师账号
               </Button>
               <Button
                 type="button"
@@ -227,7 +227,7 @@ export default function LoginPage() {
                 className="h-10 border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                 onClick={fillAdvisorDemo}
               >
-                Fill Advisor
+                填充顾问账号
               </Button>
             </div>
           </div>

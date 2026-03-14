@@ -151,12 +151,12 @@ function ActionButton({ href, label, desc }: { href: string; label: string; desc
 
 function actionLabel(action: string): string {
   const map: Record<string, string> = {
-    admin_crud: "Data change",
-    promote_waitlist: "Waitlist promote",
-    grade_update: "Grade updated",
-    login: "Login",
-    registration_submit: "Registration submit",
-    drop: "Drop"
+    admin_crud: "数据更新",
+    promote_waitlist: "候补补位",
+    grade_update: "成绩更新",
+    login: "登录",
+    registration_submit: "提交注册",
+    drop: "退课"
   };
   return map[action] ?? action;
 }
@@ -264,27 +264,27 @@ export default async function AdminDashboardPage() {
       <section className="campus-hero">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
-            <p className="campus-eyebrow">Administrative Command Center</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">Admin Dashboard</h1>
+            <p className="campus-eyebrow">运营概览</p>
+            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">管理概览</h1>
             <p className="text-base text-slate-600">
-              System overview for student records, enrollment operations, and registration cycle health.
+              查看学生、课程、注册状态和当前学期的运营概况。
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-700">
-              {data.students} Students
+              {data.students} 名学生
             </span>
             <span className="campus-chip border-blue-300 bg-blue-50 text-blue-700">
-              {data.sections} Sections
+              {data.sections} 个教学班
             </span>
             {data.waitlist > 0 && (
               <span className="campus-chip border-amber-300 bg-amber-50 text-amber-700">
-                {data.waitlist} Waitlisted
+                {data.waitlist} 条候补
               </span>
             )}
             {breakdown.pendingApproval > 0 && (
               <span className="campus-chip border-violet-300 bg-violet-50 text-violet-700">
-                {breakdown.pendingApproval} Pending Approval
+                {breakdown.pendingApproval} 条待审批
               </span>
             )}
           </div>
@@ -296,10 +296,10 @@ export default async function AdminDashboardPage() {
 
       {/* Primary stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Students" value={data.students} sub="registered accounts" href="/admin/students" />
-        <StatCard label="Courses" value={data.courses} sub="in catalog" href="/admin/courses" />
-        <StatCard label="Sections" value={data.sections} sub="across all terms" href="/admin/sections" />
-        <StatCard label="Terms" value={data.terms} sub="academic periods" href="/admin/terms" />
+        <StatCard label="学生" value={data.students} sub="系统内账号" href="/admin/students" />
+        <StatCard label="课程" value={data.courses} sub="目录课程数" href="/admin/courses" />
+        <StatCard label="教学班" value={data.sections} sub="全部学期" href="/admin/sections" />
+        <StatCard label="学期" value={data.terms} sub="当前配置总数" href="/admin/terms" />
       </div>
 
       {/* Active term spotlight */}
@@ -309,21 +309,21 @@ export default async function AdminDashboardPage() {
             <div>
               <div className="flex items-center gap-2">
                 <p className={`text-[11px] font-semibold uppercase tracking-wide ${regOpen ? "text-emerald-700" : "text-blue-700"}`}>
-                  Active Term
+                  当前学期
                 </p>
                 <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                   regOpen
                     ? "border-emerald-300 bg-emerald-100 text-emerald-800"
                     : "border-blue-300 bg-blue-100 text-blue-800"
                 }`}>
-                  {regOpen ? "Reg Open" : "Reg Closed"}
+                  {regOpen ? "开放中" : "未开放"}
                 </span>
               </div>
               <p className={`mt-1 text-xl font-bold ${regOpen ? "text-emerald-900" : "text-blue-900"}`}>{activeTerm.name}</p>
               <p className={`mt-1 text-sm ${regOpen ? "text-emerald-700" : "text-blue-700"}`}>
                 {regOpen ? (
                   <>
-                    Registration closes {new Date(activeTerm.registrationCloseAt).toLocaleDateString()}
+                    截止于 {new Date(activeTerm.registrationCloseAt).toLocaleDateString()}
                     {(() => {
                       const daysLeft = Math.ceil(
                         (new Date(activeTerm.registrationCloseAt).getTime() - now) / (1000 * 60 * 60 * 24)
@@ -334,22 +334,22 @@ export default async function AdminDashboardPage() {
                             ? "border-red-300 bg-red-100 text-red-700"
                             : "border-amber-300 bg-amber-100 text-amber-700"
                         }`}>
-                          {daysLeft}d left
+                          剩余 {daysLeft} 天
                         </span>
                       ) : null;
                     })()}
                   </>
                 ) : (
                   new Date(activeTerm.registrationOpenAt) > new Date()
-                    ? `Registration opens ${new Date(activeTerm.registrationOpenAt).toLocaleDateString()}`
-                    : `Registration closed ${new Date(activeTerm.registrationCloseAt).toLocaleDateString()}`
+                    ? `${new Date(activeTerm.registrationOpenAt).toLocaleDateString()} 开放`
+                    : `${new Date(activeTerm.registrationCloseAt).toLocaleDateString()} 已关闭`
                 )}
-                {" · "}Drop by {new Date(activeTerm.dropDeadline).toLocaleDateString()}
+                {" · "}退课截止 {new Date(activeTerm.dropDeadline).toLocaleDateString()}
                 {daysToDropDeadline !== null ? (
                   <>
                     {" "}
                     <span className="font-semibold">
-                    · {daysToDropDeadline > 0 ? `${daysToDropDeadline}d to drop deadline` : "Drop deadline passed"}
+                    · {daysToDropDeadline > 0 ? `还剩 ${daysToDropDeadline} 天` : "已过截止日"}
                     </span>
                   </>
                 ) : null}
@@ -358,43 +358,43 @@ export default async function AdminDashboardPage() {
             <div className={`flex gap-6 text-center`}>
               <div>
                 <p className={`text-2xl font-bold ${regOpen ? "text-emerald-900" : "text-blue-900"}`}>{activeTerm.sectionCount}</p>
-                <p className={`text-sm ${regOpen ? "text-emerald-700" : "text-blue-700"}`}>sections</p>
+                <p className={`text-sm ${regOpen ? "text-emerald-700" : "text-blue-700"}`}>教学班</p>
               </div>
               <div>
                 <p className={`text-2xl font-bold ${regOpen ? "text-emerald-900" : "text-blue-900"}`}>{activeTerm.enrollmentCount}</p>
-                <p className={`text-sm ${regOpen ? "text-emerald-700" : "text-blue-700"}`}>enrollments</p>
+                <p className={`text-sm ${regOpen ? "text-emerald-700" : "text-blue-700"}`}>注册记录</p>
               </div>
             </div>
           </div>
         </div>
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-          No active academic term is in progress.{" "}
+          当前没有进行中的学期。{" "}
           <Link href="/admin/terms" className="font-medium text-slate-700 underline underline-offset-2">
-            Manage terms →
+            去管理学期 →
           </Link>
         </div>
       )}
 
       {/* Enrollment breakdown */}
       <div>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Enrollment Status</h2>
+        <h2 className="mb-3 text-sm font-semibold tracking-wide text-slate-500">注册状态</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <StatCard label="Enrolled" value={breakdown.enrolled} accent="text-emerald-600" href="/admin/enrollments" />
+          <StatCard label="已注册" value={breakdown.enrolled} accent="text-emerald-600" href="/admin/enrollments" />
           <StatCard
-            label="Waitlisted"
+            label="候补中"
             value={breakdown.waitlisted}
             accent="text-amber-600"
             href="/admin/waitlist"
           />
           <StatCard
-            label="Pending Approval"
+            label="待审批"
             value={breakdown.pendingApproval}
             accent="text-blue-600"
             href="/admin/enrollments"
           />
-          <StatCard label="Completed" value={breakdown.completed} accent="text-slate-500" />
-          <StatCard label="Dropped" value={breakdown.dropped} accent="text-red-500" />
+          <StatCard label="已完成" value={breakdown.completed} accent="text-slate-500" />
+          <StatCard label="已退课" value={breakdown.dropped} accent="text-red-500" />
         </div>
 
         {/* Enrollment composition bar — multi-segment */}
@@ -417,7 +417,7 @@ export default async function AdminDashboardPage() {
                   {seg.label} {seg.count}
                 </span>
               ))}
-              <span className="ml-auto text-slate-400">{enrolledPct}% of active confirmed</span>
+              <span className="ml-auto text-slate-400">当前确认率 {enrolledPct}%</span>
             </div>
           </>
         ) : null}
@@ -430,23 +430,23 @@ export default async function AdminDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="API"
-          value={systemHealthy ? "Healthy" : "Issues"}
+          value={systemHealthy ? "正常" : "异常"}
           sub={`${opsVersion?.nodeEnv ?? nodeEnv} · ${opsVersion?.version ?? appVersion}`}
           accent={systemHealthy ? "text-emerald-600" : "text-red-600"}
         />
         <StatCard
-          label="Requests"
+          label="请求数"
           value={opsMetrics?.requestsTotal ?? "—"}
-          sub="since service start"
+          sub="服务启动后累计"
         />
         <StatCard
-          label="Error Rate"
+          label="错误率"
           value={errorRatePct !== null ? `${errorRatePct}%` : "—"}
-          sub="5xx and 4xx responses"
+          sub="4xx 与 5xx 响应"
           accent={errorRatePct !== null && Number(errorRatePct) > 5 ? "text-red-600" : "text-slate-900"}
         />
         <StatCard
-          label="Uptime"
+          label="运行时长"
           value={opsMetrics ? formatUptime(opsMetrics.uptimeSeconds) : "—"}
           sub={opsVersion?.buildTime ?? buildTime}
           accent="text-blue-700"
@@ -455,7 +455,7 @@ export default async function AdminDashboardPage() {
 
       {activeAlerts.length > 0 ? (
         <div className="campus-card p-4">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Operational Alerts</p>
+          <p className="mb-3 text-sm font-semibold tracking-wide text-slate-500">系统提醒</p>
           <div className="grid gap-3 md:grid-cols-2">
             {activeAlerts.map((alert) => (
               <div
@@ -478,28 +478,28 @@ export default async function AdminDashboardPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">System Summary</h2>
+          <h2 className="mb-3 text-sm font-semibold tracking-wide text-slate-500">系统摘要</h2>
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Environment</p>
+                <p className="text-xs font-semibold tracking-wide text-slate-500">环境</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">{opsVersion?.nodeEnv ?? nodeEnv}</p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Version</p>
+                <p className="text-xs font-semibold tracking-wide text-slate-500">版本</p>
                 <p className="mt-1 font-mono text-sm font-semibold text-slate-900">{opsVersion?.version ?? appVersion}</p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pending Approval</p>
+                <p className="text-xs font-semibold tracking-wide text-slate-500">待审批</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">{breakdown.pendingApproval}</p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Waitlist Load</p>
+                <p className="text-xs font-semibold tracking-wide text-slate-500">候补压力</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">{data.waitlist}</p>
               </div>
             </div>
             <p className="mt-4 text-sm text-slate-500">
-              This dashboard now stays focused on academic operations. Export, search, and monitoring live on their own pages.
+              首页只保留学籍和注册运营的核心信息，导出、搜索和监控已经拆回各自页面。
             </p>
           </div>
         </div>
@@ -508,13 +508,13 @@ export default async function AdminDashboardPage() {
       {/* Quick actions + recent activity */}
       <div className="grid gap-6 lg:grid-cols-2">
         <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Quick Actions</h2>
+          <h2 className="mb-3 text-sm font-semibold tracking-wide text-slate-500">常用操作</h2>
           <div className="grid gap-3">
-            <ActionButton href="/admin/sections" label="Manage Sections" desc="View, create, and edit course sections" />
-            <ActionButton href="/admin/waitlist" label="Promote Waitlist" desc="Move waitlisted students to enrolled" />
-            <ActionButton href="/admin/enrollments" label="Grade Entry" desc="Enter final grades for completed sections" />
-            <ActionButton href="/admin/import" label="Import CSV" desc="Bulk import students, courses, or sections" />
-            <ActionButton href="/admin/invite-codes" label="Invite Codes" desc="Generate and manage registration codes" />
+            <ActionButton href="/admin/sections" label="管理教学班" desc="查看、创建和修改课程教学班" />
+            <ActionButton href="/admin/waitlist" label="处理候补" desc="将候补学生推进到正式注册" />
+            <ActionButton href="/admin/enrollments" label="录入成绩" desc="为已完成课程录入最终成绩" />
+            <ActionButton href="/admin/import" label="导入数据" desc="批量导入学生、课程或教学班" />
+            <ActionButton href="/admin/invite-codes" label="管理邀请码" desc="生成并维护注册邀请码" />
           </div>
         </div>
 
