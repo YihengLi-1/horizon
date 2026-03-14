@@ -4406,13 +4406,12 @@ export class AdminService {
           WHERE e."sectionId" = s.id AND e.status = 'ENROLLED' AND e."deletedAt" IS NULL
         ), 0) AS "enrolledCount",
         (
-          SELECT AVG(r."overallRating") FROM "CourseRating" r WHERE r."sectionId" = s.id
+          SELECT AVG(r.rating) FROM "CourseRating" r WHERE r."sectionId" = s.id
         ) AS "avgRating"
       FROM "Section" s
       JOIN "Course" c ON c.id = s."courseId"
       JOIN "Term" t ON t.id = s."termId"
-      WHERE s."deletedAt" IS NULL
-        AND c."deletedAt" IS NULL
+      WHERE c."deletedAt" IS NULL
         ${filterCourseId ? Prisma.sql`AND s."courseId" = ${filterCourseId}` : Prisma.sql``}
       ORDER BY t."endDate" DESC, c.code ASC
     `;
@@ -5775,7 +5774,7 @@ export class AdminService {
         COUNT(DISTINCT CASE WHEN e.status = 'COMPLETED' THEN u.id END) AS "completedCount"
       FROM "User" u
       JOIN "StudentProfile" sp ON sp."userId" = u.id
-      LEFT JOIN "Enrollment" e ON e."userId" = u.id AND e."deletedAt" IS NULL
+      LEFT JOIN "Enrollment" e ON e."studentId" = u.id AND e."deletedAt" IS NULL
       LEFT JOIN "Section" s ON s.id = e."sectionId"
       LEFT JOIN "Course" c ON c.id = s."courseId"
       WHERE u.role = 'STUDENT'
@@ -5966,35 +5965,6 @@ export class AdminService {
   // ─── Department Workload Overview ─────────────────────────────────────────────
   async getDeptWorkload(termId?: string) {
     const termFilter = termId ? Prisma.sql`AND t.id = ${termId}` : Prisma.sql``;
-    const rows = await this.prisma.$queryRaw<{
-      major: string;
-      instructorCount: bigint;
-      sectionCount: bigint;
-      totalCapacity: bigint;
-      totalEnrolled: bigint;
-      avgSectionsPerInstructor: string;
-      avgEnrolledPerSection: string;
-    }[]>`
-      SELECT
-        COALESCE(sp."programMajor", '未分配') AS "major",
-        COUNT(DISTINCT fp."userId") AS "instructorCount",
-        COUNT(DISTINCT s.id) AS "sectionCount",
-        COALESCE(SUM(s.capacity), 0) AS "totalCapacity",
-        COUNT(CASE WHEN e.status = 'ENROLLED' AND e."deletedAt" IS NULL THEN 1 END) AS "totalEnrolled",
-        ROUND(COUNT(DISTINCT s.id)::numeric / NULLIF(COUNT(DISTINCT fp."userId"), 0), 1) AS "avgSectionsPerInstructor",
-        ROUND(COUNT(CASE WHEN e.status = 'ENROLLED' AND e."deletedAt" IS NULL THEN 1 END)::numeric / NULLIF(COUNT(DISTINCT s.id), 0), 1) AS "avgEnrolledPerSection"
-      FROM "Section" s
-      JOIN "Term" t ON t.id = s."termId"
-      JOIN "Course" c ON c.id = s."courseId"
-      LEFT JOIN "FacultyProfile" fp ON fp."userId" = s."instructorId"
-      LEFT JOIN "StudentProfile" sp ON false
-      LEFT JOIN "Enrollment" e ON e."sectionId" = s.id
-      WHERE c."deletedAt" IS NULL
-        ${termFilter}
-      GROUP BY COALESCE(sp."programMajor", '未分配')
-      ORDER BY "sectionCount" DESC
-    `;
-
     // Instead group by course category prefix (first 2-4 chars of code)
     const rowsByPrefix = await this.prisma.$queryRaw<{
       prefix: string;
@@ -6005,7 +5975,7 @@ export class AdminService {
     }[]>`
       SELECT
         SUBSTRING(c.code FROM 1 FOR 4) AS "prefix",
-        COUNT(DISTINCT s."instructorId") AS "instructorCount",
+        COUNT(DISTINCT COALESCE(s."instructorUserId", s."instructorName")) AS "instructorCount",
         COUNT(DISTINCT s.id) AS "sectionCount",
         COALESCE(SUM(s.capacity), 0) AS "totalCapacity",
         COUNT(CASE WHEN e.status = 'ENROLLED' AND e."deletedAt" IS NULL THEN 1 END) AS "totalEnrolled"
@@ -6240,7 +6210,7 @@ export class AdminService {
       JOIN "Term" t ON t.id = s."termId"
       JOIN "Course" c ON c.id = s."courseId"
       LEFT JOIN "Enrollment" e ON e."sectionId" = s.id
-      WHERE s."deletedAt" IS NULL
+      WHERE c."deletedAt" IS NULL
         ${termFilter}
       GROUP BY t.id, t.name, c.code, c.title, s.id, s.capacity
       ORDER BY t.name DESC, c.code ASC
@@ -6353,7 +6323,10 @@ export class AdminService {
         c.title AS "courseTitle",
         t.name AS "termName",
         e."updatedAt" AS "droppedAt",
-        EXTRACT(WEEK FROM AGE(e."updatedAt", COALESCE(t."startDate", e."createdAt")))::int AS "weeksIntoCourse"
+        GREATEST(
+          0,
+          FLOOR(EXTRACT(EPOCH FROM (e."updatedAt" - COALESCE(t."startDate", e."createdAt"))) / 604800)
+        )::int AS "weeksIntoCourse"
       FROM "Enrollment" e
       JOIN "Section" s ON s.id = e."sectionId"
       JOIN "Term" t ON t.id = s."termId"
@@ -6362,7 +6335,10 @@ export class AdminService {
       LEFT JOIN "StudentProfile" sp ON sp."userId" = u.id
       WHERE e.status = 'DROPPED'
         AND e."deletedAt" IS NULL
-        AND EXTRACT(WEEK FROM AGE(e."updatedAt", COALESCE(t."startDate", e."createdAt"))) >= ${week}
+        AND GREATEST(
+          0,
+          FLOOR(EXTRACT(EPOCH FROM (e."updatedAt" - COALESCE(t."startDate", e."createdAt"))) / 604800)
+        ) >= ${week}
         ${termFilter}
       ORDER BY e."updatedAt" DESC
       LIMIT 500
@@ -6427,7 +6403,7 @@ export class AdminService {
       JOIN "Term" t ON t.id = s."termId"
       LEFT JOIN "User" u ON u.id = s."instructorUserId"
       LEFT JOIN "Enrollment" e ON e."sectionId" = s.id AND e."deletedAt" IS NULL
-      WHERE s."deletedAt" IS NULL
+      WHERE 1 = 1
         ${termFilter}
       GROUP BY s."instructorName", u.email
       ORDER BY "sections" DESC, "totalStudents" DESC
