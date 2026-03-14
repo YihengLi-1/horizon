@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ApiError, apiFetch } from "@/lib/api";
-import { API_URL } from "@/lib/config";
 
 type LoginResult = {
   role: "STUDENT" | "FACULTY" | "ADVISOR" | "ADMIN";
@@ -31,11 +30,9 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [locked, setLocked] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [webOrigin, setWebOrigin] = useState("");
   const [showDemoAccounts, setShowDemoAccounts] = useState(SHOW_DEMO_ACCOUNTS);
 
   useEffect(() => {
-    setWebOrigin(window.location.origin);
     if (SHOW_DEMO_ACCOUNTS) {
       setShowDemoAccounts(true);
       return;
@@ -124,9 +121,9 @@ export default function LoginPage() {
   return (
     <Card className="rounded-3xl border-slate-200/90 bg-white/95 shadow-[0_20px_50px_-32px_rgba(15,23,42,0.75)]">
       <CardHeader className="pb-4">
-        <CardTitle className="font-heading text-2xl text-slate-900">University SIS</CardTitle>
-        <CardDescription className="text-slate-600">Login with student ID or email and password.</CardDescription>
-        <p className="mt-1 text-sm text-slate-500">Welcome back to 地平线 SIS</p>
+        <p className="text-xs font-semibold tracking-[0.12em] text-slate-500">地平线</p>
+        <CardTitle className="font-heading text-2xl text-slate-900">登录系统</CardTitle>
+        <CardDescription className="text-slate-600">使用学号或邮箱登录。</CardDescription>
       </CardHeader>
       <CardContent>
         <form aria-label="Sign in form" className="space-y-4" onSubmit={onSubmit}>
@@ -197,8 +194,8 @@ export default function LoginPage() {
 
         {showDemoAccounts ? (
           <div className="mt-5 rounded-2xl border border-amber-200/80 bg-amber-50/70 p-4">
-            <h2 className="text-sm font-semibold text-slate-900">Demo accounts</h2>
-            <p className="mt-1 text-xs text-slate-600">Use these buttons to auto-fill test credentials.</p>
+            <h2 className="text-sm font-semibold text-slate-900">演示账号</h2>
+            <p className="mt-1 text-xs text-slate-600">点击按钮可自动填充测试账号。</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <Button
                 type="button"
@@ -237,18 +234,10 @@ export default function LoginPage() {
         ) : null}
 
         <div className="mt-6 text-center text-sm text-slate-500">
-          <Link className="font-medium text-primary underline underline-offset-2" href="/register">Register</Link>
+          <Link className="font-medium text-primary underline underline-offset-2" href="/register">注册</Link>
           <span className="mx-2 text-slate-300">·</span>
-          <Link className="font-medium text-primary underline underline-offset-2" href="/forgot">Forgot password?</Link>
+          <Link className="font-medium text-primary underline underline-offset-2" href="/forgot">忘记密码？</Link>
         </div>
-
-        {showDemoAccounts ? (
-          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
-            <p>WEB: {webOrigin}</p>
-            <p>API: {API_URL}</p>
-            <p>MODE: {process.env.NODE_ENV}</p>
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   );

@@ -58,38 +58,38 @@ type NavGroup = {
 const iconClass = "size-4";
 
 const studentItems: NavItem[] = [
-  { href: "/student/dashboard", label: "Dashboard", icon: <Home className={iconClass} /> },
-  { href: "/student/notifications", label: "Notifications", icon: <Bell className={iconClass} /> },
-  { href: "/student/announcements", label: "Announcements", icon: <Megaphone className={iconClass} /> },
-  { href: "/student/catalog", label: "Catalog", icon: <BookOpen className={iconClass} /> },
+  { href: "/student/dashboard", label: "概览", icon: <Home className={iconClass} /> },
+  { href: "/student/notifications", label: "通知", icon: <Bell className={iconClass} /> },
+  { href: "/student/announcements", label: "公告", icon: <Megaphone className={iconClass} /> },
+  { href: "/student/catalog", label: "课程目录", icon: <BookOpen className={iconClass} /> },
   { href: "/student/readiness", label: "可选课检测", icon: <ListChecks className={iconClass} /> },
   { href: "/student/planner", label: "选课规划", icon: <CalendarDays className={iconClass} /> },
   { href: "/student/planner/4year", label: "四年规划", icon: <CalendarDays className={iconClass} /> },
-  { href: "/student/cart", label: "Cart", icon: <ShoppingCart className={iconClass} /> },
+  { href: "/student/cart", label: "购物车", icon: <ShoppingCart className={iconClass} /> },
   { href: "/student/quick-add", label: "快速注册", icon: <ListChecks className={iconClass} /> },
   { href: "/student/waitlist", label: "候补名单", icon: <Clock className={iconClass} /> },
   { href: "/student/conflicts", label: "冲突检测", icon: <ListChecks className={iconClass} /> },
-  { href: "/student/schedule", label: "Schedule", icon: <CalendarDays className={iconClass} /> },
+  { href: "/student/schedule", label: "课表", icon: <CalendarDays className={iconClass} /> },
   { href: "/student/receipt", label: "选课确认单", icon: <ScrollText className={iconClass} /> },
-  { href: "/student/grades", label: "Grades", icon: <GraduationCap className={iconClass} /> },
+  { href: "/student/grades", label: "成绩", icon: <GraduationCap className={iconClass} /> },
   { href: "/student/degree", label: "毕业进度", icon: <GraduationCap className={iconClass} /> },
   { href: "/student/degree-audit", label: "毕业审计", icon: <GraduationCap className={iconClass} /> },
   { href: "/student/gpa-sim", label: "GPA 模拟器", icon: <BarChart3 className={iconClass} /> },
   { href: "/student/grade-estimator", label: "成绩估算", icon: <BarChart3 className={iconClass} /> },
-  { href: "/student/calendar", label: "Calendar", icon: <CalendarRange className={iconClass} /> },
-  { href: "/student/history", label: "History", icon: <History className={iconClass} /> },
-  { href: "/student/bookmarks", label: "Bookmarks", icon: <Bookmark className={iconClass} /> },
-  { href: "/student/watched", label: "Watched", icon: <Bell className={iconClass} /> },
-  { href: "/student/study-timer", label: "学习计时器", icon: <Clock className={iconClass} /> },
-  { href: "/student/reviews", label: "My Reviews", icon: <Star className={iconClass} /> },
+  { href: "/student/calendar", label: "日历", icon: <CalendarRange className={iconClass} /> },
+  { href: "/student/history", label: "历史记录", icon: <History className={iconClass} /> },
+  { href: "/student/bookmarks", label: "收藏", icon: <Bookmark className={iconClass} /> },
+  { href: "/student/watched", label: "关注课程", icon: <Bell className={iconClass} /> },
+  { href: "/student/study-timer", label: "学习计时", icon: <Clock className={iconClass} /> },
+  { href: "/student/reviews", label: "我的评价", icon: <Star className={iconClass} /> },
   { href: "/student/transcript", label: "修课记录", icon: <ScrollText className={iconClass} /> },
   { href: "/student/my-notes", label: "我的笔记", icon: <ScrollText className={iconClass} /> },
   { href: "/student/appeals", label: "成绩申诉", icon: <ScrollText className={iconClass} /> },
   { href: "/student/settings", label: "设置", icon: <Settings className={iconClass} /> },
   { href: "/student/advisor", label: "我的顾问", icon: <User className={iconClass} /> },
-  { href: "/student/contact", label: "Support", icon: <Mail className={iconClass} /> },
-  { href: "/student/profile", label: "Profile", icon: <User className={iconClass} /> },
-  { href: "/student/help", label: "Help", icon: <HelpCircle className={iconClass} /> },
+  { href: "/student/contact", label: "联系支持", icon: <Mail className={iconClass} /> },
+  { href: "/student/profile", label: "个人资料", icon: <User className={iconClass} /> },
+  { href: "/student/help", label: "帮助", icon: <HelpCircle className={iconClass} /> },
   { href: "/student/peer-compare", label: "同伴对比", icon: <BarChart3 className={iconClass} /> },
   { href: "/student/enrollment-timeline", label: "选课历程", icon: <History className={iconClass} /> },
   { href: "/student/standing", label: "学业状态", icon: <GraduationCap className={iconClass} /> },
@@ -102,7 +102,7 @@ const studentItems: NavItem[] = [
 ];
 
 const adminItems: NavItem[] = [
-  { href: "/admin/dashboard", label: "Dashboard", icon: <LayoutDashboard className={iconClass} /> },
+  { href: "/admin/dashboard", label: "概览", icon: <LayoutDashboard className={iconClass} /> },
   { href: "/admin/alerts", label: "警报中心", icon: <ShieldAlert className={iconClass} /> },
   { href: "/admin/search", label: "全局搜索", icon: <BookOpen className={iconClass} /> },
   { href: "/admin/students", label: "学生", icon: <Users className={iconClass} /> },
@@ -112,7 +112,7 @@ const adminItems: NavItem[] = [
   { href: "/admin/graduation", label: "毕业审核", icon: <GraduationCap className={iconClass} /> },
   { href: "/admin/instructors", label: "教师分析", icon: <GraduationCap className={iconClass} /> },
   { href: "/admin/faculty-schedule", label: "教师课表", icon: <CalendarDays className={iconClass} /> },
-  { href: "/admin/export", label: "Export Center", icon: <Upload className={iconClass} /> },
+  { href: "/admin/export", label: "导出中心", icon: <Upload className={iconClass} /> },
   { href: "/admin/courses", label: "课程", icon: <BookCopy className={iconClass} /> },
   { href: "/admin/sections", label: "教学班", icon: <ListChecks className={iconClass} /> },
   { href: "/admin/terms", label: "学期", icon: <CalendarRange className={iconClass} /> },
@@ -161,22 +161,22 @@ const adminItems: NavItem[] = [
 ];
 
 const facultyItems: NavItem[] = [
-  { href: "/faculty/dashboard", label: "Dashboard", icon: <LayoutDashboard className={iconClass} /> },
-  { href: "/faculty/sections", label: "My Sections", icon: <BookOpen className={iconClass} /> },
-  { href: "/faculty/requests", label: "Prereq Requests", icon: <ListChecks className={iconClass} /> }
+  { href: "/faculty/dashboard", label: "概览", icon: <LayoutDashboard className={iconClass} /> },
+  { href: "/faculty/sections", label: "我的课程", icon: <BookOpen className={iconClass} /> },
+  { href: "/faculty/requests", label: "先修课审批", icon: <ListChecks className={iconClass} /> }
 ];
 
 const advisorItems: NavItem[] = [
-  { href: "/advisor/dashboard", label: "Dashboard", icon: <LayoutDashboard className={iconClass} /> },
-  { href: "/advisor/advisees", label: "My Advisees", icon: <Users className={iconClass} /> },
-  { href: "/advisor/requests", label: "Pending Requests", icon: <ListChecks className={iconClass} /> }
+  { href: "/advisor/dashboard", label: "概览", icon: <LayoutDashboard className={iconClass} /> },
+  { href: "/advisor/advisees", label: "我的学生", icon: <Users className={iconClass} /> },
+  { href: "/advisor/requests", label: "待审批请求", icon: <ListChecks className={iconClass} /> }
 ];
 
 const areaMeta: Record<AppArea, { label: string; items: NavItem[]; subtitle: string }> = {
-  student: { label: "Student Portal", items: studentItems, subtitle: "Academic Planning & Registration" },
-  admin: { label: "Admin Console", items: adminItems, subtitle: "Records & Enrollment Operations" },
-  faculty: { label: "Faculty Workspace", items: facultyItems, subtitle: "Instruction & Grade Submission" },
-  advisor: { label: "Advisor Workspace", items: advisorItems, subtitle: "Advisee Oversight & Notes" }
+  student: { label: "学生端", items: studentItems, subtitle: "选课与学业" },
+  admin: { label: "管理端", items: adminItems, subtitle: "学籍与注册运营" },
+  faculty: { label: "教师端", items: facultyItems, subtitle: "教学与审批" },
+  advisor: { label: "顾问端", items: advisorItems, subtitle: "学生支持" }
 };
 
 function toTitle(text: string): string {
@@ -201,22 +201,26 @@ export function AppShell({
   const [announcementCount, setAnnouncementCount] = useState(0);
   const navMeta = areaMeta[area];
   const sidebarId = "sidebar";
+  const currentNavItem = useMemo(() => {
+    return [...navMeta.items]
+      .sort((a, b) => b.href.length - a.href.length)
+      .find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+  }, [navMeta.items, pathname]);
 
   const pageTitle = useMemo(() => {
     const normalizedPath = pathname.replace(/\/+$/, "");
-    if (normalizedPath.endsWith("/student")) return "Student Portal";
-    if (normalizedPath.endsWith("/admin")) return "Admin Console";
+    if (currentNavItem) return currentNavItem.label;
+    if (normalizedPath.endsWith("/student")) return "学生端";
+    if (normalizedPath.endsWith("/admin")) return "管理端";
 
     const segments = normalizedPath.split("/").filter(Boolean);
     const current = segments[segments.length - 1];
     return current ? toTitle(current) : "University SIS";
-  }, [pathname]);
+  }, [currentNavItem, pathname]);
 
   const breadcrumb = useMemo(() => {
-    const parts = pathname.split("/").filter(Boolean);
-    if (parts.length <= 1) return navMeta.label;
-    return `${navMeta.label} / ${toTitle(parts[parts.length - 1])}`;
-  }, [pathname, navMeta.label]);
+    return currentNavItem ? `${navMeta.label} / ${currentNavItem.label}` : navMeta.label;
+  }, [currentNavItem, navMeta.label]);
 
   const navGroups = useMemo(() => {
     const groups: NavGroup[] =
@@ -228,13 +232,13 @@ export function AppShell({
             { label: "系统", hrefs: ["/admin/announcements", "/admin/cohort-message", "/admin/status-email", "/admin/invite-codes", "/admin/import", "/admin/export", "/admin/reports", "/admin/grade-distribution", "/admin/demand", "/admin/capacity-plan", "/admin/term-compare", "/admin/registration-heatmap", "/admin/prereq-audit", "/admin/offering-history", "/admin/cohort-analytics", "/admin/term-enrollment-forecast", "/admin/course-demand-compare", "/admin/enrollment-audit", "/admin/top-performers", "/admin/dept-workload", "/admin/enrollment-velocity", "/admin/prereq-map", "/admin/grade-curve", "/admin/section-roster", "/admin/term-capacity", "/admin/major-trends", "/admin/late-drops", "/admin/instructor-performance", "/admin/dept-gpa", "/admin/digest", "/admin/audit-logs", "/admin/notifications", "/admin/sessions", "/admin/settings"] }
           ]
         : area === "faculty"
-          ? [{ label: "Instruction", hrefs: ["/faculty/dashboard", "/faculty/sections", "/faculty/requests"] }]
+          ? [{ label: "教学", hrefs: ["/faculty/dashboard", "/faculty/sections", "/faculty/requests"] }]
           : area === "advisor"
-            ? [{ label: "Advising", hrefs: ["/advisor/dashboard", "/advisor/advisees", "/advisor/requests"] }]
+            ? [{ label: "顾问工作台", hrefs: ["/advisor/dashboard", "/advisor/advisees", "/advisor/requests"] }]
         : [
-            { label: "Overview", hrefs: ["/student/dashboard", "/student/notifications", "/student/announcements"] },
-            { label: "Registration", hrefs: ["/student/catalog", "/student/readiness", "/student/planner", "/student/cart", "/student/quick-add", "/student/waitlist", "/student/conflicts", "/student/schedule", "/student/receipt"] },
-            { label: "Academic", hrefs: ["/student/grades", "/student/degree", "/student/degree-audit", "/student/standing", "/student/recommendations", "/student/what-if", "/student/credit-summary", "/student/gpa-goal", "/student/course-history", "/student/graduation-checklist", "/student/gpa-sim", "/student/grade-estimator", "/student/peer-compare", "/student/enrollment-timeline", "/student/transcript", "/student/calendar", "/student/history", "/student/bookmarks", "/student/watched", "/student/study-timer", "/student/reviews", "/student/my-notes", "/student/appeals", "/student/advisor", "/student/settings", "/student/contact", "/student/profile", "/student/help"] }
+            { label: "概览", hrefs: ["/student/dashboard", "/student/notifications", "/student/announcements"] },
+            { label: "选课", hrefs: ["/student/catalog", "/student/readiness", "/student/planner", "/student/cart", "/student/quick-add", "/student/waitlist", "/student/conflicts", "/student/schedule", "/student/receipt"] },
+            { label: "学业", hrefs: ["/student/grades", "/student/degree", "/student/degree-audit", "/student/standing", "/student/recommendations", "/student/what-if", "/student/credit-summary", "/student/gpa-goal", "/student/course-history", "/student/graduation-checklist", "/student/gpa-sim", "/student/grade-estimator", "/student/peer-compare", "/student/enrollment-timeline", "/student/transcript", "/student/calendar", "/student/history", "/student/bookmarks", "/student/watched", "/student/study-timer", "/student/reviews", "/student/my-notes", "/student/appeals", "/student/advisor", "/student/settings", "/student/contact", "/student/profile", "/student/help"] }
           ];
 
     return groups
@@ -343,11 +347,10 @@ export function AppShell({
       >
         <div className="h-1 w-full bg-[#153c70]" />
 
-        <div className="flex h-24 items-center justify-between border-b border-slate-200 px-5">
+        <div className="flex h-20 items-center justify-between border-b border-slate-200 px-5">
           <div className="min-w-0">
-            <p className="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">University System</p>
-            <p className="font-heading text-[1.75rem] font-semibold leading-none text-[#102949]">University SIS</p>
-            <p className="mt-1 truncate text-[10px] uppercase tracking-[0.14em] text-slate-500">{navMeta.subtitle}</p>
+            <p className="font-heading text-[1.45rem] font-semibold leading-none text-[#102949]">地平线</p>
+            <p className="mt-1 text-sm text-slate-500">{navMeta.subtitle}</p>
           </div>
           <button
             type="button"
@@ -359,14 +362,14 @@ export function AppShell({
           </button>
         </div>
 
-        <div className="flex h-[calc(100%-97px)] flex-col px-4 py-5">
-          <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+        <div className="flex h-[calc(100%-81px)] flex-col px-4 py-5">
+          <p className="mb-2 px-1 text-xs font-semibold tracking-[0.08em] text-slate-500">
             {navMeta.label}
           </p>
           <nav aria-label="Main navigation">
             {navGroups.map((group) => (
               <div key={group.label} className="mt-4 first:mt-0">
-                <p className="mb-1 px-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                <p className="mb-1 px-3 text-[11px] font-semibold tracking-[0.08em] text-slate-400">
                   {group.label}
                 </p>
                 <div className="space-y-1.5">{group.items.map(renderNavItem)}</div>
@@ -376,18 +379,7 @@ export function AppShell({
           <div className="mt-auto">
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
               <p className="truncate font-semibold text-slate-800">{userLabel}</p>
-              <p className="mt-0.5">
-                {area === "student"
-                  ? "Student Services"
-                  : area === "admin"
-                    ? "Administrative Services"
-                    : area === "faculty"
-                      ? "Faculty Services"
-                      : "Advising Services"}
-              </p>
-            </div>
-            <div className="mt-3 border-t border-slate-200 px-3 py-3">
-              <p className="text-[10px] text-slate-400">地平线 SIS · v1.0</p>
+              <p className="mt-0.5">{navMeta.label}</p>
             </div>
           </div>
         </div>
@@ -408,7 +400,7 @@ export function AppShell({
                 <AlignJustify className="size-4" />
               </button>
               <div className="min-w-0">
-                <p className="truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                <p className="truncate text-[11px] font-semibold tracking-[0.08em] text-slate-500">
                   {breadcrumb}
                 </p>
                 <h1 className="truncate font-heading text-lg font-semibold text-slate-900">{pageTitle}</h1>

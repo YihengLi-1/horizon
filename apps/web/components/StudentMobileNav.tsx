@@ -5,11 +5,11 @@ import { usePathname } from "next/navigation";
 import { BookOpenIcon, CalendarDaysIcon, LayoutDashboardIcon, ShoppingCartIcon, UserIcon } from "lucide-react";
 
 const LINKS = [
-  { href: "/student/dashboard", icon: LayoutDashboardIcon, label: "Home" },
-  { href: "/student/catalog", icon: BookOpenIcon, label: "Catalog" },
-  { href: "/student/cart", icon: ShoppingCartIcon, label: "Cart" },
-  { href: "/student/schedule", icon: CalendarDaysIcon, label: "Schedule" },
-  { href: "/student/profile", icon: UserIcon, label: "Profile" },
+  { href: "/student/dashboard", icon: LayoutDashboardIcon, label: "首页" },
+  { href: "/student/catalog", icon: BookOpenIcon, label: "课程" },
+  { href: "/student/cart", icon: ShoppingCartIcon, label: "购物车" },
+  { href: "/student/schedule", icon: CalendarDaysIcon, label: "课表" },
+  { href: "/student/profile", icon: UserIcon, label: "我的" },
 ];
 
 export default function StudentMobileNav() {
