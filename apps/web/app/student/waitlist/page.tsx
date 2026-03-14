@@ -56,13 +56,13 @@ function PositionBadge({ position, queueSize }: { position: number | null; queue
 export default function WaitlistPage() {
   const [entries, setEntries] = useState<WaitlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
+  const [lastRefreshedLabel, setLastRefreshedLabel] = useState("—");
 
   const load = useCallback(async () => {
     try {
       const data = await apiFetch<WaitlistEntry[]>("/registration/my-waitlist");
       setEntries(data);
-      setLastRefreshed(new Date());
+      setLastRefreshedLabel(new Date().toLocaleTimeString());
     } catch {
       setEntries([]);
     } finally {
@@ -97,7 +97,7 @@ export default function WaitlistPage() {
 
       <div className="flex items-center justify-between">
         <p className="text-xs text-slate-400">
-          上次刷新：{lastRefreshed.toLocaleTimeString()}
+          上次刷新：{lastRefreshedLabel}
         </p>
         <button
           type="button"

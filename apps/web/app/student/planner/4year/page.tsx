@@ -50,7 +50,7 @@ export default function FourYearPlannerPage() {
 
   useEffect(() => {
     setPlan(loadPlan());
-    apiFetch<Course[]>("/admin/courses")
+    apiFetch<Course[]>("/academics/courses")
       .then((data) => setCourses(data ?? []))
       .catch(() => setCourses([]));
   }, []);

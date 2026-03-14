@@ -27,7 +27,27 @@ type TermGroup = {
   enrollments: EnrollmentItem[];
 };
 
-type ReceiptData = { termGroups: TermGroup[] };
+type StudentProfileResponse = {
+  enrollments?: Array<{
+    id: string;
+    createdAt?: string;
+    status: string;
+    finalGrade: string | null;
+    section: {
+      id?: string;
+      credits: number;
+      sectionCode: string;
+      course: {
+        code: string;
+        title: string;
+      };
+      term?: {
+        id: string;
+        name: string;
+      };
+    };
+  }>;
+};
 
 const STATUS_STYLES: Record<string, string> = {
   ENROLLED: "bg-emerald-100 text-emerald-800",
@@ -45,26 +65,52 @@ const GRADE_GPA: Record<string, number> = {
 };
 
 export default function EnrollmentTimelinePage() {
-  const [data, setData] = useState<ReceiptData | null>(null);
+  const [groups, setGroups] = useState<TermGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<string>("ALL");
   const [expandedTerms, setExpandedTerms] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    void apiFetch<ReceiptData>("/students/enrollment-receipt")
-      .then((d) => {
-        setData(d);
-        // Expand all terms by default
-        setExpandedTerms(new Set((d?.termGroups ?? []).map((g) => g.termId)));
+    void apiFetch<StudentProfileResponse>("/students/me")
+      .then((profile) => {
+        const byTerm = new Map<string, TermGroup>();
+
+        for (const enrollment of profile.enrollments ?? []) {
+          const termId = enrollment.section.term?.id ?? "unknown-term";
+          const termName = enrollment.section.term?.name ?? "Unknown term";
+          const bucket = byTerm.get(termId) ?? {
+            termId,
+            termName,
+            enrollments: []
+          };
+
+          bucket.enrollments.push({
+            enrollmentId: enrollment.id,
+            sectionId: enrollment.section.id ?? enrollment.id,
+            sectionCode: enrollment.section.sectionCode,
+            courseCode: enrollment.section.course.code,
+            courseTitle: enrollment.section.course.title,
+            credits: enrollment.section.credits,
+            status: enrollment.status,
+            finalGrade: enrollment.finalGrade,
+            enrolledAt: enrollment.createdAt ?? ""
+          });
+
+          byTerm.set(termId, bucket);
+        }
+
+        const nextGroups = [...byTerm.values()].sort((a, b) => a.termName.localeCompare(b.termName));
+        setGroups(nextGroups);
+        setExpandedTerms(new Set(nextGroups.map((group) => group.termId)));
       })
       .catch((e) => setError(e instanceof Error ? e.message : "加载失败"))
       .finally(() => setLoading(false));
   }, []);
 
   const stats = useMemo(() => {
-    if (!data) return null;
-    const all = data.termGroups.flatMap((g) => g.enrollments);
+    if (groups.length === 0) return null;
+    const all = groups.flatMap((g) => g.enrollments);
     const completed = all.filter((e) => e.status === "COMPLETED");
     const totalCredits = completed.reduce((s, e) => s + e.credits, 0);
     const gradedItems = completed.filter((e) => e.finalGrade && e.finalGrade !== "W" && GRADE_GPA[e.finalGrade] !== undefined);
@@ -73,13 +119,13 @@ export default function EnrollmentTimelinePage() {
         Math.max(1, gradedItems.reduce((s, e) => s + e.credits, 0))
       : 0;
     return {
-      terms: data.termGroups.length,
+      terms: groups.length,
       total: all.length,
       completed: completed.length,
       credits: totalCredits,
       gpa,
     };
-  }, [data]);
+  }, [groups]);
 
   function toggleTerm(id: string) {
     setExpandedTerms((prev) => {
@@ -89,7 +135,7 @@ export default function EnrollmentTimelinePage() {
     });
   }
 
-  const filteredGroups = (data?.termGroups ?? []).map((g) => ({
+  const filteredGroups = groups.map((g) => ({
     ...g,
     enrollments: filter === "ALL" ? g.enrollments : g.enrollments.filter((e) => e.status === filter),
   })).filter((g) => g.enrollments.length > 0);

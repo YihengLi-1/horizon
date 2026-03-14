@@ -14,14 +14,15 @@ import { apiFetch } from "@/lib/api";
 type GpaStats = {
   myGpa: number | null;
   percentile: number | null;
-  mean: number;
-  median: number;
-  distribution: { label: string; count: number }[];
+  mean: number | null;
+  median: number | null;
+  distribution?: { label: string; count: number }[];
 };
 
 type Me = {
-  email: string;
-  studentProfile?: { legalName?: string | null; department?: string | null; graduationYear?: number | null } | null;
+  legalName?: string | null;
+  programMajor?: string | null;
+  user?: { email?: string | null } | null;
   enrollments?: {
     status: string;
     finalGrade?: string | null;
@@ -79,7 +80,8 @@ export default function PeerComparePage() {
     .reduce((s, e) => s + (e.section.course.credits ?? 0), 0);
   const enrolledCount = (me?.enrollments ?? []).filter((e) => e.status === "ENROLLED").length;
   const completedCount = (me?.enrollments ?? []).filter((e) => e.status === "COMPLETED").length;
-  const maxDistCount = Math.max(...(stats?.distribution.map((d) => d.count) ?? [1]), 1);
+  const distribution = stats?.distribution ?? [];
+  const maxDistCount = Math.max(...distribution.map((d) => d.count), 1);
 
   if (loading) {
     return (
@@ -107,11 +109,11 @@ export default function PeerComparePage() {
         </div>
         <div className="campus-kpi">
           <p className="campus-kpi-label">全体均值</p>
-          <p className="campus-kpi-value">{stats ? stats.mean.toFixed(2) : "—"}</p>
+          <p className="campus-kpi-value">{stats?.mean != null ? stats.mean.toFixed(2) : "—"}</p>
         </div>
         <div className="campus-kpi">
           <p className="campus-kpi-label">全体中位数</p>
-          <p className="campus-kpi-value">{stats ? stats.median.toFixed(2) : "—"}</p>
+          <p className="campus-kpi-value">{stats?.median != null ? stats.median.toFixed(2) : "—"}</p>
         </div>
         <div className="campus-kpi">
           <p className="campus-kpi-label">已完成学分</p>
@@ -155,9 +157,9 @@ export default function PeerComparePage() {
         {/* GPA Distribution */}
         <div className="campus-card p-4 space-y-3">
           <h3 className="text-xs font-bold uppercase text-slate-500">GPA 全体分布</h3>
-          {stats?.distribution.length ? (
+          {distribution.length ? (
             <div className="space-y-2">
-              {stats.distribution.map((d) => {
+              {distribution.map((d) => {
                 const isMyBin = myGpa !== null &&
                   d.label.includes("–") &&
                   (() => {
@@ -190,16 +192,12 @@ export default function PeerComparePage() {
             <div className="flex justify-between text-sm">
               <span className="text-slate-600">姓名</span>
               <span className="font-semibold text-slate-900 text-right max-w-[150px] truncate">
-                {me?.studentProfile?.legalName ?? me?.email ?? "—"}
+                {me?.legalName ?? me?.user?.email ?? "—"}
               </span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-slate-600">院系</span>
-              <span className="font-semibold text-slate-900">{me?.studentProfile?.department ?? "—"}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-600">预计毕业年</span>
-              <span className="font-semibold text-slate-900">{me?.studentProfile?.graduationYear ?? "—"}</span>
+              <span className="text-slate-600">专业</span>
+              <span className="font-semibold text-slate-900">{me?.programMajor ?? "—"}</span>
             </div>
             <hr className="border-slate-200" />
             <div className="flex justify-between text-sm">

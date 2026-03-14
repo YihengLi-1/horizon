@@ -91,6 +91,7 @@ export class StudentsService {
           where: { deletedAt: null },
           select: {
             id: true,
+            createdAt: true,
             status: true,
             finalGrade: true,
             waitlistPosition: true,

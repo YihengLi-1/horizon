@@ -625,7 +625,7 @@ check_contains "apps/api/src/admin/admin.controller.ts" "term-enrollment-forecas
 check_exists "apps/web/app/admin/term-enrollment-forecast/page.tsx" "Admin forecast page"
 check_contains "apps/web/app/admin/term-enrollment-forecast/page.tsx" "forecast" "Forecast data in page"
 check_exists "apps/web/app/student/enrollment-timeline/page.tsx" "Student enrollment timeline page"
-check_contains "apps/web/app/student/enrollment-timeline/page.tsx" "termGroups" "Term groups in timeline"
+check_contains "apps/web/app/student/enrollment-timeline/page.tsx" "byTerm" "Term groups in timeline"
 check_contains "apps/web/components/app-shell.tsx" "/student/enrollment-timeline" "Enrollment timeline nav link"
 check_contains "apps/web/components/app-shell.tsx" "/admin/cohort-analytics" "Cohort analytics nav link"
 check_contains "apps/web/components/app-shell.tsx" "/admin/term-enrollment-forecast" "Forecast nav link"
