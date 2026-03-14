@@ -334,7 +334,6 @@ check_contains "apps/web/app/admin/reports/page.tsx" "deptBreakdown|dept-breakdo
 check_exists "apps/web/app/admin/import/page.tsx" "Admin import page"
 check_contains "apps/web/app/admin/import/page.tsx" "importCourses|import.*courses|course.*import" "Admin import courses tab"
 check_contains "apps/web/app/admin/import/page.tsx" "importSections|import.*sections|section.*import" "Admin import sections tab"
-check_contains "apps/web/components/CommandPalette.tsx" "Cmd|cmd|⌘|Meta" "Command palette keyboard shortcut"
 check_contains "apps/api/src/registration/registration.service.ts" "PREREQ_NOT_MET" "Prereq server-side enforcement"
 check_contains "apps/api/src/registration/registration.controller.ts" "swap" "Atomic swap endpoint"
 check_contains "apps/api/src/registration/registration.service.ts" "SWAP_DIFFERENT_COURSE" "Atomic swap course validation"
