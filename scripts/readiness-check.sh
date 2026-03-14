@@ -601,6 +601,20 @@ check_exists "apps/web/app/admin/grade-distribution/page.tsx" "Admin grade distr
 check_contains "apps/web/components/app-shell.tsx" "/admin/grade-distribution" "Grade distribution nav link"
 check_contains "apps/web/app/admin/grade-distribution/page.tsx" "gradeBreakdown" "Grade stats in distribution page"
 
+# ── Session 18d (dropout-risk / degree-audit / section-analytics) ────────────
+check_contains "apps/api/src/admin/admin.service.ts" "getDropoutRisk" "Dropout risk service method"
+check_contains "apps/api/src/admin/admin.controller.ts" "dropout-risk" "Dropout risk endpoint"
+check_exists "apps/web/app/admin/dropout-risk/page.tsx" "Admin dropout risk page"
+check_contains "apps/web/components/app-shell.tsx" "/admin/dropout-risk" "Dropout risk nav link"
+check_contains "apps/web/app/admin/dropout-risk/page.tsx" "riskScore" "Risk score in dropout page"
+check_exists "apps/web/app/student/degree-audit/page.tsx" "Student degree audit page"
+check_contains "apps/web/components/app-shell.tsx" "/student/degree-audit" "Degree audit nav link"
+check_contains "apps/web/app/student/degree-audit/page.tsx" "remainingCredits" "Remaining credits in degree audit"
+check_contains "apps/api/src/admin/admin.service.ts" "getSectionAnalytics" "Section analytics service method"
+check_contains "apps/api/src/admin/admin.controller.ts" "analytics" "Section analytics endpoint"
+check_exists "apps/web/app/admin/sections/[id]/page.tsx" "Admin section analytics dynamic page"
+check_contains "apps/web/app/admin/sections/[id]/page.tsx" "enrollmentTimeline" "Timeline in section analytics"
+
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"
 else
