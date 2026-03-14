@@ -1,9 +1,7 @@
 import Link from "next/link";
-import AdminDataExport from "@/components/AdminDataExport";
 import { serverApi } from "@/lib/server-api";
 import { requireRole } from "@/lib/server-auth";
 import EnrollmentTrendChart from "./EnrollmentTrendChart";
-import QuickSearch from "./QuickSearch";
 import RefreshButton from "./RefreshButton";
 
 type Breakdown = {
@@ -111,66 +109,6 @@ type OpsReady = {
   status: string;
 };
 
-function DonutChart({
-  data
-}: {
-  data: Array<{ label: string; value: number; color: string }>;
-}) {
-  const total = data.reduce((sum, item) => sum + item.value, 0);
-  if (!total) return null;
-  const radius = 40;
-  const cx = 50;
-  const cy = 50;
-  const stroke = 12;
-  let offset = -Math.PI / 2;
-  const segments = data
-    .filter((item) => item.value > 0)
-    .map((item) => {
-      const angle = (item.value / total) * Math.PI * 2;
-      const x1 = cx + radius * Math.cos(offset);
-      const y1 = cy + radius * Math.sin(offset);
-      offset += angle;
-      const x2 = cx + radius * Math.cos(offset);
-      const y2 = cy + radius * Math.sin(offset);
-      return {
-        ...item,
-        path: `M${x1.toFixed(2)},${y1.toFixed(2)} A${radius},${radius} 0 ${angle > Math.PI ? 1 : 0},1 ${x2.toFixed(2)},${y2.toFixed(2)}`
-      };
-    });
-
-  return (
-    <div className="flex items-center gap-4">
-      <svg width={100} height={100} viewBox="0 0 100 100">
-        {segments.map((segment) => (
-          <path
-            key={segment.label}
-            d={segment.path}
-            fill="none"
-            stroke={segment.color}
-            strokeWidth={stroke}
-            strokeLinecap="butt"
-          />
-        ))}
-        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" fontSize="14" fontWeight="bold" fill="#1e293b">
-          {total}
-        </text>
-        <text x={cx} y={cy + 13} textAnchor="middle" fontSize="7" fill="#94a3b8">
-          total
-        </text>
-      </svg>
-      <div className="space-y-1">
-        {segments.map((segment) => (
-          <div key={segment.label} className="flex items-center gap-2 text-xs">
-            <div className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: segment.color }} />
-            <span className="text-slate-600 dark:text-slate-400">{segment.label}</span>
-            <span className="ml-auto font-semibold text-slate-800 dark:text-slate-100">{segment.value}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function StatCard({
   label,
   value,
@@ -223,13 +161,35 @@ function actionLabel(action: string): string {
   return map[action] ?? action;
 }
 
+function actorRoleBadge(role: string): { label: string; className: string } {
+  const normalized = role.toUpperCase();
+  if (normalized === "ADMIN") {
+    return {
+      label: "Admin",
+      className: "border-violet-200 bg-violet-50 text-violet-700"
+    };
+  }
+  if (normalized === "FACULTY") {
+    return {
+      label: "Faculty",
+      className: "border-emerald-200 bg-emerald-50 text-emerald-700"
+    };
+  }
+  if (normalized === "ADVISOR") {
+    return {
+      label: "Advisor",
+      className: "border-amber-200 bg-amber-50 text-amber-700"
+    };
+  }
+  return {
+    label: "Student",
+    className: "border-blue-200 bg-blue-50 text-blue-700"
+  };
+}
+
 const nodeEnv = process.env.NODE_ENV ?? "development";
 const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? "v1.0.0";
 const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME ?? "—";
-const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_URL ?? "http://localhost:3001";
-const prometheusUrl = "http://localhost:9090";
-const alertmanagerUrl = "http://localhost:9093";
-const swaggerUrl = `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}/api/docs`;
 
 export default async function AdminDashboardPage() {
   await requireRole("ADMIN");
@@ -277,20 +237,7 @@ export default async function AdminDashboardPage() {
       ? ((opsMetrics.errorResponsesTotal / opsMetrics.requestsTotal) * 100).toFixed(1)
       : "0.0"
     : null;
-  const topAuditActions = opsMetrics
-    ? Object.entries(opsMetrics.auditActionCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 4)
-    : [];
-  const topRoutes = opsMetrics
-    ? Object.entries(opsMetrics.byRoute)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-    : [];
   const activeAlerts = opsMetrics?.alerts ?? [];
-  const mailFailureRate = opsMetrics ? `${opsMetrics.mailIndicators.failureRatePercent.toFixed(2)}%` : null;
-  const mailLastSuccess = opsMetrics?.mail.lastSuccessAt ? new Date(opsMetrics.mail.lastSuccessAt).toLocaleString() : "Never";
-  const mailLastFailure = opsMetrics?.mail.lastFailureAt ? new Date(opsMetrics.mail.lastFailureAt).toLocaleString() : "None";
   const systemHealthy = opsReady?.status === "ok";
 
   // Check if registration is actually open for activeTerm
@@ -302,25 +249,6 @@ export default async function AdminDashboardPage() {
   const daysToDropDeadline = dropDeadline
     ? Math.ceil((dropDeadline.getTime() - now) / (1000 * 60 * 60 * 24))
     : null;
-  const metricsHistory = opsMetrics?.history ?? [];
-  const metricsHistoryWidth = 280;
-  const metricsHistoryHeight = 72;
-  const metricsHistoryPad = 16;
-  const maxHistoryRequests = Math.max(...metricsHistory.map((item) => item.requestsTotal), 1);
-  const historyPoints = metricsHistory.map((item, index) => ({
-    x:
-      metricsHistoryPad +
-      (index * (metricsHistoryWidth - metricsHistoryPad * 2)) / Math.max(1, metricsHistory.length - 1),
-    y:
-      metricsHistoryHeight -
-      metricsHistoryPad -
-      (item.requestsTotal / maxHistoryRequests) * (metricsHistoryHeight - metricsHistoryPad * 2),
-    value: item
-  }));
-  const historyPath = historyPoints
-    .map((point, index) => `${index === 0 ? "M" : "L"}${point.x},${point.y}`)
-    .join(" ");
-
   function relativeDate(dateStr: string): string {
     const d = new Date(dateStr);
     const todayStart = new Date();
@@ -361,7 +289,6 @@ export default async function AdminDashboardPage() {
             )}
           </div>
           <div className="flex w-full max-w-xl flex-wrap items-center justify-end gap-2">
-            <QuickSearch />
             <RefreshButton />
           </div>
         </div>
@@ -418,6 +345,14 @@ export default async function AdminDashboardPage() {
                     : `Registration closed ${new Date(activeTerm.registrationCloseAt).toLocaleDateString()}`
                 )}
                 {" · "}Drop by {new Date(activeTerm.dropDeadline).toLocaleDateString()}
+                {daysToDropDeadline !== null ? (
+                  <>
+                    {" "}
+                    <span className="font-semibold">
+                    · {daysToDropDeadline > 0 ? `${daysToDropDeadline}d to drop deadline` : "Drop deadline passed"}
+                    </span>
+                  </>
+                ) : null}
               </p>
             </div>
             <div className={`flex gap-6 text-center`}>
@@ -440,56 +375,6 @@ export default async function AdminDashboardPage() {
           </Link>
         </div>
       )}
-
-      {activeTerm ? (
-        <div className={`flex items-center gap-3 rounded-xl border p-4 ${regOpen ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
-          <span className="text-2xl">{regOpen ? "🟢" : "🔴"}</span>
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-slate-800">
-              {activeTerm.name} — Registration {regOpen ? "Open" : "Closed"}
-            </p>
-            {regOpen && daysToRegEnd !== null ? (
-              <p className={`text-xs font-medium ${daysToRegEnd <= 3 ? "text-red-600" : daysToRegEnd <= 7 ? "text-amber-600" : "text-emerald-600"}`}>
-                {daysToRegEnd > 0 ? `Closes in ${daysToRegEnd} day${daysToRegEnd !== 1 ? "s" : ""}` : "Closes today!"}
-              </p>
-            ) : (
-              <p className="text-xs font-medium text-slate-500">Registration can be reopened from Terms if needed.</p>
-            )}
-          </div>
-          <a href="/admin/terms" className="text-xs font-medium text-blue-600 hover:underline">
-            Manage →
-          </a>
-        </div>
-      ) : null}
-
-      {dropDeadline && daysToDropDeadline !== null ? (
-        <div
-          className={`flex items-center gap-3 rounded-xl border p-3 ${
-            daysToDropDeadline <= 3
-              ? "border-red-200 bg-red-50"
-              : daysToDropDeadline <= 7
-                ? "border-amber-200 bg-amber-50"
-                : "border-slate-200 bg-slate-50"
-          }`}
-        >
-          <span className="text-xl">{daysToDropDeadline <= 3 ? "🚨" : daysToDropDeadline <= 7 ? "⚠️" : "📅"}</span>
-          <div>
-            <p className="text-sm font-semibold text-slate-800">Drop Deadline</p>
-            <p
-              className={`text-xs font-medium ${
-                daysToDropDeadline <= 3
-                  ? "text-red-600"
-                  : daysToDropDeadline <= 7
-                    ? "text-amber-600"
-                    : "text-slate-500"
-              }`}
-            >
-              {daysToDropDeadline > 0 ? `${daysToDropDeadline} day${daysToDropDeadline !== 1 ? "s" : ""} remaining` : "Deadline has passed"}{" "}
-              ({dropDeadline.toLocaleDateString()})
-            </p>
-          </div>
-        </div>
-      ) : null}
 
       {/* Enrollment breakdown */}
       <div>
@@ -539,285 +424,83 @@ export default async function AdminDashboardPage() {
       </div>
 
       <div className="campus-card p-4">
-        <div className="grid gap-4 lg:grid-cols-[1.35fr_0.9fr]">
-          <EnrollmentTrendChart />
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <p className="mb-3 text-xs font-semibold uppercase text-slate-400">Enrollment Status</p>
-            <DonutChart
-              data={[
-                { label: "Enrolled", value: breakdown.enrolled, color: "#10b981" },
-                { label: "Waitlisted", value: breakdown.waitlisted, color: "#f59e0b" },
-                { label: "Pending", value: breakdown.pendingApproval, color: "#6366f1" },
-                { label: "Dropped", value: breakdown.dropped, color: "#ef4444" }
-              ]}
-            />
+        <EnrollmentTrendChart />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="API"
+          value={systemHealthy ? "Healthy" : "Issues"}
+          sub={`${opsVersion?.nodeEnv ?? nodeEnv} · ${opsVersion?.version ?? appVersion}`}
+          accent={systemHealthy ? "text-emerald-600" : "text-red-600"}
+        />
+        <StatCard
+          label="Requests"
+          value={opsMetrics?.requestsTotal ?? "—"}
+          sub="since service start"
+        />
+        <StatCard
+          label="Error Rate"
+          value={errorRatePct !== null ? `${errorRatePct}%` : "—"}
+          sub="5xx and 4xx responses"
+          accent={errorRatePct !== null && Number(errorRatePct) > 5 ? "text-red-600" : "text-slate-900"}
+        />
+        <StatCard
+          label="Uptime"
+          value={opsMetrics ? formatUptime(opsMetrics.uptimeSeconds) : "—"}
+          sub={opsVersion?.buildTime ?? buildTime}
+          accent="text-blue-700"
+        />
+      </div>
+
+      {activeAlerts.length > 0 ? (
+        <div className="campus-card p-4">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Operational Alerts</p>
+          <div className="grid gap-3 md:grid-cols-2">
+            {activeAlerts.map((alert) => (
+              <div
+                key={alert.code}
+                className={`rounded-lg border px-3 py-2 text-sm ${
+                  alert.level === "critical"
+                    ? "border-red-200 bg-red-50 text-red-700"
+                    : "border-amber-200 bg-amber-50 text-amber-700"
+                }`}
+              >
+                <p className="font-semibold">{alert.message}</p>
+                <p className="mt-0.5 text-xs">
+                  {alert.code} · {alert.value} / {alert.threshold}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Operational Health</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">System Summary</h2>
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            {opsMetrics ? (
-              <div className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Requests</p>
-                    <p className="mt-1 text-lg font-semibold text-slate-900">{opsMetrics.requestsTotal}</p>
-                  </div>
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-red-600">Error Rate</p>
-                    <p className="mt-1 text-lg font-semibold text-red-700">{errorRatePct}%</p>
-                  </div>
-                  <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Uptime</p>
-                    <p className="mt-1 text-lg font-semibold text-blue-900">{formatUptime(opsMetrics.uptimeSeconds)}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Top Audit Actions</p>
-                  {topAuditActions.length === 0 ? (
-                    <p className="text-sm text-slate-500">No audit actions captured yet.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {topAuditActions.map(([action, count]) => (
-                        <div key={action} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                          <span className="font-medium text-slate-700">{actionLabel(action)}</span>
-                          <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-sm font-semibold text-slate-700">
-                            {count}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Operational Alerts</p>
-                  {activeAlerts.length === 0 ? (
-                    <p className="text-sm text-emerald-700">No active threshold alerts.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {activeAlerts.map((alert) => (
-                        <div
-                          key={alert.code}
-                          className={`rounded-lg border px-3 py-2 text-sm ${
-                            alert.level === "critical"
-                              ? "border-red-200 bg-red-50 text-red-700"
-                              : "border-amber-200 bg-amber-50 text-amber-700"
-                          }`}
-                        >
-                          <p className="font-semibold">{alert.message}</p>
-                          <p className="mt-0.5 text-xs">
-                            {alert.code} · {alert.value} / {alert.threshold}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">CSRF Origin Blocked</p>
-                    <p className="mt-1 font-semibold text-slate-800">
-                      {opsMetrics.security.csrfOriginBlocked} / {opsMetrics.thresholds.csrfOriginBlocked}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">CSRF Token Invalid</p>
-                    <p className="mt-1 font-semibold text-slate-800">
-                      {opsMetrics.security.csrfTokenInvalid} / {opsMetrics.thresholds.csrfTokenInvalid}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Login Rate Limited</p>
-                    <p className="mt-1 font-semibold text-slate-800">
-                      {opsMetrics.security.loginRateLimited} / {opsMetrics.thresholds.loginRateLimited}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Login Failed</p>
-                    <p className="mt-1 font-semibold text-slate-800">{opsMetrics.security.loginFailed}</p>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Mail Delivery</p>
-                    <p className="mt-1 font-semibold text-slate-800">
-                      {opsMetrics.mail.sent} sent / {opsMetrics.mail.failed} failed
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {opsMetrics.mailIndicators.deliveryAttempts} attempts · {mailFailureRate} failure rate
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Mail Transport</p>
-                    <p className="mt-1 font-semibold text-slate-800">
-                      {opsMetrics.mail.enabled ? (opsMetrics.mail.configured ? "Configured" : "Misconfigured") : "Disabled"}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Last success: {mailLastSuccess}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Last failure: {mailLastFailure}
-                    </p>
-                  </div>
-                </div>
-
-                {topRoutes.length > 0 ? (
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Busiest Routes</p>
-                    <div className="space-y-1.5">
-                      {topRoutes.map(([route, count]) => {
-                        const maxCount = topRoutes[0]?.[1] ?? 1;
-                        const pct = Math.round((count / maxCount) * 100);
-                        return (
-                          <div key={route} className="flex items-center gap-3">
-                            <span className="min-w-0 flex-1 truncate font-mono text-xs text-slate-600">{route}</span>
-                            <div className="w-20 overflow-hidden rounded-full bg-slate-100" style={{ height: 6 }}>
-                              <div className="h-full rounded-full bg-slate-400" style={{ width: `${pct}%` }} />
-                            </div>
-                            <span className="w-8 shrink-0 text-right text-xs font-semibold text-slate-700">{count}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : null}
-
-                {metricsHistory.length > 1 ? (
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Metrics History</p>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-                      <svg
-                        width={metricsHistoryWidth}
-                        height={metricsHistoryHeight}
-                        viewBox={`0 0 ${metricsHistoryWidth} ${metricsHistoryHeight}`}
-                        className="w-full overflow-visible"
-                      >
-                        <path d={historyPath} fill="none" stroke="#0f172a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        {historyPoints.map((point, index) => (
-                          <g key={index}>
-                            <circle cx={point.x} cy={point.y} r={2.5} fill="#0f172a" />
-                            <text x={point.x} y={metricsHistoryHeight - 2} textAnchor="middle" fontSize="7" fill="#94a3b8">
-                              {new Date(point.value.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                            </text>
-                          </g>
-                        ))}
-                      </svg>
-                      <p className="mt-2 text-[11px] text-slate-500">Recent request-count snapshots captured every 5 minutes.</p>
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="mt-4 border-t border-slate-100 pt-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">系统状态</p>
-                  <div className="mt-2 grid grid-cols-4 gap-2 text-xs">
-                    <div>
-                      <p className="text-slate-500">API</p>
-                      <p className={`mt-0.5 font-semibold ${systemHealthy ? "text-emerald-600" : "text-red-600"}`}>
-                        {systemHealthy ? "正常" : "异常"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">Environment</p>
-                      <p className={`mt-0.5 font-semibold ${(opsVersion?.nodeEnv ?? nodeEnv) === "production" ? "text-emerald-600" : "text-amber-600"}`}>
-                        {opsVersion?.nodeEnv ?? nodeEnv}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">Version</p>
-                      <p className="mt-0.5 font-mono font-semibold text-slate-700">{opsVersion?.version ?? appVersion}</p>
-                      <p className="mt-1 text-[11px] text-slate-400">{opsVersion?.buildTime ?? (buildTime || "—")}</p>
-                    </div>
-                    <div>
-                      <p className="text-slate-500">Uptime / PID</p>
-                      <p className="mt-0.5 font-semibold text-slate-700">
-                        {opsVersion ? `${formatUptime(opsVersion.uptime)} · ${opsVersion.pid}` : "—"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <AdminDataExport apiUrl={process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"} />
-                  </div>
-                </div>
-
-                <div className="campus-card p-4">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Monitoring</p>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {[
-                      { label: "Grafana", url: grafanaUrl, color: "text-orange-600", bg: "bg-orange-50 border-orange-200", icon: "📊" },
-                      { label: "Prometheus", url: prometheusUrl, color: "text-red-600", bg: "bg-red-50 border-red-200", icon: "🔥" },
-                      { label: "Alertmanager", url: alertmanagerUrl, color: "text-blue-600", bg: "bg-blue-50 border-blue-200", icon: "🔔" },
-                      { label: "Swagger", url: swaggerUrl, color: "text-slate-700", bg: "bg-slate-50 border-slate-200", icon: "📘" }
-                    ].map((item) => (
-                      <a
-                        key={item.label}
-                        href={item.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`flex flex-col items-center gap-1 rounded-xl border p-3 text-center transition-opacity hover:opacity-80 ${item.bg}`}
-                      >
-                        <span className="text-xl">{item.icon}</span>
-                        <span className={`text-xs font-semibold ${item.color}`}>{item.label}</span>
-                        <span className="text-[10px] text-slate-400">↗ Open</span>
-                      </a>
-                    ))}
-                  </div>
-                </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Environment</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{opsVersion?.nodeEnv ?? nodeEnv}</p>
               </div>
-            ) : (
-              <p className="text-sm text-slate-500">Metrics endpoint unavailable.</p>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Response Status Codes</h2>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            {opsMetrics && Object.keys(opsMetrics.byStatusCode).length > 0 ? (
-              <div className="space-y-2">
-                {Object.entries(opsMetrics.byStatusCode)
-                  .sort((a, b) => Number(a[0]) - Number(b[0]))
-                  .map(([code, count]) => {
-                    const n = Number(code);
-                    const cls =
-                      n >= 500 ? "border-red-200 bg-red-50 text-red-700" :
-                      n >= 400 ? "border-amber-200 bg-amber-50 text-amber-700" :
-                      n >= 300 ? "border-blue-200 bg-blue-50 text-blue-700" :
-                      "border-emerald-200 bg-emerald-50 text-emerald-700";
-                    const pct = opsMetrics.requestsTotal > 0
-                      ? Math.round((count / opsMetrics.requestsTotal) * 100)
-                      : 0;
-                    return (
-                      <div key={code} className="flex items-center gap-3">
-                        <span className={`inline-flex w-14 shrink-0 justify-center rounded-full border px-2 py-0.5 text-xs font-semibold ${cls}`}>
-                          {code}
-                        </span>
-                        <div className="flex-1 overflow-hidden rounded-full bg-slate-100" style={{ height: 8 }}>
-                          <div className={`h-full rounded-full ${n >= 500 ? "bg-red-500" : n >= 400 ? "bg-amber-400" : n >= 300 ? "bg-blue-400" : "bg-emerald-500"}`} style={{ width: `${pct}%` }} />
-                        </div>
-                        <span className="w-8 shrink-0 text-right text-xs font-semibold text-slate-700">{count}</span>
-                      </div>
-                    );
-                  })}
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Version</p>
+                <p className="mt-1 font-mono text-sm font-semibold text-slate-900">{opsVersion?.version ?? appVersion}</p>
               </div>
-            ) : (
-              <p className="text-sm text-slate-500">{opsMetrics ? "No response data yet." : "Metrics endpoint unavailable."}</p>
-            )}
-            {opsMetrics && Object.keys(opsMetrics.byMethod).length > 0 ? (
-              <div className="mt-4 space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">HTTP Methods</p>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(opsMetrics.byMethod).sort((a, b) => b[1] - a[1]).map(([method, count]) => (
-                    <span key={method} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
-                      {method} <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-slate-700">{count}</span>
-                    </span>
-                  ))}
-                </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pending Approval</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{breakdown.pendingApproval}</p>
               </div>
-            ) : null}
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Waitlist Load</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{data.waitlist}</p>
+              </div>
+            </div>
+            <p className="mt-4 text-sm text-slate-500">
+              This dashboard now stays focused on academic operations. Export, search, and monitoring live on their own pages.
+            </p>
           </div>
         </div>
       </div>
@@ -847,18 +530,14 @@ export default async function AdminDashboardPage() {
             <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white shadow-sm">
               {recentActivity.map((log) => {
                 const dateLabel = relativeDate(log.createdAt);
-                const isAdmin = log.actorRole === "admin";
+                const badge = actorRoleBadge(log.actorRole);
                 return (
                   <div key={log.id} className="flex items-center justify-between px-4 py-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="truncate text-sm font-medium text-slate-800">{actionLabel(log.action)}</p>
-                        <span className={`hidden shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase sm:inline-flex ${
-                          isAdmin
-                            ? "border-violet-200 bg-violet-50 text-violet-700"
-                            : "border-blue-200 bg-blue-50 text-blue-700"
-                        }`}>
-                          {isAdmin ? "Admin" : "Student"}
+                        <span className={`hidden shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase sm:inline-flex ${badge.className}`}>
+                          {badge.label}
                         </span>
                       </div>
                       <p className="truncate text-xs text-slate-500">
