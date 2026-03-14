@@ -34,9 +34,6 @@ import {
   User,
   Users
 } from "lucide-react";
-import DarkModeToggle from "@/components/DarkModeToggle";
-import CommandPalette from "@/components/CommandPalette";
-import KeyboardShortcutsModal from "@/components/KeyboardShortcutsModal";
 import NotificationBell from "@/components/NotificationBell";
 import { SkipLink } from "@/components/SkipLink";
 import { LogoutButton } from "@/components/logout-button";
@@ -419,13 +416,9 @@ export function AppShell({
             </div>
 
             <div className="flex items-center gap-2">
-              <DarkModeToggle />
               {area === "student" ? (
                 <NotificationBell apiBase={API_URL} />
               ) : null}
-              <span className="hidden h-9 items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 shadow-sm sm:inline-flex">
-                Signed in: {userLabel}
-              </span>
               <LogoutButton />
             </div>
           </div>
@@ -439,8 +432,6 @@ export function AppShell({
         </main>
       </div>
       {area === "student" ? <StudentMobileNav /> : null}
-      <KeyboardShortcutsModal />
-      <CommandPalette />
     </div>
   );
 }

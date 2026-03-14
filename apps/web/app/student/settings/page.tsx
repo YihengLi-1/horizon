@@ -12,7 +12,6 @@ type Prefs = {
   showCapacityAlert: boolean;
   dashboardCompact: boolean;
   catalogView: "grid" | "list";
-  theme: "system" | "light" | "dark";
 };
 
 const DEFAULT_PREFS: Prefs = {
@@ -22,8 +21,7 @@ const DEFAULT_PREFS: Prefs = {
   emailDropDeadline: true,
   showCapacityAlert: true,
   dashboardCompact: false,
-  catalogView: "grid",
-  theme: "system"
+  catalogView: "grid"
 };
 
 function loadPrefs(): Prefs {
@@ -166,21 +164,6 @@ export default function StudentSettingsPage() {
                   </button>
                 ))}
               </div>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-slate-800 mb-2">外观主题</p>
-              <div className="flex gap-2">
-                {(["system", "light", "dark"] as const).map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => update("theme", v)}
-                    className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${prefs.theme === v ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
-                  >
-                    {v === "system" ? "⚙️ 系统" : v === "light" ? "☀️ 浅色" : "🌙 深色"}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-1 text-xs text-slate-400">注：主题切换功能需配合实际主题系统使用</p>
             </div>
           </div>
         </section>
