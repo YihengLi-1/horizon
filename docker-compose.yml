@@ -1,12 +1,15 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # 地平线 SIS — 完整服务编排
 #
-# 快速启动（首次）:
-#   cp .env.example .env          # 填写真实密钥
-#   docker compose up -d --build
+# 快速启动（默认只启动 api + web + postgres）:
+#   cp .env.example .env
+#   docker compose up -d
 #
 # 更新代码后重建:
 #   docker compose up -d --build api web
+#
+# 若要启动监控 / 备份 / nginx:
+#   docker compose --profile ops up -d
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: sis
@@ -97,6 +100,7 @@ services:
 
   # ── PostgreSQL 自动备份（每日 pg_dump） ───────────────────────────────────
   postgres-backup:
+    profiles: ["ops"]
     image: prodrigestivill/postgres-backup-local:16
     restart: unless-stopped
     depends_on:
@@ -119,6 +123,7 @@ services:
       - sis-net
 
   prometheus:
+    profiles: ["ops"]
     image: prom/prometheus:v2.51.2
     container_name: sis-prometheus
     restart: unless-stopped
@@ -137,6 +142,7 @@ services:
       - sis-net
 
   grafana:
+    profiles: ["ops"]
     image: grafana/grafana:10.4.2
     container_name: sis-grafana
     restart: unless-stopped
@@ -161,6 +167,7 @@ services:
       - sis-net
 
   alertmanager:
+    profiles: ["ops"]
     image: prom/alertmanager:v0.27.0
     container_name: sis-alertmanager
     restart: unless-stopped
@@ -176,6 +183,7 @@ services:
       - sis-net
 
   nginx:
+    profiles: ["ops"]
     image: nginx:1.25-alpine
     container_name: sis-nginx
     restart: unless-stopped

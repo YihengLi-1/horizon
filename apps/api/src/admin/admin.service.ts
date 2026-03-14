@@ -5526,8 +5526,228 @@ export class AdminService {
     };
   }
 
-  // ─── Cohort Analytics ───────────────────────────────────────────────────────
-  async getCohortAnalytics(termId?: string) {
+  // ─── Course Demand Comparison (cross-term) ──────────────────────────────────
+  async getCourseDemandComparison(courseId?: string) {
+    // Returns per-term enrollment counts for each course (or a specific course)
+    const courseFilter = courseId ? Prisma.sql`AND c.id = ${courseId}` : Prisma.sql``;
+    const rows = await this.prisma.$queryRaw<{
+      courseId: string;
+      courseCode: string;
+      courseTitle: string;
+      credits: number;
+      termId: string;
+      termName: string;
+      termStart: Date;
+      enrolled: bigint;
+      completed: bigint;
+      dropped: bigint;
+      waitlisted: bigint;
+      capacity: bigint;
+    }[]>`
+      SELECT
+        c.id AS "courseId",
+        c.code AS "courseCode",
+        c.title AS "courseTitle",
+        c.credits,
+        t.id AS "termId",
+        t.name AS "termName",
+        t."startDate" AS "termStart",
+        COUNT(CASE WHEN e.status = 'ENROLLED' THEN 1 END) AS "enrolled",
+        COUNT(CASE WHEN e.status = 'COMPLETED' THEN 1 END) AS "completed",
+        COUNT(CASE WHEN e.status = 'DROPPED' THEN 1 END) AS "dropped",
+        COUNT(CASE WHEN e.status = 'WAITLISTED' THEN 1 END) AS "waitlisted",
+        COALESCE(SUM(s.capacity), 0) AS "capacity"
+      FROM "Course" c
+      JOIN "Section" s ON s."courseId" = c.id
+      JOIN "Term" t ON t.id = s."termId"
+      LEFT JOIN "Enrollment" e ON e."sectionId" = s.id AND e."deletedAt" IS NULL
+      WHERE c."deletedAt" IS NULL
+        ${courseFilter}
+      GROUP BY c.id, c.code, c.title, c.credits, t.id, t.name, t."startDate"
+      ORDER BY c.code ASC, t."startDate" ASC
+    `;
+
+    // Group by course
+    const courseMap = new Map<string, {
+      courseId: string; courseCode: string; courseTitle: string; credits: number;
+      terms: { termId: string; termName: string; enrolled: number; completed: number; dropped: number; waitlisted: number; capacity: number; total: number }[];
+    }>();
+
+    for (const r of rows) {
+      if (!courseMap.has(r.courseId)) {
+        courseMap.set(r.courseId, { courseId: r.courseId, courseCode: r.courseCode, courseTitle: r.courseTitle, credits: r.credits, terms: [] });
+      }
+      const total = Number(r.enrolled) + Number(r.completed) + Number(r.dropped) + Number(r.waitlisted);
+      courseMap.get(r.courseId)!.terms.push({
+        termId: r.termId, termName: r.termName,
+        enrolled: Number(r.enrolled), completed: Number(r.completed),
+        dropped: Number(r.dropped), waitlisted: Number(r.waitlisted),
+        capacity: Number(r.capacity), total,
+      });
+    }
+
+    return Array.from(courseMap.values());
+  }
+
+  // ─── Student Academic Standing (for admin) ───────────────────────────────────
+  async getStudentAcademicStanding(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        studentProfile: true,
+        enrollments: {
+          where: { deletedAt: null },
+          include: {
+            section: {
+              include: {
+                course: { select: { code: true, title: true, credits: true } },
+                term: { select: { id: true, name: true } }
+              }
+            }
+          },
+          orderBy: { createdAt: "asc" }
+        }
+      }
+    });
+
+    if (!user) throw new Error("Student not found");
+
+    const GRADE_POINTS: Record<string, number> = {
+      "A+": 4, "A": 4, "A-": 3.7, "B+": 3.3, "B": 3, "B-": 2.7,
+      "C+": 2.3, "C": 2, "C-": 1.7, "D+": 1.3, "D": 1, "D-": 0.7, "F": 0
+    };
+
+    const completed = user.enrollments.filter((e) => e.status === "COMPLETED" && e.finalGrade);
+    const graded = completed.filter((e) => GRADE_POINTS[e.finalGrade!] !== undefined);
+    const totalCredits = completed.reduce((s, e) => s + e.section.course.credits, 0);
+    const totalPoints = graded.reduce((s, e) => s + (GRADE_POINTS[e.finalGrade!] ?? 0) * e.section.course.credits, 0);
+    const totalGradedCredits = graded.reduce((s, e) => s + e.section.course.credits, 0);
+    const cumulativeGpa = totalGradedCredits > 0 ? Math.round((totalPoints / totalGradedCredits) * 100) / 100 : null;
+
+    const standing =
+      !cumulativeGpa ? "UNKNOWN" :
+      cumulativeGpa >= 3.5 ? "DEAN_LIST" :
+      cumulativeGpa >= 2.0 ? "GOOD_STANDING" :
+      cumulativeGpa >= 1.5 ? "ACADEMIC_PROBATION" : "ACADEMIC_SUSPENSION";
+
+    // Term-by-term GPA
+    const termMap = new Map<string, { termName: string; credits: number; points: number; gradedCredits: number; courses: number }>();
+    for (const e of completed) {
+      const tid = e.section.term.id;
+      if (!termMap.has(tid)) termMap.set(tid, { termName: e.section.term.name, credits: 0, points: 0, gradedCredits: 0, courses: 0 });
+      const t = termMap.get(tid)!;
+      t.credits += e.section.course.credits;
+      t.courses++;
+      const pts = GRADE_POINTS[e.finalGrade!];
+      if (pts !== undefined) { t.points += pts * e.section.course.credits; t.gradedCredits += e.section.course.credits; }
+    }
+
+    const termHistory = Array.from(termMap.entries()).map(([, t]) => ({
+      termName: t.termName,
+      credits: t.credits,
+      courses: t.courses,
+      termGpa: t.gradedCredits > 0 ? Math.round((t.points / t.gradedCredits) * 100) / 100 : null,
+    }));
+
+    return {
+      userId: user.id,
+      name: user.name ?? user.email,
+      email: user.email,
+      major: user.studentProfile?.programMajor ?? null,
+      enrollmentStatus: user.studentProfile?.enrollmentStatus ?? null,
+      cumulativeGpa,
+      totalCredits,
+      standing,
+      termHistory,
+    };
+  }
+
+  // ─── Section Swap Tool ───────────────────────────────────────────────────────
+  async previewSectionSwap(enrollmentId: string, targetSectionId: string) {
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { id: enrollmentId },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        section: {
+          include: {
+            course: { select: { id: true, code: true, title: true, credits: true } },
+            term: { select: { id: true, name: true } },
+            meetingTimes: true,
+          }
+        }
+      }
+    });
+    if (!enrollment) throw new Error("Enrollment not found");
+
+    const targetSection = await this.prisma.section.findUnique({
+      where: { id: targetSectionId },
+      include: {
+        course: { select: { id: true, code: true, title: true, credits: true } },
+        term: { select: { id: true, name: true } },
+        meetingTimes: true,
+        enrollments: { where: { status: "ENROLLED", deletedAt: null }, select: { id: true } }
+      }
+    });
+    if (!targetSection) throw new Error("Target section not found");
+
+    const targetEnrolled = targetSection.enrollments.length;
+    const targetAvailable = targetSection.capacity - targetEnrolled;
+    const sameCourse = enrollment.section.course.id === targetSection.course.id;
+
+    return {
+      enrollment: { id: enrollmentId, status: enrollment.status },
+      student: enrollment.user,
+      fromSection: {
+        id: enrollment.section.id,
+        sectionCode: enrollment.section.sectionCode,
+        courseCode: enrollment.section.course.code,
+        courseTitle: enrollment.section.course.title,
+        termName: enrollment.section.term.name,
+      },
+      toSection: {
+        id: targetSection.id,
+        sectionCode: targetSection.sectionCode,
+        courseCode: targetSection.course.code,
+        courseTitle: targetSection.course.title,
+        termName: targetSection.term.name,
+        capacity: targetSection.capacity,
+        enrolled: targetEnrolled,
+        available: targetAvailable,
+      },
+      warnings: [
+        ...(!sameCourse ? ["⚠️ 目标班级属于不同课程"] : []),
+        ...(targetAvailable <= 0 ? ["⚠️ 目标班级已满员，将加入候补"] : []),
+        ...(enrollment.section.term.id !== targetSection.term.id ? ["⚠️ 目标班级属于不同学期"] : []),
+      ],
+      canSwap: true,
+    };
+  }
+
+  async executeSectionSwap(enrollmentId: string, targetSectionId: string, adminUserId: string) {
+    const preview = await this.previewSectionSwap(enrollmentId, targetSectionId);
+    const targetEnrolled = preview.toSection.enrolled;
+    const newStatus = targetEnrolled >= preview.toSection.capacity ? "WAITLISTED" : "ENROLLED";
+
+    const updated = await this.prisma.enrollment.update({
+      where: { id: enrollmentId },
+      data: { sectionId: targetSectionId, status: newStatus }
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        action: "ADMIN_SECTION_SWAP",
+        entityType: "Enrollment",
+        entityId: enrollmentId,
+        userId: adminUserId,
+        details: JSON.stringify({ fromSection: preview.fromSection.id, toSection: targetSectionId, newStatus })
+      }
+    });
+
+    return { success: true, newStatus, enrollmentId: updated.id };
+  }
+
+  // ─── Cohort By Major Analytics ───────────────────────────────────────────────
+  async getCohortByMajor(termId?: string) {
     const termFilter = termId ? Prisma.sql`AND s."termId" = ${termId}` : Prisma.sql``;
     const rows = await this.prisma.$queryRaw<{
       major: string;

@@ -771,4 +771,47 @@ export class AdminController {
   async sectionAnalytics(@Param("id") id: string) {
     return ok(await this.adminService.getSectionAnalytics(id));
   }
+
+  @Get("course-demand-compare")
+  @RequireAdminPermissions("courses:read")
+  async courseDemandCompare(@Query("courseId") courseId?: string) {
+    return ok(await this.adminService.getCourseDemandComparison(courseId));
+  }
+
+  @Get("students/:id/standing")
+  @RequireAdminPermissions("students:read")
+  async studentStanding(@Param("id") id: string) {
+    return ok(await this.adminService.getStudentAcademicStanding(id));
+  }
+
+  @Get("section-swap/:enrollmentId/preview")
+  @RequireAdminPermissions("enrollments:write")
+  async sectionSwapPreview(
+    @Param("enrollmentId") enrollmentId: string,
+    @Query("targetSectionId") targetSectionId: string
+  ) {
+    return ok(await this.adminService.previewSectionSwap(enrollmentId, targetSectionId));
+  }
+
+  @Post("section-swap/:enrollmentId/execute")
+  @RequireAdminPermissions("enrollments:write")
+  async sectionSwapExecute(
+    @Param("enrollmentId") enrollmentId: string,
+    @Query("targetSectionId") targetSectionId: string,
+    @CurrentUser() user: { id: string }
+  ) {
+    return ok(await this.adminService.executeSectionSwap(enrollmentId, targetSectionId, user.id));
+  }
+
+  @Get("cohort-by-major")
+  @RequireAdminPermissions("students:read")
+  async cohortByMajor(@Query("termId") termId?: string) {
+    return ok(await this.adminService.getCohortByMajor(termId));
+  }
+
+  @Get("term-enrollment-forecast")
+  @RequireAdminPermissions("dashboard:read")
+  async termEnrollmentForecast() {
+    return ok(await this.adminService.getTermEnrollmentForecast());
+  }
 }

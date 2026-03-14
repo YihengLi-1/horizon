@@ -7,6 +7,7 @@ const IDS = {
   admin: "seed-user-admin",
   faculty: "seed-user-faculty-1",
   advisor: "seed-user-advisor-1",
+  fall2025: "seed-term-fall-2025",
   spring2026: "seed-term-spring-2026",
   fall2026: "seed-term-fall-2026"
 } as const;
@@ -127,6 +128,124 @@ const courses: CourseSeed[] = [
 ];
 
 const sections: SectionSeed[] = [
+  {
+    id: "section-cs101-h1",
+    termId: IDS.fall2025,
+    courseId: "course-cs101",
+    sectionCode: "CS101-H1",
+    modality: Modality.ON_CAMPUS,
+    capacity: 24,
+    credits: 3,
+    instructorName: "Dr. Zhao",
+    location: "ENG-105",
+    requireApproval: false,
+    startDate: "2025-08-25T00:00:00.000Z",
+    meetingTimes: [
+      { id: "mt-cs101-h1-1", weekday: 1, startMinutes: 540, endMinutes: 615 },
+      { id: "mt-cs101-h1-2", weekday: 3, startMinutes: 540, endMinutes: 615 }
+    ]
+  },
+  {
+    id: "section-eng101-h1",
+    termId: IDS.fall2025,
+    courseId: "course-eng101",
+    sectionCode: "ENG101-H1",
+    modality: Modality.ON_CAMPUS,
+    capacity: 28,
+    credits: 3,
+    instructorName: "Prof. Ada Stone",
+    instructorUserId: IDS.faculty,
+    location: "HUM-110",
+    requireApproval: false,
+    startDate: "2025-08-25T00:00:00.000Z",
+    meetingTimes: [
+      { id: "mt-eng101-h1-1", weekday: 2, startMinutes: 720, endMinutes: 795 },
+      { id: "mt-eng101-h1-2", weekday: 4, startMinutes: 720, endMinutes: 795 }
+    ]
+  },
+  {
+    id: "section-eng205-h1",
+    termId: IDS.fall2025,
+    courseId: "course-eng205",
+    sectionCode: "ENG205-H1",
+    modality: Modality.ON_CAMPUS,
+    capacity: 22,
+    credits: 2,
+    instructorName: "Prof. Harper",
+    location: "HUM-210",
+    requireApproval: false,
+    startDate: "2025-08-25T00:00:00.000Z",
+    meetingTimes: [
+      { id: "mt-eng205-h1-1", weekday: 1, startMinutes: 900, endMinutes: 960 }
+    ]
+  },
+  {
+    id: "section-math101-h1",
+    termId: IDS.fall2025,
+    courseId: "course-math101",
+    sectionCode: "MATH101-H1",
+    modality: Modality.ON_CAMPUS,
+    capacity: 24,
+    credits: 3,
+    instructorName: "Dr. Ortiz",
+    location: "MATH-120",
+    requireApproval: false,
+    startDate: "2025-08-25T00:00:00.000Z",
+    meetingTimes: [
+      { id: "mt-math101-h1-1", weekday: 2, startMinutes: 540, endMinutes: 615 },
+      { id: "mt-math101-h1-2", weekday: 4, startMinutes: 540, endMinutes: 615 }
+    ]
+  },
+  {
+    id: "section-math220-h1",
+    termId: IDS.fall2025,
+    courseId: "course-math220",
+    sectionCode: "MATH220-H1",
+    modality: Modality.ONLINE,
+    capacity: 24,
+    credits: 3,
+    instructorName: "Dr. Rao",
+    location: "Online",
+    requireApproval: false,
+    startDate: "2025-08-25T00:00:00.000Z",
+    meetingTimes: [
+      { id: "mt-math220-h1-1", weekday: 5, startMinutes: 600, endMinutes: 690 }
+    ]
+  },
+  {
+    id: "section-bus101-h1",
+    termId: IDS.fall2025,
+    courseId: "course-bus101",
+    sectionCode: "BUS101-H1",
+    modality: Modality.ON_CAMPUS,
+    capacity: 24,
+    credits: 3,
+    instructorName: "Dr. Kim",
+    location: "BUS-201",
+    requireApproval: false,
+    startDate: "2025-08-25T00:00:00.000Z",
+    meetingTimes: [
+      { id: "mt-bus101-h1-1", weekday: 2, startMinutes: 900, endMinutes: 975 },
+      { id: "mt-bus101-h1-2", weekday: 4, startMinutes: 900, endMinutes: 975 }
+    ]
+  },
+  {
+    id: "section-bus210-h1",
+    termId: IDS.fall2025,
+    courseId: "course-bus210",
+    sectionCode: "BUS210-H1",
+    modality: Modality.HYBRID,
+    capacity: 20,
+    credits: 3,
+    instructorName: "Prof. Chen",
+    location: "BUS-310",
+    requireApproval: false,
+    startDate: "2025-08-25T00:00:00.000Z",
+    meetingTimes: [
+      { id: "mt-bus210-h1-1", weekday: 1, startMinutes: 1020, endMinutes: 1095 },
+      { id: "mt-bus210-h1-2", weekday: 3, startMinutes: 1020, endMinutes: 1095 }
+    ]
+  },
   {
     id: "section-cs101-a",
     termId: IDS.spring2026,
@@ -600,8 +719,8 @@ async function upsertAdvisor(passwordHash: string) {
 }
 
 async function main() {
-  const adminPasswordHash = await bcrypt.hash("Admin@2026!", 12);
-  const studentPasswordHash = await bcrypt.hash("Student@2026!", 12);
+  const adminPasswordHash = await bcrypt.hash("Admin123!", 12);
+  const studentPasswordHash = await bcrypt.hash("Student123!", 12);
   const facultyPasswordHash = await bcrypt.hash("Faculty@2026!", 12);
   const advisorPasswordHash = await bcrypt.hash("Advisor@2026!", 12);
 
@@ -630,6 +749,31 @@ async function main() {
   }
   const faculty = await upsertFaculty(facultyPasswordHash);
   const advisor = await upsertAdvisor(advisorPasswordHash);
+
+  await prisma.term.upsert({
+    where: { id: IDS.fall2025 },
+    update: {
+      name: "Fall 2025",
+      startDate: new Date("2025-08-25T00:00:00.000Z"),
+      endDate: new Date("2025-12-19T23:59:59.000Z"),
+      registrationOpenAt: new Date("2025-04-15T15:00:00.000Z"),
+      registrationCloseAt: new Date("2025-09-10T23:59:59.000Z"),
+      dropDeadline: new Date("2025-09-12T23:59:59.000Z"),
+      maxCredits: 18,
+      timezone: "America/Phoenix"
+    },
+    create: {
+      id: IDS.fall2025,
+      name: "Fall 2025",
+      startDate: new Date("2025-08-25T00:00:00.000Z"),
+      endDate: new Date("2025-12-19T23:59:59.000Z"),
+      registrationOpenAt: new Date("2025-04-15T15:00:00.000Z"),
+      registrationCloseAt: new Date("2025-09-10T23:59:59.000Z"),
+      dropDeadline: new Date("2025-09-12T23:59:59.000Z"),
+      maxCredits: 18,
+      timezone: "America/Phoenix"
+    }
+  });
 
   await prisma.term.upsert({
     where: { id: IDS.spring2026 },
@@ -828,16 +972,78 @@ async function main() {
 
   const student1 = studentUsers.find((user) => user.email === "student1@sis.edu");
   const student2 = studentUsers.find((user) => user.email === "student2@sis.edu");
-  if (!student1 || !student2) {
+  const student3 = studentUsers.find((user) => user.email === "student3@sis.edu");
+  const student4 = studentUsers.find((user) => user.email === "student4@sis.edu");
+  const student5 = studentUsers.find((user) => user.email === "student5@sis.edu");
+  if (!student1 || !student2 || !student3 || !student4 || !student5) {
     throw new Error("Named demo students were not created correctly");
   }
+  const sectionCs101H1 = sectionIdByCode.get("CS101-H1");
+  const sectionEng101H1 = sectionIdByCode.get("ENG101-H1");
+  const sectionEng205H1 = sectionIdByCode.get("ENG205-H1");
+  const sectionMath101H1 = sectionIdByCode.get("MATH101-H1");
+  const sectionMath220H1 = sectionIdByCode.get("MATH220-H1");
+  const sectionBus101H1 = sectionIdByCode.get("BUS101-H1");
+  const sectionBus210H1 = sectionIdByCode.get("BUS210-H1");
   const sectionCs102 = sectionIdByCode.get("CS102-A");
   const sectionEng101 = sectionIdByCode.get("ENG101-A");
   const sectionBus101 = sectionIdByCode.get("BUS101-A");
   const sectionCs201 = sectionIdByCode.get("CS201-A");
   const sectionMath101 = sectionIdByCode.get("MATH101-A");
-  if (!sectionCs102 || !sectionEng101 || !sectionBus101 || !sectionCs201 || !sectionMath101) {
+  if (
+    !sectionCs101H1 ||
+    !sectionEng101H1 ||
+    !sectionEng205H1 ||
+    !sectionMath101H1 ||
+    !sectionMath220H1 ||
+    !sectionBus101H1 ||
+    !sectionBus210H1 ||
+    !sectionCs102 ||
+    !sectionEng101 ||
+    !sectionBus101 ||
+    !sectionCs201 ||
+    !sectionMath101
+  ) {
     throw new Error("Named demo sections were not created correctly");
+  }
+
+  const completedEnrollments = [
+    { id: "enrollment-student1-completed-cs101", studentId: student1.id, termId: IDS.fall2025, sectionId: sectionCs101H1, finalGrade: "A" },
+    { id: "enrollment-student1-completed-eng101", studentId: student1.id, termId: IDS.fall2025, sectionId: sectionEng101H1, finalGrade: "A-" },
+    { id: "enrollment-student1-completed-math101", studentId: student1.id, termId: IDS.fall2025, sectionId: sectionMath101H1, finalGrade: "B+" },
+    { id: "enrollment-student2-completed-bus101", studentId: student2.id, termId: IDS.fall2025, sectionId: sectionBus101H1, finalGrade: "A" },
+    { id: "enrollment-student2-completed-bus210", studentId: student2.id, termId: IDS.fall2025, sectionId: sectionBus210H1, finalGrade: "A-" },
+    { id: "enrollment-student3-completed-math101", studentId: student3.id, termId: IDS.fall2025, sectionId: sectionMath101H1, finalGrade: "A" },
+    { id: "enrollment-student3-completed-math220", studentId: student3.id, termId: IDS.fall2025, sectionId: sectionMath220H1, finalGrade: "B+" },
+    { id: "enrollment-student4-completed-eng101", studentId: student4.id, termId: IDS.fall2025, sectionId: sectionEng101H1, finalGrade: "A-" },
+    { id: "enrollment-student4-completed-eng205", studentId: student4.id, termId: IDS.fall2025, sectionId: sectionEng205H1, finalGrade: "B" },
+    { id: "enrollment-student5-completed-bus101", studentId: student5.id, termId: IDS.fall2025, sectionId: sectionBus101H1, finalGrade: "B-" },
+    { id: "enrollment-student5-completed-bus210", studentId: student5.id, termId: IDS.fall2025, sectionId: sectionBus210H1, finalGrade: "C+" },
+    { id: "enrollment-student5-completed-eng101", studentId: student5.id, termId: IDS.fall2025, sectionId: sectionEng101H1, finalGrade: "B" }
+  ] as const;
+
+  for (const enrollment of completedEnrollments) {
+    await prisma.enrollment.upsert({
+      where: { id: enrollment.id },
+      update: {
+        studentId: enrollment.studentId,
+        termId: enrollment.termId,
+        sectionId: enrollment.sectionId,
+        status: EnrollmentStatus.COMPLETED,
+        waitlistPosition: null,
+        finalGrade: enrollment.finalGrade,
+        deletedAt: null,
+        droppedAt: null
+      },
+      create: {
+        id: enrollment.id,
+        studentId: enrollment.studentId,
+        termId: enrollment.termId,
+        sectionId: enrollment.sectionId,
+        status: EnrollmentStatus.COMPLETED,
+        finalGrade: enrollment.finalGrade
+      }
+    });
   }
 
   await prisma.advisorAssignment.upsert({
@@ -951,27 +1157,35 @@ async function main() {
     }
   });
 
-  await prisma.enrollment.upsert({
-    where: { id: "enrollment-student2-waitlist-cs201" },
-    update: {
-      studentId: student2.id,
-      termId: IDS.spring2026,
-      sectionId: sectionCs201,
-      status: EnrollmentStatus.WAITLISTED,
-      waitlistPosition: 1,
-      finalGrade: null,
-      deletedAt: null,
-      droppedAt: null
-    },
-    create: {
-      id: "enrollment-student2-waitlist-cs201",
-      studentId: student2.id,
-      termId: IDS.spring2026,
-      sectionId: sectionCs201,
-      status: EnrollmentStatus.WAITLISTED,
-      waitlistPosition: 1
-    }
-  });
+  const waitlistEnrollments = [
+    { id: "enrollment-student2-waitlist-cs201", studentId: student2.id, waitlistPosition: 1 },
+    { id: "enrollment-student3-waitlist-cs201", studentId: student3.id, waitlistPosition: 2 },
+    { id: "enrollment-student4-waitlist-cs201", studentId: student4.id, waitlistPosition: 3 }
+  ] as const;
+
+  for (const enrollment of waitlistEnrollments) {
+    await prisma.enrollment.upsert({
+      where: { id: enrollment.id },
+      update: {
+        studentId: enrollment.studentId,
+        termId: IDS.spring2026,
+        sectionId: sectionCs201,
+        status: EnrollmentStatus.WAITLISTED,
+        waitlistPosition: enrollment.waitlistPosition,
+        finalGrade: null,
+        deletedAt: null,
+        droppedAt: null
+      },
+      create: {
+        id: enrollment.id,
+        studentId: enrollment.studentId,
+        termId: IDS.spring2026,
+        sectionId: sectionCs201,
+        status: EnrollmentStatus.WAITLISTED,
+        waitlistPosition: enrollment.waitlistPosition
+      }
+    });
+  }
 
   for (let index = 0; index < fullSectionStudentIds.length; index += 1) {
     const studentId = fullSectionStudentIds[index];
@@ -1149,9 +1363,12 @@ async function main() {
   ]);
 
   console.log("Demo accounts:", {
-    admin: "admin@sis.edu / Admin@2026!",
-    student1: "student1@sis.edu / Student@2026!",
-    student2: "student2@sis.edu / Student@2026!",
+    admin: "admin@sis.edu / Admin123!",
+    student1: "student1@sis.edu / Student123!",
+    student2: "student2@sis.edu / Student123!",
+    student3: "student3@sis.edu / Student123!",
+    student4: "student4@sis.edu / Student123!",
+    student5: "student5@sis.edu / Student123!",
     faculty1: "faculty1@sis.edu / Faculty@2026!",
     advisor1: "advisor1@sis.edu / Advisor@2026!",
     inviteCodes: ["OPEN-2026", "LIMIT10-2026"]

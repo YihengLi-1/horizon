@@ -615,6 +615,37 @@ check_contains "apps/api/src/admin/admin.controller.ts" "analytics" "Section ana
 check_exists "apps/web/app/admin/sections/[id]/page.tsx" "Admin section analytics dynamic page"
 check_contains "apps/web/app/admin/sections/[id]/page.tsx" "enrollmentTimeline" "Timeline in section analytics"
 
+# ── Session 19: cohort analytics, forecast, enrollment timeline ───────────────
+check_contains "apps/api/src/admin/admin.service.ts" "getCohortByMajor" "Cohort by-major service method"
+check_contains "apps/api/src/admin/admin.controller.ts" "cohort-by-major" "Cohort by-major endpoint"
+check_exists "apps/web/app/admin/cohort-analytics/page.tsx" "Admin cohort analytics page"
+check_contains "apps/web/app/admin/cohort-analytics/page.tsx" "avgGpa" "GPA in cohort analytics"
+check_contains "apps/api/src/admin/admin.service.ts" "getTermEnrollmentForecast" "Term enrollment forecast service method"
+check_contains "apps/api/src/admin/admin.controller.ts" "term-enrollment-forecast" "Term enrollment forecast endpoint"
+check_exists "apps/web/app/admin/term-enrollment-forecast/page.tsx" "Admin forecast page"
+check_contains "apps/web/app/admin/term-enrollment-forecast/page.tsx" "forecast" "Forecast data in page"
+check_exists "apps/web/app/student/enrollment-timeline/page.tsx" "Student enrollment timeline page"
+check_contains "apps/web/app/student/enrollment-timeline/page.tsx" "termGroups" "Term groups in timeline"
+check_contains "apps/web/components/app-shell.tsx" "/student/enrollment-timeline" "Enrollment timeline nav link"
+check_contains "apps/web/components/app-shell.tsx" "/admin/cohort-analytics" "Cohort analytics nav link"
+check_contains "apps/web/components/app-shell.tsx" "/admin/term-enrollment-forecast" "Forecast nav link"
+
+# ── Session 19b: course demand compare, student standing, section swap ─────────
+check_contains "apps/api/src/admin/admin.service.ts" "getCourseDemandComparison" "Course demand comparison service"
+check_contains "apps/api/src/admin/admin.controller.ts" "course-demand-compare" "Course demand endpoint"
+check_exists "apps/web/app/admin/course-demand-compare/page.tsx" "Course demand compare page"
+check_contains "apps/api/src/students/students.service.ts" "getAcademicStanding" "Academic standing service"
+check_contains "apps/api/src/students/students.controller.ts" "standing" "Academic standing endpoint"
+check_exists "apps/web/app/student/standing/page.tsx" "Student standing page"
+check_contains "apps/web/app/student/standing/page.tsx" "DEAN_LIST" "Dean's list classification in standing"
+check_contains "apps/api/src/admin/admin.service.ts" "previewSectionSwap" "Section swap preview service"
+check_contains "apps/api/src/admin/admin.service.ts" "executeSectionSwap" "Section swap execute service"
+check_contains "apps/api/src/admin/admin.controller.ts" "section-swap" "Section swap endpoint"
+check_exists "apps/web/app/admin/section-swap/page.tsx" "Admin section swap page"
+check_contains "apps/web/components/app-shell.tsx" "/admin/section-swap" "Section swap nav link"
+check_contains "apps/web/components/app-shell.tsx" "/student/standing" "Student standing nav link"
+check_contains "apps/web/components/app-shell.tsx" "/admin/course-demand-compare" "Course demand nav link"
+
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"
 else

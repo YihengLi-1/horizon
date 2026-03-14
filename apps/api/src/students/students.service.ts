@@ -1215,4 +1215,74 @@ export class StudentsService {
 
     return { assignments, advisorNotes };
   }
+
+  async getAcademicStanding(userId: string) {
+    const GRADE_POINTS: Record<string, number> = {
+      "A+": 4, "A": 4, "A-": 3.7, "B+": 3.3, "B": 3, "B-": 2.7,
+      "C+": 2.3, "C": 2, "C-": 1.7, "D+": 1.3, "D": 1, "D-": 0.7, "F": 0
+    };
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        studentProfile: true,
+        enrollments: {
+          where: { deletedAt: null, status: "COMPLETED" },
+          include: {
+            section: {
+              include: {
+                course: { select: { code: true, title: true, credits: true } },
+                term: { select: { id: true, name: true } }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!user) throw new Error("Student not found");
+
+    const completed = user.enrollments;
+    const graded = completed.filter((e) => e.finalGrade && GRADE_POINTS[e.finalGrade] !== undefined);
+    const totalCredits = completed.reduce((s, e) => s + e.section.course.credits, 0);
+    const totalGradedCredits = graded.reduce((s, e) => s + e.section.course.credits, 0);
+    const totalPoints = graded.reduce((s, e) => s + (GRADE_POINTS[e.finalGrade!] ?? 0) * e.section.course.credits, 0);
+    const cumulativeGpa = totalGradedCredits > 0 ? Math.round((totalPoints / totalGradedCredits) * 100) / 100 : null;
+
+    const standing =
+      !cumulativeGpa ? "UNKNOWN" :
+      cumulativeGpa >= 3.5 ? "DEAN_LIST" :
+      cumulativeGpa >= 2.0 ? "GOOD_STANDING" :
+      cumulativeGpa >= 1.5 ? "ACADEMIC_PROBATION" : "ACADEMIC_SUSPENSION";
+
+    const termMap = new Map<string, { termName: string; credits: number; points: number; gradedCredits: number; courses: number }>();
+    for (const e of completed) {
+      const tid = e.section.term.id;
+      if (!termMap.has(tid)) termMap.set(tid, { termName: e.section.term.name, credits: 0, points: 0, gradedCredits: 0, courses: 0 });
+      const t = termMap.get(tid)!;
+      t.credits += e.section.course.credits;
+      t.courses++;
+      const pts = GRADE_POINTS[e.finalGrade ?? ""];
+      if (pts !== undefined) { t.points += pts * e.section.course.credits; t.gradedCredits += e.section.course.credits; }
+    }
+
+    const termHistory = Array.from(termMap.values()).map((t) => ({
+      termName: t.termName,
+      credits: t.credits,
+      courses: t.courses,
+      termGpa: t.gradedCredits > 0 ? Math.round((t.points / t.gradedCredits) * 100) / 100 : null,
+    }));
+
+    return {
+      userId: user.id,
+      name: user.name ?? user.email,
+      email: user.email,
+      major: user.studentProfile?.programMajor ?? null,
+      enrollmentStatus: user.studentProfile?.enrollmentStatus ?? null,
+      cumulativeGpa,
+      totalCredits,
+      standing,
+      termHistory,
+    };
+  }
 }
