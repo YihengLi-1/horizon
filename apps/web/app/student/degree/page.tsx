@@ -11,15 +11,19 @@ import {
   type GroupProgress
 } from "@/lib/degreeRequirements";
 
-type GradeEnrollment = {
+type StudentEnrollment = {
   id: string;
   finalGrade: string | null;
   status: string;
   section: {
     credits: number;
     course: { code: string; title: string };
-    term: { name: string };
+    term?: { name: string };
   };
+};
+
+type StudentProfileResponse = {
+  enrollments?: StudentEnrollment[];
 };
 
 function ProgressBar({ pct, color = "indigo" }: { pct: number; color?: string }) {
@@ -102,26 +106,26 @@ function GroupSection({ gp }: { gp: GroupProgress }) {
 }
 
 export default function DegreePage() {
-  const [grades, setGrades] = useState<GradeEnrollment[]>([]);
+  const [enrollments, setEnrollments] = useState<StudentEnrollment[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    void apiFetch<GradeEnrollment[]>("/registration/grades")
-      .then(setGrades)
-      .catch(() => setGrades([]))
+    void apiFetch<StudentProfileResponse>("/students/me")
+      .then((data) => setEnrollments(data.enrollments ?? []))
+      .catch(() => setEnrollments([]))
       .finally(() => setLoading(false));
   }, []);
 
-  const completed: CompletedCourse[] = grades
+  const completed: CompletedCourse[] = enrollments
     .filter((g) => g.status === "COMPLETED" && g.finalGrade && g.finalGrade !== "W")
     .map((g) => ({
       code: g.section.course.code,
       credits: g.section.credits,
       grade: g.finalGrade,
-      termName: g.section.term.name
+      termName: g.section.term?.name ?? "Unknown term"
     }));
 
-  const inProgress: GradeEnrollment[] = grades.filter((g) => g.status === "ENROLLED");
+  const inProgress: StudentEnrollment[] = enrollments.filter((g) => g.status === "ENROLLED");
 
   const progress = computeProgress(completed);
 
@@ -199,7 +203,7 @@ export default function DegreePage() {
                     <span className="font-mono font-semibold text-indigo-800">{g.section.course.code}</span>
                     <span className="text-slate-500 truncate max-w-[120px]">{g.section.course.title}</span>
                     <span className="text-indigo-600 font-semibold">{g.section.credits}cr</span>
-                    <span className="text-slate-400">{g.section.term.name}</span>
+                    <span className="text-slate-400">{g.section.term?.name ?? "Unknown term"}</span>
                   </div>
                 ))}
               </div>

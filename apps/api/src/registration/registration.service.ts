@@ -1365,6 +1365,13 @@ export class RegistrationService {
         section: {
           include: {
             course: true,
+            term: {
+              select: {
+                id: true,
+                name: true,
+                endDate: true
+              }
+            },
             ratings: {
               where: { studentId },
               select: { rating: true }
