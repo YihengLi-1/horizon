@@ -77,7 +77,7 @@ h1 {
   }
 
   .campus-card {
-    @apply rounded-2xl border border-slate-200/90 bg-white shadow-[0_18px_40px_-34px_rgba(15,23,42,0.3)] dark:border-slate-700 dark:bg-slate-800;
+    @apply rounded-xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800;
   }
 
   .campus-toolbar {
@@ -93,16 +93,24 @@ h1 {
   }
 
   .campus-kpi {
-    @apply rounded-xl border border-slate-200/90 bg-white px-4 py-3 shadow-[0_14px_28px_-32px_rgba(15,23,42,0.35)] dark:border-slate-700 dark:bg-slate-800;
+    @apply rounded-xl border border-slate-200/70 border-l-4 border-l-indigo-500 bg-gradient-to-br from-white to-slate-50 px-4 py-3 shadow-sm dark:border-slate-700 dark:border-l-indigo-400 dark:bg-slate-800;
+  }
+
+  .campus-kpi-label {
+    @apply text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400;
+  }
+
+  .campus-kpi-value {
+    @apply mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100;
   }
 
   .campus-chip {
-    @apply inline-flex items-center rounded-full border border-slate-300/90 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200;
+    @apply inline-flex items-center rounded-full border border-slate-300/90 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200;
   }
 
   .campus-hero {
-    @apply relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white px-5 py-5 shadow-[0_24px_44px_-34px_rgba(15,23,42,0.34)] md:px-7 md:py-6 dark:border-slate-700 dark:bg-slate-800;
-    background-image: linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(255, 255, 255, 0.98));
+    @apply relative overflow-hidden rounded-xl border border-slate-200/60 bg-white px-5 py-5 shadow-sm md:px-7 md:py-6 dark:border-slate-700 dark:bg-slate-800;
+    background-image: linear-gradient(135deg, rgba(238, 242, 255, 0.95), rgba(255, 255, 255, 0.98) 55%);
   }
 
   .campus-hero::before {
@@ -126,7 +134,17 @@ h1 {
   }
 
   .campus-eyebrow {
-    @apply text-[12px] font-semibold text-slate-500 dark:text-slate-400;
+    @apply inline-flex items-center gap-2 text-[12px] font-semibold text-slate-600 dark:text-slate-300;
+  }
+
+  .campus-eyebrow::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background-color: rgb(79 70 229);
+    box-shadow: 0 0 0 4px rgb(224 231 255 / 0.9);
+    flex-shrink: 0;
   }
 
   .campus-input {
@@ -136,6 +154,14 @@ h1 {
   .campus-select {
     @apply campus-input pr-9;
   }
+}
+
+.campus-card table thead {
+  @apply bg-slate-50;
+}
+
+.campus-card table thead th {
+  @apply text-[11px] font-semibold uppercase tracking-wide text-slate-500;
 }
 
 @media print {
@@ -240,12 +266,12 @@ a:focus-visible,
 }
 
 .dark .campus-hero {
-  background: linear-gradient(180deg, #162033 0%, #111827 100%);
+  background: linear-gradient(135deg, #1e293b 0%, #111827 72%);
   border-color: #334155;
 }
 
 .dark .campus-kpi {
-  background-color: #162033;
+  background: linear-gradient(135deg, #162033 0%, #111827 100%);
   border-color: #334155;
   color: #e2e8f0;
 }
@@ -258,6 +284,14 @@ a:focus-visible,
 .dark .campus-toolbar {
   background-color: #111827;
   border-color: #334155;
+}
+
+.dark .campus-card table thead {
+  background-color: rgb(30 41 59 / 0.9);
+}
+
+.dark .campus-card table thead th {
+  color: rgb(148 163 184);
 }
 
 .dark .campus-input,

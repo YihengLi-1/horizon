@@ -727,6 +727,21 @@ check_contains "apps/api/src/students/students.controller.ts" "graduation-checkl
 check_exists "apps/web/app/student/graduation-checklist/page.tsx" "Student graduation checklist page"
 check_contains "apps/web/components/app-shell.tsx" "/student/graduation-checklist" "Graduation checklist nav link"
 
+# ── Session 21: course-pairings, deadlines, retention ───────────────────────
+check_contains "apps/api/src/admin/admin.service.ts" "getCoursePairings" "Admin course pairings service"
+check_contains "apps/api/src/admin/admin.controller.ts" "course-pairings" "Admin course pairings endpoint"
+check_exists "apps/web/app/admin/course-pairings/page.tsx" "Admin course pairings page"
+check_contains "apps/web/app/admin/course-pairings/page.tsx" "expanded" "Expandable terms in course pairings page"
+check_contains "apps/web/components/app-shell.tsx" "/admin/course-pairings" "Course pairings nav link"
+check_exists "apps/web/app/student/deadlines/page.tsx" "Student deadlines page"
+check_contains "apps/web/app/student/deadlines/page.tsx" "sis.student.deadlines" "Deadlines localStorage key"
+check_contains "apps/web/components/app-shell.tsx" "/student/deadlines" "Student deadlines nav link"
+check_contains "apps/api/src/admin/admin.service.ts" "getRetentionCohort" "Retention cohort service"
+check_contains "apps/api/src/admin/admin.controller.ts" "\"retention\"" "Retention cohort endpoint"
+check_exists "apps/web/app/admin/retention/page.tsx" "Admin retention cohort page"
+check_contains "apps/web/app/admin/retention/page.tsx" "retentionPct" "Retention rate rendering"
+check_contains "apps/web/components/app-shell.tsx" "/admin/retention" "Retention nav link"
+
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"
 else
