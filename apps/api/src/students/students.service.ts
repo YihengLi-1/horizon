@@ -108,7 +108,8 @@ export class StudentsService {
                 term: {
                   select: {
                     id: true,
-                    name: true
+                    name: true,
+                    endDate: true
                   }
                 }
               }

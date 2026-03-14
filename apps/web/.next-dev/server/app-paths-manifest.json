@@ -1,12 +1,7 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/page": "app/page.js",
-  "/(auth)/login/page": "app/(auth)/login/page.js",
-  "/student/dashboard/page": "app/student/dashboard/page.js",
-  "/student/conflicts/page": "app/student/conflicts/page.js",
   "/student/grades/page": "app/student/grades/page.js",
-  "/student/schedule/page": "app/student/schedule/page.js",
   "/student/degree/page": "app/student/degree/page.js",
+  "/student/conflicts/page": "app/student/conflicts/page.js",
   "/student/receipt/page": "app/student/receipt/page.js",
-  "/student/waitlist/page": "app/student/waitlist/page.js"
+  "/(auth)/login/page": "app/(auth)/login/page.js"
 }

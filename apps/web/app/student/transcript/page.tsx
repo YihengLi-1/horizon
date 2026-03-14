@@ -23,7 +23,7 @@ type Enrollment = {
     sectionCode: string;
     instructorName: string;
     course: { code: string; title: string };
-    term: { id: string; name: string; endDate: string };
+    term?: { id: string; name: string; endDate?: string };
   };
 };
 
@@ -39,15 +39,16 @@ function detectIssues(enrollments: Enrollment[]): Issue[] {
   const now = new Date();
 
   for (const e of enrollments) {
-    const termEndDate = new Date(e.section.term.endDate);
-    const termPast = termEndDate < now;
+    const termName = e.section.term?.name ?? "Unknown term";
+    const termEndDate = e.section.term?.endDate ? new Date(e.section.term.endDate) : null;
+    const termPast = termEndDate ? termEndDate < now : false;
 
     if (e.status === "COMPLETED" && !e.finalGrade) {
       issues.push({
         enrollmentId: e.id,
         severity: "error",
         label: "成绩缺失",
-        detail: `${e.section.course.code} (${e.section.term.name}) 状态为 COMPLETED 但缺少最终成绩`
+        detail: `${e.section.course.code} (${termName}) 状态为 COMPLETED 但缺少最终成绩`
       });
     }
 
@@ -56,7 +57,7 @@ function detectIssues(enrollments: Enrollment[]): Issue[] {
         enrollmentId: e.id,
         severity: "warning",
         label: "未结课",
-        detail: `${e.section.course.code} (${e.section.term.name}) 学期已结束但状态仍为 ENROLLED`
+        detail: `${e.section.course.code} (${termName}) 学期已结束但状态仍为 ENROLLED`
       });
     }
 
@@ -65,7 +66,7 @@ function detectIssues(enrollments: Enrollment[]): Issue[] {
         enrollmentId: e.id,
         severity: "info",
         label: "待审批",
-        detail: `${e.section.course.code} (${e.section.term.name}) 待管理员审批`
+        detail: `${e.section.course.code} (${termName}) 待管理员审批`
       });
     }
   }
@@ -73,7 +74,7 @@ function detectIssues(enrollments: Enrollment[]): Issue[] {
   // Detect duplicate enrollments in same term
   const enrolledBySectionCode = new Map<string, string[]>();
   for (const e of enrollments.filter((e) => e.status === "ENROLLED")) {
-    const key = e.section.term.id;
+    const key = e.section.term?.id ?? "unknown-term";
     if (!enrolledBySectionCode.has(key)) enrolledBySectionCode.set(key, []);
     enrolledBySectionCode.get(key)!.push(e.section.course.code);
   }
@@ -148,9 +149,13 @@ export default function TranscriptPage() {
   // Group by term
   const termMap = new Map<string, GradeGroup>();
   for (const e of filtered) {
-    const key = e.section.term.id;
+    const key = e.section.term?.id ?? "unknown-term";
     if (!termMap.has(key)) {
-      termMap.set(key, { termName: e.section.term.name, termEndDate: e.section.term.endDate, enrollments: [] });
+      termMap.set(key, {
+        termName: e.section.term?.name ?? "Unknown term",
+        termEndDate: e.section.term?.endDate ?? "1970-01-01T00:00:00.000Z",
+        enrollments: []
+      });
     }
     termMap.get(key)!.enrollments.push(e);
   }
