@@ -1,11 +1,8 @@
 import Link from "next/link";
-import { Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { serverApi } from "@/lib/server-api";
 import { requireRole } from "@/lib/server-auth";
 import PinnedAnnouncements from "./PinnedAnnouncements";
-import QuickCoursesPanel from "./QuickCoursesPanel";
-import RecommendedCourses from "./RecommendedCourses";
 
 type Term = {
   id: string;
@@ -438,32 +435,21 @@ export default async function StudentDashboardPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Student ID: {me?.studentId ?? "—"}</span>
-            <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Major: {me?.profile?.programMajor ?? "Undeclared"}</span>
             {term ? <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{term.name}</span> : null}
-            {enrolledCount > 0 ? (
-              <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-700">
-                Enrolled {enrolledCount}
-              </span>
+            <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">
+              {me?.profile?.programMajor ?? "Undeclared"}
+            </span>
+            {grades.length > 0 && cumulativeGpa !== null ? (
+              <span className={`campus-chip ${gpaChipTone(cumulativeGpa)}`}>GPA {cumulativeGpa.toFixed(2)}</span>
             ) : null}
             {waitlistedCount > 0 ? (
-              <span className="campus-chip border-amber-300 bg-amber-50 text-amber-700">
-                Waitlisted {waitlistedCount}
-              </span>
-            ) : null}
-            {cartItems.length > 0 ? (
-              <span className="campus-chip border-blue-300 bg-blue-50 text-blue-700">{cartItems.length} in cart</span>
-            ) : null}
-            {grades.length > 0 && cumulativeGpa !== null ? (
-              <span className={`campus-chip ${gpaChipTone(cumulativeGpa)}`}>
-                GPA {cumulativeGpa.toFixed(2)}
-              </span>
+              <span className="campus-chip border-amber-300 bg-amber-50 text-amber-700">Waitlisted {waitlistedCount}</span>
             ) : null}
           </div>
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Registration state — dynamically colored */}
         {(() => {
           const { bg, border, label: lbl, text } = {
@@ -484,10 +470,10 @@ export default async function StudentDashboardPage() {
         })()}
 
         <div className="campus-kpi border-emerald-200 bg-emerald-50/60">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Enrolled Sections</p>
-          <p className="mt-1 text-2xl font-semibold text-emerald-900">{enrolledCount}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Current Load</p>
+          <p className="mt-1 text-2xl font-semibold text-emerald-900">{enrolledCredits}</p>
           {term?.maxCredits ? (
-            <p className="text-[10px] text-emerald-600">{enrolledCredits}/{term.maxCredits} credits</p>
+            <p className="text-[10px] text-emerald-600">{enrolledCount} section(s) · {term.maxCredits} max credits</p>
           ) : enrolledCredits > 0 ? (
             <p className="text-[10px] text-emerald-600">{enrolledCredits} credits</p>
           ) : null}
@@ -496,11 +482,9 @@ export default async function StudentDashboardPage() {
         <div className="campus-kpi border-amber-200 bg-amber-50/60">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Waitlisted</p>
           <p className="mt-1 text-2xl font-semibold text-amber-900">{waitlistedCount}</p>
-        </div>
-
-        <div className="campus-kpi border-violet-200 bg-violet-50/60">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Pending Approval</p>
-          <p className="mt-1 text-2xl font-semibold text-violet-900">{pendingApproval.length}</p>
+          {pendingApproval.length > 0 ? (
+            <p className="text-[10px] text-amber-700">{pendingApproval.length} pending approval</p>
+          ) : null}
         </div>
 
         {/* Cumulative GPA — sourced from academic history */}
@@ -542,45 +526,6 @@ export default async function StudentDashboardPage() {
 
       <PinnedAnnouncements announcements={announcements.slice(0, 3)} />
 
-      {nextAction ? (
-        <div className="campus-card flex items-center gap-4 p-4">
-          <span className="text-3xl">{nextAction.icon}</span>
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{nextAction.title}</p>
-            <p className="mt-0.5 text-xs text-slate-500">{nextAction.desc}</p>
-          </div>
-          <a
-            href={nextAction.href}
-            className="shrink-0 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 dark:bg-white dark:text-slate-900"
-          >
-            {nextAction.cta}
-          </a>
-        </div>
-      ) : null}
-
-      <Suspense fallback={<div className="campus-card h-32 animate-pulse" />}>
-        <QuickCoursesPanel enrollments={enrollments ?? []} />
-      </Suspense>
-
-      <Suspense fallback={<div className="campus-card h-32 animate-pulse" />}>
-        <RecommendedCourses />
-      </Suspense>
-
-      {term ? (
-        <section className="campus-card p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-slate-800">Credit Utilization</p>
-            <p className="text-sm text-slate-500">{term.maxCredits > 0 ? `${enrolledCredits}/${term.maxCredits} credits` : "No credit cap configured"}</p>
-          </div>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-            <div
-              className={`h-full rounded-full transition-all ${creditPct >= 90 ? "bg-red-500" : creditPct >= 70 ? "bg-amber-500" : "bg-emerald-500"}`}
-              style={{ width: `${creditPct}%` }}
-            />
-          </div>
-        </section>
-      ) : null}
-
       <Card className="campus-card">
         <CardHeader>
           <CardTitle className="font-heading text-2xl">Student Alert Center</CardTitle>
@@ -608,37 +553,47 @@ export default async function StudentDashboardPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
         <Card className="campus-card">
           <CardHeader>
-            <CardTitle className="font-heading text-2xl">Action Queue</CardTitle>
+            <CardTitle className="font-heading text-2xl">Current Term</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {actionItems.map((item) => (
-              <div key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-slate-900">{item.title}</p>
-                  <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${chipTone(item.tone)}`}>
-                    {item.tone === "emerald" ? "Ready" : item.tone === "amber" ? "Attention" : "Info"}
-                  </span>
+            {nextAction ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">{nextAction.icon}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-slate-900">{nextAction.title}</p>
+                    <p className="mt-1 text-sm text-slate-600">{nextAction.desc}</p>
+                    <Link
+                      href={nextAction.href}
+                      className="mt-2 inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-100"
+                    >
+                      {nextAction.cta}
+                    </Link>
+                  </div>
                 </div>
-                <p className="mt-1 text-sm text-slate-600">{item.description}</p>
-                <Link
-                  href={item.href}
-                  className="mt-2 inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-100"
-                >
-                  {item.cta}
-                </Link>
               </div>
-            ))}
-          </CardContent>
-        </Card>
+            ) : null}
 
-        <Card className="campus-card">
-          <CardHeader>
-            <CardTitle className="font-heading text-2xl">Timeline</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
+            {term ? (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-slate-900">Credit Utilization</p>
+                  <p className="text-sm text-slate-500">
+                    {term.maxCredits > 0 ? `${enrolledCredits}/${term.maxCredits} credits` : "No credit cap configured"}
+                  </p>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                  <div
+                    className={`h-full rounded-full transition-all ${creditPct >= 90 ? "bg-red-500" : creditPct >= 70 ? "bg-amber-500" : "bg-emerald-500"}`}
+                    style={{ width: `${creditPct}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
+
             {term ? (
               <>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
@@ -653,137 +608,153 @@ export default async function StudentDashboardPage() {
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Drop Deadline</p>
                   <p className="mt-1 text-slate-800">{fmtDateTime(term.dropDeadline)}</p>
                 </div>
-                {dropDaysLeft !== null ? (
-                  <p className={`rounded-xl border px-3 py-2 text-sm font-semibold ${dropDaysLeft < 0 ? "border-red-200 bg-red-50 text-red-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
-                    {dropDaysLeft < 0
-                      ? `Drop deadline passed ${Math.abs(dropDaysLeft)} day(s) ago. Contact registrar/support for changes.`
-                      : `${dropDaysLeft} day(s) remaining until drop deadline.`}
-                  </p>
-                ) : null}
               </>
             ) : (
               <p className="text-slate-500">No active term available.</p>
             )}
+
+            {actionItems.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Focus Now</p>
+                {actionItems.slice(0, 2).map((item) => (
+                  <div key={item.title} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${chipTone(item.tone)}`}>
+                        {item.tone === "emerald" ? "Ready" : item.tone === "amber" ? "Attention" : "Info"}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-600">{item.description}</p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {dropDaysLeft !== null ? (
+              <p className={`rounded-xl border px-3 py-2 text-sm font-semibold ${dropDaysLeft < 0 ? "border-red-200 bg-red-50 text-red-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+                {dropDaysLeft < 0
+                  ? `Drop deadline passed ${Math.abs(dropDaysLeft)} day(s) ago. Contact registrar/support for changes.`
+                  : `${dropDaysLeft} day(s) remaining until drop deadline.`}
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <Card className="campus-card">
+          <CardHeader>
+            <CardTitle className="font-heading text-2xl">Registration Snapshot</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {enrolled.length > 0 ? (
+              <div>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  Enrolled ({enrolledCount})
+                </p>
+                <div className="overflow-hidden rounded-xl border border-emerald-200">
+                  <table className="w-full border-collapse text-sm">
+                    <tbody>
+                      {enrolled.slice(0, 6).map((item) => (
+                        <tr key={item.id} className="border-b border-emerald-100 last:border-0 odd:bg-emerald-50/40 even:bg-white">
+                          <td className="px-3 py-2">
+                            <div className="space-y-1">
+                              <span className="font-mono text-xs font-semibold text-slate-700">
+                                {item.section.course?.code ?? "—"}
+                              </span>
+                              <span className={enrollmentStatusChip(item.status)}>
+                                {item.status}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="max-w-[200px] truncate px-3 py-2 text-slate-600">
+                            {item.section.course?.title ?? item.section.sectionCode ?? "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right text-slate-500">
+                            {item.section.credits} cr
+                          </td>
+                        </tr>
+                      ))}
+                      {enrolled.length > 6 ? (
+                        <tr className="bg-white">
+                          <td colSpan={3} className="px-3 py-1.5 text-center text-xs text-slate-400">
+                            +{enrolled.length - 6} more — view full schedule
+                          </td>
+                        </tr>
+                      ) : null}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
+
+            {pendingApproval.length === 0 && waitlisted.length === 0 && enrolled.length === 0 ? (
+              <div className="py-8 text-center">
+                <p className="text-2xl">📚</p>
+                <p className="mt-2 text-sm font-medium text-slate-600">No enrollments yet</p>
+                <p className="mt-1 text-xs text-slate-400">Browse the course catalog to get started.</p>
+                <Link
+                  href="/student/catalog"
+                  className="mt-3 inline-flex h-8 items-center rounded-lg bg-primary px-4 text-xs font-semibold text-white no-underline transition hover:bg-primary/90"
+                >
+                  Browse Catalog →
+                </Link>
+              </div>
+            ) : pendingApproval.length > 0 || waitlisted.length > 0 ? (
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Pending Approval</p>
+                  <p className="mt-1 text-2xl font-semibold text-violet-900">{pendingApproval.length}</p>
+                  <ul className="mt-2 space-y-1 text-sm text-violet-900">
+                    {pendingApproval.slice(0, 5).map((item) => (
+                      <li key={item.id}>
+                        {(item.section.course?.code ?? "Course")} {(item.section.sectionCode ?? "")}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Waitlisted</p>
+                  <p className="mt-1 text-2xl font-semibold text-amber-900">{waitlisted.length}</p>
+                  <ul className="mt-2 space-y-1 text-sm text-amber-900">
+                    {waitlisted.slice(0, 5).map((item) => (
+                      <li key={item.id}>
+                        {(item.section.course?.code ?? "Course")} {(item.section.sectionCode ?? "")}
+                        {item.waitlistPosition ? ` · #${item.waitlistPosition} in queue` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href={term ? `/student/catalog?termId=${term.id}` : "/student/catalog"}
+                className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
+              >
+                Browse Catalog
+              </Link>
+              <Link
+                href={term ? `/student/cart?termId=${term.id}` : "/student/cart"}
+                className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
+              >
+                Open Cart
+              </Link>
+              <Link
+                href={term ? `/student/schedule?termId=${term.id}` : "/student/schedule"}
+                className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
+              >
+                View Schedule
+              </Link>
+              <Link
+                href="/student/grades"
+                className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
+              >
+                View Grades
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>
-
-      <Card className="campus-card">
-        <CardHeader>
-          <CardTitle className="font-heading text-2xl">Registration Snapshot</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Currently enrolled sections */}
-          {enrolled.length > 0 ? (
-            <div>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                Enrolled ({enrolledCount})
-              </p>
-              <div className="overflow-hidden rounded-xl border border-emerald-200">
-                <table className="w-full border-collapse text-sm">
-                  <tbody>
-                    {enrolled.slice(0, 6).map((item) => (
-                      <tr key={item.id} className="border-b border-emerald-100 last:border-0 odd:bg-emerald-50/40 even:bg-white">
-                        <td className="px-3 py-2">
-                          <div className="space-y-1">
-                            <span className="font-mono text-xs font-semibold text-slate-700">
-                              {item.section.course?.code ?? "—"}
-                            </span>
-                            <span className={enrollmentStatusChip(item.status)}>
-                              {item.status}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-3 py-2 text-slate-600 truncate max-w-[200px]">
-                          {item.section.course?.title ?? item.section.sectionCode ?? "—"}
-                        </td>
-                        <td className="px-3 py-2 text-right text-slate-500">
-                          {item.section.credits} cr
-                        </td>
-                      </tr>
-                    ))}
-                    {enrolled.length > 6 ? (
-                      <tr className="bg-white">
-                        <td colSpan={3} className="px-3 py-1.5 text-center text-xs text-slate-400">
-                          +{enrolled.length - 6} more — view full schedule
-                        </td>
-                      </tr>
-                    ) : null}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : null}
-
-          {/* Pending + waitlisted */}
-          {pendingApproval.length === 0 && waitlisted.length === 0 && enrolled.length === 0 ? (
-            <div className="py-8 text-center">
-              <p className="text-2xl">📚</p>
-              <p className="mt-2 text-sm font-medium text-slate-600">No enrollments yet</p>
-              <p className="mt-1 text-xs text-slate-400">Browse the course catalog to get started.</p>
-              <Link
-                href="/student/catalog"
-                className="mt-3 inline-flex h-8 items-center rounded-lg bg-primary px-4 text-xs font-semibold text-white no-underline transition hover:bg-primary/90"
-              >
-                Browse Catalog →
-              </Link>
-            </div>
-          ) : pendingApproval.length > 0 || waitlisted.length > 0 ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Pending Approval</p>
-                <p className="mt-1 text-2xl font-semibold text-violet-900">{pendingApproval.length}</p>
-                <ul className="mt-2 space-y-1 text-sm text-violet-900">
-                  {pendingApproval.slice(0, 5).map((item) => (
-                    <li key={item.id}>
-                      {(item.section.course?.code ?? "Course")} {(item.section.sectionCode ?? "")}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Waitlisted</p>
-                <p className="mt-1 text-2xl font-semibold text-amber-900">{waitlisted.length}</p>
-                <ul className="mt-2 space-y-1 text-sm text-amber-900">
-                  {waitlisted.slice(0, 5).map((item) => (
-                    <li key={item.id}>
-                      {(item.section.course?.code ?? "Course")} {(item.section.sectionCode ?? "")}
-                      {item.waitlistPosition ? ` · #${item.waitlistPosition} in queue` : ""}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          ) : null}
-
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href={term ? `/student/catalog?termId=${term.id}` : "/student/catalog"}
-              className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
-            >
-              Browse Catalog
-            </Link>
-            <Link
-              href={term ? `/student/cart?termId=${term.id}` : "/student/cart"}
-              className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
-            >
-              Open Cart
-            </Link>
-            <Link
-              href={term ? `/student/schedule?termId=${term.id}` : "/student/schedule"}
-              className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
-            >
-              View Schedule
-            </Link>
-            <Link
-              href="/student/grades"
-              className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
-            >
-              View Grades
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
