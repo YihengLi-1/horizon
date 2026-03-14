@@ -95,7 +95,11 @@ const studentItems: NavItem[] = [
   { href: "/student/help", label: "Help", icon: <HelpCircle className={iconClass} /> },
   { href: "/student/peer-compare", label: "同伴对比", icon: <BarChart3 className={iconClass} /> },
   { href: "/student/enrollment-timeline", label: "选课历程", icon: <History className={iconClass} /> },
-  { href: "/student/standing", label: "学业状态", icon: <GraduationCap className={iconClass} /> }
+  { href: "/student/standing", label: "学业状态", icon: <GraduationCap className={iconClass} /> },
+  { href: "/student/recommendations", label: "课程推荐", icon: <Star className={iconClass} /> },
+  { href: "/student/what-if", label: "假设规划器", icon: <BarChart3 className={iconClass} /> },
+  { href: "/student/credit-summary", label: "学分汇总", icon: <BarChart3 className={iconClass} /> },
+  { href: "/student/gpa-goal", label: "GPA 目标规划", icon: <BarChart3 className={iconClass} /> }
 ];
 
 const adminItems: NavItem[] = [
@@ -139,6 +143,14 @@ const adminItems: NavItem[] = [
   { href: "/admin/term-enrollment-forecast", label: "学期选课预测", icon: <BarChart3 className={iconClass} /> },
   { href: "/admin/course-demand-compare", label: "课程需求对比", icon: <BarChart3 className={iconClass} /> },
   { href: "/admin/section-swap", label: "班级调换", icon: <ListChecks className={iconClass} /> },
+  { href: "/admin/enrollment-audit", label: "注册审计", icon: <ScrollText className={iconClass} /> },
+  { href: "/admin/top-performers", label: "优秀学生", icon: <Star className={iconClass} /> },
+  { href: "/admin/dept-workload", label: "学院工作负荷", icon: <BarChart3 className={iconClass} /> },
+  { href: "/admin/enrollment-velocity", label: "注册速度", icon: <BarChart3 className={iconClass} /> },
+  { href: "/admin/prereq-map", label: "先修课关系图", icon: <ListChecks className={iconClass} /> },
+  { href: "/admin/grade-curve", label: "成绩曲线工具", icon: <BarChart3 className={iconClass} /> },
+  { href: "/admin/section-roster", label: "课程节名单", icon: <Users className={iconClass} /> },
+  { href: "/admin/term-capacity", label: "学期容量汇总", icon: <BarChart3 className={iconClass} /> },
   { href: "/admin/audit-logs", label: "审计日志", icon: <ScrollText className={iconClass} /> },
   { href: "/admin/notifications", label: "通知记录", icon: <Bell className={iconClass} /> },
   { href: "/admin/sessions", label: "会话管理", icon: <Shield className={iconClass} /> },
@@ -210,7 +222,7 @@ export function AppShell({
             { label: "概览", hrefs: ["/admin/dashboard", "/admin/alerts", "/admin/search"] },
             { label: "学术管理", hrefs: ["/admin/students", "/admin/students/at-risk", "/admin/student-progress", "/admin/dropout-risk", "/admin/graduation", "/admin/instructors", "/admin/faculty-schedule", "/admin/courses", "/admin/sections", "/admin/terms", "/admin/calendar"] },
             { label: "注册管理", hrefs: ["/admin/enrollments", "/admin/section-swap", "/admin/closeout", "/admin/waitlist", "/admin/waitlist-analytics", "/admin/holds", "/admin/requests", "/admin/appeals"] },
-            { label: "系统", hrefs: ["/admin/announcements", "/admin/cohort-message", "/admin/status-email", "/admin/invite-codes", "/admin/import", "/admin/export", "/admin/reports", "/admin/grade-distribution", "/admin/demand", "/admin/capacity-plan", "/admin/term-compare", "/admin/registration-heatmap", "/admin/prereq-audit", "/admin/offering-history", "/admin/cohort-analytics", "/admin/term-enrollment-forecast", "/admin/course-demand-compare", "/admin/digest", "/admin/audit-logs", "/admin/notifications", "/admin/sessions", "/admin/settings"] }
+            { label: "系统", hrefs: ["/admin/announcements", "/admin/cohort-message", "/admin/status-email", "/admin/invite-codes", "/admin/import", "/admin/export", "/admin/reports", "/admin/grade-distribution", "/admin/demand", "/admin/capacity-plan", "/admin/term-compare", "/admin/registration-heatmap", "/admin/prereq-audit", "/admin/offering-history", "/admin/cohort-analytics", "/admin/term-enrollment-forecast", "/admin/course-demand-compare", "/admin/enrollment-audit", "/admin/top-performers", "/admin/dept-workload", "/admin/enrollment-velocity", "/admin/prereq-map", "/admin/grade-curve", "/admin/section-roster", "/admin/term-capacity", "/admin/digest", "/admin/audit-logs", "/admin/notifications", "/admin/sessions", "/admin/settings"] }
           ]
         : area === "faculty"
           ? [{ label: "Instruction", hrefs: ["/faculty/dashboard", "/faculty/sections", "/faculty/requests"] }]
@@ -219,7 +231,7 @@ export function AppShell({
         : [
             { label: "Overview", hrefs: ["/student/dashboard", "/student/notifications", "/student/announcements"] },
             { label: "Registration", hrefs: ["/student/catalog", "/student/readiness", "/student/planner", "/student/cart", "/student/quick-add", "/student/waitlist", "/student/conflicts", "/student/schedule", "/student/receipt"] },
-            { label: "Academic", hrefs: ["/student/grades", "/student/degree", "/student/degree-audit", "/student/standing", "/student/gpa-sim", "/student/grade-estimator", "/student/peer-compare", "/student/enrollment-timeline", "/student/transcript", "/student/calendar", "/student/history", "/student/bookmarks", "/student/watched", "/student/study-timer", "/student/reviews", "/student/my-notes", "/student/appeals", "/student/advisor", "/student/settings", "/student/contact", "/student/profile", "/student/help"] }
+            { label: "Academic", hrefs: ["/student/grades", "/student/degree", "/student/degree-audit", "/student/standing", "/student/recommendations", "/student/what-if", "/student/credit-summary", "/student/gpa-goal", "/student/gpa-sim", "/student/grade-estimator", "/student/peer-compare", "/student/enrollment-timeline", "/student/transcript", "/student/calendar", "/student/history", "/student/bookmarks", "/student/watched", "/student/study-timer", "/student/reviews", "/student/my-notes", "/student/appeals", "/student/advisor", "/student/settings", "/student/contact", "/student/profile", "/student/help"] }
           ];
 
     return groups

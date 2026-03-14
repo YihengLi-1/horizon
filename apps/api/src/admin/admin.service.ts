@@ -5651,7 +5651,7 @@ export class AdminService {
 
     return {
       userId: user.id,
-      name: user.name ?? user.email,
+      name: user.email,
       email: user.email,
       major: user.studentProfile?.programMajor ?? null,
       enrollmentStatus: user.studentProfile?.enrollmentStatus ?? null,
@@ -5667,12 +5667,11 @@ export class AdminService {
     const enrollment = await this.prisma.enrollment.findUnique({
       where: { id: enrollmentId },
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        student: { select: { id: true, email: true } },
         section: {
           include: {
             course: { select: { id: true, code: true, title: true, credits: true } },
             term: { select: { id: true, name: true } },
-            meetingTimes: true,
           }
         }
       }
@@ -5684,7 +5683,6 @@ export class AdminService {
       include: {
         course: { select: { id: true, code: true, title: true, credits: true } },
         term: { select: { id: true, name: true } },
-        meetingTimes: true,
         enrollments: { where: { status: "ENROLLED", deletedAt: null }, select: { id: true } }
       }
     });
@@ -5696,13 +5694,14 @@ export class AdminService {
 
     return {
       enrollment: { id: enrollmentId, status: enrollment.status },
-      student: enrollment.user,
+      student: { id: enrollment.student.id, name: enrollment.student.email, email: enrollment.student.email },
       fromSection: {
         id: enrollment.section.id,
         sectionCode: enrollment.section.sectionCode,
         courseCode: enrollment.section.course.code,
         courseTitle: enrollment.section.course.title,
         termName: enrollment.section.term.name,
+        termId: enrollment.section.term.id,
       },
       toSection: {
         id: targetSection.id,
@@ -5713,6 +5712,7 @@ export class AdminService {
         capacity: targetSection.capacity,
         enrolled: targetEnrolled,
         available: targetAvailable,
+        termId: targetSection.term.id,
       },
       warnings: [
         ...(!sameCourse ? ["⚠️ 目标班级属于不同课程"] : []),
@@ -5730,7 +5730,7 @@ export class AdminService {
 
     const updated = await this.prisma.enrollment.update({
       where: { id: enrollmentId },
-      data: { sectionId: targetSectionId, status: newStatus }
+      data: { sectionId: targetSectionId, status: newStatus as import("@prisma/client").EnrollmentStatus }
     });
 
     await this.prisma.auditLog.create({
@@ -5738,8 +5738,8 @@ export class AdminService {
         action: "ADMIN_SECTION_SWAP",
         entityType: "Enrollment",
         entityId: enrollmentId,
-        userId: adminUserId,
-        details: JSON.stringify({ fromSection: preview.fromSection.id, toSection: targetSectionId, newStatus })
+        actorUserId: adminUserId,
+        metadata: { fromSection: preview.fromSection.id, toSection: targetSectionId, newStatus }
       }
     });
 
@@ -5846,5 +5846,546 @@ export class AdminService {
     const trend = slope > 0 ? "up" : slope < 0 ? "down" : "flat";
 
     return { terms, forecast: { value: Math.max(0, forecast), trend, slope: Math.round(slope * 10) / 10 } };
+  }
+
+  // ─── Enrollment Audit Report ─────────────────────────────────────────────────
+  async getEnrollmentAudit(termId?: string, status?: string) {
+    const termFilter = termId ? Prisma.sql`AND s."termId" = ${termId}` : Prisma.sql``;
+    const statusFilter = status ? Prisma.sql`AND e.status = ${status}` : Prisma.sql``;
+
+    const rows = await this.prisma.$queryRaw<{
+      enrollmentId: string;
+      studentEmail: string;
+      studentId: string;
+      courseCode: string;
+      courseTitle: string;
+      sectionCode: string;
+      termName: string;
+      status: string;
+      finalGrade: string | null;
+      enrolledAt: Date;
+      droppedAt: Date | null;
+    }[]>`
+      SELECT
+        e.id AS "enrollmentId",
+        u.email AS "studentEmail",
+        u.id AS "studentId",
+        c.code AS "courseCode",
+        c.title AS "courseTitle",
+        s."sectionCode",
+        t.name AS "termName",
+        e.status,
+        e."finalGrade",
+        e."createdAt" AS "enrolledAt",
+        e."droppedAt"
+      FROM "Enrollment" e
+      JOIN "User" u ON u.id = e."studentId"
+      JOIN "Section" s ON s.id = e."sectionId"
+      JOIN "Course" c ON c.id = s."courseId"
+      JOIN "Term" t ON t.id = s."termId"
+      WHERE e."deletedAt" IS NULL
+        ${termFilter}
+        ${statusFilter}
+      ORDER BY e."createdAt" DESC
+      LIMIT 500
+    `;
+
+    const summary = {
+      total: rows.length,
+      enrolled: rows.filter((r) => r.status === "ENROLLED").length,
+      completed: rows.filter((r) => r.status === "COMPLETED").length,
+      dropped: rows.filter((r) => r.status === "DROPPED").length,
+      waitlisted: rows.filter((r) => r.status === "WAITLISTED").length,
+    };
+
+    return {
+      summary,
+      rows: rows.map((r) => ({
+        ...r,
+        enrolledAt: r.enrolledAt.toISOString().slice(0, 10),
+        droppedAt: r.droppedAt?.toISOString().slice(0, 10) ?? null,
+      })),
+    };
+  }
+
+  // ─── Top Performers Report ────────────────────────────────────────────────────
+  async getTopPerformers(termId?: string, limit = 20) {
+    const termFilter = termId ? Prisma.sql`AND s."termId" = ${termId}` : Prisma.sql``;
+    const rows = await this.prisma.$queryRaw<{
+      studentId: string;
+      email: string;
+      major: string | null;
+      totalCredits: bigint;
+      gpa: string;
+      completedCourses: bigint;
+    }[]>`
+      SELECT
+        u.id AS "studentId",
+        u.email,
+        sp."programMajor" AS "major",
+        SUM(c.credits) AS "totalCredits",
+        ROUND(
+          SUM(
+            CASE e."finalGrade"
+              WHEN 'A+' THEN 4.0 WHEN 'A' THEN 4.0 WHEN 'A-' THEN 3.7
+              WHEN 'B+' THEN 3.3 WHEN 'B' THEN 3.0 WHEN 'B-' THEN 2.7
+              WHEN 'C+' THEN 2.3 WHEN 'C' THEN 2.0 WHEN 'C-' THEN 1.7
+              WHEN 'D+' THEN 1.3 WHEN 'D' THEN 1.0 WHEN 'D-' THEN 0.7
+              ELSE 0
+            END * c.credits
+          ) / NULLIF(SUM(c.credits), 0)::numeric, 2
+        ) AS "gpa",
+        COUNT(*) AS "completedCourses"
+      FROM "Enrollment" e
+      JOIN "User" u ON u.id = e."studentId"
+      LEFT JOIN "StudentProfile" sp ON sp."userId" = u.id
+      JOIN "Section" s ON s.id = e."sectionId"
+      JOIN "Course" c ON c.id = s."courseId"
+      WHERE e."deletedAt" IS NULL
+        AND e.status = 'COMPLETED'
+        AND e."finalGrade" IS NOT NULL
+        AND e."finalGrade" NOT IN ('W', 'F')
+        ${termFilter}
+      GROUP BY u.id, u.email, sp."programMajor"
+      HAVING COUNT(*) >= 1
+      ORDER BY "gpa" DESC, "totalCredits" DESC
+      LIMIT ${limit}
+    `;
+
+    return rows.map((r, i) => ({
+      rank: i + 1,
+      studentId: r.studentId,
+      email: r.email,
+      major: r.major ?? "未分配",
+      totalCredits: Number(r.totalCredits),
+      gpa: Number(r.gpa ?? 0),
+      completedCourses: Number(r.completedCourses),
+    }));
+  }
+
+  // ─── Department Workload Overview ─────────────────────────────────────────────
+  async getDeptWorkload(termId?: string) {
+    const termFilter = termId ? Prisma.sql`AND t.id = ${termId}` : Prisma.sql``;
+    const rows = await this.prisma.$queryRaw<{
+      major: string;
+      instructorCount: bigint;
+      sectionCount: bigint;
+      totalCapacity: bigint;
+      totalEnrolled: bigint;
+      avgSectionsPerInstructor: string;
+      avgEnrolledPerSection: string;
+    }[]>`
+      SELECT
+        COALESCE(sp."programMajor", '未分配') AS "major",
+        COUNT(DISTINCT fp."userId") AS "instructorCount",
+        COUNT(DISTINCT s.id) AS "sectionCount",
+        COALESCE(SUM(s.capacity), 0) AS "totalCapacity",
+        COUNT(CASE WHEN e.status = 'ENROLLED' AND e."deletedAt" IS NULL THEN 1 END) AS "totalEnrolled",
+        ROUND(COUNT(DISTINCT s.id)::numeric / NULLIF(COUNT(DISTINCT fp."userId"), 0), 1) AS "avgSectionsPerInstructor",
+        ROUND(COUNT(CASE WHEN e.status = 'ENROLLED' AND e."deletedAt" IS NULL THEN 1 END)::numeric / NULLIF(COUNT(DISTINCT s.id), 0), 1) AS "avgEnrolledPerSection"
+      FROM "Section" s
+      JOIN "Term" t ON t.id = s."termId"
+      JOIN "Course" c ON c.id = s."courseId"
+      LEFT JOIN "FacultyProfile" fp ON fp."userId" = s."instructorId"
+      LEFT JOIN "StudentProfile" sp ON false
+      LEFT JOIN "Enrollment" e ON e."sectionId" = s.id
+      WHERE c."deletedAt" IS NULL
+        ${termFilter}
+      GROUP BY COALESCE(sp."programMajor", '未分配')
+      ORDER BY "sectionCount" DESC
+    `;
+
+    // Instead group by course category prefix (first 2-4 chars of code)
+    const rowsByPrefix = await this.prisma.$queryRaw<{
+      prefix: string;
+      instructorCount: bigint;
+      sectionCount: bigint;
+      totalCapacity: bigint;
+      totalEnrolled: bigint;
+    }[]>`
+      SELECT
+        SUBSTRING(c.code FROM 1 FOR 4) AS "prefix",
+        COUNT(DISTINCT s."instructorId") AS "instructorCount",
+        COUNT(DISTINCT s.id) AS "sectionCount",
+        COALESCE(SUM(s.capacity), 0) AS "totalCapacity",
+        COUNT(CASE WHEN e.status = 'ENROLLED' AND e."deletedAt" IS NULL THEN 1 END) AS "totalEnrolled"
+      FROM "Section" s
+      JOIN "Term" t ON t.id = s."termId"
+      JOIN "Course" c ON c.id = s."courseId"
+      LEFT JOIN "Enrollment" e ON e."sectionId" = s.id
+      WHERE c."deletedAt" IS NULL
+        ${termFilter}
+      GROUP BY SUBSTRING(c.code FROM 1 FOR 4)
+      ORDER BY "sectionCount" DESC
+    `;
+
+    return rowsByPrefix.map((r) => ({
+      prefix: r.prefix,
+      instructorCount: Number(r.instructorCount),
+      sectionCount: Number(r.sectionCount),
+      totalCapacity: Number(r.totalCapacity),
+      totalEnrolled: Number(r.totalEnrolled),
+      utilization: Number(r.totalCapacity) > 0 ? Math.round((Number(r.totalEnrolled) / Number(r.totalCapacity)) * 100) : 0,
+    }));
+  }
+
+  // ─── Enrollment Velocity ──────────────────────────────────────────────────────
+  async getEnrollmentVelocity(termId?: string) {
+    // Shows day-by-day enrollment count within a term (based on createdAt)
+    const termFilter = termId ? Prisma.sql`AND s."termId" = ${termId}` : Prisma.sql``;
+    const rows = await this.prisma.$queryRaw<{
+      day: Date;
+      newEnrollments: bigint;
+      newDrops: bigint;
+      cumulative: bigint;
+    }[]>`
+      WITH daily AS (
+        SELECT
+          DATE(e."createdAt") AS "day",
+          COUNT(CASE WHEN e.status IN ('ENROLLED', 'WAITLISTED') THEN 1 END) AS "newEnrollments",
+          COUNT(CASE WHEN e.status = 'DROPPED' THEN 1 END) AS "newDrops"
+        FROM "Enrollment" e
+        JOIN "Section" s ON s.id = e."sectionId"
+        WHERE e."deletedAt" IS NULL
+          ${termFilter}
+        GROUP BY DATE(e."createdAt")
+        ORDER BY DATE(e."createdAt") ASC
+      )
+      SELECT
+        "day",
+        "newEnrollments",
+        "newDrops",
+        SUM("newEnrollments" - "newDrops") OVER (ORDER BY "day" ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS "cumulative"
+      FROM daily
+      ORDER BY "day" ASC
+    `;
+
+    const points = rows.map((r) => ({
+      date: r.day.toISOString().slice(0, 10),
+      newEnrollments: Number(r.newEnrollments),
+      newDrops: Number(r.newDrops),
+      cumulative: Number(r.cumulative),
+      net: Number(r.newEnrollments) - Number(r.newDrops),
+    }));
+
+    const totalNew = points.reduce((s, p) => s + p.newEnrollments, 0);
+    const totalDrops = points.reduce((s, p) => s + p.newDrops, 0);
+    const peakDay = points.reduce((best, p) => p.newEnrollments > best.newEnrollments ? p : best, { date: "", newEnrollments: 0, newDrops: 0, cumulative: 0, net: 0 });
+
+    return { points, summary: { totalNew, totalDrops, peakDay: peakDay.date, peakCount: peakDay.newEnrollments } };
+  }
+
+  // ─── Prerequisite Map ─────────────────────────────────────────────────────────
+  async getPrereqMap() {
+    const courses = await this.prisma.course.findMany({
+      where: { deletedAt: null },
+      select: {
+        id: true, code: true, title: true, credits: true,
+        prerequisiteLinks: {
+          select: {
+            prerequisiteCourse: { select: { id: true, code: true, title: true } }
+          }
+        }
+      },
+      orderBy: { code: "asc" }
+    });
+
+    // prerequisiteLinks[].prerequisiteCourse is the actual prerequisite course
+    const nodes = courses.map((c) => ({ id: c.id, code: c.code, title: c.title, credits: c.credits, prereqCount: c.prerequisiteLinks.length }));
+    const edges = courses.flatMap((c) => c.prerequisiteLinks.map((link) => ({
+      from: link.prerequisiteCourse.id, to: c.id,
+      fromCode: link.prerequisiteCourse.code, toCode: c.code
+    })));
+    const inDegreeMap = new Map<string, number>();
+    for (const c of courses) inDegreeMap.set(c.id, 0);
+    for (const e of edges) inDegreeMap.set(e.to, (inDegreeMap.get(e.to) ?? 0) + 1);
+
+    return {
+      nodes: nodes.map((n) => ({ ...n, inDegree: inDegreeMap.get(n.id) ?? 0 })),
+      edges,
+      summary: {
+        totalCourses: courses.length,
+        coursesWithPrereqs: courses.filter((c) => c.prerequisiteLinks.length > 0).length,
+        totalPrereqRelations: edges.length,
+      }
+    };
+  }
+
+  // ─── Grade Curve Preview Tool ─────────────────────────────────────────────────
+  async previewGradeCurve(sectionId: string, steps: number) {
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: { sectionId, deletedAt: null, status: "COMPLETED", finalGrade: { not: null } },
+      select: { id: true, finalGrade: true, studentId: true }
+    });
+
+    const GRADE_POINTS: Record<string, number> = {
+      "A+": 4, "A": 4, "A-": 3.7, "B+": 3.3, "B": 3, "B-": 2.7,
+      "C+": 2.3, "C": 2, "C-": 1.7, "D+": 1.3, "D": 1, "D-": 0.7, "F": 0, "W": 0
+    };
+    const GRADE_ORDER = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-", "F", "W"];
+
+    function boost(grade: string): string {
+      const idx = GRADE_ORDER.indexOf(grade);
+      if (idx < 0 || grade === "W") return grade;
+      return GRADE_ORDER[Math.max(0, idx - steps)] ?? grade;
+    }
+
+    const currentGpa = enrollments.length > 0
+      ? enrollments.reduce((s, e) => s + (GRADE_POINTS[e.finalGrade ?? ""] ?? 0), 0) / enrollments.length
+      : 0;
+
+    const preview = enrollments.map((e) => {
+      const orig = e.finalGrade ?? "F";
+      const curved = boost(orig);
+      return { enrollmentId: e.id, originalGrade: orig, curvedGrade: curved, changed: curved !== orig };
+    });
+
+    const newGpa = preview.length > 0
+      ? preview.reduce((s, p) => s + (GRADE_POINTS[p.curvedGrade] ?? 0), 0) / preview.length
+      : 0;
+
+    return {
+      sectionId, steps,
+      totalStudents: enrollments.length,
+      changedCount: preview.filter((p) => p.changed).length,
+      currentGpa: Math.round(currentGpa * 100) / 100,
+      newGpa: Math.round(newGpa * 100) / 100,
+      preview,
+    };
+  }
+
+  // ─── Section Roster Export ─────────────────────────────────────────────────
+  async getSectionRoster(sectionId: string) {
+    const section = await this.prisma.section.findUnique({
+      where: { id: sectionId },
+      select: {
+        id: true,
+        credits: true,
+        capacity: true,
+        instructorName: true,
+        course: { select: { code: true, title: true, credits: true } },
+        term: { select: { name: true } },
+        instructorUser: { select: { email: true } },
+        enrollments: {
+          where: { deletedAt: null },
+          select: {
+            id: true,
+            status: true,
+            finalGrade: true,
+            createdAt: true,
+            student: { select: { email: true, studentProfile: { select: { legalName: true } } } }
+          },
+          orderBy: { createdAt: "asc" }
+        }
+      }
+    });
+
+    if (!section) throw new Error("Section not found");
+
+    const rows = section.enrollments.map((e, idx) => ({
+      no: idx + 1,
+      email: e.student.email,
+      name: e.student.studentProfile?.legalName ?? e.student.email,
+      status: e.status,
+      finalGrade: e.finalGrade ?? "—",
+      enrolledAt: e.createdAt.toISOString().slice(0, 10),
+    }));
+
+    const graded = rows.filter((r) => r.finalGrade !== "—");
+    const GRADE_POINTS: Record<string, number> = {
+      "A+": 4, "A": 4, "A-": 3.7, "B+": 3.3, "B": 3, "B-": 2.7,
+      "C+": 2.3, "C": 2, "C-": 1.7, "D+": 1.3, "D": 1, "D-": 0.7, "F": 0
+    };
+    const avgGpa = graded.length > 0
+      ? Math.round((graded.reduce((s, r) => s + (GRADE_POINTS[r.finalGrade] ?? 0), 0) / graded.length) * 100) / 100
+      : null;
+
+    return {
+      sectionId: section.id,
+      courseCode: section.course.code,
+      courseTitle: section.course.title,
+      credits: section.course.credits,
+      termName: section.term.name,
+      instructorEmail: section.instructorUser?.email ?? section.instructorName ?? "—",
+      capacity: section.capacity,
+      enrolled: rows.filter((r) => r.status === "ENROLLED").length,
+      completed: rows.filter((r) => r.status === "COMPLETED").length,
+      dropped: rows.filter((r) => r.status === "DROPPED").length,
+      avgGpa,
+      roster: rows,
+    };
+  }
+
+  // ─── Term Capacity Summary ─────────────────────────────────────────────────
+  async getTermCapacitySummary(termId?: string) {
+    const termFilter = termId ? Prisma.sql`AND s."termId" = ${termId}` : Prisma.sql``;
+    type CapRow = {
+      termId: string; termName: string; courseCode: string; courseTitle: string;
+      sectionId: string; capacity: bigint; enrolled: bigint; completed: bigint;
+      dropped: bigint; waitlisted: bigint;
+    };
+    const rows = await this.prisma.$queryRaw<CapRow[]>`
+      SELECT
+        t.id AS "termId",
+        t.name AS "termName",
+        c.code AS "courseCode",
+        c.title AS "courseTitle",
+        s.id AS "sectionId",
+        s.capacity::bigint AS "capacity",
+        COUNT(*) FILTER (WHERE e.status = 'ENROLLED' AND e."deletedAt" IS NULL) AS "enrolled",
+        COUNT(*) FILTER (WHERE e.status = 'COMPLETED' AND e."deletedAt" IS NULL) AS "completed",
+        COUNT(*) FILTER (WHERE e.status = 'DROPPED' AND e."deletedAt" IS NULL) AS "dropped",
+        COUNT(*) FILTER (WHERE e.status = 'WAITLISTED' AND e."deletedAt" IS NULL) AS "waitlisted"
+      FROM "Section" s
+      JOIN "Term" t ON t.id = s."termId"
+      JOIN "Course" c ON c.id = s."courseId"
+      LEFT JOIN "Enrollment" e ON e."sectionId" = s.id
+      WHERE s."deletedAt" IS NULL
+        ${termFilter}
+      GROUP BY t.id, t.name, c.code, c.title, s.id, s.capacity
+      ORDER BY t.name DESC, c.code ASC
+    `;
+
+    const sections = rows.map((r) => {
+      const cap = Number(r.capacity);
+      const enrolled = Number(r.enrolled);
+      const completed = Number(r.completed);
+      const utilization = cap > 0 ? Math.round(((enrolled + completed) / cap) * 100) : 0;
+      return {
+        termId: r.termId, termName: r.termName,
+        courseCode: r.courseCode, courseTitle: r.courseTitle,
+        sectionId: r.sectionId, capacity: cap,
+        enrolled, completed,
+        dropped: Number(r.dropped), waitlisted: Number(r.waitlisted),
+        utilization,
+      };
+    });
+
+    // Group by term
+    const termMap = new Map<string, { termId: string; termName: string; totalCapacity: number; totalEnrolled: number; sections: typeof sections }>();
+    for (const s of sections) {
+      if (!termMap.has(s.termId)) termMap.set(s.termId, { termId: s.termId, termName: s.termName, totalCapacity: 0, totalEnrolled: 0, sections: [] });
+      const t = termMap.get(s.termId)!;
+      t.totalCapacity += s.capacity;
+      t.totalEnrolled += s.enrolled + s.completed;
+      t.sections.push(s);
+    }
+
+    const terms = Array.from(termMap.values()).map((t) => ({
+      ...t,
+      overallUtilization: t.totalCapacity > 0 ? Math.round((t.totalEnrolled / t.totalCapacity) * 100) : 0,
+    }));
+
+    return {
+      terms,
+      summary: {
+        totalSections: sections.length,
+        totalCapacity: sections.reduce((s, r) => s + r.capacity, 0),
+        totalEnrolled: sections.reduce((s, r) => s + r.enrolled + r.completed, 0),
+        overCapacitySections: sections.filter((s) => s.utilization > 100).length,
+        fullSections: sections.filter((s) => s.utilization >= 90).length,
+      }
+    };
+  }
+
+  // ─── Enrollment Trends by Major ────────────────────────────────────────────
+  async getMajorEnrollmentTrends(termId?: string) {
+    const termFilter = termId ? Prisma.sql`AND t.id = ${termId}` : Prisma.sql``;
+    type TrendRow = {
+      major: string; termName: string;
+      enrolled: bigint; completed: bigint; dropped: bigint; total: bigint;
+    };
+    const rows = await this.prisma.$queryRaw<TrendRow[]>`
+      SELECT
+        COALESCE(sp."programMajor", '(未指定)') AS major,
+        t.name AS "termName",
+        COUNT(*) FILTER (WHERE e.status = 'ENROLLED') AS "enrolled",
+        COUNT(*) FILTER (WHERE e.status = 'COMPLETED') AS "completed",
+        COUNT(*) FILTER (WHERE e.status = 'DROPPED') AS "dropped",
+        COUNT(*) AS "total"
+      FROM "Enrollment" e
+      JOIN "Section" s ON s.id = e."sectionId"
+      JOIN "Term" t ON t.id = s."termId"
+      JOIN "User" u ON u.id = e."studentId"
+      LEFT JOIN "StudentProfile" sp ON sp."userId" = u.id
+      WHERE e."deletedAt" IS NULL
+        ${termFilter}
+      GROUP BY sp."programMajor", t.name
+      ORDER BY t.name DESC, "total" DESC
+    `;
+
+    const majorMap = new Map<string, { major: string; terms: { termName: string; enrolled: number; completed: number; dropped: number; total: number }[] }>();
+    for (const r of rows) {
+      if (!majorMap.has(r.major)) majorMap.set(r.major, { major: r.major, terms: [] });
+      majorMap.get(r.major)!.terms.push({
+        termName: r.termName,
+        enrolled: Number(r.enrolled), completed: Number(r.completed),
+        dropped: Number(r.dropped), total: Number(r.total),
+      });
+    }
+
+    const majors = Array.from(majorMap.values()).map((m) => ({
+      ...m,
+      totalEnrollments: m.terms.reduce((s, t) => s + t.total, 0),
+      dropRate: m.terms.reduce((s, t) => s + t.dropped, 0) /
+        Math.max(1, m.terms.reduce((s, t) => s + t.total, 0)),
+    }));
+
+    const termNames = Array.from(new Set(rows.map((r) => r.termName)));
+    return { majors, termNames, totalRows: rows.length };
+  }
+
+  // ─── Late Drop Report ──────────────────────────────────────────────────────
+  async getLateDropReport(termId?: string, minWeek?: number) {
+    const week = minWeek ?? 8;
+    const termFilter = termId ? Prisma.sql`AND t.id = ${termId}` : Prisma.sql``;
+    type DropRow = {
+      enrollmentId: string; studentEmail: string; studentName: string | null;
+      courseCode: string; courseTitle: string; termName: string;
+      droppedAt: Date; weeksIntoCourse: number;
+    };
+    const rows = await this.prisma.$queryRaw<DropRow[]>`
+      SELECT
+        e.id AS "enrollmentId",
+        u.email AS "studentEmail",
+        sp."legalName" AS "studentName",
+        c.code AS "courseCode",
+        c.title AS "courseTitle",
+        t.name AS "termName",
+        e."updatedAt" AS "droppedAt",
+        EXTRACT(WEEK FROM AGE(e."updatedAt", COALESCE(t."startDate", e."createdAt")))::int AS "weeksIntoCourse"
+      FROM "Enrollment" e
+      JOIN "Section" s ON s.id = e."sectionId"
+      JOIN "Term" t ON t.id = s."termId"
+      JOIN "Course" c ON c.id = s."courseId"
+      JOIN "User" u ON u.id = e."studentId"
+      LEFT JOIN "StudentProfile" sp ON sp."userId" = u.id
+      WHERE e.status = 'DROPPED'
+        AND e."deletedAt" IS NULL
+        AND EXTRACT(WEEK FROM AGE(e."updatedAt", COALESCE(t."startDate", e."createdAt"))) >= ${week}
+        ${termFilter}
+      ORDER BY e."updatedAt" DESC
+      LIMIT 500
+    `;
+
+    const data = rows.map((r) => ({
+      enrollmentId: r.enrollmentId,
+      studentEmail: r.studentEmail,
+      studentName: r.studentName ?? r.studentEmail,
+      courseCode: r.courseCode,
+      courseTitle: r.courseTitle,
+      termName: r.termName,
+      droppedAt: r.droppedAt.toISOString().slice(0, 10),
+      weeksIntoCourse: Number(r.weeksIntoCourse),
+    }));
+
+    return {
+      rows: data,
+      summary: {
+        total: data.length,
+        minWeek: week,
+        avgWeek: data.length > 0 ? Math.round(data.reduce((s, r) => s + r.weeksIntoCourse, 0) / data.length) : 0,
+      }
+    };
   }
 }

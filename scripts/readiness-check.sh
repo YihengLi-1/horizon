@@ -646,6 +646,60 @@ check_contains "apps/web/components/app-shell.tsx" "/admin/section-swap" "Sectio
 check_contains "apps/web/components/app-shell.tsx" "/student/standing" "Student standing nav link"
 check_contains "apps/web/components/app-shell.tsx" "/admin/course-demand-compare" "Course demand nav link"
 
+# ── Session 19c: enrollment audit, recommendations, top performers ─────────────
+check_contains "apps/api/src/admin/admin.service.ts" "getEnrollmentAudit" "Enrollment audit service"
+check_contains "apps/api/src/admin/admin.controller.ts" "enrollment-audit" "Enrollment audit endpoint"
+check_exists "apps/web/app/admin/enrollment-audit/page.tsx" "Enrollment audit page"
+check_contains "apps/api/src/students/students.service.ts" "getCourseRecommendations" "Course recommendations service"
+check_contains "apps/api/src/students/students.controller.ts" "recommendations" "Recommendations endpoint"
+check_exists "apps/web/app/student/recommendations/page.tsx" "Student recommendations page"
+check_contains "apps/api/src/admin/admin.service.ts" "getTopPerformers" "Top performers service"
+check_contains "apps/api/src/admin/admin.controller.ts" "top-performers" "Top performers endpoint"
+check_exists "apps/web/app/admin/top-performers/page.tsx" "Admin top performers page"
+check_contains "apps/web/components/app-shell.tsx" "/student/recommendations" "Recommendations nav link"
+check_contains "apps/web/components/app-shell.tsx" "/admin/enrollment-audit" "Enrollment audit nav link"
+check_contains "apps/web/components/app-shell.tsx" "/admin/top-performers" "Top performers nav link"
+
+# ── Session 19d: dept-workload, enrollment-velocity, what-if ──────────────────
+check_contains "apps/api/src/admin/admin.service.ts" "getDeptWorkload" "Dept workload service"
+check_contains "apps/api/src/admin/admin.controller.ts" "dept-workload" "Dept workload endpoint"
+check_exists "apps/web/app/admin/dept-workload/page.tsx" "Admin dept workload page"
+check_contains "apps/api/src/admin/admin.service.ts" "getEnrollmentVelocity" "Enrollment velocity service"
+check_contains "apps/api/src/admin/admin.controller.ts" "enrollment-velocity" "Enrollment velocity endpoint"
+check_exists "apps/web/app/admin/enrollment-velocity/page.tsx" "Admin enrollment velocity page"
+check_contains "apps/web/app/admin/enrollment-velocity/page.tsx" "cumulative" "Cumulative view in velocity"
+check_exists "apps/web/app/student/what-if/page.tsx" "Student what-if page"
+check_contains "apps/web/app/student/what-if/page.tsx" "futureRows" "Future courses in what-if"
+check_contains "apps/web/components/app-shell.tsx" "/admin/dept-workload" "Dept workload nav link"
+check_contains "apps/web/components/app-shell.tsx" "/admin/enrollment-velocity" "Enrollment velocity nav link"
+check_contains "apps/web/components/app-shell.tsx" "/student/what-if" "What-if nav link"
+
+# ── Session 20: prereq-map, credit-summary, grade-curve ──────────────────────
+check_contains "apps/api/src/admin/admin.service.ts" "getPrereqMap" "Prereq map service"
+check_contains "apps/api/src/admin/admin.controller.ts" "prereq-map" "Prereq map endpoint"
+check_exists "apps/web/app/admin/prereq-map/page.tsx" "Admin prereq map page"
+check_contains "apps/api/src/admin/admin.service.ts" "previewGradeCurve" "Grade curve service"
+check_contains "apps/api/src/admin/admin.controller.ts" "grade-curve" "Grade curve endpoint"
+check_exists "apps/web/app/admin/grade-curve/page.tsx" "Admin grade curve page"
+check_exists "apps/web/app/student/credit-summary/page.tsx" "Student credit summary page"
+check_contains "apps/web/app/student/credit-summary/page.tsx" "GRADUATION_CREDITS" "Graduation progress in credit summary"
+check_contains "apps/web/components/app-shell.tsx" "/admin/prereq-map" "Prereq map nav link"
+check_contains "apps/web/components/app-shell.tsx" "/admin/grade-curve" "Grade curve nav link"
+check_contains "apps/web/components/app-shell.tsx" "/student/credit-summary" "Credit summary nav link"
+
+# ── Session 20b: section-roster, term-capacity, gpa-goal ─────────────────────
+check_contains "apps/api/src/admin/admin.service.ts" "getSectionRoster" "Section roster service"
+check_contains "apps/api/src/admin/admin.controller.ts" "section-roster" "Section roster endpoint"
+check_exists "apps/web/app/admin/section-roster/page.tsx" "Admin section roster page"
+check_contains "apps/api/src/admin/admin.service.ts" "getTermCapacitySummary" "Term capacity service"
+check_contains "apps/api/src/admin/admin.controller.ts" "term-capacity" "Term capacity endpoint"
+check_exists "apps/web/app/admin/term-capacity/page.tsx" "Admin term capacity page"
+check_exists "apps/web/app/student/gpa-goal/page.tsx" "Student GPA goal page"
+check_contains "apps/web/app/student/gpa-goal/page.tsx" "creditsNeeded" "Credits needed calc in gpa-goal"
+check_contains "apps/web/components/app-shell.tsx" "/admin/section-roster" "Section roster nav link"
+check_contains "apps/web/components/app-shell.tsx" "/admin/term-capacity" "Term capacity nav link"
+check_contains "apps/web/components/app-shell.tsx" "/student/gpa-goal" "GPA goal nav link"
+
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"
 else
