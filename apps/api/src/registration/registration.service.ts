@@ -226,6 +226,213 @@ export class RegistrationService {
     return this.governanceService.getApprovedCreditLimit(client, studentId, termId, defaultMaxCredits);
   }
 
+  private deriveStudentCohortYear(studentId: string | null | undefined, createdAt: Date | null | undefined): number {
+    const idMatch = studentId?.match(/^U(\d{2})/i);
+    if (idMatch) {
+      const yy = Number(idMatch[1]);
+      return yy >= 80 ? 1900 + yy : 2000 + yy;
+    }
+    return createdAt?.getUTCFullYear() ?? new Date().getUTCFullYear();
+  }
+
+  private getRegistrationPriorityOffsetDays(cohortYear: number): number {
+    if (cohortYear <= 2022) return 0;
+    if (cohortYear === 2023) return 2;
+    if (cohortYear === 2024) return 4;
+    return 6;
+  }
+
+  private getRegistrationPriorityLabel(cohortYear: number): string {
+    if (cohortYear <= 2022) return "大四";
+    if (cohortYear === 2023) return "大三";
+    if (cohortYear === 2024) return "大二";
+    return "大一";
+  }
+
+  private async getStudentRegistrationWindowInfo(
+    client: PrismaService | Prisma.TransactionClient,
+    studentId: string,
+    term: {
+      id: string;
+      registrationOpenAt: Date;
+      registrationCloseAt: Date;
+    }
+  ) {
+    const student = await client.user.findUnique({
+      where: { id: studentId },
+      select: {
+        studentId: true,
+        createdAt: true
+      }
+    });
+
+    const cohortYear = this.deriveStudentCohortYear(student?.studentId, student?.createdAt);
+    const offsetDays = this.getRegistrationPriorityOffsetDays(cohortYear);
+    const openAt = new Date(term.registrationOpenAt.getTime() + offsetDays * 24 * 60 * 60 * 1000);
+
+    return {
+      openAt,
+      closeAt: term.registrationCloseAt,
+      cohortYear,
+      offsetDays,
+      priorityLabel: this.getRegistrationPriorityLabel(cohortYear)
+    };
+  }
+
+  private async assertStudentRegistrationWindowOpen(
+    client: PrismaService | Prisma.TransactionClient,
+    studentId: string,
+    term: {
+      id: string;
+      registrationOpenAt: Date;
+      registrationCloseAt: Date;
+    }
+  ) {
+    const info = await this.getStudentRegistrationWindowInfo(client, studentId, term);
+    const now = Date.now();
+    if (now < info.openAt.getTime() || now > info.closeAt.getTime()) {
+      throw new BadRequestException({
+        code: "REGISTRATION_WINDOW_CLOSED",
+        message: "Registration window is closed",
+        registrationOpenAt: info.openAt.toISOString(),
+        registrationCloseAt: info.closeAt.toISOString(),
+        priorityLabel: info.priorityLabel,
+        cohortYear: info.cohortYear
+      });
+    }
+    return info;
+  }
+
+  private async notifyWaitlistPromotionInTransaction(
+    tx: Prisma.TransactionClient,
+    input: {
+      enrollmentId: string;
+      studentId: string;
+      sectionId: string;
+      courseCode: string;
+      courseName: string;
+      req?: Request;
+    }
+  ) {
+    await this.auditService.logInTransaction(tx, {
+      actorUserId: input.studentId,
+      action: "WAITLIST_PROMOTED",
+      entityType: "enrollment",
+      entityId: input.enrollmentId,
+      metadata: {
+        studentId: input.studentId,
+        sectionId: input.sectionId,
+        courseCode: input.courseCode,
+        courseName: input.courseName,
+        message: `你已从等待队列晋升，成功选入 ${input.courseCode} ${input.courseName}`
+      },
+      req: input.req
+    });
+  }
+
+  private async promoteNextWaitlistedEnrollmentInTransaction(
+    tx: Prisma.TransactionClient,
+    input: {
+      sectionId: string;
+      actorUserId: string;
+      req?: Request;
+    }
+  ) {
+    const nextWaiting = await tx.enrollment.findFirst({
+      where: {
+        deletedAt: null,
+        sectionId: input.sectionId,
+        status: "WAITLISTED"
+      },
+      orderBy: [{ waitlistPosition: "asc" }, { createdAt: "asc" }],
+      include: {
+        student: {
+          include: {
+            studentProfile: true
+          }
+        },
+        section: {
+          include: {
+            course: true,
+            term: true
+          }
+        }
+      }
+    });
+
+    if (!nextWaiting) {
+      return null;
+    }
+
+    await tx.enrollment.update({
+      where: { id: nextWaiting.id },
+      data: {
+        status: "ENROLLED",
+        waitlistPosition: null
+      }
+    });
+
+    if (nextWaiting.waitlistPosition !== null) {
+      await tx.enrollment.updateMany({
+        where: {
+          deletedAt: null,
+          sectionId: nextWaiting.sectionId,
+          status: "WAITLISTED",
+          waitlistPosition: { gt: nextWaiting.waitlistPosition }
+        },
+        data: {
+          waitlistPosition: { increment: 10000 }
+        }
+      });
+
+      await tx.enrollment.updateMany({
+        where: {
+          deletedAt: null,
+          sectionId: nextWaiting.sectionId,
+          status: "WAITLISTED",
+          waitlistPosition: { gt: nextWaiting.waitlistPosition + 10000 }
+        },
+        data: {
+          waitlistPosition: { decrement: 9999 }
+        }
+      });
+    }
+
+    await this.auditService.logInTransaction(tx, {
+      actorUserId: input.actorUserId,
+      action: "AUTO_PROMOTE_WAITLIST",
+      entityType: "enrollment",
+      entityId: nextWaiting.id,
+      metadata: {
+        studentId: nextWaiting.studentId,
+        sectionId: nextWaiting.sectionId,
+        course: nextWaiting.section.course.code
+      },
+      req: input.req
+    });
+
+    await this.notifyWaitlistPromotionInTransaction(tx, {
+      enrollmentId: nextWaiting.id,
+      studentId: nextWaiting.studentId,
+      sectionId: nextWaiting.sectionId,
+      courseCode: nextWaiting.section.course.code,
+      courseName: nextWaiting.section.course.title,
+      req: input.req
+    });
+
+    return {
+      id: nextWaiting.id,
+      studentId: nextWaiting.studentId,
+      email: nextWaiting.student.email,
+      legalName: nextWaiting.student.studentProfile?.legalName ?? null,
+      sectionId: nextWaiting.sectionId,
+      sectionCode: nextWaiting.section.sectionCode,
+      termName: nextWaiting.section.term.name,
+      courseCode: nextWaiting.section.course.code,
+      courseTitle: nextWaiting.section.course.title
+    };
+  }
+
   private async assertPrerequisitesSatisfied(
     tx: Prisma.TransactionClient,
     studentId: string,
@@ -339,6 +546,7 @@ export class RegistrationService {
   }): {
     toCreate: Prisma.EnrollmentCreateManyInput[];
     issues: SubmitIssue[];
+    pendingReasonBySection: Map<string, "CREDIT_OVERLOAD" | "SECTION_APPROVAL">;
   } {
     const {
       studentId,
@@ -372,6 +580,7 @@ export class RegistrationService {
     const waitlistNextPositionBySection = new Map<string, number>(maxWaitlistPositionBySection);
     const toCreate: Prisma.EnrollmentCreateManyInput[] = [];
     const issues: SubmitIssue[] = [];
+    const pendingReasonBySection = new Map<string, "CREDIT_OVERLOAD" | "SECTION_APPROVAL">();
 
     for (const item of cartItems) {
       const section = item.section;
@@ -444,8 +653,10 @@ export class RegistrationService {
         }
 
         if (totalCredits + section.credits > term.maxCredits) {
-          pushIssue("CREDIT_LIMIT_EXCEEDED", `Credit limit (${term.maxCredits}) would be exceeded`);
-          continue;
+          status = "PENDING_APPROVAL";
+          pendingReasonBySection.set(section.id, "CREDIT_OVERLOAD");
+        } else if (status === "PENDING_APPROVAL") {
+          pendingReasonBySection.set(section.id, "SECTION_APPROVAL");
         }
 
         totalCredits += section.credits;
@@ -463,12 +674,13 @@ export class RegistrationService {
       existingSectionIds.add(section.id);
     }
 
-    return { toCreate, issues };
+    return { toCreate, issues, pendingReasonBySection };
   }
 
   private buildSubmitPreview(
     cartItems: CartItemWithSection[],
-    toCreate: Prisma.EnrollmentCreateManyInput[]
+    toCreate: Prisma.EnrollmentCreateManyInput[],
+    pendingReasonBySection?: Map<string, "CREDIT_OVERLOAD" | "SECTION_APPROVAL">
   ): SubmitPreview[] {
     const sectionById = new Map<string, CartItemWithSection["section"]>(
       cartItems.map((item) => [item.sectionId, item.section])
@@ -481,7 +693,9 @@ export class RegistrationService {
         sectionCode: section?.sectionCode ?? "",
         courseCode: section?.course.code ?? "",
         status: item.status,
-        waitlistPosition: item.waitlistPosition ?? null
+        waitlistPosition: item.waitlistPosition ?? null,
+        pendingReason:
+          item.status === "PENDING_APPROVAL" ? (pendingReasonBySection?.get(item.sectionId) ?? null) : null
       };
     });
   }
@@ -509,6 +723,12 @@ export class RegistrationService {
       if (!section) {
         throw new NotFoundException("Section not found");
       }
+
+      await this.assertStudentRegistrationWindowOpen(tx, studentId, {
+        id: section.termId,
+        registrationOpenAt: section.term.registrationOpenAt,
+        registrationCloseAt: section.term.registrationCloseAt
+      });
 
       const enrolledCount = section.enrollments.filter((enrollment) => enrollment.status === "ENROLLED").length;
       if (section.capacity > 0 && enrolledCount >= section.capacity) {
@@ -572,21 +792,43 @@ export class RegistrationService {
       const effectiveMaxCredits = await this.getEffectiveMaxCredits(section.term.maxCredits);
       const allowedMaxCredits = await this.getAllowedMaxCredits(tx, studentId, section.termId, effectiveMaxCredits);
       const currentCredits = otherEnrollments.reduce((sum, enrollment) => sum + enrollment.section.credits, 0);
-      if (currentCredits + section.credits > allowedMaxCredits) {
-        throw new BadRequestException({
-          code: "CREDIT_LIMIT_EXCEEDED",
-          message: `Credit limit (${allowedMaxCredits}) would be exceeded`
-        });
-      }
+      const pendingReason =
+        currentCredits + section.credits > allowedMaxCredits
+          ? "CREDIT_OVERLOAD"
+          : section.requireApproval
+            ? "SECTION_APPROVAL"
+            : null;
 
-      return tx.enrollment.create({
+      const created = await tx.enrollment.create({
         data: {
           studentId,
           termId: section.termId,
           sectionId,
-          status: section.requireApproval ? "PENDING_APPROVAL" : "ENROLLED"
+          status: pendingReason ? "PENDING_APPROVAL" : "ENROLLED"
         }
       });
+
+      if (pendingReason === "CREDIT_OVERLOAD") {
+        await this.auditService.logInTransaction(tx, {
+          actorUserId: studentId,
+          action: "CREDIT_OVERLOAD_REQUEST",
+          entityType: "enrollment",
+          entityId: created.id,
+          metadata: {
+            studentId,
+            sectionId,
+            termId: section.termId,
+            currentCredits,
+            requestedCredits: section.credits,
+            resultingCredits: currentCredits + section.credits
+          }
+        });
+      }
+
+      return {
+        ...created,
+        pendingReason
+      };
     });
   }
 
@@ -669,12 +911,7 @@ export class RegistrationService {
     }
 
     const now = new Date();
-    if (now < term.registrationOpenAt || now > term.registrationCloseAt) {
-      throw new BadRequestException({
-        code: "REGISTRATION_WINDOW_CLOSED",
-        message: "Registration window is closed"
-      });
-    }
+    await this.assertStudentRegistrationWindowOpen(this.prisma, studentId, term);
 
     const effectiveMaxCredits = await this.getEffectiveMaxCredits(term.maxCredits);
     const allowedMaxCredits = await this.getAllowedMaxCredits(this.prisma, studentId, input.termId, effectiveMaxCredits);
@@ -759,7 +996,7 @@ export class RegistrationService {
       termId: input.termId,
       cartCount: cartItems.length,
       ok: validation.issues.length === 0,
-      preview: this.buildSubmitPreview(cartItems, validation.toCreate),
+      preview: this.buildSubmitPreview(cartItems, validation.toCreate, validation.pendingReasonBySection),
       issues: validation.issues
     };
   }
@@ -783,12 +1020,7 @@ export class RegistrationService {
     }
 
     const now = new Date();
-    if (now < term.registrationOpenAt || now > term.registrationCloseAt) {
-      throw new BadRequestException({
-        code: "REGISTRATION_WINDOW_CLOSED",
-        message: "Registration window is closed"
-      });
-    }
+    await this.assertStudentRegistrationWindowOpen(this.prisma, studentId, term);
 
     const effectiveMaxCredits = await this.getEffectiveMaxCredits(term.maxCredits);
     const allowedMaxCredits = await this.getAllowedMaxCredits(this.prisma, studentId, input.termId, effectiveMaxCredits);
@@ -880,6 +1112,7 @@ export class RegistrationService {
 
     const created = await this.runEnrollmentTransactionWithRetry(async (tx) => {
       await this.governanceService.assertNoBlockingHolds(tx, studentId);
+      await this.assertStudentRegistrationWindowOpen(tx, studentId, term);
 
       const txCartItems: CartItemWithSection[] = await tx.cartItem.findMany({
         where: { studentId, termId: input.termId },
@@ -979,7 +1212,7 @@ export class RegistrationService {
       await tx.enrollment.createMany({ data: toCreate });
       await tx.cartItem.deleteMany({ where: { studentId, termId: input.termId } });
 
-      return tx.enrollment.findMany({
+      const createdRows = await tx.enrollment.findMany({
         where: {
           deletedAt: null,
           studentId,
@@ -991,6 +1224,32 @@ export class RegistrationService {
         },
         orderBy: { createdAt: "desc" }
       });
+
+      await Promise.all(
+        createdRows
+          .filter((item) => txValidation.pendingReasonBySection.get(item.sectionId) === "CREDIT_OVERLOAD")
+          .map((item) =>
+            this.auditService.logInTransaction(tx, {
+              actorUserId: studentId,
+              action: "CREDIT_OVERLOAD_REQUEST",
+              entityType: "enrollment",
+              entityId: item.id,
+              metadata: {
+                studentId,
+                sectionId: item.sectionId,
+                termId: item.termId,
+                requestedCredits: item.section.credits,
+                reason: "CREDIT_OVERLOAD"
+              },
+              req
+            })
+          )
+      );
+
+      return createdRows.map((row) => ({
+        ...row,
+        pendingReason: txValidation.pendingReasonBySection.get(row.sectionId) ?? null
+      }));
     });
 
     await this.auditService.log({
@@ -1057,260 +1316,155 @@ export class RegistrationService {
    * @throws BadRequestException When the enrollment is already dropped or the drop deadline has passed.
    */
   async dropEnrollment(studentId: string, input: DropEnrollmentInput, req: Request) {
-    const enrollment = await this.prisma.enrollment.findFirst({
-      where: { id: input.enrollmentId, deletedAt: null },
-      include: {
-        term: true,
-        section: {
-          include: { course: true }
-        }
-      }
-    });
-
-    if (!enrollment || enrollment.studentId !== studentId) {
-      throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "Enrollment not found" });
-    }
-
-    if (enrollment.status === "DROPPED") {
-      throw new BadRequestException({ code: "ALREADY_DROPPED", message: "Enrollment already dropped" });
-    }
-
-    const previousStatus = enrollment.status;
-    const seatFreed = previousStatus === "ENROLLED";
-
-    if (previousStatus === "WAITLISTED") {
-      const droppedResult = await this.prisma.$transaction(async (tx) => {
-        const current = await tx.enrollment.findFirst({
-          where: { id: enrollment.id, deletedAt: null },
-          select: {
-            id: true,
-            studentId: true,
-            status: true,
-            sectionId: true,
-            waitlistPosition: true
+    const result = await this.runEnrollmentTransactionWithRetry(async (tx) => {
+      const current = await tx.enrollment.findFirst({
+        where: { id: input.enrollmentId, deletedAt: null },
+        include: {
+          term: true,
+          section: {
+            include: { course: true }
           }
-        });
-
-        if (!current || current.studentId !== studentId) {
-          throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "Enrollment not found" });
         }
-
-        if (current.status !== "WAITLISTED") {
-          throw new BadRequestException({
-            code: "ENROLLMENT_STATE_CHANGED",
-            message: "Enrollment state changed, please retry"
-          });
-        }
-
-        const oldWaitlistPosition = current.waitlistPosition;
-
-        const dropped = await tx.enrollment.update({
-          where: { id: current.id },
-          data: {
-            status: "DROPPED",
-            droppedAt: new Date(),
-            waitlistPosition: null
-          }
-        });
-
-        if (oldWaitlistPosition !== null) {
-          await tx.enrollment.updateMany({
-            where: {
-              deletedAt: null,
-              sectionId: current.sectionId,
-              status: "WAITLISTED",
-              waitlistPosition: { gt: oldWaitlistPosition }
-            },
-            data: {
-              waitlistPosition: { increment: 10000 }
-            }
-          });
-
-          await tx.enrollment.updateMany({
-            where: {
-              deletedAt: null,
-              sectionId: current.sectionId,
-              status: "WAITLISTED",
-              waitlistPosition: { gt: oldWaitlistPosition + 10000 }
-            },
-            data: {
-              waitlistPosition: { decrement: 9999 }
-            }
-          });
-        }
-
-        return {
-          dropped,
-          sectionId: current.sectionId,
-          oldWaitlistPosition
-        };
       });
 
-      await this.auditService.log({
+      if (!current || current.studentId !== studentId) {
+        throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "Enrollment not found" });
+      }
+
+      await this.lockSectionsForUpdate(tx, [current.sectionId]);
+
+      const locked = await tx.enrollment.findFirst({
+        where: { id: input.enrollmentId, deletedAt: null },
+        include: {
+          term: true,
+          section: {
+            include: { course: true }
+          }
+        }
+      });
+
+      if (!locked || locked.studentId !== studentId) {
+        throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "Enrollment not found" });
+      }
+
+      if (locked.status === "DROPPED") {
+        throw new BadRequestException({ code: "ALREADY_DROPPED", message: "Enrollment already dropped" });
+      }
+
+      const previousStatus = locked.status;
+      const seatFreed = previousStatus === "ENROLLED";
+
+      if (
+        (previousStatus === "ENROLLED" || previousStatus === "PENDING_APPROVAL") &&
+        new Date() > locked.term.dropDeadline
+      ) {
+        throw new BadRequestException({
+          code: "DROP_DEADLINE_PASSED",
+          message: "Contact registrar/support"
+        });
+      }
+
+      const oldWaitlistPosition = locked.waitlistPosition;
+      const dropped = await tx.enrollment.update({
+        where: { id: locked.id },
+        data: {
+          status: "DROPPED",
+          droppedAt: new Date(),
+          waitlistPosition: null
+        }
+      });
+
+      if (previousStatus === "WAITLISTED" && oldWaitlistPosition !== null) {
+        await tx.enrollment.updateMany({
+          where: {
+            deletedAt: null,
+            sectionId: locked.sectionId,
+            status: "WAITLISTED",
+            waitlistPosition: { gt: oldWaitlistPosition }
+          },
+          data: {
+            waitlistPosition: { increment: 10000 }
+          }
+        });
+
+        await tx.enrollment.updateMany({
+          where: {
+            deletedAt: null,
+            sectionId: locked.sectionId,
+            status: "WAITLISTED",
+            waitlistPosition: { gt: oldWaitlistPosition + 10000 }
+          },
+          data: {
+            waitlistPosition: { decrement: 9999 }
+          }
+        });
+      }
+
+      await this.auditService.logInTransaction(tx, {
         actorUserId: studentId,
         action: "drop",
         entityType: "enrollment",
-        entityId: enrollment.id,
+        entityId: locked.id,
         metadata: {
           previousStatus,
-          sectionId: droppedResult.sectionId,
-          oldWaitlistPosition: droppedResult.oldWaitlistPosition,
-          seatFreed: false
+          sectionId: locked.sectionId,
+          oldWaitlistPosition,
+          seatFreed
         },
         req
       });
 
-      void dispatch({
-        type: "enrollment.updated",
-        payload: {
-          id: droppedResult.dropped.id,
-          oldStatus: previousStatus,
-          newStatus: "DROPPED"
-        }
-      }).catch(() => {});
+      const promoted = seatFreed
+        ? await this.promoteNextWaitlistedEnrollmentInTransaction(tx, {
+            sectionId: locked.sectionId,
+            actorUserId: studentId,
+            req
+          })
+        : null;
 
       return {
-        dropped: droppedResult.dropped,
-        seatFreed: false
-      };
-    }
-
-    if (
-      (enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL") &&
-      new Date() > enrollment.term.dropDeadline
-    ) {
-      throw new BadRequestException({
-        code: "DROP_DEADLINE_PASSED",
-        message: "Contact registrar/support"
-      });
-    }
-
-    const dropped = await this.prisma.enrollment.update({
-      where: { id: enrollment.id },
-      data: {
-        status: "DROPPED",
-        droppedAt: new Date(),
-        waitlistPosition: null
-      }
-    });
-
-    await this.auditService.log({
-      actorUserId: studentId,
-      action: "drop",
-      entityType: "enrollment",
-      entityId: enrollment.id,
-      metadata: {
+        dropped,
+        seatFreed,
         previousStatus,
-        sectionId: enrollment.sectionId,
-        oldWaitlistPosition: enrollment.waitlistPosition,
-        seatFreed
-      },
-      req
+        promoted
+      };
     });
 
     void dispatch({
       type: "enrollment.updated",
       payload: {
-        id: dropped.id,
-        oldStatus: previousStatus,
+        id: result.dropped.id,
+        oldStatus: result.previousStatus,
         newStatus: "DROPPED"
       }
     }).catch(() => {});
 
-    if (seatFreed) {
-      const nextWaiting = await this.prisma.enrollment.findFirst({
-        where: {
-          deletedAt: null,
-          sectionId: enrollment.sectionId,
-          status: "WAITLISTED"
-        },
-        orderBy: { waitlistPosition: "asc" },
-        include: {
-          student: true,
-          section: {
-            include: {
-              course: true,
-              term: true
-            }
-          }
+    if (result.promoted) {
+      void dispatch({
+        type: "enrollment.updated",
+        payload: {
+          id: result.promoted.id,
+          oldStatus: "WAITLISTED",
+          newStatus: "ENROLLED"
         }
-      });
+      }).catch(() => {});
 
-      if (nextWaiting) {
-        await this.prisma.$transaction(async (tx) => {
-          await tx.enrollment.update({
-            where: { id: nextWaiting.id },
-            data: {
-              status: "ENROLLED",
-              waitlistPosition: null
-            }
-          });
-
-          if (nextWaiting.waitlistPosition !== null) {
-            await tx.enrollment.updateMany({
-              where: {
-                deletedAt: null,
-                sectionId: nextWaiting.sectionId,
-                status: "WAITLISTED",
-                waitlistPosition: { gt: nextWaiting.waitlistPosition }
-              },
-              data: {
-                waitlistPosition: { increment: 10000 }
-              }
-            });
-
-            await tx.enrollment.updateMany({
-              where: {
-                deletedAt: null,
-                sectionId: nextWaiting.sectionId,
-                status: "WAITLISTED",
-                waitlistPosition: { gt: nextWaiting.waitlistPosition + 10000 }
-              },
-              data: {
-                waitlistPosition: { decrement: 9999 }
-              }
-            });
-          }
+      try {
+        await this.notificationsService.sendWaitlistPromotionEmail({
+          to: result.promoted.email,
+          legalName: result.promoted.legalName,
+          termName: result.promoted.termName,
+          courseCode: result.promoted.courseCode,
+          sectionCode: result.promoted.sectionCode
         });
-
-        await this.auditService.log({
-          actorUserId: studentId,
-          action: "AUTO_PROMOTE_WAITLIST",
-          entityType: "enrollment",
-          entityId: nextWaiting.id,
-          metadata: {
-            studentId: nextWaiting.studentId,
-            sectionId: nextWaiting.sectionId,
-            course: nextWaiting.section.course.code
-          },
-          req
-        });
-
-        void dispatch({
-          type: "enrollment.updated",
-          payload: {
-            id: nextWaiting.id,
-            oldStatus: "WAITLISTED",
-            newStatus: "ENROLLED"
-          }
-        }).catch(() => {});
-
-        try {
-          await this.notificationsService.sendMail({
-            to: nextWaiting.student.email,
-            subject: `[SIS] 🎉 Enrolled: ${nextWaiting.section.course.code}`,
-            text: `You have been automatically enrolled in ${nextWaiting.section.course.title}. Your waitlist spot was promoted.`,
-            html: `<p>You have been automatically enrolled in <strong>${nextWaiting.section.course.title}</strong>.</p><p>Your waitlist spot was promoted.</p>`
-          });
-        } catch {
-          // Mail delivery should not block the drop workflow.
-        }
+      } catch {
+        // Mail delivery should not block the drop workflow.
       }
     }
 
     return {
-      dropped,
-      seatFreed
+      dropped: result.dropped,
+      seatFreed: result.seatFreed
     };
   }
 
@@ -1341,7 +1495,7 @@ export class RegistrationService {
         deletedAt: null,
         studentId,
         termId,
-        status: { in: ["ENROLLED", "PENDING_APPROVAL"] }
+        status: { in: ["ENROLLED", "PENDING_APPROVAL", "WAITLISTED", "DROPPED"] }
       },
       include: {
         section: {
@@ -1351,7 +1505,7 @@ export class RegistrationService {
           }
         }
       },
-      orderBy: { section: { sectionCode: "asc" } }
+      orderBy: [{ status: "asc" }, { section: { sectionCode: "asc" } }]
     });
   }
 
