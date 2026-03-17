@@ -95,7 +95,7 @@ export default function EnrollmentAuditPage() {
     <div className="campus-page space-y-6">
       <section className="campus-hero">
         <p className="campus-eyebrow">Enrollment Analytics</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">注册审计报告</h1>
+        <h1 className="campus-title">注册审计报告</h1>
         <p className="mt-1 text-sm text-slate-500">查看所有注册记录，支持筛选、搜索与 CSV 导出</p>
       </section>
 
@@ -155,34 +155,34 @@ export default function EnrollmentAuditPage() {
             显示 {filtered.length} 条（最多 500 条）
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="campus-table text-xs">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-500">
-                  <th className="pb-2 pl-4 text-left font-semibold">学生</th>
-                  <th className="pb-2 pr-3 text-left font-semibold">课程</th>
-                  <th className="pb-2 pr-3 text-left font-semibold">班级</th>
-                  <th className="pb-2 pr-3 text-left font-semibold">学期</th>
-                  <th className="pb-2 pr-3 text-center font-semibold">状态</th>
-                  <th className="pb-2 pr-3 text-center font-semibold">成绩</th>
-                  <th className="pb-2 pr-4 text-right font-semibold">注册日期</th>
+                <tr>
+                  <th>学生</th>
+                  <th>课程</th>
+                  <th>班级</th>
+                  <th>学期</th>
+                  <th className="text-center">状态</th>
+                  <th className="text-center">成绩</th>
+                  <th className="text-right">注册日期</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((r) => (
-                  <tr key={r.enrollmentId} className="border-b border-slate-50 hover:bg-slate-50">
-                    <td className="py-2 pl-4 pr-3 truncate max-w-[160px] text-slate-700">{r.studentEmail}</td>
-                    <td className="py-2 pr-3">
+                  <tr key={r.enrollmentId}>
+                    <td className="truncate max-w-[160px] text-slate-700">{r.studentEmail}</td>
+                    <td>
                       <span className="font-mono font-bold text-indigo-700">{r.courseCode}</span>
                     </td>
-                    <td className="py-2 pr-3 font-mono text-slate-500">{r.sectionCode}</td>
-                    <td className="py-2 pr-3 text-slate-500">{r.termName}</td>
-                    <td className="py-2 pr-3 text-center">
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[r.status] ?? "bg-slate-100 text-slate-600"}`}>
+                    <td className="font-mono text-slate-500">{r.sectionCode}</td>
+                    <td className="text-slate-500">{r.termName}</td>
+                    <td className="text-center">
+                      <span className={`campus-chip px-2 py-0.5 text-[10px] ${r.status === "ENROLLED" ? "chip-emerald" : r.status === "COMPLETED" ? "chip-blue" : r.status === "DROPPED" ? "chip-red" : "chip-amber"}`}>
                         {STATUS_ZH[r.status] ?? r.status}
                       </span>
                     </td>
-                    <td className="py-2 pr-3 text-center font-mono font-bold text-slate-600">{r.finalGrade ?? "—"}</td>
-                    <td className="py-2 pr-4 text-right text-slate-400">{r.enrolledAt}</td>
+                    <td className="text-center font-mono font-bold text-slate-600">{r.finalGrade ?? "—"}</td>
+                    <td className="text-right text-slate-400">{r.enrolledAt}</td>
                   </tr>
                 ))}
               </tbody>

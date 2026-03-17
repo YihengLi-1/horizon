@@ -265,25 +265,25 @@ export default async function AdminDashboardPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">运营概览</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">管理概览</h1>
+            <h1 className="campus-title">管理概览</h1>
             <p className="text-base text-slate-600">
               查看学生、课程、注册状态和当前学期的运营概况。
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-700">
+            <span className="campus-chip chip-emerald">
               {data.students} 名学生
             </span>
-            <span className="campus-chip border-blue-300 bg-blue-50 text-blue-700">
+            <span className="campus-chip chip-blue">
               {data.sections} 个教学班
             </span>
             {data.waitlist > 0 && (
-              <span className="campus-chip border-amber-300 bg-amber-50 text-amber-700">
+              <span className="campus-chip chip-amber">
                 {data.waitlist} 条候补
               </span>
             )}
             {breakdown.pendingApproval > 0 && (
-              <span className="campus-chip border-violet-300 bg-violet-50 text-violet-700">
+              <span className="campus-chip chip-purple">
                 {breakdown.pendingApproval} 条待审批
               </span>
             )}
@@ -311,10 +311,10 @@ export default async function AdminDashboardPage() {
                 <p className={`text-[11px] font-semibold uppercase tracking-wide ${regOpen ? "text-emerald-700" : "text-blue-700"}`}>
                   当前学期
                 </p>
-                <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                <span className={`campus-chip px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                   regOpen
-                    ? "border-emerald-300 bg-emerald-100 text-emerald-800"
-                    : "border-blue-300 bg-blue-100 text-blue-800"
+                    ? "chip-emerald"
+                    : "chip-blue"
                 }`}>
                   {regOpen ? "开放中" : "未开放"}
                 </span>
@@ -329,10 +329,10 @@ export default async function AdminDashboardPage() {
                         (new Date(activeTerm.registrationCloseAt).getTime() - now) / (1000 * 60 * 60 * 24)
                       );
                       return daysLeft <= 7 ? (
-                        <span className={`ml-2 inline-flex rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${
+                        <span className={`ml-2 campus-chip px-1.5 py-0.5 text-[10px] font-bold ${
                           daysLeft <= 2
-                            ? "border-red-300 bg-red-100 text-red-700"
-                            : "border-amber-300 bg-amber-100 text-amber-700"
+                            ? "chip-red"
+                            : "chip-amber"
                         }`}>
                           剩余 {daysLeft} 天
                         </span>
@@ -479,7 +479,7 @@ export default async function AdminDashboardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <div>
           <h2 className="mb-3 text-sm font-semibold tracking-wide text-slate-500">系统摘要</h2>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="campus-card p-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                 <p className="text-xs font-semibold tracking-wide text-slate-500">环境</p>
@@ -527,7 +527,7 @@ export default async function AdminDashboardPage() {
               <p className="mt-1 text-xs text-slate-400">Activity will appear here as actions are performed</p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="campus-card divide-y divide-slate-100 overflow-hidden">
               {recentActivity.map((log) => {
                 const dateLabel = relativeDate(log.createdAt);
                 const badge = actorRoleBadge(log.actorRole);

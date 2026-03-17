@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { SkeletonTable } from "@/components/skeleton-table";
 import { API_URL } from "@/lib/config";
 import { enrollmentStatusLabel } from "@/lib/labels";
 import PrintButton from "./PrintButton";
@@ -389,6 +390,12 @@ export default function SchedulePage() {
               >
                 iCal 导出
               </button>
+              <Link
+                href={termId ? `/student/schedule-image?termId=${termId}` : "/student/schedule-image"}
+                className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-blue-200 bg-white px-3 text-xs font-semibold text-blue-700 no-underline transition hover:bg-blue-50"
+              >
+                生成图片
+              </Link>
               {publicScheduleSharingEnabled ? null : (
                 <span className="campus-chip inline-flex h-9 flex-1 items-center justify-center border-slate-300 bg-slate-100 px-3 text-xs font-semibold text-slate-600">
                   公开课表分享已禁用
@@ -603,77 +610,77 @@ export default function SchedulePage() {
 
       {/* List view with drop buttons */}
       {viewMode === "list" ? (
-      <section className="campus-card no-print overflow-hidden">
-        <div className="border-b border-slate-100 px-4 py-3">
-          <h2 className="text-sm font-semibold text-slate-900">列表视图</h2>
-        </div>
-        <div className="space-y-3 p-3 md:hidden">
+        <section className="campus-card no-print overflow-hidden">
+          <div className="border-b border-slate-100 px-4 py-3">
+            <h2 className="text-sm font-semibold text-slate-900">列表视图</h2>
+          </div>
           {loadingSchedule ? (
-            <div role="status" aria-live="polite" className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-400">
-              Loading schedule…
+            <div className="p-4">
+              <SkeletonTable rows={6} cols={5} />
             </div>
-          ) : null}
-          {!loadingSchedule && visibleEnrollments.length === 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-400">
-              {enrollments.length === 0 ? "No courses in this term yet." : "No courses match current status filters."}
-              {hasStatusFiltersApplied ? (
-                <div className="mt-3">
-                  <button
-                    type="button"
-                    onClick={resetStatusFilters}
-                    className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
-                  >
-                    Show all statuses
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-          {!loadingSchedule &&
-            visibleEnrollments.map((enrollment) => (
-              <article key={enrollment.id} className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-sm font-semibold text-slate-900">
-                  <span
-                    className="mr-2 inline-block h-3.5 w-1.5 rounded-full align-middle"
-                    style={{ background: hashCourseTone(enrollment.section.course.code).start }}
-                  />
-                  {enrollment.section.course.code} - {enrollment.section.course.title}
-                </p>
-                <p className="mt-1 text-xs text-slate-600">
-                  Section {enrollment.section.sectionCode}
-                  {enrollment.section.location ? ` @ ${enrollment.section.location}` : ""}
-                </p>
-                <p className="mt-1 text-xs text-slate-600">Instructor: {enrollment.section.instructorName}</p>
-                <p className="mt-1 text-xs text-slate-600">{meetingSummary(enrollment.section.meetingTimes)}</p>
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <div>
-                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadge(enrollment.status)}`}>
-                      {enrollmentStatusLabel(enrollment.status)}
-                    </span>
-                    {enrollment.status === "WAITLISTED" && enrollment.waitlistPosition !== null && (
-                      <p className="mt-0.5 text-[10px] text-amber-700">#{enrollment.waitlistPosition} in queue</p>
-                    )}
+          ) : (
+            <>
+              <div className="space-y-3 p-3 md:hidden">
+                {visibleEnrollments.length === 0 ? (
+                  <div className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-400">
+                    {enrollments.length === 0 ? "No courses in this term yet." : "No courses match current status filters."}
+                    {hasStatusFiltersApplied ? (
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          onClick={resetStatusFilters}
+                          className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Show all statuses
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
-                  {dropDeadlinePassed && (enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL") ? (
-                    <span className="text-[11px] text-amber-700">Drop unavailable after deadline</span>
-                  ) : enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL" || enrollment.status === "WAITLISTED" ? (
-                    <button
-                      type="button"
-                      onClick={() => confirmDrop(enrollment)}
-                      disabled={dropping[enrollment.id]}
-                      className="inline-flex h-8 items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
-                    >
-                      {dropping[enrollment.id] ? "Dropping…" : "Drop"}
-                    </button>
-                  ) : null}
-                </div>
-                {dropError[enrollment.id] ? <p className="mt-2 text-xs text-red-700">{dropError[enrollment.id]}</p> : null}
-              </article>
-            ))}
-        </div>
+                ) : null}
+                {visibleEnrollments.map((enrollment) => (
+                  <article key={enrollment.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                    <p className="text-sm font-semibold text-slate-900">
+                      <span
+                        className="mr-2 inline-block h-3.5 w-1.5 rounded-full align-middle"
+                        style={{ background: hashCourseTone(enrollment.section.course.code).start }}
+                      />
+                      {enrollment.section.course.code} - {enrollment.section.course.title}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-600">
+                      Section {enrollment.section.sectionCode}
+                      {enrollment.section.location ? ` @ ${enrollment.section.location}` : ""}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-600">Instructor: {enrollment.section.instructorName}</p>
+                    <p className="mt-1 text-xs text-slate-600">{meetingSummary(enrollment.section.meetingTimes)}</p>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <div>
+                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadge(enrollment.status)}`}>
+                          {enrollmentStatusLabel(enrollment.status)}
+                        </span>
+                        {enrollment.status === "WAITLISTED" && enrollment.waitlistPosition !== null && (
+                          <p className="mt-0.5 text-[10px] text-amber-700">#{enrollment.waitlistPosition} in queue</p>
+                        )}
+                      </div>
+                      {dropDeadlinePassed && (enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL") ? (
+                        <span className="text-[11px] text-amber-700">Drop unavailable after deadline</span>
+                      ) : enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL" || enrollment.status === "WAITLISTED" ? (
+                        <button
+                          type="button"
+                          onClick={() => confirmDrop(enrollment)}
+                          disabled={dropping[enrollment.id]}
+                          className="inline-flex h-8 items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+                        >
+                          {dropping[enrollment.id] ? "Dropping…" : "Drop"}
+                        </button>
+                      ) : null}
+                    </div>
+                    {dropError[enrollment.id] ? <p className="mt-2 text-xs text-red-700">{dropError[enrollment.id]}</p> : null}
+                  </article>
+                ))}
+              </div>
 
-        <div className="hidden max-h-[460px] overflow-auto md:block">
-          <table className="campus-table">
+              <div className="hidden max-h-[460px] overflow-auto md:block">
+                <table className="campus-table">
             <thead className="sticky top-0 z-10">
               <tr>
                 <th>Course</th>
@@ -784,8 +791,10 @@ export default function SchedulePage() {
               )}
             </tbody>
           </table>
-        </div>
-      </section>
+              </div>
+            </>
+          )}
+        </section>
       ) : null}
 
       {viewMode === "grid" ? (

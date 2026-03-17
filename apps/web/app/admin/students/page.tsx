@@ -411,13 +411,13 @@ export default function AdminStudentsPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">Student Records</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">Students</h1>
+            <h1 className="campus-title">Students</h1>
             <p className="text-sm text-slate-600 md:text-base">
               Manage core student accounts used for portal access and registration operations.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{students.length} total</span>
-              {search ? <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{visibleStudents.length} visible</span> : null}
+              <span className="campus-chip chip-blue">{students.length} total</span>
+              {search ? <span className="campus-chip chip-purple">{visibleStudents.length} visible</span> : null}
             </div>
           </div>
           <div className="flex gap-2">
@@ -441,21 +441,21 @@ export default function AdminStudentsPage() {
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="campus-kpi border-slate-200 bg-white">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Students</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{students.length}</p>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">Total Students</p>
+          <p className="campus-kpi-value">{students.length}</p>
         </div>
-        <div className="campus-kpi border-emerald-200 bg-emerald-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Active</p>
-          <p className="mt-1 text-2xl font-semibold text-emerald-900">{studentStats.active}</p>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label text-emerald-700">Active</p>
+          <p className="campus-kpi-value text-emerald-700">{studentStats.active}</p>
         </div>
-        <div className="campus-kpi border-amber-200 bg-amber-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">On Probation</p>
-          <p className="mt-1 text-2xl font-semibold text-amber-900">{studentStats.probation}</p>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label text-amber-700">On Probation</p>
+          <p className="campus-kpi-value text-amber-700">{studentStats.probation}</p>
         </div>
-        <div className="campus-kpi border-red-200 bg-red-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-red-700">Suspended</p>
-          <p className="mt-1 text-2xl font-semibold text-red-900">{studentStats.suspended}</p>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label text-red-700">Suspended</p>
+          <p className="campus-kpi-value text-red-700">{studentStats.suspended}</p>
         </div>
       </section>
 
@@ -719,15 +719,15 @@ export default function AdminStudentsPage() {
       <section className="campus-card overflow-hidden">
         <p className="px-4 pt-4 text-xs text-slate-500 md:hidden">Tip: Swipe horizontally to view all columns.</p>
         <div className="max-h-[560px] overflow-auto rounded-3xl">
-          <table role="grid" aria-label="学生列表" className="hidden min-w-[760px] w-full border-collapse text-sm md:table">
-            <thead className="sticky top-0 z-10 bg-slate-50">
-              <tr role="row" className="border-b border-slate-200 text-left">
-                <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Name</th>
-                <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Student ID</th>
-                <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Email</th>
-                <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Major</th>
-                <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Status</th>
-                <th scope="col" className="px-4 py-3 font-semibold text-slate-700">Actions</th>
+          <table role="grid" aria-label="学生列表" className="campus-table hidden min-w-[760px] md:table">
+            <thead className="sticky top-0 z-10">
+              <tr role="row">
+                <th scope="col">Name</th>
+                <th scope="col">Student ID</th>
+                <th scope="col">Email</th>
+                <th scope="col">Major</th>
+                <th scope="col">Status</th>
+                <th scope="col">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -758,11 +758,11 @@ export default function AdminStudentsPage() {
                       <div className="space-y-1">
                         <span className="block text-xs text-slate-600">{student.studentProfile?.enrollmentStatus || "-"}</span>
                         {student.studentProfile?.academicStatus ? (
-                          <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
-                            student.studentProfile.academicStatus === "Probation" ? "border-amber-200 bg-amber-50 text-amber-700"
-                            : student.studentProfile.academicStatus === "Suspended" ? "border-red-200 bg-red-50 text-red-700"
-                            : student.studentProfile.academicStatus === "Graduated" ? "border-slate-200 bg-slate-50 text-slate-600"
-                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          <span className={`campus-chip text-[11px] ${
+                            student.studentProfile.academicStatus === "Probation" ? "chip-amber"
+                            : student.studentProfile.academicStatus === "Suspended" ? "chip-red"
+                            : student.studentProfile.academicStatus === "Graduated" ? "chip-purple"
+                            : "chip-emerald"
                           }`}>
                             {student.studentProfile.academicStatus}
                           </span>
@@ -825,10 +825,10 @@ export default function AdminStudentsPage() {
                   <span
                     className={`campus-chip text-xs ${
                       (student.gpa ?? 0) >= 3.7
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        ? "chip-emerald"
                         : (student.gpa ?? 0) >= 3
-                          ? "border-blue-200 bg-blue-50 text-blue-700"
-                          : "border-slate-200 bg-slate-50 text-slate-500"
+                          ? "chip-blue"
+                          : "chip-purple"
                     }`}
                   >
                     GPA {student.gpa?.toFixed(2) ?? "—"}
@@ -977,12 +977,12 @@ export default function AdminStudentsPage() {
                               {enrollment.section?.course?.code ?? "—"}
                             </span>
                             <span
-                              className={`campus-chip text-xs ${
+                            className={`campus-chip text-xs ${
                                 enrollment.status === "ENROLLED"
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  ? "chip-emerald"
                                   : enrollment.status === "WAITLISTED"
-                                    ? "border-amber-200 bg-amber-50 text-amber-700"
-                                    : "border-slate-200 bg-slate-50 text-slate-600"
+                                    ? "chip-amber"
+                                    : "chip-purple"
                               }`}
                             >
                               {enrollment.status}
@@ -1049,9 +1049,9 @@ export default function AdminStudentsPage() {
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-xs font-semibold uppercase text-slate-400">Security Info</p>
                       {detailLocked ? (
-                        <span className="campus-chip border-amber-200 bg-amber-50 text-amber-700">Locked</span>
+                        <span className="campus-chip chip-amber">Locked</span>
                       ) : (
-                        <span className="campus-chip border-emerald-200 bg-emerald-50 text-emerald-700">Normal</span>
+                        <span className="campus-chip chip-emerald">Normal</span>
                       )}
                     </div>
                     <div className="grid grid-cols-1 gap-3 text-sm">
@@ -1105,8 +1105,8 @@ export default function AdminStudentsPage() {
                           <span
                             className={`campus-chip text-xs ${
                               item.type === "email"
-                                ? "border-blue-200 bg-blue-50 text-blue-700"
-                                : "border-slate-200 bg-slate-50 text-slate-700"
+                                ? "chip-blue"
+                                : "chip-purple"
                             }`}
                           >
                             {item.type}

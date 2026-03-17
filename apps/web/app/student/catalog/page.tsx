@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { BookOpen, Search } from "lucide-react";
 import { RegistrationStepper } from "@/components/registration-stepper";
+import { SkeletonTable } from "@/components/skeleton-table";
 import { useToast } from "@/components/Toast";
 import GradeDistBar from "@/components/GradeDistBar";
 import CoursePairings from "@/components/CoursePairings";
@@ -1134,6 +1135,7 @@ export default function StudentCatalogPage() {
           </div>
         ) : null}
 
+        {loading ? <SkeletonTable rows={8} cols={4} /> : null}
         {!loading ? (
           <div className="grid gap-4 xl:grid-cols-2">
             {pagedSections.map((section) => {

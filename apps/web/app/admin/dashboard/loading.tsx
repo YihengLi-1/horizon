@@ -1,30 +1,27 @@
+import { SkeletonKpiRow } from "@/components/skeleton-kpi-row";
+import { SkeletonTable } from "@/components/skeleton-table";
+
 export default function AdminDashboardLoading() {
   return (
-    <div className="campus-page animate-pulse">
+    <div className="campus-page">
       <section className="campus-hero">
-        <div className="space-y-3">
-          <div className="h-3 w-32 rounded bg-white/30" />
-          <div className="h-10 w-64 rounded bg-white/30" />
-          <div className="h-4 w-96 rounded bg-white/20" />
+        <div className="skeleton skeleton-text w-32" />
+        <div className="skeleton skeleton-title mt-4 w-64" />
+        <div className="skeleton skeleton-text mt-3 w-96 max-w-full" />
+      </section>
+
+      <SkeletonKpiRow count={4} />
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <SkeletonTable rows={7} cols={5} />
+        <div className="campus-card p-5">
+          <div className="skeleton skeleton-title w-36" />
+          <div className="mt-4 space-y-3">
+            <div className="skeleton skeleton-card h-20" />
+            <div className="skeleton skeleton-card h-20" />
+            <div className="skeleton skeleton-card h-20" />
+          </div>
         </div>
-      </section>
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="campus-kpi border-slate-200">
-            <div className="h-3 w-28 rounded bg-slate-200" />
-            <div className="mt-2 h-8 w-16 rounded bg-slate-200" />
-          </div>
-        ))}
-      </section>
-      <div className="grid gap-5 lg:grid-cols-3">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="campus-card p-5 space-y-3">
-            <div className="h-4 w-32 rounded bg-slate-200" />
-            {[1, 2, 3, 4].map((j) => (
-              <div key={j} className="h-10 rounded-lg bg-slate-100" />
-            ))}
-          </div>
-        ))}
       </div>
     </div>
   );

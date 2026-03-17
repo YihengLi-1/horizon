@@ -6726,4 +6726,46 @@ export class AdminService {
       }))
     };
   }
+
+  async getSystemHealth() {
+    const now = new Date();
+    const activeTerm =
+      (await this.prisma.term.findFirst({
+        where: {
+          startDate: { lte: now },
+          endDate: { gte: now }
+        },
+        orderBy: { startDate: "desc" },
+        select: { id: true }
+      })) ??
+      (await this.prisma.term.findFirst({
+        orderBy: { startDate: "desc" },
+        select: { id: true }
+      }));
+
+    const [totalStudents, totalEnrollments] = await Promise.all([
+      this.prisma.user.count({
+        where: { role: "STUDENT", deletedAt: null }
+      }),
+      activeTerm
+        ? this.prisma.enrollment.count({
+            where: {
+              deletedAt: null,
+              termId: activeTerm.id,
+              status: { in: ["ENROLLED", "WAITLISTED", "PENDING_APPROVAL", "COMPLETED"] as EnrollmentStatus[] }
+            }
+          })
+        : Promise.resolve(0)
+    ]);
+
+    return {
+      uptime: process.uptime(),
+      memUsed: process.memoryUsage().heapUsed,
+      memTotal: process.memoryUsage().heapTotal,
+      nodeVersion: process.version,
+      timestamp: new Date(),
+      totalStudents,
+      totalEnrollments
+    };
+  }
 }

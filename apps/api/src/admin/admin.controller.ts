@@ -910,4 +910,10 @@ export class AdminController {
   async retention() {
     return ok(await this.adminService.getRetentionCohort());
   }
+
+  @Get("system-health")
+  @RequireAdminPermissions("dashboard:read")
+  async systemHealth() {
+    return ok(await this.adminService.getSystemHealth());
+  }
 }

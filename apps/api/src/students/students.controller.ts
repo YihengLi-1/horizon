@@ -86,6 +86,12 @@ export class StudentsController {
     return ok(await this.studentsService.getGraduationChecklist(user.userId));
   }
 
+  @Roles("STUDENT")
+  @Get("enrollment-log")
+  async getEnrollmentLog(@CurrentUser() user: { userId: string }) {
+    return ok(await this.studentsService.getEnrollmentLog(user.userId));
+  }
+
   @Roles("STUDENT", "ADMIN")
   @Post("schedule/share")
   async shareSchedule(@CurrentUser() user: { userId: string }, @Body() body: { termId?: string }) {
