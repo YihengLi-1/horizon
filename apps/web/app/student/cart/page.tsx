@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Fragment } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CheckCircle2, Printer, Share2, ShoppingCart } from "lucide-react";
 import { RegistrationStepper } from "@/components/registration-stepper";
 import { useToast } from "@/components/Toast";
 import { ApiError, apiFetch } from "@/lib/api";
@@ -179,6 +180,19 @@ function issueHint(reasonCode: string): string | null {
   if (reasonCode === "CREDIT_LIMIT_EXCEEDED") return "Reduce planned credits or request an overload approval.";
   if (reasonCode === "ALREADY_REGISTERED") return "This section is already active in your enrollments.";
   return null;
+}
+
+function issueSeverity(reasonCode: string): "high" | "medium" | "low" {
+  if (reasonCode === "TIME_CONFLICT" || reasonCode === "PREREQUISITE_NOT_MET") return "high";
+  if (reasonCode === "CREDIT_LIMIT_EXCEEDED" || reasonCode === "SECTION_ALREADY_STARTED") return "medium";
+  return "low";
+}
+
+function issueSeverityStyles(reasonCode: string): string {
+  const severity = issueSeverity(reasonCode);
+  if (severity === "high") return "border-l-red-500 bg-red-50";
+  if (severity === "medium") return "border-l-amber-500 bg-amber-50";
+  return "border-l-emerald-500 bg-emerald-50";
 }
 
 function creditBarClass(used: number, max: number): string {
@@ -1514,7 +1528,21 @@ export default function StudentCartPage() {
       {precheckRan && !precheckError && precheckIssues.length === 0 && precheckPreview.length > 0 ? (
         <Alert type="success" message="Precheck passed. You can submit safely with the statuses below." />
       ) : null}
-      {!loading && items.length === 0 ? <Alert type="info" message="Your cart is empty. Add sections from catalog." /> : null}
+      {!loading && items.length === 0 ? (
+        <section className="campus-card">
+          <div className="campus-empty">
+            <ShoppingCart className="campus-empty-icon" />
+            <p className="campus-empty-title">购物车为空</p>
+            <p className="campus-empty-desc">前往课程目录添加感兴趣的课程，再回来做检查与提交。</p>
+            <Link
+              href={catalogHref}
+              className="inline-flex h-10 items-center justify-center rounded-xl bg-[hsl(221_83%_43%)] px-4 text-sm font-semibold text-white no-underline transition hover:bg-[hsl(221_83%_38%)]"
+            >
+              浏览课程
+            </Link>
+          </div>
+        </section>
+      ) : null}
 
       {enrolledItems.length > 0 ? (
         <section className="campus-card p-4 md:p-5">
@@ -1561,18 +1589,16 @@ export default function StudentCartPage() {
           ) : null}
 
           {!loading && items.length === 0 ? (
-            <div className="rounded-xl border border-slate-200 bg-white p-6 text-center">
-              <div className="flex flex-col items-center gap-3">
-                <span className="text-3xl">🛒</span>
-                <p className="text-sm font-medium text-slate-700">Your cart is empty</p>
-                <p className="text-xs text-slate-500">Browse the catalog to add sections.</p>
-                <a
-                  href={catalogHref}
-                  className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 no-underline transition hover:bg-slate-50"
-                >
-                  Browse Catalog →
-                </a>
-              </div>
+            <div className="campus-empty rounded-xl border border-slate-200 bg-white">
+              <ShoppingCart className="campus-empty-icon" />
+              <p className="campus-empty-title">购物车为空</p>
+              <p className="campus-empty-desc">前往课程目录添加感兴趣的课程。</p>
+              <Link
+                href={catalogHref}
+                className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 no-underline transition hover:bg-slate-50"
+              >
+                浏览课程
+              </Link>
             </div>
           ) : null}
 
@@ -1730,16 +1756,16 @@ export default function StudentCartPage() {
               {!loading && items.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-14 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <span className="text-4xl">🛒</span>
-                      <p className="text-sm font-medium text-slate-700">Your cart is empty</p>
-                      <p className="text-xs text-slate-500">Add sections from the course catalog to get started.</p>
-                      <a
+                    <div className="campus-empty py-2">
+                      <ShoppingCart className="campus-empty-icon" />
+                      <p className="campus-empty-title">购物车为空</p>
+                      <p className="campus-empty-desc">前往课程目录添加感兴趣的课程。</p>
+                      <Link
                         href={catalogHref}
                         className="mt-1 inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 no-underline transition hover:bg-slate-50"
                       >
-                        Browse Catalog →
-                      </a>
+                        浏览课程
+                      </Link>
                     </div>
                   </td>
                 </tr>
@@ -1892,7 +1918,7 @@ export default function StudentCartPage() {
           <p className="mt-1 text-sm text-amber-800">Submit is likely to fail until these are resolved.</p>
           <div className="mt-3 space-y-3">
             {groupedPrecheckIssues.map((group) => (
-              <div key={group.key} className="rounded-xl border border-amber-200 bg-white p-3">
+              <div key={group.key} className={`rounded-xl border border-amber-200 border-l-4 bg-white p-3 ${group.issues[0] ? issueSeverityStyles(group.issues[0].reasonCode) : ""}`}>
                 <p className="text-sm font-semibold text-slate-800">
                   {group.courseCode} §{group.sectionCode}
                 </p>
@@ -1958,11 +1984,35 @@ export default function StudentCartPage() {
 
       {groupedResults.length > 0 ? (
         <section className="campus-card border-emerald-200 bg-emerald-50/40 p-4 md:p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-slate-900">Submission Results</h2>
-            <span className="text-xs text-slate-500">{submitResults.length} enrolled</span>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex size-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                <CheckCircle2 className="size-7" />
+              </span>
+              <div>
+                <h2 className="text-base font-semibold text-slate-900">选课成功</h2>
+                <p className="mt-1 text-sm text-emerald-700">本次共处理 {submitResults.length} 条注册结果。</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="inline-flex h-9 items-center gap-2 rounded-lg border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50"
+              >
+                <Printer className="size-4" />
+                打印
+              </button>
+              <Link
+                href={termId ? `/student/receipt?termId=${termId}` : "/student/receipt"}
+                className="inline-flex h-9 items-center gap-2 rounded-lg border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-700 no-underline transition hover:bg-emerald-50"
+              >
+                <Share2 className="size-4" />
+                选课确认单
+              </Link>
+            </div>
           </div>
-          <p className="mt-1 text-xs text-emerald-700">
+          <p className="mt-3 text-xs text-emerald-700">
             Registration submitted successfully.{" "}
             <Link href="/student/grades" className="underline underline-offset-2">View grades</Link>{" "}
             or{" "}

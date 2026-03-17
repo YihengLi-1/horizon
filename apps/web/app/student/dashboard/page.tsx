@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AlertTriangle, BellRing, BookOpenCheck, CalendarClock, GraduationCap, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { serverApi } from "@/lib/server-api";
 import { requireRole } from "@/lib/server-auth";
@@ -104,10 +105,10 @@ function gpaTier(gpa: number): { text: string; kpi: string; label: string } {
 }
 
 function gpaChipTone(gpa: number): string {
-  if (gpa >= 3.7) return "border-emerald-300 bg-emerald-50 text-emerald-700";
-  if (gpa >= 3.0) return "border-blue-300 bg-blue-50 text-blue-700";
-  if (gpa >= 2.0) return "border-amber-300 bg-amber-50 text-amber-700";
-  return "border-red-300 bg-red-50 text-red-700";
+  if (gpa >= 3.7) return "chip-emerald";
+  if (gpa >= 3.0) return "chip-blue";
+  if (gpa >= 2.0) return "chip-amber";
+  return "chip-red";
 }
 
 function enrollmentStatusChip(status: string): string {
@@ -140,9 +141,9 @@ type StudentAlert = {
 };
 
 function chipTone(tone: ActionItem["tone"]): string {
-  if (tone === "emerald") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (tone === "amber") return "border-amber-200 bg-amber-50 text-amber-700";
-  return "border-blue-200 bg-blue-50 text-blue-700";
+  if (tone === "emerald") return "campus-chip chip-emerald";
+  if (tone === "amber") return "campus-chip chip-amber";
+  return "campus-chip chip-blue";
 }
 
 function alertTone(level: StudentAlert["level"]): string {
@@ -435,15 +436,15 @@ export default async function StudentDashboardPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {term ? <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{term.name}</span> : null}
-            <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">
+            {term ? <span className="campus-chip chip-blue">{term.name}</span> : null}
+            <span className="campus-chip chip-purple">
               {me?.profile?.programMajor ?? "Undeclared"}
             </span>
             {grades.length > 0 && cumulativeGpa !== null ? (
               <span className={`campus-chip ${gpaChipTone(cumulativeGpa)}`}>GPA {cumulativeGpa.toFixed(2)}</span>
             ) : null}
             {waitlistedCount > 0 ? (
-              <span className="campus-chip border-amber-300 bg-amber-50 text-amber-700">Waitlisted {waitlistedCount}</span>
+              <span className="campus-chip chip-amber">Waitlisted {waitlistedCount}</span>
             ) : null}
           </div>
         </div>
@@ -462,16 +463,30 @@ export default async function StudentDashboardPage() {
             OPEN: "text-emerald-600", PRE_OPEN: "text-blue-600", CLOSED: "text-amber-600", NO_TERM: "text-slate-500"
           }[registrationState];
           return (
-            <div className={`campus-kpi ${border} ${bg}`}>
-              <p className={`text-[11px] font-semibold tracking-wide ${lblColor}`}>选课状态</p>
-              <p className={`mt-1 text-xl font-semibold ${text}`}>{lbl}</p>
+            <div className="campus-kpi">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className={`campus-kpi-label ${lblColor}`}>选课状态</p>
+                  <p className={`campus-kpi-value text-[2rem] ${text}`}>{lbl}</p>
+                </div>
+                <span className={`inline-flex size-11 items-center justify-center rounded-2xl ${bg} ${border}`}>
+                  <CalendarClock className={`size-5 ${lblColor}`} />
+                </span>
+              </div>
             </div>
           );
         })()}
 
-        <div className="campus-kpi border-emerald-200 bg-emerald-50/60">
-          <p className="text-[11px] font-semibold tracking-wide text-emerald-700">当前学分</p>
-          <p className="mt-1 text-2xl font-semibold text-emerald-900">{enrolledCredits}</p>
+        <div className="campus-kpi">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="campus-kpi-label text-emerald-700">当前学分</p>
+              <p className="campus-kpi-value text-emerald-900">{enrolledCredits}</p>
+            </div>
+            <span className="inline-flex size-11 items-center justify-center rounded-2xl bg-emerald-50">
+              <BookOpenCheck className="size-5 text-emerald-700" />
+            </span>
+          </div>
           {term?.maxCredits ? (
             <p className="text-[10px] text-emerald-600">{enrolledCount} 门课程 · 上限 {term.maxCredits} 学分</p>
           ) : enrolledCredits > 0 ? (
@@ -479,9 +494,16 @@ export default async function StudentDashboardPage() {
           ) : null}
         </div>
 
-        <div className="campus-kpi border-amber-200 bg-amber-50/60">
-          <p className="text-[11px] font-semibold tracking-wide text-amber-700">候补课程</p>
-          <p className="mt-1 text-2xl font-semibold text-amber-900">{waitlistedCount}</p>
+        <div className="campus-kpi">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="campus-kpi-label text-amber-700">候补课程</p>
+              <p className="campus-kpi-value text-amber-900">{waitlistedCount}</p>
+            </div>
+            <span className="inline-flex size-11 items-center justify-center rounded-2xl bg-amber-50">
+              <BellRing className="size-5 text-amber-700" />
+            </span>
+          </div>
           {pendingApproval.length > 0 ? (
             <p className="text-[10px] text-amber-700">{pendingApproval.length} 门待审批</p>
           ) : null}
@@ -491,18 +513,32 @@ export default async function StudentDashboardPage() {
         {cumulativeGpa !== null ? (() => {
           const tier = gpaTier(cumulativeGpa);
           return (
-            <div className={`campus-kpi ${tier.kpi}`}>
-              <p className={`text-[11px] font-semibold tracking-wide ${tier.text}`}>累计 GPA</p>
-              <p className={`mt-1 text-2xl font-semibold ${tier.text}`}>{cumulativeGpa.toFixed(2)}</p>
+            <div className="campus-kpi">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className={`campus-kpi-label ${tier.text}`}>累计 GPA</p>
+                  <p className={`campus-kpi-value ${tier.text}`}>{cumulativeGpa.toFixed(2)}</p>
+                </div>
+                <span className={`inline-flex size-11 items-center justify-center rounded-2xl ${tier.kpi}`}>
+                  <GraduationCap className={`size-5 ${tier.text}`} />
+                </span>
+              </div>
               <span className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold border-current/30 ${tier.text}`}>
                 {tier.label}
               </span>
             </div>
           );
         })() : (
-          <div className="campus-kpi border-slate-200 bg-slate-50">
-            <p className="text-[11px] font-semibold tracking-wide text-slate-500">累计 GPA</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-400">—</p>
+          <div className="campus-kpi">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="campus-kpi-label text-slate-500">累计 GPA</p>
+                <p className="campus-kpi-value text-slate-400">—</p>
+              </div>
+              <span className="inline-flex size-11 items-center justify-center rounded-2xl bg-slate-100">
+                <Sparkles className="size-5 text-slate-400" />
+              </span>
+            </div>
             <p className="text-[10px] text-slate-400">暂无成绩</p>
           </div>
         )}
@@ -528,14 +564,16 @@ export default async function StudentDashboardPage() {
 
       <Card className="campus-card">
         <CardHeader>
-          <CardTitle className="font-heading text-2xl">Student Alert Center</CardTitle>
+          <CardTitle className="font-heading text-2xl">提醒与公告</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {alerts.map((alert) => (
-            <div key={`${alert.title}-${alert.description}`} className={`rounded-xl border px-4 py-3 ${alertTone(alert.level)}`}>
-              <div className="flex flex-wrap items-start justify-between gap-2">
+            <div key={`${alert.title}-${alert.description}`} className={`relative overflow-hidden rounded-xl border px-4 py-3 ${alertTone(alert.level)}`}>
+              <span className={`absolute inset-y-0 left-0 w-1 ${alert.level === "critical" ? "bg-red-500" : alert.level === "warning" ? "bg-amber-500" : "bg-blue-500"}`} />
+              <div className="flex flex-wrap items-start justify-between gap-2 pl-2">
                 <div>
                   <p className="text-sm font-semibold">{alert.title}</p>
+                  <p className="mt-1 text-xs opacity-70">{new Date().toLocaleDateString()}</p>
                   <p className="mt-1 text-sm opacity-90">{alert.description}</p>
                 </div>
                 <span className="rounded-full border border-current/30 bg-white/40 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide">
@@ -618,12 +656,12 @@ export default async function StudentDashboardPage() {
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Focus Now</p>
                 {actionItems.slice(0, 2).map((item) => (
                   <div key={item.title} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-slate-900">{item.title}</p>
-                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${chipTone(item.tone)}`}>
-                        {item.tone === "emerald" ? "Ready" : item.tone === "amber" ? "Attention" : "Info"}
-                      </span>
-                    </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                    <span className={chipTone(item.tone)}>
+                      {item.tone === "emerald" ? "Ready" : item.tone === "amber" ? "Attention" : "Info"}
+                    </span>
+                  </div>
                     <p className="mt-1 text-sm text-slate-600">{item.description}</p>
                   </div>
                 ))}
