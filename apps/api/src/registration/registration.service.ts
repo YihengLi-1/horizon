@@ -7,6 +7,7 @@ import { z } from "zod";
 import { AuditService } from "../audit/audit.service";
 import { isPassingGrade } from "../common/grade.utils";
 import { PrismaService } from "../common/prisma.service";
+import { getTermGradesLockDate, getTermStatus } from "../common/term-status";
 import { dispatch } from "../common/webhook";
 import { GovernanceService } from "../governance/governance.service";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -300,6 +301,8 @@ export class RegistrationService {
       id: string;
       registrationOpenAt: Date;
       registrationCloseAt: Date;
+      startDate: Date;
+      endDate: Date;
     }
   ) {
     const student = await client.user.findUnique({
@@ -319,7 +322,13 @@ export class RegistrationService {
       closeAt: term.registrationCloseAt,
       cohortYear,
       offsetDays,
-      priorityLabel: this.getRegistrationPriorityLabel(cohortYear)
+      priorityLabel: this.getRegistrationPriorityLabel(cohortYear),
+      status: getTermStatus({
+        registrationOpenAt: openAt,
+        registrationCloseAt: term.registrationCloseAt,
+        startDate: term.startDate,
+        endDate: term.endDate
+      })
     };
   }
 
@@ -330,18 +339,20 @@ export class RegistrationService {
       id: string;
       registrationOpenAt: Date;
       registrationCloseAt: Date;
+      startDate: Date;
+      endDate: Date;
     }
   ) {
     const info = await this.getStudentRegistrationWindowInfo(client, studentId, term);
-    const now = Date.now();
-    if (now < info.openAt.getTime() || now > info.closeAt.getTime()) {
+    if (info.status !== "REGISTRATION_OPEN") {
       throw new BadRequestException({
         code: "REGISTRATION_WINDOW_CLOSED",
         message: "Registration window is closed",
         registrationOpenAt: info.openAt.toISOString(),
         registrationCloseAt: info.closeAt.toISOString(),
         priorityLabel: info.priorityLabel,
-        cohortYear: info.cohortYear
+        cohortYear: info.cohortYear,
+        termStatus: info.status
       });
     }
     return info;
@@ -750,7 +761,9 @@ export class RegistrationService {
       await this.assertStudentRegistrationWindowOpen(tx, studentId, {
         id: section.termId,
         registrationOpenAt: section.term.registrationOpenAt,
-        registrationCloseAt: section.term.registrationCloseAt
+        registrationCloseAt: section.term.registrationCloseAt,
+        startDate: section.term.startDate,
+        endDate: section.term.endDate
       });
 
       const enrolledCount = section.enrollments.filter((enrollment) => enrollment.status === "ENROLLED").length;
@@ -1570,6 +1583,25 @@ export class RegistrationService {
     const isAssignedInstructor =
       (section.instructorUserId && section.instructorUserId === actor.id) ||
       (normalizedInstructor.length > 0 && actor.email.trim().toLowerCase() === normalizedInstructor);
+
+    const termStatus = getTermStatus(section.term);
+    if (termStatus === "CLOSED") {
+      throw new ForbiddenException({
+        code: "GRADES_LOCKED",
+        message: "该学期成绩已锁定，如需修改请联系教务处",
+        termName: section.term.name,
+        gradesLockedAt: getTermGradesLockDate(section.term).toISOString()
+      });
+    }
+
+    if (termStatus !== "IN_PROGRESS" && termStatus !== "GRADING") {
+      throw new ForbiddenException({
+        code: "GRADES_NOT_OPEN",
+        message: "该学期当前不在成绩录入窗口",
+        termName: section.term.name,
+        termStatus
+      });
+    }
 
     if (actor.role !== "ADMIN" && !isAssignedInstructor) {
       throw new ForbiddenException("只有该班级教师可以录入成绩");

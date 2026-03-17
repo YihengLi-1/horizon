@@ -6,18 +6,30 @@ import { apiFetch } from "@/lib/api";
 type WindowRow = {
   id: string;
   name: string;
+  startDate: string;
+  endDate: string;
   registrationOpenAt: string;
   registrationCloseAt: string;
-  status: "open" | "closed" | "scheduled";
+  status: "UPCOMING" | "REGISTRATION_OPEN" | "REGISTRATION_CLOSED" | "IN_PROGRESS" | "GRADING" | "CLOSED";
   priorityWindows: string[];
 };
 
 type Drafts = Record<string, { openAt: string; closeAt: string }>;
 
 function tone(status: WindowRow["status"]) {
-  if (status === "open") return "campus-chip chip-emerald";
-  if (status === "scheduled") return "campus-chip chip-blue";
+  if (status === "REGISTRATION_OPEN" || status === "IN_PROGRESS") return "campus-chip chip-emerald";
+  if (status === "UPCOMING" || status === "REGISTRATION_CLOSED") return "campus-chip chip-blue";
+  if (status === "GRADING") return "campus-chip chip-purple";
   return "campus-chip chip-amber";
+}
+
+function label(status: WindowRow["status"]) {
+  if (status === "UPCOMING") return "即将开始";
+  if (status === "REGISTRATION_OPEN") return "注册开放";
+  if (status === "REGISTRATION_CLOSED") return "注册关闭";
+  if (status === "IN_PROGRESS") return "教学进行中";
+  if (status === "GRADING") return "成绩录入中";
+  return "已关闭";
 }
 
 function toLocalValue(value: string) {
@@ -107,7 +119,7 @@ export default function AdminRegWindowsPage() {
               {rows.map((row) => (
                 <tr key={row.id}>
                   <td className="font-semibold text-slate-900">{row.name}</td>
-                  <td><span className={tone(row.status)}>{row.status}</span></td>
+                  <td><span className={tone(row.status)}>{label(row.status)}</span></td>
                   <td>
                     <input
                       type="datetime-local"

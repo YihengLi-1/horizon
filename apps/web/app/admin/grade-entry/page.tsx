@@ -9,7 +9,7 @@ type SectionOption = {
   id: string;
   sectionCode: string;
   course: { code: string; title: string };
-  term: { id: string; name: string; registrationOpen: boolean };
+  term: { id: string; name: string; registrationOpen: boolean; endDate?: string | null };
 };
 
 type SectionEnrollment = {
@@ -67,6 +67,12 @@ export default function AdminGradeEntryPage() {
   }, [sectionId]);
 
   const selectedSection = useMemo(() => sections.find((section) => section.id === sectionId) ?? null, [sectionId, sections]);
+  const gradesLockedAt = useMemo(() => {
+    if (!selectedSection?.term?.endDate) return null;
+    const endDate = new Date(selectedSection.term.endDate);
+    return new Date(endDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+  }, [selectedSection]);
+  const isLocked = Boolean(gradesLockedAt && Date.now() > gradesLockedAt.getTime());
 
   const gradedCount = useMemo(() => rows.filter((row) => row.finalGrade).length, [rows]);
 
@@ -81,6 +87,11 @@ export default function AdminGradeEntryPage() {
 
     if (!sectionId || grades.length === 0) {
       toast.warning("先选择教学班并至少填写一条成绩");
+      return;
+    }
+
+    if (isLocked) {
+      toast.warning("该学期成绩已锁定。如需修改，请联系系统管理员。");
       return;
     }
 
@@ -123,7 +134,7 @@ export default function AdminGradeEntryPage() {
         <button
           type="button"
           onClick={() => void saveAll()}
-          disabled={saving || loading || rows.length === 0}
+          disabled={saving || loading || rows.length === 0 || isLocked}
           className="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {saving ? "保存中…" : "保存全部"}
@@ -148,6 +159,11 @@ export default function AdminGradeEntryPage() {
       ) : null}
 
       {error ? <div className="campus-card border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div> : null}
+      {selectedSection && isLocked ? (
+        <div className="campus-card border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          该学期（{selectedSection.term.name}）的成绩已锁定。如需修改，请联系系统管理员。
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="campus-card px-6 py-14 text-center text-sm text-slate-500">加载名单中…</div>
@@ -176,6 +192,7 @@ export default function AdminGradeEntryPage() {
                     <select
                       className="campus-select min-w-[120px]"
                       value={row.finalGrade ?? ""}
+                      disabled={isLocked}
                       onChange={(event) =>
                         setRows((current) =>
                           current.map((item) =>

@@ -340,6 +340,7 @@ export class StudentsService {
     const audiences = role === "ADMIN" ? ["ALL", "ADMIN"] : ["ALL", "STUDENT"];
     return this.prisma.announcement.findMany({
       where: {
+        active: true,
         audience: { in: audiences },
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }]
       },
@@ -351,6 +352,7 @@ export class StudentsService {
     const normalizedAudience = audience?.trim().toUpperCase();
     return this.prisma.announcement.findMany({
       where: {
+        active: true,
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
         ...(normalizedAudience ? { audience: { in: [normalizedAudience, "ALL"] } } : {})
       },

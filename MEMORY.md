@@ -94,3 +94,12 @@
 - 重构：新增 `apps/web/lib/schedule-utils.ts`，集中 `fmt / deriveStudentCohortYear / registrationPriorityOffsetDays / registrationPriorityLabel / WEEKDAY / GRID_* / COURSE_TONES / hashCourseTone`，并让 `student/catalog` 与 `student/schedule` 改为共享导入，去掉页面内重复定义 → 文件：`apps/web/lib/schedule-utils.ts`、`apps/web/app/student/catalog/page.tsx`、`apps/web/app/student/schedule/page.tsx`
 - 修复：统一 `registration.service.ts` 中 `BadRequestException` 为 `{ code, message }` 结构，覆盖 `SECTION_FULL / ALREADY_REGISTERED / TIME_CONFLICT / PREREQ_NOT_MET / SWAP_*` 等路径；同时把 `quick-add` 的错误解析改为优先读 `error.code`，避免前端偶发解析不到错误码 → 文件：`apps/api/src/registration/registration.service.ts`、`apps/web/app/student/quick-add/page.tsx`
 - 清理：复核 `app-shell.tsx` 后确认当前已不存在未使用的 `Suspense` import，无需再做额外代码改动；本轮 gate 维持 `641 pass, 0 warn, 0 fail`
+
+## Session 29
+
+- 加 DB 索引：补齐 `CartItem.studentId` 索引，并为 `Announcement` 增加 `active` 字段与 `[active, expiresAt]` 复合索引；其余要求中的 `Enrollment / Section / AuditLog` 高频索引经 schema 复查已存在，无需重复添加。由于本地 PostgreSQL 无法创建 shadow database，`prisma migrate dev` 被环境限制拦住，最终按兜底方案通过 `pnpm --filter @sis/api exec prisma db push` 同步 schema 与 Prisma Client → 文件：`apps/api/prisma/schema.prisma`
+- 成绩锁定：把“学期结束 30 天后锁定成绩”落到后端 `submitSectionGrades()`，超过锁定期直接拒绝修改；同时仅允许 `IN_PROGRESS / GRADING` 状态学期录成绩，避免未开课或彻底关闭学期仍可录入 → 文件：`apps/api/src/common/term-status.ts`、`apps/api/src/registration/registration.service.ts`
+- 前端防呆：`/admin/grade-entry` 现在会根据 `term.endDate + 30d` 显示 amber 锁定警告，并禁用成绩下拉与“保存全部”按钮，防止管理员在 UI 层继续误操作 → 文件：`apps/web/app/admin/grade-entry/page.tsx`
+- Term 状态机：新增 `getTermStatus()` / `getTermGradesLockDate()` 纯计算 helper，统一 6 个状态 `UPCOMING / REGISTRATION_OPEN / REGISTRATION_CLOSED / IN_PROGRESS / GRADING / CLOSED`；`assertStudentRegistrationWindowOpen()` 改为按该状态机判断，`/admin/reg-windows` 也改为返回同一状态语义 → 文件：`apps/api/src/common/term-status.ts`、`apps/api/src/registration/registration.service.ts`、`apps/api/src/admin/admin.service.ts`、`apps/web/app/admin/reg-windows/page.tsx`
+- 公告数据基础：为配合 `Announcement.active` 索引与软停用语义，学生/公开公告查询统一改为 `active: true`，管理员删除公告改为 `active=false`，保持现有 UI 行为同时避免硬删数据 → 文件：`apps/api/src/students/students.service.ts`、`apps/api/src/admin/admin.service.ts`
+- gate：`641 pass, 0 warn, 0 fail`
