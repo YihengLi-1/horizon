@@ -24,10 +24,16 @@ function createStudentsService() {
     log: jest.fn().mockResolvedValue(undefined)
   } as any;
 
+  const governanceService = {
+    listMyAcademicRequests: jest.fn(),
+    submitPrereqOverrideRequest: jest.fn()
+  } as any;
+
   return {
     prisma,
     auditService,
-    service: new StudentsService(prisma, auditService)
+    governanceService,
+    service: new StudentsService(prisma, auditService, governanceService)
   };
 }
 

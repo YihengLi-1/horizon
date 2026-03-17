@@ -68,6 +68,7 @@ type SubmitResult = {
   sectionId: string;
   status: string;
   waitlistPosition?: number | null;
+  pendingReason?: "CREDIT_OVERLOAD" | "SECTION_APPROVAL" | null;
   section: {
     id?: string;
     sectionCode: string;
@@ -92,6 +93,7 @@ type PrecheckPreviewItem = {
   courseCode: string;
   status: string;
   waitlistPosition: number | null;
+  pendingReason?: "CREDIT_OVERLOAD" | "SECTION_APPROVAL" | null;
 };
 
 type PrecheckResponse = {
@@ -832,7 +834,11 @@ export default function StudentCartPage() {
 
       setSubmitResults(result);
       setMessage(`Submitted ${result.length} item(s).`);
-      toast(`Submitted ${result.length} item(s).`, "success");
+      if (result.some((item) => item.status === "PENDING_APPROVAL" && item.pendingReason === "CREDIT_OVERLOAD")) {
+        toast("学分已超上限，已提交超学分申请，等待审批", "info");
+      } else {
+        toast(`Submitted ${result.length} item(s).`, "success");
+      }
       resetPrecheck();
       await Promise.all([loadCart(termId), loadCurrentEnrollments(termId), loadSections(termId)]);
     } catch (err) {
@@ -1973,6 +1979,9 @@ export default function StudentCartPage() {
                       {item.status === "WAITLISTED" && item.waitlistPosition ? (
                         <span className="text-amber-600">候补第 {item.waitlistPosition} 位</span>
                       ) : null}
+                      {item.status === "PENDING_APPROVAL" && item.pendingReason === "CREDIT_OVERLOAD" ? (
+                        <span className="text-blue-600">超学分审批中</span>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -2042,6 +2051,9 @@ export default function StudentCartPage() {
                         ) : null}
                       </div>
                       {item.section.course?.title ? <span className="ml-2 truncate text-slate-500">{item.section.course.title}</span> : null}
+                      {item.status === "PENDING_APPROVAL" && item.pendingReason === "CREDIT_OVERLOAD" ? (
+                        <span className="ml-2 shrink-0 text-blue-600">超学分审批中</span>
+                      ) : null}
                     </div>
                   ))}
                 </div>

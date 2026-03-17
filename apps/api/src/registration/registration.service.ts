@@ -35,6 +35,7 @@ type SubmitPreview = {
   courseCode: string;
   status: EnrollmentStatus;
   waitlistPosition: number | null;
+  pendingReason?: "CREDIT_OVERLOAD" | "SECTION_APPROVAL" | null;
 };
 
 type CartItemWithSection = Prisma.CartItemGetPayload<{

@@ -43,6 +43,7 @@ type Enrollment = {
   id: string;
   status: string;
   waitlistPosition: number | null;
+  droppedAt?: string | null;
   section: {
     id: string;
     sectionCode: string;
@@ -129,6 +130,7 @@ export default function SchedulePage() {
   const [showEnrolled, setShowEnrolled] = useState(true);
   const [showPending, setShowPending] = useState(true);
   const [showWaitlisted, setShowWaitlisted] = useState(true);
+  const [showDropped, setShowDropped] = useState(false);
   const [viewMode, setViewMode] = useLocalStorage<"list" | "grid">("schedule_view_mode", "list");
   const [clientNow, setClientNow] = useState<number | null>(null);
   const [todayWeekday, setTodayWeekday] = useState(0);
@@ -146,24 +148,32 @@ export default function SchedulePage() {
   }, [activeTerm, clientNow]);
 
   const statusCounts = useMemo(() => {
-    const counts = { ENROLLED: 0, PENDING_APPROVAL: 0, WAITLISTED: 0 };
+    const counts = { ENROLLED: 0, PENDING_APPROVAL: 0, WAITLISTED: 0, DROPPED: 0 };
     for (const enrollment of enrollments) {
       if (enrollment.status === "ENROLLED") counts.ENROLLED += 1;
       if (enrollment.status === "PENDING_APPROVAL") counts.PENDING_APPROVAL += 1;
       if (enrollment.status === "WAITLISTED") counts.WAITLISTED += 1;
+      if (enrollment.status === "DROPPED") counts.DROPPED += 1;
     }
     return counts;
   }, [enrollments]);
 
   const visibleEnrollments = useMemo(
     () =>
-      enrollments.filter((enrollment) => {
+      [...enrollments]
+      .filter((enrollment) => {
         if (enrollment.status === "ENROLLED") return showEnrolled;
         if (enrollment.status === "PENDING_APPROVAL") return showPending;
         if (enrollment.status === "WAITLISTED") return showWaitlisted;
+        if (enrollment.status === "DROPPED") return showDropped;
         return true;
+      })
+      .sort((a, b) => {
+        if (a.status === "DROPPED" && b.status !== "DROPPED") return 1;
+        if (a.status !== "DROPPED" && b.status === "DROPPED") return -1;
+        return 0;
       }),
-    [enrollments, showEnrolled, showPending, showWaitlisted]
+    [enrollments, showDropped, showEnrolled, showPending, showWaitlisted]
   );
   const visibleCredits = useMemo(
     () =>
@@ -173,8 +183,8 @@ export default function SchedulePage() {
     [visibleEnrollments]
   );
   const hasStatusFiltersApplied = useMemo(
-    () => !showEnrolled || !showPending || !showWaitlisted,
-    [showEnrolled, showPending, showWaitlisted]
+    () => !showEnrolled || !showPending || !showWaitlisted || showDropped,
+    [showDropped, showEnrolled, showPending, showWaitlisted]
   );
 
   // Total weekly meeting hours from enrolled sections
@@ -188,6 +198,7 @@ export default function SchedulePage() {
   const todayClasses = useMemo(
     () =>
       visibleEnrollments
+        .filter((enrollment) => enrollment.status !== "DROPPED")
         .flatMap((enrollment) =>
           (enrollment.section.meetingTimes ?? [])
             .filter((meetingTime) => meetingTime.weekday === todayWeekday)
@@ -208,7 +219,9 @@ export default function SchedulePage() {
   }, []);
   const gridBlocks = useMemo(
     () =>
-      visibleEnrollments.flatMap((enrollment, enrollmentIndex) =>
+      visibleEnrollments
+      .filter((enrollment) => enrollment.status !== "DROPPED")
+      .flatMap((enrollment, enrollmentIndex) =>
         (enrollment.section.meetingTimes ?? [])
           .filter((meetingTime) => meetingTime.endMinutes > GRID_START && meetingTime.startMinutes < GRID_END)
           .map((meetingTime, meetingIndex) => {
@@ -285,6 +298,7 @@ export default function SchedulePage() {
     setShowEnrolled(true);
     setShowPending(true);
     setShowWaitlisted(true);
+    setShowDropped(false);
   };
 
   const confirmDrop = (enrollment: Enrollment) => {
@@ -561,6 +575,18 @@ export default function SchedulePage() {
           >
             {enrollmentStatusLabel("WAITLISTED")} ({statusCounts.WAITLISTED})
           </button>
+          <button
+            type="button"
+            onClick={() => setShowDropped((prev) => !prev)}
+            aria-pressed={showDropped}
+            className={`inline-flex h-8 items-center rounded-full border px-3 text-xs font-medium transition ${
+              showDropped
+                ? "border-slate-400 bg-slate-100 text-slate-700"
+                : "border-slate-300 bg-white text-slate-600"
+            }`}
+          >
+            显示退课记录 ({statusCounts.DROPPED})
+          </button>
           {hasStatusFiltersApplied ? (
             <button
               type="button"
@@ -644,7 +670,7 @@ export default function SchedulePage() {
                   </div>
                 ) : null}
                 {visibleEnrollments.map((enrollment) => (
-                  <article key={enrollment.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                  <article key={enrollment.id} className={`rounded-xl border p-3 ${enrollment.status === "DROPPED" ? "border-slate-200 bg-slate-50 text-slate-500" : "border-slate-200 bg-white"}`}>
                     <p className="text-sm font-semibold text-slate-900">
                       <span
                         className="mr-2 inline-block h-3.5 w-1.5 rounded-full align-middle"
@@ -666,8 +692,13 @@ export default function SchedulePage() {
                         {enrollment.status === "WAITLISTED" && enrollment.waitlistPosition !== null && (
                           <p className="mt-0.5 text-[10px] text-amber-700">#{enrollment.waitlistPosition} in queue</p>
                         )}
+                        {enrollment.status === "DROPPED" && enrollment.droppedAt ? (
+                          <p className="mt-0.5 text-[10px] text-slate-500">退课于 {new Date(enrollment.droppedAt).toLocaleString()}</p>
+                        ) : null}
                       </div>
-                      {dropDeadlinePassed && (enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL") ? (
+                      {enrollment.status === "DROPPED" ? (
+                        <span className="text-[11px] text-slate-500">已退课</span>
+                      ) : dropDeadlinePassed && (enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL") ? (
                         <span className="text-[11px] text-amber-700">Drop unavailable after deadline</span>
                       ) : enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL" || enrollment.status === "WAITLISTED" ? (
                         <button
@@ -736,7 +767,7 @@ export default function SchedulePage() {
               ) : (
                 visibleEnrollments.map((enrollment) => (
                   <Fragment key={enrollment.id}>
-                    <tr key={enrollment.id} className="odd:bg-white even:bg-slate-50/40">
+                    <tr key={enrollment.id} className={enrollment.status === "DROPPED" ? "bg-slate-50 text-slate-500" : "odd:bg-white even:bg-slate-50/40"}>
                       <td className="font-medium text-slate-800">
                         <span
                           className="mr-3 inline-block h-4 w-1.5 rounded-full align-middle"
@@ -760,9 +791,14 @@ export default function SchedulePage() {
                         {enrollment.status === "WAITLISTED" && enrollment.waitlistPosition !== null && (
                           <p className="mt-0.5 text-[10px] text-amber-700">#{enrollment.waitlistPosition} in queue</p>
                         )}
+                        {enrollment.status === "DROPPED" && enrollment.droppedAt ? (
+                          <p className="mt-0.5 text-[10px] text-slate-500">退课于 {new Date(enrollment.droppedAt).toLocaleString()}</p>
+                        ) : null}
                       </td>
                       <td>
-                        {dropDeadlinePassed && (enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL") ? (
+                        {enrollment.status === "DROPPED" ? (
+                          <span className="text-xs text-slate-500">已退课</span>
+                        ) : dropDeadlinePassed && (enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL") ? (
                           <div className="space-y-1">
                             <button
                               type="button"

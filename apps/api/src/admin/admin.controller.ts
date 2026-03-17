@@ -281,6 +281,22 @@ export class AdminController {
     return ok(await this.adminService.bulkApproveEnrollments(body.ids, user.userId));
   }
 
+  @Get("pending-overloads")
+  @RequireAdminPermissions("enrollments:read")
+  async listPendingOverloads() {
+    return ok(await this.adminService.getPendingOverloads());
+  }
+
+  @Patch("pending-overloads/:enrollmentId")
+  @RequireAdminPermissions("enrollments:write")
+  async decidePendingOverload(
+    @Param("enrollmentId") enrollmentId: string,
+    @Body() body: { approve?: boolean },
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(await this.adminService.decidePendingOverload(enrollmentId, Boolean(body.approve), user.userId));
+  }
+
   @Get("waitlist")
   @RequireAdminPermissions("waitlist:read")
   async listWaitlist(@Query("sectionId") sectionId?: string) {
@@ -319,6 +335,22 @@ export class AdminController {
     @CurrentUser() user: { userId: string }
   ) {
     return ok(await this.adminService.promoteWaitlist(body as never, user.userId));
+  }
+
+  @Get("prereq-waivers")
+  @RequireAdminPermissions("enrollments:read")
+  async listPrereqWaivers(@CurrentUser() user: { userId: string }, @Query("status") status?: string) {
+    return ok(await this.adminService.getPrereqWaivers(user.userId, status));
+  }
+
+  @Patch("prereq-waivers/:requestId")
+  @RequireAdminPermissions("enrollments:write")
+  async decidePrereqWaiver(
+    @CurrentUser() user: { userId: string },
+    @Param("requestId") requestId: string,
+    @Body() body: { status: "APPROVED" | "REJECTED"; adminNote?: string | null }
+  ) {
+    return ok(await this.adminService.decidePrereqWaiver(user.userId, requestId, body));
   }
 
   @Get("invite-codes")

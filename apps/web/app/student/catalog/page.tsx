@@ -29,6 +29,13 @@ type Term = {
   maxCredits: number;
 };
 
+type StudentProfileSummary = {
+  user?: {
+    studentId?: string | null;
+    createdAt?: string;
+  };
+};
+
 type Section = {
   id: string;
   sectionCode: string;
@@ -40,6 +47,8 @@ type Section = {
   instructorName: string;
   location: string | null;
   requireApproval: boolean;
+  myStatus?: "ENROLLED" | "WAITLISTED" | "IN_CART" | "NONE";
+  myWaitlistPosition?: number | null;
   meetingTimes: MeetingTime[];
   enrollments: Array<{ status: string }>;
   course: {
@@ -187,18 +196,72 @@ function Alert({
   );
 }
 
-function RegistrationWindowBanner({ term }: { term: Term | null }) {
+function deriveStudentCohortYear(studentId?: string | null, createdAt?: string) {
+  const match = studentId?.match(/^U(\d{2})/i);
+  if (match) {
+    const yy = Number(match[1]);
+    return yy >= 80 ? 1900 + yy : 2000 + yy;
+  }
+  return createdAt ? new Date(createdAt).getFullYear() : new Date().getFullYear();
+}
+
+function registrationPriorityOffsetDays(cohortYear: number) {
+  if (cohortYear <= 2022) return 0;
+  if (cohortYear === 2023) return 2;
+  if (cohortYear === 2024) return 4;
+  return 6;
+}
+
+function registrationPriorityLabel(cohortYear: number) {
+  if (cohortYear <= 2022) return "大四";
+  if (cohortYear === 2023) return "大三";
+  if (cohortYear === 2024) return "大二";
+  return "大一";
+}
+
+function seatToneText(availableSeats: number) {
+  if (availableSeats <= 0) return { text: "已满", className: "text-red-700" };
+  if (availableSeats <= 2) return { text: `最后 ${availableSeats} 席`, className: "animate-pulse text-red-700" };
+  if (availableSeats <= 10) return { text: `仅剩 ${availableSeats} 席`, className: "text-amber-700" };
+  return { text: `剩 ${availableSeats} 席`, className: "text-slate-500" };
+}
+
+function RegistrationWindowBanner({
+  term,
+  student
+}: {
+  term: Term | null;
+  student: StudentProfileSummary | null;
+}) {
   if (!term) return null;
 
-  const now = Date.now();
-  const open = new Date(term.registrationOpenAt).getTime();
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const cohortYear = deriveStudentCohortYear(student?.user?.studentId, student?.user?.createdAt);
+  const priorityLabel = registrationPriorityLabel(cohortYear);
+  const adjustedOpen = new Date(
+    new Date(term.registrationOpenAt).getTime() + registrationPriorityOffsetDays(cohortYear) * 24 * 60 * 60 * 1000
+  );
+  const open = adjustedOpen.getTime();
   const close = new Date(term.registrationCloseAt).getTime();
+  const countdownMs = Math.max(0, open - now);
+  const countdown = {
+    days: Math.floor(countdownMs / (24 * 60 * 60 * 1000)),
+    hours: Math.floor((countdownMs / (60 * 60 * 1000)) % 24),
+    minutes: Math.floor((countdownMs / (60 * 1000)) % 60),
+    seconds: Math.floor((countdownMs / 1000) % 60)
+  };
 
   if (now < open) {
     return (
       <Alert
         type="info"
-        message={`Registration opens on ${new Date(term.registrationOpenAt).toLocaleDateString()} at ${new Date(term.registrationOpenAt).toLocaleTimeString()}.`}
+        message={`你的选课开放时间：${adjustedOpen.toLocaleString()}（优先级：${priorityLabel}）。倒计时 ${countdown.days}天 ${countdown.hours}小时 ${countdown.minutes}分 ${countdown.seconds}秒。`}
       />
     );
   }
@@ -224,6 +287,7 @@ const SAVED_COURSES_KEY = "saved_courses";
 export default function StudentCatalogPage() {
   const toast = useToast();
   const [terms, setTerms] = useState<Term[]>([]);
+  const [studentProfile, setStudentProfile] = useState<StudentProfileSummary | null>(null);
   const [termId, setTermId] = useState("");
   const [sections, setSections] = useState<Section[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -460,12 +524,14 @@ export default function StudentCatalogPage() {
     async function init() {
       try {
         setError("");
-        const [data, grades] = await Promise.all([
+        const [data, grades, me] = await Promise.all([
           apiFetch<Term[]>("/academics/terms"),
-          apiFetch<GradeEnrollment[]>("/registration/grades").catch(() => [])
+          apiFetch<GradeEnrollment[]>("/registration/grades").catch(() => []),
+          apiFetch<StudentProfileSummary>("/students/me").catch(() => null)
         ]);
         setTerms(data);
         setPassedCourseCodes(Array.from(new Set(grades.map((g) => g.section.course.code))));
+        setStudentProfile(me);
         const query = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
         const queryTermId = query?.get("termId") ?? "";
         const querySearch = query?.get("q") ?? "";
@@ -1061,7 +1127,7 @@ export default function StudentCatalogPage() {
       </section>
 
       {/* Registration window banner */}
-      <RegistrationWindowBanner term={activeTerm} />
+      <RegistrationWindowBanner term={activeTerm} student={studentProfile} />
 
       {/* Notices */}
       <div className="space-y-3" aria-live="polite">
@@ -1187,7 +1253,8 @@ export default function StudentCatalogPage() {
             const isUnlimited = section.capacity === 0;
             const availableSeats = isUnlimited ? Number.POSITIVE_INFINITY : section.capacity - enrolledCount;
             const isFull = !isUnlimited && availableSeats <= 0;
-            const inCart = cartSectionIds.has(section.id);
+            const myStatus = section.myStatus ?? "NONE";
+            const inCart = myStatus === "IN_CART" || cartSectionIds.has(section.id);
             const cartConflict = !inCart && timeOverlap(
               sectionMeetingTimes,
               cartMeetingTimes
@@ -1199,8 +1266,9 @@ export default function StudentCatalogPage() {
             const hasCapacityData =
               Number.isFinite(enrolledCount) && Number.isFinite(section.capacity) && section.capacity > 0;
             // Whether this student is already enrolled in this exact section or another section of the same course
-            const alreadyEnrolledHere   = enrolledSectionIdSet.has(section.id);
+            const alreadyEnrolledHere   = myStatus === "ENROLLED" || enrolledSectionIdSet.has(section.id);
             const alreadyEnrolledCourse = !alreadyEnrolledHere && enrolledCourseCodeSet.has(section.course.code);
+            const seatTone = isUnlimited ? null : seatToneText(availableSeats);
 
             return (
               <article
@@ -1369,12 +1437,12 @@ export default function StudentCatalogPage() {
                     <aside className="flex w-full flex-col justify-between gap-4 border-t border-slate-200 bg-[linear-gradient(180deg,hsl(221_40%_98%)_0%,white_100%)] p-4 lg:border-l lg:border-t-0">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Seat Status</p>
-                      <p className={`mt-1 text-lg font-semibold ${isFull ? "text-red-700" : "text-emerald-700"}`}>
-                        {isUnlimited ? "Unlimited seats" : isFull ? "Full / Waitlist" : `${availableSeats} seat${availableSeats !== 1 ? "s" : ""} open`}
+                      <p className={`mt-1 text-lg font-semibold ${isUnlimited ? "text-emerald-700" : seatTone?.className ?? "text-slate-700"}`}>
+                        {isUnlimited ? "不限人数" : seatTone?.text}
                       </p>
                       <p className="text-sm text-slate-600">
-                        Enrolled {enrolledCount}/{isUnlimited ? "∞" : section.capacity}
-                        {waitlistCount > 0 ? ` · Waitlist ${waitlistCount}` : ""}
+                        已选 {enrolledCount}/{isUnlimited ? "∞" : section.capacity}
+                        {waitlistCount > 0 ? ` · 候补 ${waitlistCount}` : ""}
                       </p>
                       {hasCapacityData ? (
                         <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
@@ -1399,23 +1467,23 @@ export default function StudentCatalogPage() {
                         </span>
                       ) : alreadyEnrolledHere ? (
                         <span className="inline-flex h-10 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-100 px-4 text-sm font-semibold text-emerald-800">
-                          ✓ Enrolled
+                          已选
+                        </span>
+                      ) : myStatus === "WAITLISTED" ? (
+                        <span className="inline-flex h-10 items-center justify-center rounded-xl border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-800">
+                          等待中{section.myWaitlistPosition ? ` (#${section.myWaitlistPosition})` : ""}
                         </span>
                       ) : alreadyEnrolledCourse ? (
                         <span className="inline-flex h-10 items-center justify-center rounded-xl border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-800">
-                          Enrolled (other section)
+                          已选同课程其他班级
                         </span>
                       ) : inCart ? (
-                        <button
-                          type="button"
-                          onClick={() => void removeFromCart(section)}
-                          disabled={removingSectionId === section.id}
-                          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 transition hover:bg-red-50 hover:border-red-300 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+                        <Link
+                          href={`/student/cart${termId ? `?termId=${termId}` : ""}`}
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-4 text-sm font-semibold text-blue-700 no-underline transition hover:bg-blue-100"
                         >
-                          {removingSectionId === section.id ? (
-                            <span className="size-4 animate-spin rounded-full border-2 border-current/40 border-t-current" />
-                          ) : "✓ In cart — remove"}
-                        </button>
+                          已在购物车
+                        </Link>
                       ) : prereqBlocked ? (
                         <span
                           className="inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700"
@@ -1471,11 +1539,11 @@ export default function StudentCatalogPage() {
                           {addingSectionId === section.id ? (
                             <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                           ) : isFull ? (
-                            "Join waitlist"
+                            "加入等待队列"
                           ) : cartConflict ? (
-                            "Add anyway"
+                            "仍加入购物车"
                           ) : (
-                            "Add to cart"
+                            "加入购物车"
                           )}
                         </button>
                       )}

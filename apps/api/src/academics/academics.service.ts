@@ -46,8 +46,8 @@ export class AcademicsService {
     return course;
   }
 
-  async listSections(termId?: string, courseId?: string) {
-    return this.prisma.section.findMany({
+  async listSections(termId?: string, courseId?: string, userId?: string) {
+    const sections = await this.prisma.section.findMany({
       where: {
         termId: termId || undefined,
         courseId: courseId || undefined
@@ -74,6 +74,81 @@ export class AcademicsService {
         }
       },
       orderBy: [{ term: { startDate: "desc" } }, { sectionCode: "asc" }]
+    });
+
+    if (!userId) {
+      return sections.map((section) => ({
+        ...section,
+        myStatus: "NONE" as const,
+        myWaitlistPosition: null
+      }));
+    }
+
+    const sectionIds = sections.map((section) => section.id);
+    const [enrollments, cartItems] = await Promise.all([
+      this.prisma.enrollment.findMany({
+        where: {
+          deletedAt: null,
+          studentId: userId,
+          sectionId: { in: sectionIds },
+          status: { in: ["ENROLLED", "WAITLISTED", "PENDING_APPROVAL"] }
+        },
+        select: {
+          sectionId: true,
+          status: true,
+          waitlistPosition: true
+        }
+      }),
+      this.prisma.cartItem.findMany({
+        where: {
+          studentId: userId,
+          sectionId: { in: sectionIds }
+        },
+        select: {
+          sectionId: true
+        }
+      })
+    ]);
+
+    const enrollmentMap = new Map(
+      enrollments.map((enrollment) => [
+        enrollment.sectionId,
+        {
+          status: enrollment.status,
+          waitlistPosition: enrollment.waitlistPosition
+        }
+      ])
+    );
+    const cartSectionIds = new Set(cartItems.map((item) => item.sectionId));
+
+    return sections.map((section) => {
+      const enrollment = enrollmentMap.get(section.id);
+      if (enrollment?.status === "WAITLISTED") {
+        return {
+          ...section,
+          myStatus: "WAITLISTED" as const,
+          myWaitlistPosition: enrollment.waitlistPosition
+        };
+      }
+      if (enrollment?.status === "ENROLLED" || enrollment?.status === "PENDING_APPROVAL") {
+        return {
+          ...section,
+          myStatus: "ENROLLED" as const,
+          myWaitlistPosition: null
+        };
+      }
+      if (cartSectionIds.has(section.id)) {
+        return {
+          ...section,
+          myStatus: "IN_CART" as const,
+          myWaitlistPosition: null
+        };
+      }
+      return {
+        ...section,
+        myStatus: "NONE" as const,
+        myWaitlistPosition: null
+      };
     });
   }
 
