@@ -92,6 +92,18 @@ export class StudentsController {
     return ok(await this.studentsService.getEnrollmentLog(user.userId));
   }
 
+  @Roles("STUDENT")
+  @Get("term-compare")
+  async getTermCompare(@CurrentUser() user: { userId: string }) {
+    return ok(await this.studentsService.getTermCompare(user.userId));
+  }
+
+  @Roles("STUDENT")
+  @Get("honors")
+  async getHonors(@CurrentUser() user: { userId: string }) {
+    return ok(await this.studentsService.getStudentHonors(user.userId));
+  }
+
   @Roles("STUDENT", "ADMIN")
   @Post("schedule/share")
   async shareSchedule(@CurrentUser() user: { userId: string }, @Body() body: { termId?: string }) {

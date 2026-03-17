@@ -367,6 +367,18 @@ h1 {
   border-bottom: 1px solid hsl(221 20% 94%);
 }
 
+.campus-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .campus-kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 .campus-card table thead {
   background: hsl(221 30% 97%);
 }

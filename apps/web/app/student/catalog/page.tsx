@@ -1537,7 +1537,7 @@ export default function StudentCatalogPage() {
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">课程对比</h2>
               <button type="button" onClick={() => setCompareOpen(false)} className="text-slate-400 hover:text-slate-600 text-2xl">×</button>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto -mx-4 px-4">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-gray-800">

@@ -1504,6 +1504,242 @@ export class StudentsService {
     };
   }
 
+  async getTermCompare(userId: string) {
+    type TermCompareRow = {
+      termId: string;
+      termName: string;
+      termStartDate: Date;
+      credits: number;
+      courseCount: number;
+      gpa: number;
+      passRate: number;
+    };
+
+    const rows = await this.prisma.$queryRaw<TermCompareRow[]>(Prisma.sql`
+      SELECT
+        t.id AS "termId",
+        t.name AS "termName",
+        t."startDate" AS "termStartDate",
+        COALESCE(
+          SUM(
+            CASE
+              WHEN e.status IN ('ENROLLED', 'COMPLETED', 'PENDING_APPROVAL') THEN s.credits
+              ELSE 0
+            END
+          ),
+          0
+        )::int AS "credits",
+        COUNT(*) FILTER (
+          WHERE e.status IN ('ENROLLED', 'COMPLETED', 'PENDING_APPROVAL')
+        )::int AS "courseCount",
+        COALESCE(
+          ROUND(
+            (
+              SUM(
+                CASE e."finalGrade"
+                  WHEN 'A+' THEN 4.0 * s.credits
+                  WHEN 'A' THEN 4.0 * s.credits
+                  WHEN 'A-' THEN 3.7 * s.credits
+                  WHEN 'B+' THEN 3.3 * s.credits
+                  WHEN 'B' THEN 3.0 * s.credits
+                  WHEN 'B-' THEN 2.7 * s.credits
+                  WHEN 'C+' THEN 2.3 * s.credits
+                  WHEN 'C' THEN 2.0 * s.credits
+                  WHEN 'C-' THEN 1.7 * s.credits
+                  WHEN 'D+' THEN 1.3 * s.credits
+                  WHEN 'D' THEN 1.0 * s.credits
+                  WHEN 'D-' THEN 0.7 * s.credits
+                  WHEN 'F' THEN 0.0 * s.credits
+                  ELSE 0
+                END
+              )::numeric
+              / NULLIF(
+                SUM(
+                  CASE
+                    WHEN e."finalGrade" IN ('A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-', 'F')
+                      THEN s.credits
+                    ELSE 0
+                  END
+                ),
+                0
+              )::numeric
+            ),
+            2
+          ),
+          0
+        )::numeric AS "gpa",
+        COALESCE(
+          ROUND(
+            (
+              SUM(
+                CASE
+                  WHEN e.status = 'COMPLETED' AND e."finalGrade" IS NOT NULL AND LEFT(e."finalGrade", 1) NOT IN ('F', 'W') THEN 1
+                  ELSE 0
+                END
+              )::numeric
+              / NULLIF(
+                SUM(
+                  CASE
+                    WHEN e.status = 'COMPLETED' AND e."finalGrade" IS NOT NULL THEN 1
+                    ELSE 0
+                  END
+                ),
+                0
+              )::numeric
+            ) * 100,
+            1
+          ),
+          0
+        )::numeric AS "passRate"
+      FROM "Enrollment" e
+      JOIN "Section" s
+        ON s.id = e."sectionId"
+      JOIN "Term" t
+        ON t.id = e."termId"
+      WHERE e."studentId" = ${userId}
+        AND e."deletedAt" IS NULL
+      GROUP BY t.id, t.name, t."startDate"
+      ORDER BY t."startDate" ASC
+    `);
+
+    return rows.map((row) => ({
+      termId: row.termId,
+      termName: row.termName,
+      termStartDate: row.termStartDate,
+      credits: Number(row.credits),
+      courseCount: Number(row.courseCount),
+      gpa: Number(row.gpa),
+      passRate: Number(row.passRate)
+    }));
+  }
+
+  async getStudentHonors(userId: string) {
+    type TermHonorRow = {
+      termName: string;
+      awardedAt: Date;
+      gpa: number;
+    };
+
+    type SummaryRow = {
+      totalCredits: number;
+      setbacks: number;
+      latestAwardedAt: Date | null;
+    };
+
+    const [termRows, summaryRows] = await Promise.all([
+      this.prisma.$queryRaw<TermHonorRow[]>(Prisma.sql`
+        SELECT
+          t.name AS "termName",
+          t."endDate" AS "awardedAt",
+          ROUND(
+            (
+              SUM(
+                CASE e."finalGrade"
+                  WHEN 'A+' THEN 4.0 * s.credits
+                  WHEN 'A' THEN 4.0 * s.credits
+                  WHEN 'A-' THEN 3.7 * s.credits
+                  WHEN 'B+' THEN 3.3 * s.credits
+                  WHEN 'B' THEN 3.0 * s.credits
+                  WHEN 'B-' THEN 2.7 * s.credits
+                  WHEN 'C+' THEN 2.3 * s.credits
+                  WHEN 'C' THEN 2.0 * s.credits
+                  WHEN 'C-' THEN 1.7 * s.credits
+                  WHEN 'D+' THEN 1.3 * s.credits
+                  WHEN 'D' THEN 1.0 * s.credits
+                  WHEN 'D-' THEN 0.7 * s.credits
+                  WHEN 'F' THEN 0.0 * s.credits
+                  ELSE 0
+                END
+              )::numeric
+              / NULLIF(
+                SUM(
+                  CASE
+                    WHEN e."finalGrade" IN ('A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-', 'F')
+                      THEN s.credits
+                    ELSE 0
+                  END
+                ),
+                0
+              )::numeric
+            ),
+            2
+          )::numeric AS "gpa"
+        FROM "Enrollment" e
+        JOIN "Section" s
+          ON s.id = e."sectionId"
+        JOIN "Term" t
+          ON t.id = e."termId"
+        WHERE e."studentId" = ${userId}
+          AND e."deletedAt" IS NULL
+          AND e.status = 'COMPLETED'
+          AND e."finalGrade" IN ('A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-', 'F')
+        GROUP BY t.id, t.name, t."endDate", t."startDate"
+        ORDER BY t."startDate" ASC
+      `),
+      this.prisma.$queryRaw<SummaryRow[]>(Prisma.sql`
+        SELECT
+          COALESCE(
+            SUM(
+              CASE
+                WHEN e.status = 'COMPLETED' AND e."finalGrade" IS NOT NULL AND LEFT(e."finalGrade", 1) NOT IN ('F', 'W')
+                  THEN s.credits
+                ELSE 0
+              END
+            ),
+            0
+          )::int AS "totalCredits",
+          COALESCE(
+            SUM(
+              CASE
+                WHEN e.status = 'DROPPED' OR e."finalGrade" = 'F' THEN 1
+                ELSE 0
+              END
+            ),
+            0
+          )::int AS "setbacks",
+          MAX(t."endDate") AS "latestAwardedAt"
+        FROM "Enrollment" e
+        JOIN "Section" s
+          ON s.id = e."sectionId"
+        JOIN "Term" t
+          ON t.id = e."termId"
+        WHERE e."studentId" = ${userId}
+          AND e."deletedAt" IS NULL
+      `)
+    ]);
+
+    const honors: Array<{ type: string; termName: string; awardedAt: Date }> = [];
+    for (const row of termRows) {
+      const gpa = Number(row.gpa);
+      if (gpa >= 3.8) {
+        honors.push({ type: "荣誉院长名单", termName: row.termName, awardedAt: row.awardedAt });
+      } else if (gpa >= 3.5) {
+        honors.push({ type: "院长名单", termName: row.termName, awardedAt: row.awardedAt });
+      }
+    }
+
+    const summary = summaryRows[0];
+    if (Number(summary?.totalCredits ?? 0) >= 60) {
+      honors.push({
+        type: "学业优秀",
+        termName: "累计荣誉",
+        awardedAt: summary?.latestAwardedAt ?? new Date()
+      });
+    }
+    if (Number(summary?.setbacks ?? 0) === 0) {
+      honors.push({
+        type: "全勤学者",
+        termName: "累计荣誉",
+        awardedAt: summary?.latestAwardedAt ?? new Date()
+      });
+    }
+
+    return {
+      honors,
+      summary: honors.length > 0 ? `已获得 ${honors.length} 项荣誉。` : "继续努力，荣誉即将到来。"
+    };
+  }
+
   async getEnrollmentLog(userId: string) {
     type EnrollmentLogRow = {
       auditId: string;

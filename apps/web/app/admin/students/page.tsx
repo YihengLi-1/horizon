@@ -718,6 +718,7 @@ export default function AdminStudentsPage() {
 
       <section className="campus-card overflow-hidden">
         <p className="px-4 pt-4 text-xs text-slate-500 md:hidden">Tip: Swipe horizontally to view all columns.</p>
+        <div className="overflow-x-auto -mx-4 px-4">
         <div className="max-h-[560px] overflow-auto rounded-3xl">
           <table role="grid" aria-label="学生列表" className="campus-table hidden min-w-[760px] md:table">
             <thead className="sticky top-0 z-10">
@@ -804,6 +805,7 @@ export default function AdminStudentsPage() {
               )}
             </tbody>
           </table>
+        </div>
         </div>
 
         <div className="space-y-3 p-4 md:hidden">

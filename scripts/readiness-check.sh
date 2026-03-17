@@ -755,6 +755,33 @@ check_exists "apps/web/app/student/schedule-image/page.tsx" "Student schedule im
 check_contains "apps/web/app/student/schedule-image/page.tsx" "drawAndDownload" "Schedule image canvas export"
 check_contains "apps/web/components/app-shell.tsx" "/student/schedule-image" "Schedule image nav link"
 
+# ── Session 22: command palette, bulk ops, term compare, reg windows, honors ─
+check_exists "apps/web/components/command-palette.tsx" "Command palette component"
+check_contains "apps/web/components/app-shell.tsx" "CommandPalette" "Command palette wired into app shell"
+check_contains "apps/web/components/app-shell.tsx" "⌘K" "Desktop command palette trigger"
+check_contains "apps/web/app/globals.css" ".campus-kpi-grid" "Responsive KPI grid utility"
+check_contains "apps/web/app/admin/students/page.tsx" "overflow-x-auto -mx-4 px-4" "Admin students mobile table wrapper"
+check_contains "apps/api/src/admin/admin.service.ts" "bulkEnroll" "Admin bulk enroll service"
+check_contains "apps/api/src/admin/admin.service.ts" "bulkDrop" "Admin bulk drop service"
+check_contains "apps/api/src/admin/admin.service.ts" "bulkUpdateStudentStatus" "Admin bulk status service"
+check_contains "apps/api/src/admin/admin.controller.ts" "bulk-enroll" "Admin bulk enroll endpoint"
+check_contains "apps/api/src/admin/admin.controller.ts" "bulk-drop" "Admin bulk drop endpoint"
+check_contains "apps/api/src/admin/admin.controller.ts" "bulk-update-status" "Admin bulk status endpoint"
+check_exists "apps/web/app/admin/bulk-ops/page.tsx" "Admin bulk ops page"
+check_contains "apps/web/components/app-shell.tsx" "/admin/bulk-ops" "Admin bulk ops nav link"
+check_contains "apps/api/src/students/students.service.ts" "getTermCompare" "Student term compare service"
+check_contains "apps/api/src/students/students.controller.ts" "term-compare" "Student term compare endpoint"
+check_exists "apps/web/app/student/term-compare/page.tsx" "Student term compare page"
+check_contains "apps/web/components/app-shell.tsx" "/student/term-compare" "Student term compare nav link"
+check_contains "apps/api/src/admin/admin.service.ts" "getRegistrationWindows" "Admin registration windows service"
+check_contains "apps/api/src/admin/admin.controller.ts" "reg-windows" "Admin registration windows endpoint"
+check_exists "apps/web/app/admin/reg-windows/page.tsx" "Admin registration windows page"
+check_contains "apps/web/components/app-shell.tsx" "/admin/reg-windows" "Admin registration windows nav link"
+check_contains "apps/api/src/students/students.service.ts" "getStudentHonors" "Student honors service"
+check_contains "apps/api/src/students/students.controller.ts" "\"honors\"" "Student honors endpoint"
+check_exists "apps/web/app/student/honors/page.tsx" "Student honors page"
+check_contains "apps/web/components/app-shell.tsx" "/student/honors" "Student honors nav link"
+
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"
 else
