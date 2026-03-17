@@ -103,3 +103,22 @@
 - Term 状态机：新增 `getTermStatus()` / `getTermGradesLockDate()` 纯计算 helper，统一 6 个状态 `UPCOMING / REGISTRATION_OPEN / REGISTRATION_CLOSED / IN_PROGRESS / GRADING / CLOSED`；`assertStudentRegistrationWindowOpen()` 改为按该状态机判断，`/admin/reg-windows` 也改为返回同一状态语义 → 文件：`apps/api/src/common/term-status.ts`、`apps/api/src/registration/registration.service.ts`、`apps/api/src/admin/admin.service.ts`、`apps/web/app/admin/reg-windows/page.tsx`
 - 公告数据基础：为配合 `Announcement.active` 索引与软停用语义，学生/公开公告查询统一改为 `active: true`，管理员删除公告改为 `active=false`，保持现有 UI 行为同时避免硬删数据 → 文件：`apps/api/src/students/students.service.ts`、`apps/api/src/admin/admin.service.ts`
 - gate：`641 pass, 0 warn, 0 fail`
+
+## Session 30
+
+- migration 历史补齐：新增 `apps/api/prisma/migrations/20260317094036_add_indexes/migration.sql` 记录 `CartItem.studentId` 索引与 `Announcement.active + [active, expiresAt]`，并补回数据库里已存在但本地丢失的 `20260304000000_user_login_locking` 迁移目录；同时新增 `migration_lock.toml`，随后用 `prisma migrate resolve --applied 20260317094036_add_indexes` 对齐 `_prisma_migrations`，`prisma migrate status` 重新恢复到 `Database schema is up to date`。
+- 管理员 CRUD 审查：复核后确认管理员从 UI 侧已经能建课、建班、建学期，并可编辑课程/教学班/学期；对应的 `POST/PATCH /admin/courses|sections|terms` 端点和 `admin/courses|sections|terms` 顶部表单均已存在，因此本轮不额外加重复实现，只把审查结论沉淀为交付记录 → 文件：`apps/api/src/admin/admin.controller.ts`、`apps/api/src/admin/admin.service.ts`、`apps/web/app/admin/courses/page.tsx`、`apps/web/app/admin/sections/page.tsx`、`apps/web/app/admin/terms/page.tsx`
+- 邮件基础设施复用而非重建：仓库原本已有 `NotificationsService + nodemailer + SMTP_*` 配置与开发态跳过发送逻辑，本轮不再新建第二套 MailerService；在此基础上补齐缺失的单次选课成功确认和退课确认邮件，而 waitlist 晋升、成绩发布邮件链路继续沿用现有实现 → 文件：`apps/api/src/notifications/notifications.service.ts`、`apps/api/src/registration/registration.service.ts`、`apps/api/src/admin/admin.service.ts`
+- 邮件触点现状收口：现在 4 个关键触点都齐了：`enroll()` 事务成功后发送“选课确认”，waitlist 晋升发送“等待队列晋升通知”，`dropEnrollment()` 完成后发送“退课确认”，成绩录入完成后继续发送“成绩已发布”；bulk enroll/drop 因为复用 `RegistrationService`，也会自然继承同一套通知链路 → 文件：`apps/api/src/registration/registration.service.ts`、`apps/api/src/admin/admin.service.ts`
+- gate：`641 pass, 0 warn, 0 fail`
+
+## Session 31
+
+- Seed 数据全面重写：`apps/api/prisma/seed.ts` 现在使用真实中文学期名（`2024年秋季学期 / 2025年春季学期 / 2025年秋季学期`）、15 门真实课程、20 个 2025 秋教学班、真实中文教师/学生姓名、真实专业与 DOB、历史成绩记录和 3 条正式公告；并已实跑 `pnpm --filter @sis/api exec prisma db seed`，输出主演示统计 `Terms: 3, Courses: 15, Sections: 20, Users: 6`。
+- 死胡同修复：`/student/planner` 生成方案后无下一步 → 给每个方案卡片补上“将此方案加入购物车”，循环调用 `/registration/cart`，成功后切换成“查看购物车 →”，并对已在购物车/已选课程做跳过提示 → 文件：`apps/web/app/student/planner/page.tsx`。
+- 死胡同修复：`/student/catalog` 满班时主按钮文案与真实流程不一致、容易误导成“立即进候补” → 改为“加入购物车（候补）”，成功后明确提示“提交时会按候补流程处理”；同时保持状态即时回显与购物车刷新 → 文件：`apps/web/app/student/catalog/page.tsx`。
+- 死胡同修复：`/student/schedule` 网格视图课程块之前只是色块，没有任何后续动作 → 改成可点击块，点击后在同页下方打开课程详情卡片，展示课程、教师、地点、状态与会议时间；`/student/grades` 也为每门课补了原生展开详情，避免纯表格一眼到头没有下一步 → 文件：`apps/web/app/student/schedule/page.tsx`、`apps/web/app/student/grades/page.tsx`。
+- 死胡同修复：`/student/readiness` 对“未就绪”课程原先只告诉用户缺什么，不告诉用户去哪处理 → 为每张未就绪卡片补上“去看先修课”和“申请先修课豁免”快速链接；`/student/dashboard` 的 pinned 公告卡片也补了跳到 `/student/announcements` 的详情入口 → 文件：`apps/web/app/student/readiness/page.tsx`、`apps/web/app/student/dashboard/PinnedAnnouncements.tsx`。
+- 管理端死胡同审查：`/admin/students` 现有详情抽屉可查看学生资料/选课/成绩/hold 安全信息，`/admin/sections` 已可进 roster 与 analytics，`/admin/grade-entry` 当前学期默认选择逻辑正常，`/admin/holds` 的学生搜索可用；本轮仅补了 `/admin/courses` 的“查看教学班”入口，让课程列表可直接跳到按课程码过滤的班级列表，不再停在课程定义本身 → 文件：`apps/web/app/admin/courses/page.tsx`。
+- 文案/标签检查：对 `apps/web` 和 `apps/api/src` 做了 `E2E|TODO|FIXME|dummy|test data|lorem` 搜索，运行时代码中未发现仍暴露在用户界面的垃圾占位字符串；同时把 readiness 中旧的 seed 学期短名断言改为正式中文学期名，避免脚本继续误报 → 文件：`scripts/readiness-check.sh`。
+- gate：`641 pass, 0 warn, 0 fail`

@@ -322,7 +322,7 @@ check_exists "apps/web/app/admin/holds/page.tsx" "Admin holds page"
 check_contains "apps/web/components/app-shell.tsx" "/admin/holds|学生限制" "Admin holds nav entry"
 check_contains "apps/web/app/student/cart/page.tsx" "Governance Status|Retry Governance Status|holdsError|requestsError" "Student cart governance failure state"
 check_contains "apps/api/prisma/schema.prisma" "activeRequestKey" "Academic request active key invariant in schema"
-check_contains "apps/api/prisma/seed.ts" "2024秋|2025春|2025秋|seed-term-fall-2025-current" "Demo-ready seed term data"
+check_contains "apps/api/prisma/seed.ts" "2024年秋季学期|2025年春季学期|2025年秋季学期|seed-term-fall-2025-current" "Demo-ready seed term data"
 check_contains "apps/web/app/admin/dashboard/page.tsx" "系统状态|ops/version|ops/ready" "Dashboard system status card"
 check_contains "apps/api/src/admin/admin.service.ts" "getReportsSummary|Promise\\.all" "Reports summary service"
 check_contains "apps/api/src/admin/admin.service.spec.ts" "44|normalizePagination.*page.*20|computeStudentGpa.*null" "Admin service unit tests expanded"
@@ -807,7 +807,7 @@ check_contains "apps/web/app/admin/students/page.tsx" "studentTagsMap|activeTab 
 check_contains "apps/web/components/app-shell.tsx" "/admin/student-tags" "Student tags nav link"
 
 # ── Session 24: seed, docker, grade-entry, admin holds wrapper, appeals tracker ─
-check_contains "apps/api/prisma/seed.ts" "2024秋|2025春|2025秋" "Seed terms aligned for demo"
+check_contains "apps/api/prisma/seed.ts" "2024年秋季学期|2025年春季学期|2025年秋季学期" "Seed terms aligned for demo"
 check_contains "apps/api/prisma/seed.ts" "admin@univ.edu|student1@univ.edu|Student1234!|Admin1234!" "Seed demo accounts aligned"
 check_contains "docker-compose.yml" "db:|horizon_sis|sis_dev_pass" "Docker compose demo defaults aligned"
 check_contains ".env.example" "horizon_sis|sis_dev_pass|change_me_in_production" "Root env example aligned"

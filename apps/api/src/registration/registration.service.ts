@@ -149,6 +149,58 @@ export class RegistrationService {
     throw lastError;
   }
 
+  private async sendEnrollmentConfirmationEmail(
+    studentId: string,
+    details: { termName: string; courseCode: string; sectionCode: string }
+  ): Promise<void> {
+    const student = await this.prisma.user.findUnique({
+      where: { id: studentId },
+      select: {
+        email: true,
+        studentProfile: {
+          select: {
+            legalName: true
+          }
+        }
+      }
+    });
+
+    if (!student?.email) return;
+
+    await this.notificationsService.sendMail({
+      to: student.email,
+      subject: "选课确认",
+      text: `你已成功选入 ${details.termName} 学期的 ${details.courseCode} ${details.sectionCode}。`,
+      html: `<p>${student.studentProfile?.legalName ? `${student.studentProfile.legalName}，` : ""}你已成功选入 <strong>${details.termName}</strong> 学期的 <strong>${details.courseCode} ${details.sectionCode}</strong>。</p>`
+    });
+  }
+
+  private async sendDropConfirmationEmail(
+    studentId: string,
+    details: { termName: string; courseCode: string; sectionCode: string }
+  ): Promise<void> {
+    const student = await this.prisma.user.findUnique({
+      where: { id: studentId },
+      select: {
+        email: true,
+        studentProfile: {
+          select: {
+            legalName: true
+          }
+        }
+      }
+    });
+
+    if (!student?.email) return;
+
+    await this.notificationsService.sendMail({
+      to: student.email,
+      subject: "退课确认",
+      text: `你已成功退出 ${details.termName} 学期的 ${details.courseCode} ${details.sectionCode}。`,
+      html: `<p>${student.studentProfile?.legalName ? `${student.studentProfile.legalName}，` : ""}你已成功退出 <strong>${details.termName}</strong> 学期的 <strong>${details.courseCode} ${details.sectionCode}</strong>。</p>`
+    });
+  }
+
   private async getSectionEnrollmentStats(
     client: PrismaService | Prisma.TransactionClient,
     sectionIds: string[]
@@ -735,7 +787,7 @@ export class RegistrationService {
   }
 
   async enroll(studentId: string, sectionId: string) {
-    return this.runEnrollmentTransactionWithRetry(async (tx) => {
+    const result = await this.runEnrollmentTransactionWithRetry(async (tx) => {
       await this.governanceService.assertNoBlockingHolds(tx, studentId);
       await this.lockSectionsForUpdate(tx, [sectionId]);
 
@@ -783,7 +835,10 @@ export class RegistrationService {
       });
 
       if (existing?.status === "ENROLLED") {
-        return existing;
+        return {
+          enrollment: existing,
+          enrollmentConfirmation: null as { termName: string; courseCode: string; sectionCode: string } | null
+        };
       }
 
       if (existing) {
@@ -862,10 +917,29 @@ export class RegistrationService {
       }
 
       return {
-        ...created,
-        pendingReason
+        enrollment: {
+          ...created,
+          pendingReason
+        },
+        enrollmentConfirmation: pendingReason
+          ? null
+          : {
+              termName: section.term.name,
+              courseCode: section.course.code,
+              sectionCode: section.sectionCode
+            }
       };
     });
+
+    if (result.enrollmentConfirmation) {
+      try {
+        await this.sendEnrollmentConfirmationEmail(studentId, result.enrollmentConfirmation);
+      } catch {
+        // Email delivery should not block the enrollment workflow.
+      }
+    }
+
+    return result.enrollment;
   }
 
   async getCart(studentId: string, termId: string) {
@@ -1440,7 +1514,12 @@ export class RegistrationService {
         dropped,
         seatFreed,
         previousStatus,
-        promoted
+        promoted,
+        dropConfirmation: {
+          termName: locked.term.name,
+          courseCode: locked.section.course.code,
+          sectionCode: locked.section.sectionCode
+        }
       };
     });
 
@@ -1474,6 +1553,12 @@ export class RegistrationService {
       } catch {
         // Mail delivery should not block the drop workflow.
       }
+    }
+
+    try {
+      await this.sendDropConfirmationEmail(studentId, result.dropConfirmation);
+    } catch {
+      // Mail delivery should not block the drop workflow.
     }
 
     return {

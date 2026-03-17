@@ -716,6 +716,12 @@ export default function CoursesPage() {
                         >
                           {editingId === course.id ? "Cancel" : "Edit"}
                         </button>
+                        <a
+                          href={`/admin/sections?search=${encodeURIComponent(course.code)}`}
+                          className="inline-flex h-8 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
+                        >
+                          查看教学班
+                        </a>
                         <button
                           type="button"
                           onClick={() => onDelete(course.id, course.code)}

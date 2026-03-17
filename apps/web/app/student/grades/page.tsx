@@ -550,7 +550,23 @@ export default async function GradesPage({
                     return (
                       <tr key={item.id} className="border-b border-slate-100 odd:bg-white even:bg-slate-50/40">
                         <td className="px-4 py-3 font-medium text-slate-900">{item.section.course.code}</td>
-                        <td className="px-4 py-3 text-slate-700">{item.section.course.title}</td>
+                        <td className="px-4 py-3 text-slate-700">
+                          <details className="group">
+                            <summary className="cursor-pointer list-none font-medium text-slate-800 transition hover:text-slate-900">
+                              <span>{item.section.course.title}</span>
+                              <span className="ml-2 text-[11px] font-semibold text-indigo-600 group-open:hidden">查看详情</span>
+                              <span className="ml-2 hidden text-[11px] font-semibold text-indigo-600 group-open:inline">收起详情</span>
+                            </summary>
+                            <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-600">
+                              <p>学分：{item.section.credits} · 绩点：{pts !== null ? pts.toFixed(1) : "—"} · 贡献绩点：{contribution !== null ? contribution.toFixed(1) : "—"}</p>
+                              <p className="mt-1">课程评教：{item.section.ratings?.[0]?.rating ? `${item.section.ratings[0].rating}/5` : "暂未填写"}</p>
+                              <p className="mt-1">出勤与细分评分说明暂未开放，若对结果有疑问可前往成绩申诉页面发起申请。</p>
+                              <Link href="/student/appeals" className="mt-2 inline-flex items-center gap-1 font-semibold text-indigo-700 no-underline hover:text-indigo-800">
+                                前往成绩申诉 →
+                              </Link>
+                            </div>
+                          </details>
+                        </td>
                         <td className="px-4 py-3 text-slate-700">{item.section.credits}</td>
                         <td className={`px-4 py-3 font-semibold ${gradeColor(item.finalGrade)}`}>{item.finalGrade}</td>
                         <td className="px-4 py-3 text-slate-700">{pts !== null ? pts.toFixed(1) : "-"}</td>

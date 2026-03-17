@@ -166,6 +166,9 @@ export default function ReadinessPage() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((c) => {
             const sectionCount = sections.filter((s) => s.course.id === c.id).length;
+            const missingPrereqs = c.prerequisiteLinks
+              .map((p) => p.prerequisiteCourse.code)
+              .filter((code) => !completedSet.has(code));
             return (
               <article
                 key={c.id}
@@ -217,6 +220,25 @@ export default function ReadinessPage() {
                     </Link>
                   </div>
                 )}
+
+                {!c.isReady ? (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {missingPrereqs[0] ? (
+                      <Link
+                        href={`/student/catalog?search=${encodeURIComponent(missingPrereqs[0])}`}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        去看先修课 {missingPrereqs[0]}
+                      </Link>
+                    ) : null}
+                    <Link
+                      href="/student/prereq-waivers"
+                      className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+                    >
+                      申请先修课豁免 →
+                    </Link>
+                  </div>
+                ) : null}
               </article>
             );
           })}

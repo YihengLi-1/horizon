@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { apiFetch } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/components/Toast";
+import { ApiError, apiFetch } from "@/lib/api";
 
 type MeetingTime = {
   weekday: number;
@@ -86,6 +88,8 @@ function creditLoadLabel(credits: number): { label: string; cls: string } {
 }
 
 export default function PlannerPage() {
+  const router = useRouter();
+  const toast = useToast();
   const [termId, setTermId] = useState("");
   const [terms, setTerms] = useState<Term[]>([]);
   const [allSections, setAllSections] = useState<Section[]>([]);
@@ -93,6 +97,8 @@ export default function PlannerPage() {
   const [search, setSearch] = useState("");
   const [combos, setCombos] = useState<Section[][]>([]);
   const [loading, setLoading] = useState(false);
+  const [applyingComboIndex, setApplyingComboIndex] = useState<number | null>(null);
+  const [appliedComboKey, setAppliedComboKey] = useState<string | null>(null);
 
   useEffect(() => {
     void apiFetch<Term[]>("/academics/terms").then(setTerms).catch(() => setTerms([]));
@@ -126,6 +132,54 @@ export default function PlannerPage() {
       return sum + minCr;
     }, 0);
   }, [basket, allSections]);
+
+  const comboKey = (combo: Section[]) => combo.map((section) => section.id).join("|");
+
+  const applyComboToCart = async (combo: Section[], comboIndex: number) => {
+    if (!termId) return;
+    const key = comboKey(combo);
+    if (appliedComboKey === key) {
+      router.push(`/student/cart?termId=${termId}`);
+      return;
+    }
+
+    try {
+      setApplyingComboIndex(comboIndex);
+      let added = 0;
+      const skipped: string[] = [];
+
+      for (const section of combo) {
+        try {
+          await apiFetch("/registration/cart", {
+            method: "POST",
+            body: JSON.stringify({ termId, sectionId: section.id })
+          });
+          added += 1;
+        } catch (err) {
+          if (err instanceof ApiError && (err.code === "ALREADY_IN_CART" || err.code === "ALREADY_REGISTERED")) {
+            skipped.push(`${section.course.code} §${section.sectionCode}`);
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      if (added > 0) {
+        toast.success(`已将 ${added} 门课加入购物车`);
+      }
+      if (skipped.length > 0) {
+        toast.info(`已跳过 ${skipped.length} 门课程：${skipped.join("、")}`);
+      }
+      if (added === 0 && skipped.length === 0) {
+        toast.info("该方案没有可加入购物车的课程");
+      }
+      setAppliedComboKey(key);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "加入购物车失败");
+    } finally {
+      setApplyingComboIndex(null);
+    }
+  };
 
   return (
     <div className="campus-page space-y-5">
@@ -259,6 +313,8 @@ export default function PlannerPage() {
                 const days = [...new Set(combo.flatMap((section) => (section.meetingTimes ?? []).map((meeting) => meeting.weekday)))].sort();
                 const isRecommended = idx === 0;
                 const load = creditLoadLabel(totalCredits);
+                const key = comboKey(combo);
+                const isApplied = appliedComboKey === key;
                 return (
                   <div key={idx} className={`campus-card p-4 space-y-3 ${isRecommended ? "ring-2 ring-indigo-400" : ""}`}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -296,6 +352,33 @@ export default function PlannerPage() {
                           </span>
                         </div>
                       ))}
+                    </div>
+                    <div className="flex justify-end pt-1">
+                      {isApplied ? (
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/student/cart?termId=${termId}`)}
+                          className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-700"
+                        >
+                          查看购物车 →
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => void applyComboToCart(combo, idx)}
+                          disabled={applyingComboIndex === idx}
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[hsl(221_83%_43%)] bg-white px-4 text-sm font-semibold text-[hsl(221_83%_43%)] transition hover:bg-[hsl(221_83%_43%)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {applyingComboIndex === idx ? (
+                            <>
+                              <span className="size-4 animate-spin rounded-full border-2 border-current/30 border-t-current" />
+                              加入中…
+                            </>
+                          ) : (
+                            "将此方案加入购物车"
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

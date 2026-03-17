@@ -801,7 +801,13 @@ export default function StudentCatalogPage() {
         method: "POST",
         body: JSON.stringify({ termId, sectionId: section.id })
       });
-      setNotice(`${section.course.code} §${section.sectionCode} added to cart.`);
+      const successMessage = getRemainingSeats(section) <= 0
+        ? `${section.course.code} §${section.sectionCode} 已加入购物车，提交时会按候补流程处理。`
+        : `${section.course.code} §${section.sectionCode} added to cart.`;
+      setNotice(successMessage);
+      if (getRemainingSeats(section) <= 0) {
+        toast.info("该教学班当前已满，提交购物车后将按候补处理。");
+      }
       await Promise.all([loadCart(termId), loadSections(termId), loadEnrollments(termId)]);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to add to cart";
@@ -1498,7 +1504,7 @@ export default function StudentCatalogPage() {
                           {addingSectionId === section.id ? (
                             <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                           ) : isFull ? (
-                            "加入等待队列"
+                            "加入购物车（候补）"
                           ) : cartConflict ? (
                             "仍加入购物车"
                           ) : (
@@ -1508,6 +1514,9 @@ export default function StudentCatalogPage() {
                       )}
                       {cartConflict && !inCart && !alreadyEnrolledHere ? (
                         <p className="text-sm text-amber-700">Conflict will be rechecked at submit.</p>
+                      ) : null}
+                      {isFull && !inCart && !alreadyEnrolledHere && !alreadyCompleted && isRegistrationOpen ? (
+                        <p className="text-sm text-slate-500">满班课程会先加入购物车，提交后按候补顺序处理。</p>
                       ) : null}
                       {isFull && !inCart && !alreadyEnrolledHere && !alreadyCompleted && isRegistrationOpen ? (
                         <button
