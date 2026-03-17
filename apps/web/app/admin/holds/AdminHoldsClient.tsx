@@ -77,7 +77,7 @@ export default function AdminHoldsClient() {
     try {
       setLoading(true);
       setError("");
-      const data = await apiFetch<HoldRecord[]>("/governance/admin/holds");
+      const data = await apiFetch<HoldRecord[]>("/admin/holds");
       setHolds(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load holds");
@@ -145,7 +145,7 @@ export default function AdminHoldsClient() {
       setCreating(true);
       setError("");
       setNotice("");
-      await apiFetch("/governance/admin/holds", {
+      await apiFetch("/admin/holds", {
         method: "POST",
         body: JSON.stringify({
           studentId: selectedStudent.id,
@@ -175,17 +175,17 @@ export default function AdminHoldsClient() {
       setResolvingId(holdId);
       setError("");
       setNotice("");
-      await apiFetch(`/governance/admin/holds/${holdId}/resolve`, {
-        method: "PATCH",
+      await apiFetch(`/admin/holds/${holdId}`, {
+        method: "DELETE",
         body: JSON.stringify({
           resolutionNote: resolveNotes[holdId]?.trim() || null
         })
       });
       setResolveNotes((prev) => ({ ...prev, [holdId]: "" }));
-      setNotice("Hold resolved.");
+      setNotice("Hold removed.");
       await loadHolds();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to resolve hold");
+      setError(err instanceof Error ? err.message : "Unable to remove hold");
     } finally {
       setResolvingId("");
     }
@@ -199,7 +199,7 @@ export default function AdminHoldsClient() {
             <p className="campus-eyebrow">Governance Operations</p>
             <h1 className="font-heading text-3xl font-bold text-slate-900">Student Holds</h1>
             <p className="mt-2 text-sm text-slate-600">
-              Create, review, and resolve registration-blocking holds through the product UI.
+              Create and remove registration-blocking holds through the product UI.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -351,12 +351,12 @@ export default function AdminHoldsClient() {
                 {hold.active ? (
                   <div className="rounded-xl border border-slate-200 bg-white p-3">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Resolution note</span>
+                      <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Removal note</span>
                       <textarea
                         className="campus-input min-h-20"
                         value={resolveNotes[hold.id] ?? ""}
                         onChange={(event) => setResolveNotes((prev) => ({ ...prev, [hold.id]: event.target.value }))}
-                        placeholder="Optional note explaining why the hold was cleared"
+                        placeholder="Optional note explaining why the hold was removed"
                       />
                     </label>
                     <button
@@ -365,7 +365,7 @@ export default function AdminHoldsClient() {
                       disabled={resolvingId === hold.id}
                       className="mt-3 inline-flex h-9 items-center rounded-lg border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {resolvingId === hold.id ? "Resolving…" : "Resolve Hold"}
+                      {resolvingId === hold.id ? "Removing…" : "Remove Hold"}
                     </button>
                   </div>
                 ) : null}

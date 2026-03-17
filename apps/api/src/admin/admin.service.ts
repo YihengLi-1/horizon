@@ -4,6 +4,7 @@ import argon2 from "argon2";
 import { createHash } from "crypto";
 import {
   assignAdvisorSchema,
+  createHoldSchema,
   createAdvisorSchema,
   createCourseSchema,
   createFacultySchema,
@@ -22,6 +23,7 @@ import { maintenanceModeCache } from "../common/maintenance.middleware";
 import { sanitizeHtml } from "../common/sanitize";
 import { dispatch } from "../common/webhook";
 import { NotificationsService } from "../notifications/notifications.service";
+import { GovernanceService } from "../governance/governance.service";
 import { RegistrationService } from "../registration/registration.service";
 
 type CreateTermInput = z.infer<typeof createTermSchema>;
@@ -31,6 +33,7 @@ type CreateFacultyInput = z.infer<typeof createFacultySchema>;
 type CreateAdvisorInput = z.infer<typeof createAdvisorSchema>;
 type AssignAdvisorInput = z.infer<typeof assignAdvisorSchema>;
 type CreateInviteCodeInput = z.infer<typeof createInviteCodeSchema>;
+type CreateHoldInput = z.infer<typeof createHoldSchema>;
 type PromoteWaitlistInput = z.infer<typeof promoteWaitlistSchema>;
 type UpdateGradeInput = z.infer<typeof updateGradeSchema>;
 type CsvImportInput = z.infer<typeof csvImportSchema>;
@@ -245,7 +248,8 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly notificationsService: NotificationsService,
-    private readonly registrationService: RegistrationService
+    private readonly registrationService: RegistrationService,
+    private readonly governanceService: GovernanceService
   ) {}
 
   private normalizeAdminActionError(error: unknown): string {
@@ -1454,6 +1458,80 @@ export class AdminService {
     });
   }
 
+  async bulkUpdateGrades(
+    sectionId: string,
+    grades: Array<{ enrollmentId: string; grade: string; gradePoints?: number }>,
+    actorUserId: string
+  ) {
+    const section = await this.prisma.section.findUnique({
+      where: { id: sectionId },
+      include: { course: true, term: true }
+    });
+
+    if (!section) {
+      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
+    }
+
+    const normalized = grades
+      .map((item) => ({
+        enrollmentId: item.enrollmentId,
+        grade: item.grade.trim().toUpperCase()
+      }))
+      .filter((item) => item.enrollmentId && item.grade);
+
+    if (normalized.length === 0) {
+      throw new BadRequestException({ code: "NO_GRADES_SUBMITTED", message: "No grades submitted" });
+    }
+
+    const succeeded: string[] = [];
+    const failed: Array<{ enrollmentId: string; reason: string }> = [];
+
+    for (const item of normalized) {
+      try {
+        const enrollment = await this.prisma.enrollment.findFirst({
+          where: { id: item.enrollmentId, sectionId, deletedAt: null },
+          select: { id: true }
+        });
+
+        if (!enrollment) {
+          failed.push({ enrollmentId: item.enrollmentId, reason: "Enrollment not found in this section" });
+          continue;
+        }
+
+        await this.updateGrade({ enrollmentId: item.enrollmentId, finalGrade: item.grade }, actorUserId);
+        succeeded.push(item.enrollmentId);
+      } catch (error) {
+        failed.push({
+          enrollmentId: item.enrollmentId,
+          reason:
+            error && typeof error === "object" && "message" in error && typeof error.message === "string"
+              ? error.message
+              : "Unable to update grade"
+        });
+      }
+    }
+
+    await this.auditService.log({
+      actorUserId,
+      action: "GRADE_BULK_UPDATE",
+      entityType: "section",
+      entityId: sectionId,
+      metadata: {
+        sectionCode: section.sectionCode,
+        courseCode: section.course.code,
+        termName: section.term.name,
+        count: succeeded.length,
+        failed: failed.length
+      }
+    });
+
+    return {
+      updated: succeeded.length,
+      succeeded,
+      failed
+    };
+  }
+
   async listEnrollments(params: {
     termId?: string;
     sectionId?: string;
@@ -2055,6 +2133,21 @@ export class AdminService {
     }
 
     return this.updateGrade({ enrollmentId: enrollment.id, finalGrade: grade }, actorUserId);
+  }
+
+  async getAdminHolds(actorUserId: string, studentId?: string) {
+    const holds = await this.governanceService.listHolds(actorUserId, studentId);
+    return holds.filter((hold) => hold.active);
+  }
+
+  async createAdminHold(actorUserId: string, input: CreateHoldInput) {
+    return this.governanceService.createHold(actorUserId, input);
+  }
+
+  async removeAdminHold(actorUserId: string, holdId: string, note?: string | null) {
+    return this.governanceService.resolveHold(actorUserId, holdId, {
+      resolutionNote: note?.trim() || "Removed from /admin/holds"
+    });
   }
 
   async listInviteCodes() {

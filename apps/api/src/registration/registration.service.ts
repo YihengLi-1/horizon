@@ -621,6 +621,9 @@ export class RegistrationService {
       throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found for term" });
     }
 
+    // Carting is intentionally allowed outside the registration window so students can plan ahead.
+    // The actual time gate remains enforced in precheckCart() and submitCart().
+
     const existingActive = await this.prisma.enrollment.findFirst({
       where: {
         deletedAt: null,

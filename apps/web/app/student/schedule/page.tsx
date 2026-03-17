@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import { SkeletonTable } from "@/components/skeleton-table";
 import { API_URL } from "@/lib/config";
 import { enrollmentStatusLabel } from "@/lib/labels";
@@ -303,7 +303,13 @@ export default function SchedulePage() {
       });
       await loadSchedule(termId);
     } catch (err) {
-      setDropError((p) => ({ ...p, [enrollmentId]: err instanceof Error ? err.message : "Drop failed" }));
+      const message =
+        err instanceof ApiError && err.code === "DROP_DEADLINE_PASSED"
+          ? "已过退课截止时间，请联系注册处或支持团队处理。"
+          : err instanceof Error
+            ? err.message
+            : "Drop failed";
+      setDropError((p) => ({ ...p, [enrollmentId]: message }));
     } finally {
       setDropping((p) => ({ ...p, [enrollmentId]: false }));
     }

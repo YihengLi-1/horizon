@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 
 const BASE = process.env.API_URL ?? 'http://localhost:4000';
-const ADMIN_IDENTIFIER = process.env.SMOKE_ADMIN_IDENTIFIER ?? 'admin@university.edu';
-const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD ?? 'Admin123!';
-const STUDENT_PASSWORD = process.env.SMOKE_STUDENT_PASSWORD ?? 'Student@2026!';
+const ADMIN_IDENTIFIER = process.env.SMOKE_ADMIN_IDENTIFIER ?? 'admin@univ.edu';
+const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD ?? 'Admin1234!';
+const STUDENT_PASSWORD = process.env.SMOKE_STUDENT_PASSWORD ?? 'Student1234!';
 const CSRF_COOKIE_NAME = process.env.CSRF_COOKIE_NAME ?? 'sis-csrf';
 const CSRF_HEADER_NAME = process.env.CSRF_HEADER_NAME ?? 'x-csrf-token';
 
