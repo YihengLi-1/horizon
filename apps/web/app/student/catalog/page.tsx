@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, Search } from "lucide-react";
+import { BookOpen, Search, Star } from "lucide-react";
 import { RegistrationStepper } from "@/components/registration-stepper";
 import { SkeletonTable } from "@/components/skeleton-table";
 import { useToast } from "@/components/Toast";
@@ -219,6 +219,7 @@ function RegistrationWindowBanner({ term }: { term: Term | null }) {
 }
 
 const PAGE_SIZE = 20;
+const SAVED_COURSES_KEY = "saved_courses";
 
 export default function StudentCatalogPage() {
   const toast = useToast();
@@ -252,6 +253,7 @@ export default function StudentCatalogPage() {
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
   const [recentlyViewed, setRecentlyViewed] = useState<Array<{ sectionId: string; code: string; title: string }>>([]);
+  const [savedCourseIds, setSavedCourseIds] = useState<Set<string>>(new Set());
   const searchRef = useRef<HTMLInputElement>(null);
   const search = filters.search;
   const filterModality = filters.modality;
@@ -300,6 +302,17 @@ export default function StudentCatalogPage() {
     } catch { /* ignore */ }
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(SAVED_COURSES_KEY) ?? "[]");
+      const ids = Array.isArray(saved) ? saved.map((item) => item?.courseId).filter(Boolean) : [];
+      setSavedCourseIds(new Set(ids));
+    } catch {
+      setSavedCourseIds(new Set());
+    }
+  }, []);
+
   const trackView = (section: Section) => {
     setRecentlyViewed(prev => {
       const entry = { sectionId: section.id, code: section.course.code, title: section.course.title };
@@ -313,6 +326,35 @@ export default function StudentCatalogPage() {
       }
       return next;
     });
+  };
+
+  const toggleSavedCourse = (section: Section) => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(SAVED_COURSES_KEY) ?? "[]");
+      const list = Array.isArray(saved) ? saved : [];
+      const exists = list.some((item) => item?.courseId === section.course.id);
+      const next = exists
+        ? list.filter((item) => item?.courseId !== section.course.id)
+        : [
+            ...list,
+            {
+              courseId: section.course.id,
+              code: section.course.code,
+              title: section.course.title,
+              credits: section.credits
+            }
+          ];
+      window.localStorage.setItem(SAVED_COURSES_KEY, JSON.stringify(next));
+      setSavedCourseIds(new Set(next.map((item) => item.courseId)));
+      if (exists) {
+        toast.info(`${section.course.code} 已取消收藏`);
+      } else {
+        toast.success(`${section.course.code} 已加入收藏`);
+      }
+    } catch {
+      toast.error("保存收藏失败");
+    }
   };
 
   const activeTerm = useMemo(() => terms.find((t) => t.id === termId) ?? null, [terms, termId]);
@@ -1192,8 +1234,20 @@ export default function StudentCatalogPage() {
                           <Highlight text={section.course.title} query={debouncedSearch.trim()} />
                         </h3>
                       </div>
-                      <div className="flex flex-wrap justify-end gap-2">
+                    <div className="flex flex-wrap justify-end gap-2">
                         <BookmarkButton sectionId={section.id} />
+                        <button
+                          type="button"
+                          onClick={() => toggleSavedCourse(section)}
+                          className={`inline-flex h-8 items-center gap-1 rounded-lg border px-3 text-xs font-semibold transition ${
+                            savedCourseIds.has(section.course.id)
+                              ? "border-amber-300 bg-amber-50 text-amber-700"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700"
+                          }`}
+                        >
+                          <Star className="size-3.5" fill={savedCourseIds.has(section.course.id) ? "currentColor" : "none"} />
+                          收藏
+                        </button>
                         <Badge>§{section.sectionCode}</Badge>
                         <Badge color="blue">{section.credits} cr</Badge>
                         {section.course.weeklyHours ? (

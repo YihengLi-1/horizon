@@ -832,6 +832,85 @@ export class StudentsService {
     return updated;
   }
 
+  async getProfileCompleteness(userId: string) {
+    const profile = await this.prisma.studentProfile.findUnique({
+      where: { userId },
+      select: {
+        legalName: true,
+        programMajor: true,
+        dob: true,
+        address: true,
+        emergencyContact: true
+      }
+    });
+
+    const fields = [
+      { name: "legalName", label: "姓名", filled: Boolean(profile?.legalName?.trim()) },
+      { name: "programMajor", label: "专业", filled: Boolean(profile?.programMajor?.trim()) },
+      { name: "dob", label: "出生日期", filled: Boolean(profile?.dob) },
+      { name: "address", label: "地址", filled: Boolean(profile?.address?.trim()) },
+      { name: "emergencyContact", label: "紧急联系人", filled: Boolean(profile?.emergencyContact?.trim()) }
+    ];
+
+    const score = fields.reduce((sum, field) => sum + (field.filled ? 20 : 0), 0);
+
+    return {
+      score,
+      missing: fields.filter((field) => !field.filled).map((field) => field.label),
+      fields
+    };
+  }
+
+  async updateStudentProfile(userId: string, input: UpdateProfileInput) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null, role: "STUDENT" },
+      select: {
+        id: true,
+        email: true,
+        studentProfile: true
+      }
+    });
+
+    if (!user) {
+      throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
+    }
+
+    const updated = await this.prisma.studentProfile.upsert({
+      where: { userId },
+      create: {
+        userId,
+        legalName: input.legalName ?? user.studentProfile?.legalName ?? user.email,
+        programMajor: input.programMajor ?? user.studentProfile?.programMajor ?? null,
+        dob: input.dob !== undefined ? toDateOrNull(input.dob) : user.studentProfile?.dob ?? null,
+        address: input.address ?? user.studentProfile?.address ?? null,
+        emergencyContact: input.emergencyContact ?? user.studentProfile?.emergencyContact ?? null,
+        enrollmentStatus: user.studentProfile?.enrollmentStatus ?? null,
+        academicStatus: user.studentProfile?.academicStatus ?? null
+      },
+      update: {
+        legalName: input.legalName ?? user.studentProfile?.legalName ?? user.email,
+        programMajor: input.programMajor !== undefined ? input.programMajor : user.studentProfile?.programMajor,
+        dob: input.dob !== undefined ? toDateOrNull(input.dob) : user.studentProfile?.dob,
+        address: input.address !== undefined ? input.address : user.studentProfile?.address,
+        emergencyContact:
+          input.emergencyContact !== undefined ? input.emergencyContact : user.studentProfile?.emergencyContact
+      }
+    });
+
+    await this.auditService.log({
+      actorUserId: userId,
+      action: "PROFILE_UPDATE",
+      entityType: "student_profile",
+      entityId: updated.id,
+      metadata: {
+        legalName: updated.legalName,
+        programMajor: updated.programMajor ?? null
+      }
+    });
+
+    return updated;
+  }
+
   async adminListStudents(params?: { page?: number; pageSize?: number; search?: string }) {
     const q = params?.search?.trim();
     const usePagination = params?.page !== undefined || params?.pageSize !== undefined || Boolean(q);

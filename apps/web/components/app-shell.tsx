@@ -38,11 +38,11 @@ import {
 import NotificationBell from "@/components/NotificationBell";
 import { SkipLink } from "@/components/SkipLink";
 import { CommandPalette } from "@/components/command-palette";
+import ErrorBoundary from "@/components/error-boundary";
 import { LogoutButton } from "@/components/logout-button";
 import SessionExpiryBanner from "@/components/SessionExpiryBanner";
 import StudentMobileNav from "@/components/StudentMobileNav";
 import { apiFetch } from "@/lib/api";
-import { API_URL } from "@/lib/config";
 
 type AppArea = "student" | "admin" | "faculty" | "advisor";
 
@@ -83,6 +83,7 @@ const studentItems: NavItem[] = [
   { href: "/student/history", label: "历史记录", icon: <History className={iconClass} /> },
   { href: "/student/bookmarks", label: "收藏", icon: <Bookmark className={iconClass} /> },
   { href: "/student/watched", label: "关注课程", icon: <Bell className={iconClass} /> },
+  { href: "/student/saved-courses", label: "收藏课程", icon: <Star className={iconClass} /> },
   { href: "/student/study-timer", label: "学习计时", icon: <Clock className={iconClass} /> },
   { href: "/student/reviews", label: "我的评价", icon: <Star className={iconClass} /> },
   { href: "/student/transcript", label: "修课记录", icon: <ScrollText className={iconClass} /> },
@@ -135,6 +136,7 @@ const adminItems: NavItem[] = [
   { href: "/admin/status-email", label: "状态群发", icon: <Mail className={iconClass} /> },
   { href: "/admin/digest", label: "邮件摘要", icon: <Mail className={iconClass} /> },
   { href: "/admin/announcements", label: "公告", icon: <Megaphone className={iconClass} /> },
+  { href: "/admin/announcements-mgmt", label: "公告管理", icon: <Megaphone className={iconClass} /> },
   { href: "/admin/invite-codes", label: "邀请码", icon: <KeyRound className={iconClass} /> },
   { href: "/admin/import", label: "数据导入", icon: <Upload className={iconClass} /> },
   { href: "/admin/reports", label: "报表", icon: <BarChart3 className={iconClass} /> },
@@ -166,6 +168,7 @@ const adminItems: NavItem[] = [
   { href: "/admin/system-health", label: "系统健康", icon: <Shield className={iconClass} /> },
   { href: "/admin/reg-windows", label: "注册窗口管理", icon: <CalendarRange className={iconClass} /> },
   { href: "/admin/bulk-ops", label: "批量操作", icon: <ListChecks className={iconClass} /> },
+  { href: "/admin/student-tags", label: "学生标签", icon: <Users className={iconClass} /> },
   { href: "/admin/audit-logs", label: "审计日志", icon: <ScrollText className={iconClass} /> },
   { href: "/admin/notifications", label: "通知记录", icon: <Bell className={iconClass} /> },
   { href: "/admin/sessions", label: "会话管理", icon: <Shield className={iconClass} /> },
@@ -252,8 +255,8 @@ export function AppShell({
             { label: "概览", hrefs: ["/admin/dashboard", "/admin/alerts", "/admin/search"] },
             { label: "学术管理", hrefs: ["/admin/students", "/admin/students/at-risk", "/admin/student-progress", "/admin/dropout-risk", "/admin/graduation", "/admin/instructors", "/admin/faculty-schedule", "/admin/courses", "/admin/sections", "/admin/terms", "/admin/calendar"] },
             { label: "注册管理", hrefs: ["/admin/enrollments", "/admin/section-swap", "/admin/closeout", "/admin/waitlist", "/admin/waitlist-analytics", "/admin/holds", "/admin/requests", "/admin/appeals"] },
-            { label: "工具", hrefs: ["/admin/bulk-ops", "/admin/reg-windows"] },
-            { label: "系统", hrefs: ["/admin/announcements", "/admin/cohort-message", "/admin/status-email", "/admin/invite-codes", "/admin/import", "/admin/export", "/admin/reports", "/admin/grade-distribution", "/admin/demand", "/admin/capacity-plan", "/admin/term-compare", "/admin/registration-heatmap", "/admin/prereq-audit", "/admin/offering-history", "/admin/cohort-analytics", "/admin/term-enrollment-forecast", "/admin/course-demand-compare", "/admin/enrollment-audit", "/admin/top-performers", "/admin/dept-workload", "/admin/enrollment-velocity", "/admin/prereq-map", "/admin/grade-curve", "/admin/section-roster", "/admin/term-capacity", "/admin/major-trends", "/admin/late-drops", "/admin/course-pairings", "/admin/instructor-performance", "/admin/dept-gpa", "/admin/retention", "/admin/system-health", "/admin/digest", "/admin/audit-logs", "/admin/notifications", "/admin/sessions", "/admin/settings"] }
+            { label: "工具", hrefs: ["/admin/bulk-ops", "/admin/reg-windows", "/admin/student-tags"] },
+            { label: "系统", hrefs: ["/admin/announcements", "/admin/announcements-mgmt", "/admin/cohort-message", "/admin/status-email", "/admin/invite-codes", "/admin/import", "/admin/export", "/admin/reports", "/admin/grade-distribution", "/admin/demand", "/admin/capacity-plan", "/admin/term-compare", "/admin/registration-heatmap", "/admin/prereq-audit", "/admin/offering-history", "/admin/cohort-analytics", "/admin/term-enrollment-forecast", "/admin/course-demand-compare", "/admin/enrollment-audit", "/admin/top-performers", "/admin/dept-workload", "/admin/enrollment-velocity", "/admin/prereq-map", "/admin/grade-curve", "/admin/section-roster", "/admin/term-capacity", "/admin/major-trends", "/admin/late-drops", "/admin/course-pairings", "/admin/instructor-performance", "/admin/dept-gpa", "/admin/retention", "/admin/system-health", "/admin/digest", "/admin/audit-logs", "/admin/notifications", "/admin/sessions", "/admin/settings"] }
           ]
         : area === "faculty"
           ? [{ label: "教学", hrefs: ["/faculty/dashboard", "/faculty/sections", "/faculty/requests"] }]
@@ -262,7 +265,7 @@ export function AppShell({
         : [
             { label: "概览", hrefs: ["/student/dashboard", "/student/notifications", "/student/announcements"] },
             { label: "选课", hrefs: ["/student/catalog", "/student/readiness", "/student/planner", "/student/cart", "/student/quick-add", "/student/waitlist", "/student/conflicts", "/student/schedule", "/student/schedule-image", "/student/receipt"] },
-            { label: "学业", hrefs: ["/student/grades", "/student/degree", "/student/degree-audit", "/student/standing", "/student/recommendations", "/student/what-if", "/student/credit-summary", "/student/gpa-goal", "/student/course-history", "/student/term-compare", "/student/honors", "/student/graduation-checklist", "/student/deadlines", "/student/gpa-sim", "/student/grade-estimator", "/student/peer-compare", "/student/enrollment-timeline", "/student/enrollment-log", "/student/transcript", "/student/calendar", "/student/history", "/student/bookmarks", "/student/watched", "/student/study-timer", "/student/reviews", "/student/my-notes", "/student/appeals", "/student/advisor", "/student/settings", "/student/contact", "/student/profile", "/student/help"] }
+            { label: "学业", hrefs: ["/student/grades", "/student/degree", "/student/degree-audit", "/student/standing", "/student/recommendations", "/student/what-if", "/student/credit-summary", "/student/gpa-goal", "/student/course-history", "/student/term-compare", "/student/honors", "/student/graduation-checklist", "/student/deadlines", "/student/gpa-sim", "/student/grade-estimator", "/student/peer-compare", "/student/enrollment-timeline", "/student/enrollment-log", "/student/transcript", "/student/calendar", "/student/history", "/student/bookmarks", "/student/watched", "/student/saved-courses", "/student/study-timer", "/student/reviews", "/student/my-notes", "/student/appeals", "/student/advisor", "/student/settings", "/student/contact", "/student/profile", "/student/help"] }
           ];
 
     return groups
@@ -451,6 +454,7 @@ export function AppShell({
             </div>
 
             <div className="flex items-center gap-2">
+              {area === "student" || area === "admin" ? <NotificationBell /> : null}
               <button
                 type="button"
                 onClick={() => setIsPaletteOpen(true)}
@@ -461,11 +465,6 @@ export function AppShell({
                 <span>搜索</span>
                 <span className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] text-slate-500">⌘K</span>
               </button>
-              {area === "student" ? (
-                <div className="hidden lg:block">
-                <NotificationBell apiBase={API_URL} />
-                </div>
-              ) : null}
               <div className="hidden items-center gap-3 lg:flex">
                 <div className="min-w-0 text-right">
                   <p className="truncate text-sm font-semibold text-slate-900">{userLabel}</p>
@@ -483,7 +482,9 @@ export function AppShell({
           id="main-content"
           className={`mx-auto max-w-[1360px] p-4 md:p-8 lg:p-10 ${area === "student" ? "pb-16 md:pb-0" : ""}`}
         >
-          <div style={{ animation: "fadeSlideIn 0.18s ease forwards" }}>{children}</div>
+          <ErrorBoundary>
+            <div style={{ animation: "fadeSlideIn 0.18s ease forwards" }}>{children}</div>
+          </ErrorBoundary>
         </main>
       </div>
       <CommandPalette

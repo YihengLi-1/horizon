@@ -104,6 +104,19 @@ type StudentGpaEnrollment = {
   section: { credits: number };
 };
 
+function extractTagsFromMetadata(metadata: Prisma.JsonValue | null | undefined): string[] {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return [];
+  const maybeTags = (metadata as Record<string, unknown>).tags;
+  if (!Array.isArray(maybeTags)) return [];
+  return maybeTags
+    .map((tag) => (typeof tag === "string" ? tag.trim() : ""))
+    .filter((tag): tag is string => Boolean(tag));
+}
+
+function normalizeTags(tags: string[]): string[] {
+  return [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))].slice(0, 20);
+}
+
 function parseCsvRows(csv: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -3989,6 +4002,57 @@ export class AdminService {
     await this.prisma.studentNote.delete({ where: { id: noteId } });
     await this.auditService.log({ actorUserId: adminId, action: "NOTE_DELETED", entityType: "StudentNote", entityId: noteId, metadata: { studentId: note.studentId } });
     return { deleted: true };
+  }
+
+  async getAvailableStudentTags() {
+    const rows = await this.prisma.$queryRaw<Array<{ tag: string }>>(Prisma.sql`
+      SELECT DISTINCT jsonb_array_elements_text(COALESCE(metadata->'tags', '[]'::jsonb)) AS tag
+      FROM "AuditLog"
+      WHERE action = 'STUDENT_TAGS_SET'
+      ORDER BY tag ASC
+    `);
+
+    return rows.map((row) => row.tag).filter(Boolean);
+  }
+
+  async getStudentTags(studentId: string) {
+    const student = await this.prisma.user.findFirst({
+      where: { id: studentId, role: "STUDENT", deletedAt: null },
+      select: { id: true }
+    });
+    if (!student) throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
+
+    const latest = await this.prisma.auditLog.findFirst({
+      where: {
+        action: "STUDENT_TAGS_SET",
+        entityType: "student_tags",
+        entityId: studentId
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: { metadata: true }
+    });
+
+    return { studentId, tags: extractTagsFromMetadata(latest?.metadata) };
+  }
+
+  async setStudentTags(adminId: string, studentId: string, tags: string[]) {
+    const student = await this.prisma.user.findFirst({
+      where: { id: studentId, role: "STUDENT", deletedAt: null },
+      select: { id: true }
+    });
+    if (!student) throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
+
+    const normalized = normalizeTags(tags);
+
+    await this.auditService.log({
+      actorUserId: adminId,
+      action: "STUDENT_TAGS_SET",
+      entityType: "student_tags",
+      entityId: studentId,
+      metadata: { tags: normalized }
+    });
+
+    return { studentId, tags: normalized };
   }
 
   // ── Email Digest ─────────────────────────────────────────────────────

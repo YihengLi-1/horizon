@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import { ToastProvider } from "@/components/Toast";
+import ErrorBoundary from "@/components/error-boundary";
+import { ToastProvider } from "@/components/toast-provider";
 import "./globals.css";
 
 const bodyFont = Inter({
@@ -30,7 +31,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${bodyFont.variable} ${headingFont.variable}`}>
       <body className="min-h-screen antialiased">
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <ErrorBoundary>{children}</ErrorBoundary>
+        </ToastProvider>
       </body>
     </html>
   );

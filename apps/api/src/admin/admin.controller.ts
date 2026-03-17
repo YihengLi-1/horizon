@@ -582,6 +582,28 @@ export class AdminController {
     return ok(await this.adminService.deleteStudentNote(user.userId, noteId));
   }
 
+  @Get("student-tags/available")
+  @RequireAdminPermissions("students:read")
+  async getAvailableStudentTags() {
+    return ok(await this.adminService.getAvailableStudentTags());
+  }
+
+  @Get("students/:id/tags")
+  @RequireAdminPermissions("students:read")
+  async getStudentTags(@Param("id") id: string) {
+    return ok(await this.adminService.getStudentTags(id));
+  }
+
+  @Post("students/:id/tags")
+  @RequireAdminPermissions("students:write")
+  async setStudentTags(
+    @Param("id") id: string,
+    @Body() body: { tags: string[] },
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(await this.adminService.setStudentTags(user.userId, id, body.tags ?? []));
+  }
+
   // ── Email Digest ────────────────────────────────────────────────────────
   @Get("digest-preview")
   @RequireAdminPermissions("dashboard:read")

@@ -108,21 +108,43 @@ export default function AdminStudentsPage() {
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
   const [roleSaving, setRoleSaving] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
-  const [activeTab, setActiveTab] = useState<"profile" | "grades" | "security" | "notifications" | "notes">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "grades" | "security" | "notifications" | "notes" | "tags">("profile");
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [notificationLog, setNotificationLog] = useState<NotificationLogItem[]>([]);
   const [notificationLoading, setNotificationLoading] = useState(false);
   const [studentNotes, setStudentNotes] = useState<StudentNoteItem[]>([]);
   const [notesLoading, setNotesLoading] = useState(false);
+  const [studentTagsMap, setStudentTagsMap] = useState<Record<string, string[]>>({});
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [tagsLoading, setTagsLoading] = useState(false);
+  const [detailTags, setDetailTags] = useState<string[]>([]);
+  const [tagDraft, setTagDraft] = useState("");
+  const [savingTags, setSavingTags] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState("");
   const [newNoteFlag, setNewNoteFlag] = useState("");
+
+  const loadTagsForStudents = async (list: Student[]) => {
+    const entries = await Promise.all(
+      list.map(async (student) => {
+        try {
+          const result = await apiFetch<{ studentId: string; tags: string[] }>(`/admin/students/${student.id}/tags`);
+          return [student.id, result.tags ?? []] as const;
+        } catch {
+          return [student.id, []] as const;
+        }
+      })
+    );
+    setStudentTagsMap(Object.fromEntries(entries));
+  };
 
   const loadStudents = async () => {
     try {
       setLoading(true);
       setError("");
       const data = await apiFetch<StudentListResponse>("/students");
-      setStudents(Array.isArray(data) ? data : data.items ?? data.data ?? []);
+      const list = Array.isArray(data) ? data : data.items ?? data.data ?? [];
+      setStudents(list);
+      void loadTagsForStudents(list);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load students");
     } finally {
@@ -132,6 +154,12 @@ export default function AdminStudentsPage() {
 
   useEffect(() => {
     void loadStudents();
+  }, []);
+
+  useEffect(() => {
+    void apiFetch<string[]>("/admin/student-tags/available")
+      .then((data) => setAvailableTags(data ?? []))
+      .catch(() => setAvailableTags([]));
   }, []);
 
   useEffect(() => {
@@ -175,6 +203,26 @@ export default function AdminStudentsPage() {
     return () => { alive = false; };
   }, [activeTab, detailStudent]);
 
+  useEffect(() => {
+    if (activeTab !== "tags" || !detailStudent) return;
+    let alive = true;
+    setTagsLoading(true);
+    void apiFetch<{ studentId: string; tags: string[] }>(`/admin/students/${detailStudent.id}/tags`)
+      .then((data) => {
+        if (!alive) return;
+        setDetailTags(data.tags ?? []);
+      })
+      .catch(() => {
+        if (alive) setDetailTags([]);
+      })
+      .finally(() => {
+        if (alive) setTagsLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [activeTab, detailStudent]);
+
   const addNote = async () => {
     if (!detailStudent || !newNoteContent.trim()) return;
     try {
@@ -194,6 +242,36 @@ export default function AdminStudentsPage() {
       await apiFetch(`/admin/students/${detailStudent.id}/notes/${noteId}`, { method: "DELETE" });
       setStudentNotes((prev) => prev.filter((n) => n.id !== noteId));
     } catch { /* ignore */ }
+  };
+
+  const persistTags = async (nextTags: string[]) => {
+    if (!detailStudent) return;
+    try {
+      setSavingTags(true);
+      const result = await apiFetch<{ studentId: string; tags: string[] }>(`/admin/students/${detailStudent.id}/tags`, {
+        method: "POST",
+        body: JSON.stringify({ tags: nextTags })
+      });
+      setDetailTags(result.tags ?? []);
+      setStudentTagsMap((prev) => ({ ...prev, [detailStudent.id]: result.tags ?? [] }));
+      setAvailableTags((prev) => [...new Set([...prev, ...(result.tags ?? [])])].sort((a, b) => a.localeCompare(b)));
+      setTagDraft("");
+      setNotice("Student tags updated.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update tags");
+    } finally {
+      setSavingTags(false);
+    }
+  };
+
+  const addTag = async () => {
+    const next = tagDraft.trim();
+    if (!next || detailTags.includes(next)) return;
+    await persistTags([...detailTags, next]);
+  };
+
+  const removeTag = async (tag: string) => {
+    await persistTags(detailTags.filter((item) => item !== tag));
   };
 
   const onCreate = async (event: FormEvent) => {
@@ -279,6 +357,8 @@ export default function AdminStudentsPage() {
       setDetailLoadingId(id);
       setActiveTab("profile");
       setStudentNotes([]);
+      setDetailTags(studentTagsMap[id] ?? []);
+      setTagDraft("");
       setNewNoteContent("");
       setNewNoteFlag("");
       const [student, loginHistory] = await Promise.all([
@@ -727,6 +807,7 @@ export default function AdminStudentsPage() {
                 <th scope="col">Student ID</th>
                 <th scope="col">Email</th>
                 <th scope="col">Major</th>
+                <th scope="col">Tags</th>
                 <th scope="col">Status</th>
                 <th scope="col">Actions</th>
               </tr>
@@ -734,13 +815,13 @@ export default function AdminStudentsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
                     Loading students...
                   </td>
                 </tr>
               ) : visibleStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
                     No students found.
                   </td>
                 </tr>
@@ -755,6 +836,21 @@ export default function AdminStudentsPage() {
                     <td className="px-4 py-3 text-slate-700">{student.studentId}</td>
                     <td className="px-4 py-3 text-slate-700">{student.email}</td>
                     <td className="px-4 py-3 text-slate-700">{student.studentProfile?.programMajor || "-"}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1.5">
+                        {(studentTagsMap[student.id] ?? []).slice(0, 3).map((tag) => (
+                          <span key={tag} className="campus-chip chip-purple text-[11px]">
+                            {tag}
+                          </span>
+                        ))}
+                        {(studentTagsMap[student.id] ?? []).length > 3 ? (
+                          <span className="campus-chip chip-blue text-[11px]">
+                            +{(studentTagsMap[student.id] ?? []).length - 3}
+                          </span>
+                        ) : null}
+                        {(studentTagsMap[student.id] ?? []).length === 0 ? <span className="text-xs text-slate-400">—</span> : null}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="space-y-1">
                         <span className="block text-xs text-slate-600">{student.studentProfile?.enrollmentStatus || "-"}</span>
@@ -852,6 +948,15 @@ export default function AdminStudentsPage() {
                     {editingId === student.id ? "Cancel" : "Edit"}
                   </button>
                 </div>
+                {(studentTagsMap[student.id] ?? []).length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {(studentTagsMap[student.id] ?? []).slice(0, 3).map((tag) => (
+                      <span key={tag} className="campus-chip chip-purple text-[11px]">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ))
           )}
@@ -923,7 +1028,7 @@ export default function AdminStudentsPage() {
             </div>
             <div className="space-y-5 p-6">
               <div className="mb-4 flex border-b border-slate-100 dark:border-slate-700">
-                {(["profile", "grades", "security", "notifications", "notes"] as const).map((tab) => (
+                {(["profile", "grades", "security", "notifications", "notes", "tags"] as const).map((tab) => (
                   <button
                     key={tab}
                     type="button"
@@ -1118,7 +1223,7 @@ export default function AdminStudentsPage() {
                     ))
                   )}
                 </div>
-              ) : (
+              ) : activeTab === "notes" ? (
                 /* Notes tab */
                 <div className="space-y-3">
                   <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
@@ -1194,6 +1299,74 @@ export default function AdminStudentsPage() {
                       );
                     })
                   )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="campus-card p-4">
+                    <p className="text-xs font-semibold uppercase text-slate-400">Student Tags</p>
+                    <p className="mt-1 text-sm text-slate-500">使用标签为学生标记风险、项目、特殊关注点或运营状态。</p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {tagsLoading ? (
+                        <span className="text-sm text-slate-400">加载中…</span>
+                      ) : detailTags.length === 0 ? (
+                        <span className="text-sm text-slate-400">还没有标签</span>
+                      ) : (
+                        detailTags.map((tag) => (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => void removeTag(tag)}
+                            disabled={savingTags}
+                            className="campus-chip chip-purple"
+                          >
+                            {tag} ×
+                          </button>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="mt-4 flex gap-2">
+                      <input
+                        className="campus-input flex-1"
+                        placeholder="输入标签后回车"
+                        value={tagDraft}
+                        onChange={(event) => setTagDraft(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            void addTag();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        disabled={!tagDraft.trim() || savingTags}
+                        onClick={() => void addTag()}
+                        className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        {savingTags ? "保存中…" : "添加"}
+                      </button>
+                    </div>
+
+                    {availableTags.length > 0 ? (
+                      <div className="mt-4">
+                        <p className="mb-2 text-xs font-semibold uppercase text-slate-400">常用标签</p>
+                        <div className="flex flex-wrap gap-2">
+                          {availableTags.slice(0, 12).map((tag) => (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => setTagDraft(tag)}
+                              className="campus-chip chip-blue"
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               )}
             </div>

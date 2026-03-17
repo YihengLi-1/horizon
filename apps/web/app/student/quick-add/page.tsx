@@ -117,11 +117,10 @@ export default function QuickAddPage() {
           return next;
         });
       }, 2000);
-      toast(
+      toast.success(
         result.status === "PENDING_APPROVAL"
           ? `已提交 §${item.section.sectionCode}，等待审批`
-          : `已注册 §${item.section.sectionCode}`,
-        "success"
+          : `已注册 §${item.section.sectionCode}`
       );
     } catch (err) {
       const message = normalizeQuickAddError(err);
@@ -130,7 +129,7 @@ export default function QuickAddPage() {
       window.setTimeout(() => {
         setItemStates((prev) => ({ ...prev, [item.id]: "idle" }));
       }, 2000);
-      toast(message, "error");
+      toast.error(message);
     } finally {
       setSubmittingId(null);
     }
