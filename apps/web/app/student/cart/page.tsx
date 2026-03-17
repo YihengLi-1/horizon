@@ -369,6 +369,50 @@ export default function StudentCartPage() {
 
     return orderedStatuses.map((status) => ({ status, items: map.get(status) ?? [] }));
   }, [submitResults]);
+  const submitOutcomeSummary = useMemo(() => {
+    if (submitResults.length === 0) {
+      return {
+        title: "提交完成",
+        detail: "",
+        followup: ""
+      };
+    }
+
+    const allPendingApproval = submitResults.every((item) => item.status === "PENDING_APPROVAL");
+    const allWaitlisted = submitResults.every((item) => item.status === "WAITLISTED");
+    const hasPendingApproval = submitResults.some((item) => item.status === "PENDING_APPROVAL");
+    const hasWaitlisted = submitResults.some((item) => item.status === "WAITLISTED");
+
+    if (allPendingApproval) {
+      return {
+        title: "提交完成，等待审批",
+        detail: `本次共提交 ${submitResults.length} 条申请，当前都处于待审批状态。`,
+        followup: "超学分申请已进入审批队列，审批结果会在通知中心同步。"
+      };
+    }
+
+    if (allWaitlisted) {
+      return {
+        title: "已加入候补队列",
+        detail: `本次共处理 ${submitResults.length} 条注册结果，当前全部进入候补。`,
+        followup: "你仍保留候补资格，座位释放后系统会自动尝试晋升。"
+      };
+    }
+
+    if (hasPendingApproval || hasWaitlisted) {
+      return {
+        title: "提交完成",
+        detail: `本次共处理 ${submitResults.length} 条注册结果，已包含候补或待审批项目。`,
+        followup: "请继续关注下方状态卡片，系统会在审批或候补晋升后更新你的结果。"
+      };
+    }
+
+    return {
+      title: "选课成功",
+      detail: `本次共处理 ${submitResults.length} 条注册结果。`,
+      followup: "课程已进入你的当前课表，可以继续查看课表或打印确认单。"
+    };
+  }, [submitResults]);
 
   const groupedIssues = useMemo(() => {
     const map = new Map<string, SubmitIssue[]>();
@@ -1999,8 +2043,8 @@ export default function StudentCartPage() {
                 <CheckCircle2 className="size-7" />
               </span>
               <div>
-                <h2 className="text-base font-semibold text-slate-900">选课成功</h2>
-                <p className="mt-1 text-sm text-emerald-700">本次共处理 {submitResults.length} 条注册结果。</p>
+                <h2 className="text-base font-semibold text-slate-900">{submitOutcomeSummary.title}</h2>
+                <p className="mt-1 text-sm text-emerald-700">{submitOutcomeSummary.detail}</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -2022,10 +2066,10 @@ export default function StudentCartPage() {
             </div>
           </div>
           <p className="mt-3 text-xs text-emerald-700">
-            Registration submitted successfully.{" "}
-            <Link href="/student/grades" className="underline underline-offset-2">View grades</Link>{" "}
-            or{" "}
-            <Link href="/student/schedule" className="underline underline-offset-2">view schedule</Link>.
+            {submitOutcomeSummary.followup}{" "}
+            <Link href="/student/grades" className="underline underline-offset-2">查看成绩</Link>{" "}
+            或{" "}
+            <Link href="/student/schedule" className="underline underline-offset-2">查看课表</Link>。
           </p>
           <div className="mt-3 space-y-2">
             {groupedResults.map((group) => (

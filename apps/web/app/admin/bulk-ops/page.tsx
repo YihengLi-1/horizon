@@ -130,6 +130,10 @@ export default function AdminBulkOpsPage() {
         <p className="campus-subtitle">谨慎操作，此处修改不可撤销。</p>
       </section>
 
+      <div className="campus-card border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        批量操作按条逐个执行，已成功的记录不会在后续失败时自动回滚。执行后请先查看成功/失败汇总，再决定是否重试失败项。
+      </div>
+
       <div className="campus-card p-2">
         <div className="flex flex-wrap gap-2">
           {tabs.map((item) => (

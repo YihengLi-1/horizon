@@ -9,6 +9,7 @@
 - 2026-03-16: 615 pass, 0 warn, 0 fail
 - 2026-03-16: 627 pass, 0 warn, 0 fail
 - 2026-03-17: 641 pass, 0 warn, 0 fail
+- 2026-03-17: 641 pass, 0 warn, 0 fail
 
 ## Entries
 
@@ -66,4 +67,14 @@
 - 修复3：补齐先修课豁免完整流程，新增学生申请页 `/student/prereq-waivers`、管理员审批页 `/admin/prereq-waivers` 以及对应 endpoints，并复用既有 governance `PREREQ_OVERRIDE` 审批与生效逻辑。
 - 修复4/5：课程目录补上实时剩余座位与 `myStatus` 回显（已选/等待中/已在购物车），超学分注册改为 `PENDING_APPROVAL` 队列而非直接拒绝，并新增 `/admin/pending-overloads` 供管理员审批。
 - 修复6/7：按入学年份推算注册优先窗口并在 catalog / reg-windows 中展示分年级开放时间；学生课表页新增“显示退课记录”开关，`DROPPED` 课程可带退课时间回看但默认不干扰主课表。
+- 本轮 gate 实跑结果为 `641 pass, 0 warn, 0 fail`。
+
+## Session 26
+
+- Bug：`/student/catalog` 加入购物车后 `myStatus` 和按钮状态不会立刻刷新，用户必须手动刷新页面才会看到“已在购物车” → 修法：加入/移除购物车后同步重载 cart、sections、enrollments，让状态回显在当前页立即生效，并补上失败 toast → 文件：`apps/web/app/student/catalog/page.tsx`
+- Bug：课程目录剩余座位直接用 `capacity - enrolledCount`，异常数据时可能显示负数；同时满班主按钮被“空位通知我”抢走，主流程和真实选课路径不一致 → 修法：统一用 `getRemainingSeats()` 把座位数钳到最小 0，满班时保留主按钮“加入等待队列”，把空位提醒降为次级动作并补错误提示 → 文件：`apps/web/app/student/catalog/page.tsx`
+- 设计问题：`/student/cart` 无论结果是已选、候补还是待审批，成功区块都写成“选课成功”，容易误导学生 → 修法：按 `submitResults` 的真实状态生成动态标题与跟进说明，把“待审批/候补”与“已选成功”分开表达 → 文件：`apps/web/app/student/cart/page.tsx`
+- 设计问题：`/admin/bulk-ops` 虽然本来就是逐条执行、部分成功可见，但页面没有明确告诉管理员“不会自动回滚”，容易误判为全有或全无 → 修法：在页面顶部补充显式警示文案，强调逐条执行与失败后按结果重试 → 文件：`apps/web/app/admin/bulk-ops/page.tsx`
+- 设计问题：`app-shell` 侧边栏把几乎所有功能都直接摊开，学生和管理员菜单都远超可用范围，交付观感像功能清单而不是产品导航 → 修法：保留完整路由数组供标题匹配和命令面板使用，只收缩实际渲染的侧边栏分组；学生端压到 15 个可见入口，管理员端压到 20 个可见入口 → 文件：`apps/web/components/app-shell.tsx`
+- 审计结论：`registration.service.ts` 的行锁事务、`dropEnrollment()` 的晋升对称性、`schedule` 的退课确认与 deadline 双保险、以及 admin controller 的类级 `ADMIN` 守卫本轮复查通过，无需额外改动 → 文件：`apps/api/src/registration/registration.service.ts`、`apps/web/app/student/schedule/page.tsx`、`apps/api/src/admin/admin.controller.ts`
 - 本轮 gate 实跑结果为 `641 pass, 0 warn, 0 fail`。

@@ -257,10 +257,9 @@ export function AppShell({
       area === "admin"
         ? [
             { label: "概览", hrefs: ["/admin/dashboard", "/admin/alerts", "/admin/search"] },
-            { label: "学术管理", hrefs: ["/admin/students", "/admin/students/at-risk", "/admin/student-progress", "/admin/dropout-risk", "/admin/graduation", "/admin/instructors", "/admin/faculty-schedule", "/admin/courses", "/admin/sections", "/admin/terms", "/admin/calendar"] },
-            { label: "注册管理", hrefs: ["/admin/enrollments", "/admin/grade-entry", "/admin/section-swap", "/admin/closeout", "/admin/waitlist", "/admin/waitlist-analytics", "/admin/holds", "/admin/requests", "/admin/prereq-waivers", "/admin/pending-overloads", "/admin/appeals"] },
-            { label: "工具", hrefs: ["/admin/bulk-ops", "/admin/reg-windows", "/admin/student-tags"] },
-            { label: "系统", hrefs: ["/admin/announcements", "/admin/announcements-mgmt", "/admin/cohort-message", "/admin/status-email", "/admin/invite-codes", "/admin/import", "/admin/export", "/admin/reports", "/admin/grade-distribution", "/admin/demand", "/admin/capacity-plan", "/admin/term-compare", "/admin/registration-heatmap", "/admin/prereq-audit", "/admin/offering-history", "/admin/cohort-analytics", "/admin/term-enrollment-forecast", "/admin/course-demand-compare", "/admin/enrollment-audit", "/admin/top-performers", "/admin/dept-workload", "/admin/enrollment-velocity", "/admin/prereq-map", "/admin/grade-curve", "/admin/section-roster", "/admin/term-capacity", "/admin/major-trends", "/admin/late-drops", "/admin/course-pairings", "/admin/instructor-performance", "/admin/dept-gpa", "/admin/retention", "/admin/system-health", "/admin/digest", "/admin/audit-logs", "/admin/notifications", "/admin/sessions", "/admin/settings"] }
+            { label: "学术管理", hrefs: ["/admin/students", "/admin/courses", "/admin/sections", "/admin/terms", "/admin/faculty-schedule"] },
+            { label: "注册管理", hrefs: ["/admin/enrollments", "/admin/grade-entry", "/admin/waitlist", "/admin/holds", "/admin/requests", "/admin/prereq-waivers", "/admin/pending-overloads"] },
+            { label: "系统", hrefs: ["/admin/announcements-mgmt", "/admin/reg-windows", "/admin/bulk-ops", "/admin/audit-logs", "/admin/settings"] }
           ]
         : area === "faculty"
           ? [{ label: "教学", hrefs: ["/faculty/dashboard", "/faculty/sections", "/faculty/requests"] }]
@@ -268,8 +267,8 @@ export function AppShell({
             ? [{ label: "顾问工作台", hrefs: ["/advisor/dashboard", "/advisor/advisees", "/advisor/requests"] }]
         : [
             { label: "概览", hrefs: ["/student/dashboard", "/student/notifications", "/student/announcements"] },
-            { label: "选课", hrefs: ["/student/catalog", "/student/readiness", "/student/planner", "/student/cart", "/student/quick-add", "/student/waitlist", "/student/conflicts", "/student/schedule", "/student/schedule-image", "/student/receipt"] },
-            { label: "学业", hrefs: ["/student/grades", "/student/degree", "/student/degree-audit", "/student/standing", "/student/recommendations", "/student/what-if", "/student/credit-summary", "/student/gpa-goal", "/student/course-history", "/student/term-compare", "/student/honors", "/student/graduation-checklist", "/student/deadlines", "/student/gpa-sim", "/student/grade-estimator", "/student/peer-compare", "/student/enrollment-timeline", "/student/enrollment-log", "/student/transcript", "/student/calendar", "/student/history", "/student/bookmarks", "/student/watched", "/student/saved-courses", "/student/study-timer", "/student/reviews", "/student/my-notes", "/student/appeals", "/student/prereq-waivers", "/student/advisor", "/student/settings", "/student/contact", "/student/profile", "/student/help"] }
+            { label: "选课", hrefs: ["/student/catalog", "/student/cart", "/student/quick-add", "/student/waitlist", "/student/schedule", "/student/receipt"] },
+            { label: "学业", hrefs: ["/student/grades", "/student/degree", "/student/transcript", "/student/appeals", "/student/prereq-waivers", "/student/profile"] }
           ];
 
     return groups

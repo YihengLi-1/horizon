@@ -117,6 +117,11 @@ function getWaitlistedCount(section: Section): number {
   return (section.enrollments ?? []).filter((enrollment) => enrollment.status === "WAITLISTED").length;
 }
 
+function getRemainingSeats(section: Section): number {
+  if (section.capacity === 0) return Number.POSITIVE_INFINITY;
+  return Math.max(0, section.capacity - getEnrolledCount(section));
+}
+
 function getPrerequisiteCodes(section: Section): string[] {
   return (section.course.prerequisiteLinks ?? [])
     .map((link) => link.prerequisiteCourse?.code)
@@ -693,7 +698,7 @@ export default function StudentCatalogPage() {
     const q = debouncedSearch.trim().toLowerCase();
     const filtered = sections.filter((s) => {
       const sectionMeetingTimes = s.meetingTimes ?? [];
-      const enrolledCount = getEnrolledCount(s);
+      const remainingSeats = getRemainingSeats(s);
       const prereqCodes = getPrerequisiteCodes(s);
       const hasConflict =
         !cartSectionIds.has(s.id) &&
@@ -709,7 +714,7 @@ export default function StudentCatalogPage() {
         if (filterCredits !== "4" && s.credits !== Number(filterCredits)) return false;
       }
       if (filterDept !== "ALL" && !s.course.code.toUpperCase().startsWith(filterDept)) return false;
-      if (availableOnly && s.capacity !== 0 && enrolledCount >= s.capacity) return false;
+      if (availableOnly && s.capacity !== 0 && remainingSeats <= 0) return false;
       if (filterPrereqReady && prereqCodes.some((code) => !passedCourseCodeSet.has(code))) return false;
       if (filterApprovalOnly && !s.requireApproval) return false;
       if (filterNoConflict && hasConflict) return false;
@@ -720,8 +725,8 @@ export default function StudentCatalogPage() {
 
     if (sortBy === "SEATS_ASC") {
       filtered.sort((a, b) => {
-        const aSeats = a.capacity === 0 ? Number.MAX_SAFE_INTEGER : a.capacity - getEnrolledCount(a);
-        const bSeats = b.capacity === 0 ? Number.MAX_SAFE_INTEGER : b.capacity - getEnrolledCount(b);
+        const aSeats = a.capacity === 0 ? Number.MAX_SAFE_INTEGER : getRemainingSeats(a);
+        const bSeats = b.capacity === 0 ? Number.MAX_SAFE_INTEGER : getRemainingSeats(b);
         return aSeats - bSeats;
       });
     } else if (sortBy === "CREDITS_ASC") {
@@ -771,13 +776,13 @@ export default function StudentCatalogPage() {
     let prereqBlockedCount = 0;
     let conflictCount = 0;
     for (const section of filteredSections) {
-      const enrolled = getEnrolledCount(section);
+      const remainingSeats = getRemainingSeats(section);
       const hasConflict =
         !cartSectionIds.has(section.id) &&
         timeOverlap(section.meetingTimes ?? [], cartMeetingTimes);
       const prereqBlocked = getPrerequisiteCodes(section).some((code) => !passedCourseCodeSet.has(code));
 
-      if (enrolled >= section.capacity) fullCount += 1;
+      if (section.capacity !== 0 && remainingSeats <= 0) fullCount += 1;
       else openCount += 1;
       if (section.requireApproval) approvalCount += 1;
       if (prereqBlocked) prereqBlockedCount += 1;
@@ -821,13 +826,15 @@ export default function StudentCatalogPage() {
         body: JSON.stringify({ termId, sectionId: section.id })
       });
       setNotice(`${section.course.code} §${section.sectionCode} added to cart.`);
-      await loadCart(termId);
+      await Promise.all([loadCart(termId), loadSections(termId), loadEnrollments(termId)]);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to add to cart";
       setError(message);
       if (/credit limit exceeded/i.test(message)) {
         const maxCredits = activeTerm?.maxCredits ?? 18;
-        toast(`学分上限已达，本学期最多可修 ${maxCredits} 学分`, "error");
+        toast.error(`学分上限已达，本学期最多可修 ${maxCredits} 学分`);
+      } else {
+        toast.error(message);
       }
     } finally {
       setAddingSectionId("");
@@ -843,9 +850,11 @@ export default function StudentCatalogPage() {
       setRemovingSectionId(section.id);
       await apiFetch(`/registration/cart/${cartItem.id}`, { method: "DELETE" });
       setNotice(`${section.course.code} §${section.sectionCode} removed from cart.`);
-      await loadCart(termId);
+      await Promise.all([loadCart(termId), loadSections(termId), loadEnrollments(termId)]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to remove from cart");
+      const message = err instanceof Error ? err.message : "Failed to remove from cart";
+      setError(message);
+      toast.error(message);
     } finally {
       setRemovingSectionId("");
     }
@@ -1251,7 +1260,7 @@ export default function StudentCatalogPage() {
             const enrolledCount = getEnrolledCount(section);
             const waitlistCount = getWaitlistedCount(section);
             const isUnlimited = section.capacity === 0;
-            const availableSeats = isUnlimited ? Number.POSITIVE_INFINITY : section.capacity - enrolledCount;
+            const availableSeats = getRemainingSeats(section);
             const isFull = !isUnlimited && availableSeats <= 0;
             const myStatus = section.myStatus ?? "NONE";
             const inCart = myStatus === "IN_CART" || cartSectionIds.has(section.id);
@@ -1495,32 +1504,6 @@ export default function StudentCatalogPage() {
                         <span className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-slate-200/70 px-4 text-sm font-semibold text-slate-500">
                           Registration closed
                         </span>
-                      ) : isFull && !inCart && !alreadyEnrolledHere ? (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (watches.has(section.id)) {
-                              await apiFetch(`/registration/watch/${section.id}`, { method: "DELETE" });
-                              setWatches((prev) => {
-                                const next = new Set(prev);
-                                next.delete(section.id);
-                                return next;
-                              });
-                              toast("已取消空位通知", "info");
-                            } else {
-                              await apiFetch(`/registration/watch/${section.id}`, { method: "POST" });
-                              setWatches((prev) => new Set([...prev, section.id]));
-                              toast("有空位时将通知您", "success");
-                            }
-                          }}
-                          className={`campus-chip h-10 cursor-pointer justify-center transition ${
-                            watches.has(section.id)
-                              ? "border-blue-300 bg-blue-50 text-blue-700"
-                              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                          }`}
-                        >
-                          {watches.has(section.id) ? "🔔 已订阅空位" : "🔔 空位通知我"}
-                        </button>
                       ) : (
                         <button
                           type="button"
@@ -1549,6 +1532,37 @@ export default function StudentCatalogPage() {
                       )}
                       {cartConflict && !inCart && !alreadyEnrolledHere ? (
                         <p className="text-sm text-amber-700">Conflict will be rechecked at submit.</p>
+                      ) : null}
+                      {isFull && !inCart && !alreadyEnrolledHere && !alreadyCompleted && isRegistrationOpen ? (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              if (watches.has(section.id)) {
+                                await apiFetch(`/registration/watch/${section.id}`, { method: "DELETE" });
+                                setWatches((prev) => {
+                                  const next = new Set(prev);
+                                  next.delete(section.id);
+                                  return next;
+                                });
+                                toast.info("已取消空位通知");
+                              } else {
+                                await apiFetch(`/registration/watch/${section.id}`, { method: "POST" });
+                                setWatches((prev) => new Set([...prev, section.id]));
+                                toast.success("有空位时将通知您");
+                              }
+                            } catch (err) {
+                              toast.error(err instanceof Error ? err.message : "设置空位通知失败");
+                            }
+                          }}
+                          className={`campus-chip h-9 cursor-pointer justify-center transition ${
+                            watches.has(section.id)
+                              ? "border-blue-300 bg-blue-50 text-blue-700"
+                              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          {watches.has(section.id) ? "🔔 已订阅空位" : "🔔 空位通知我"}
+                        </button>
                       ) : null}
                     </div>
                   </aside>
