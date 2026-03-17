@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from "@nestjs/common";
 import {
   assignAdvisorSchema,
+  createHoldSchema,
   createAdvisorSchema,
   createCourseSchema,
   createFacultySchema,
@@ -185,6 +186,16 @@ export class AdminController {
     return ok(await this.adminService.listSectionEnrollments(id));
   }
 
+  @Post("sections/:id/grades")
+  @RequireAdminPermissions("enrollments:write")
+  async bulkUpdateSectionGrades(
+    @Param("id") id: string,
+    @Body() body: { grades: Array<{ enrollmentId: string; grade: string; gradePoints?: number }> },
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(await this.adminService.bulkUpdateGrades(id, body.grades ?? [], user.userId));
+  }
+
   @Post("sections/:id/notify")
   @RequireAdminPermissions("sections:write")
   async notifySection(
@@ -274,6 +285,31 @@ export class AdminController {
   @RequireAdminPermissions("waitlist:read")
   async listWaitlist(@Query("sectionId") sectionId?: string) {
     return ok(await this.adminService.listWaitlist(sectionId));
+  }
+
+  @Get("holds")
+  @RequireAdminPermissions("students:read")
+  async listAdminHolds(@CurrentUser() user: { userId: string }, @Query("studentId") studentId?: string) {
+    return ok(await this.adminService.getAdminHolds(user.userId, studentId));
+  }
+
+  @Post("holds")
+  @RequireAdminPermissions("students:write")
+  async createAdminHold(
+    @CurrentUser() user: { userId: string },
+    @Body(new ZodValidationPipe(createHoldSchema)) body: unknown
+  ) {
+    return ok(await this.adminService.createAdminHold(user.userId, body as never));
+  }
+
+  @Delete("holds/:id")
+  @RequireAdminPermissions("students:write")
+  async removeAdminHold(
+    @Param("id") id: string,
+    @CurrentUser() user: { userId: string },
+    @Body() body?: { resolutionNote?: string | null }
+  ) {
+    return ok(await this.adminService.removeAdminHold(user.userId, id, body?.resolutionNote));
   }
 
   @Post("waitlist/promote")

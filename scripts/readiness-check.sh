@@ -164,7 +164,7 @@ else
   warning "docker-compose.prod.yml missing"
 fi
 
-if grep -q "admin@sis.edu" apps/api/prisma/seed.ts 2>/dev/null; then
+if grep -q "admin@univ.edu" apps/api/prisma/seed.ts 2>/dev/null; then
   ok "Seed file contains demo admin account"
 else
   warning "Seed file may be missing demo data"
@@ -322,7 +322,7 @@ check_exists "apps/web/app/admin/holds/page.tsx" "Admin holds page"
 check_contains "apps/web/components/app-shell.tsx" "/admin/holds|学生限制" "Admin holds nav entry"
 check_contains "apps/web/app/student/cart/page.tsx" "Governance Status|Retry Governance Status|holdsError|requestsError" "Student cart governance failure state"
 check_contains "apps/api/prisma/schema.prisma" "activeRequestKey" "Academic request active key invariant in schema"
-check_contains "apps/api/prisma/seed.ts" "section-cs201-f1|Fall 2026|seed-term-fall-2026" "Governance-friendly future term seed data"
+check_contains "apps/api/prisma/seed.ts" "2024秋|2025春|2025秋|seed-term-fall-2025-current" "Demo-ready seed term data"
 check_contains "apps/web/app/admin/dashboard/page.tsx" "系统状态|ops/version|ops/ready" "Dashboard system status card"
 check_contains "apps/api/src/admin/admin.service.ts" "getReportsSummary|Promise\\.all" "Reports summary service"
 check_contains "apps/api/src/admin/admin.service.spec.ts" "44|normalizePagination.*page.*20|computeStudentGpa.*null" "Admin service unit tests expanded"
@@ -805,6 +805,20 @@ check_contains "apps/api/src/admin/admin.service.ts" "getAvailableStudentTags|ge
 check_exists "apps/web/app/admin/student-tags/page.tsx" "Admin student tags page"
 check_contains "apps/web/app/admin/students/page.tsx" "studentTagsMap|activeTab === \"tags\"|/admin/students/.*/tags" "Admin students tags drawer"
 check_contains "apps/web/components/app-shell.tsx" "/admin/student-tags" "Student tags nav link"
+
+# ── Session 24: seed, docker, grade-entry, admin holds wrapper, appeals tracker ─
+check_contains "apps/api/prisma/seed.ts" "2024秋|2025春|2025秋" "Seed terms aligned for demo"
+check_contains "apps/api/prisma/seed.ts" "admin@univ.edu|student1@univ.edu|Student1234!|Admin1234!" "Seed demo accounts aligned"
+check_contains "docker-compose.yml" "db:|horizon_sis|sis_dev_pass" "Docker compose demo defaults aligned"
+check_contains ".env.example" "horizon_sis|sis_dev_pass|change_me_in_production" "Root env example aligned"
+check_contains "apps/api/src/registration/registration.service.ts" "Carting is intentionally allowed outside the registration window" "Cart window semantics documented"
+check_contains "apps/web/app/student/schedule/page.tsx" "DROP_DEADLINE_PASSED|注册处或支持团队" "Friendly drop-deadline messaging on student schedule"
+check_contains "apps/api/src/admin/admin.service.ts" "bulkUpdateGrades|getAdminHolds|createAdminHold|removeAdminHold" "Admin grade entry and holds service"
+check_contains "apps/api/src/admin/admin.controller.ts" "sections/:id/grades|@Delete\\(\"holds/:id\"\\)" "Admin grade entry and hold removal endpoints"
+check_exists "apps/web/app/admin/grade-entry/page.tsx" "Admin grade entry page"
+check_contains "apps/web/components/app-shell.tsx" "/admin/grade-entry" "Admin grade entry nav link"
+check_contains "apps/web/app/admin/holds/AdminHoldsClient.tsx" "/admin/holds" "Admin holds page uses /admin endpoints"
+check_contains "apps/web/app/student/appeals/page.tsx" "expandedId|查看详情|管理员回复" "Student appeals expandable tracker"
 
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"

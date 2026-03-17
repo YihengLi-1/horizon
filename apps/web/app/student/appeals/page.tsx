@@ -51,6 +51,7 @@ const STATUS_LABEL: Record<string, string> = {
 export default function GradeAppealsPage() {
   const [appeals, setAppeals] = useState<GradeAppeal[]>([]);
   const [grades, setGrades] = useState<GradeEnrollment[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -159,7 +160,7 @@ export default function GradeAppealsPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                选择课程 <span className="text-red-500">*</span>
+                选择课程班级 <span className="text-red-500">*</span>
               </label>
               <select
                 className="campus-select w-full"
@@ -282,17 +283,44 @@ export default function GradeAppealsPage() {
                 </span>
               </div>
 
-              <div className="mt-3 rounded-lg bg-slate-50 border border-slate-100 px-4 py-3 text-sm text-slate-700">
-                <p className="font-medium text-slate-500 text-xs mb-1">申诉理由</p>
-                <p>{a.reason}</p>
+              <div className="mt-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setExpandedId((current) => (current === a.id ? null : a.id))}
+                  className="text-sm font-medium text-indigo-700 transition hover:text-indigo-900"
+                >
+                  {expandedId === a.id ? "收起详情" : "查看详情"}
+                </button>
               </div>
 
-              {a.adminNote && (
-                <div className={`mt-3 rounded-lg border px-4 py-3 text-sm ${a.status === "APPROVED" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800"}`}>
-                  <p className="font-medium text-xs mb-1">管理员回复</p>
-                  <p>{a.adminNote}</p>
+              {expandedId === a.id ? (
+                <div className="mt-3 space-y-3">
+                  <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                    <p className="mb-1 text-xs font-medium text-slate-500">申诉理由</p>
+                    <p>{a.reason}</p>
+                  </div>
+
+                  <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                    <p className="mb-1 text-xs font-medium text-slate-500">班级详情</p>
+                    <p>
+                      {a.enrollment.section.course.code} · {a.enrollment.section.course.title} · §{a.enrollment.section.sectionCode}
+                    </p>
+                  </div>
+
+                  <div
+                    className={`rounded-lg border px-4 py-3 text-sm ${
+                      a.adminNote
+                        ? a.status === "APPROVED"
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                          : "border-red-200 bg-red-50 text-red-800"
+                        : "border-slate-200 bg-slate-50 text-slate-600"
+                    }`}
+                  >
+                    <p className="mb-1 text-xs font-medium">管理员回复</p>
+                    <p>{a.adminNote || "管理员暂未回复，申诉仍在处理中。"}</p>
+                  </div>
                 </div>
-              )}
+              ) : null}
             </article>
           ))}
         </section>

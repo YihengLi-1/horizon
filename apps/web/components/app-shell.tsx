@@ -126,6 +126,7 @@ const adminItems: NavItem[] = [
   { href: "/admin/terms", label: "学期", icon: <CalendarRange className={iconClass} /> },
   { href: "/admin/calendar", label: "日历事件", icon: <CalendarDays className={iconClass} /> },
   { href: "/admin/enrollments", label: "注册管理", icon: <GraduationCap className={iconClass} /> },
+  { href: "/admin/grade-entry", label: "成绩录入", icon: <ScrollText className={iconClass} /> },
   { href: "/admin/closeout", label: "结课处理", icon: <GraduationCap className={iconClass} /> },
   { href: "/admin/waitlist", label: "候补名单", icon: <Clock className={iconClass} /> },
   { href: "/admin/waitlist-analytics", label: "候补分析", icon: <BarChart3 className={iconClass} /> },
@@ -254,7 +255,7 @@ export function AppShell({
         ? [
             { label: "概览", hrefs: ["/admin/dashboard", "/admin/alerts", "/admin/search"] },
             { label: "学术管理", hrefs: ["/admin/students", "/admin/students/at-risk", "/admin/student-progress", "/admin/dropout-risk", "/admin/graduation", "/admin/instructors", "/admin/faculty-schedule", "/admin/courses", "/admin/sections", "/admin/terms", "/admin/calendar"] },
-            { label: "注册管理", hrefs: ["/admin/enrollments", "/admin/section-swap", "/admin/closeout", "/admin/waitlist", "/admin/waitlist-analytics", "/admin/holds", "/admin/requests", "/admin/appeals"] },
+            { label: "注册管理", hrefs: ["/admin/enrollments", "/admin/grade-entry", "/admin/section-swap", "/admin/closeout", "/admin/waitlist", "/admin/waitlist-analytics", "/admin/holds", "/admin/requests", "/admin/appeals"] },
             { label: "工具", hrefs: ["/admin/bulk-ops", "/admin/reg-windows", "/admin/student-tags"] },
             { label: "系统", hrefs: ["/admin/announcements", "/admin/announcements-mgmt", "/admin/cohort-message", "/admin/status-email", "/admin/invite-codes", "/admin/import", "/admin/export", "/admin/reports", "/admin/grade-distribution", "/admin/demand", "/admin/capacity-plan", "/admin/term-compare", "/admin/registration-heatmap", "/admin/prereq-audit", "/admin/offering-history", "/admin/cohort-analytics", "/admin/term-enrollment-forecast", "/admin/course-demand-compare", "/admin/enrollment-audit", "/admin/top-performers", "/admin/dept-workload", "/admin/enrollment-velocity", "/admin/prereq-map", "/admin/grade-curve", "/admin/section-roster", "/admin/term-capacity", "/admin/major-trends", "/admin/late-drops", "/admin/course-pairings", "/admin/instructor-performance", "/admin/dept-gpa", "/admin/retention", "/admin/system-health", "/admin/digest", "/admin/audit-logs", "/admin/notifications", "/admin/sessions", "/admin/settings"] }
           ]

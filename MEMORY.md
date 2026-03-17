@@ -7,6 +7,7 @@
 - 2026-03-16: 568 pass, 0 warn, 0 fail
 - 2026-03-16: 593 pass, 0 warn, 0 fail
 - 2026-03-16: 615 pass, 0 warn, 0 fail
+- 2026-03-16: 627 pass, 0 warn, 0 fail
 
 ## Entries
 
@@ -48,3 +49,11 @@
 - C：落地学生档案完整度：新增 `profile-completeness` API、`/students/profile` 保存接口、圆形进度卡片，并升级 `/student/profile` 与 `/student/dashboard` 的完整度展示与编辑体验。
 - D：交付功能 278/279/280：`/admin/announcements-mgmt`、`/student/saved-courses`、`/admin/student-tags`，其中学生标签采用审计日志快照方案，避免引入本轮 schema 迁移风险。
 - 本轮 gate 实跑结果为 `615 pass, 0 warn, 0 fail`；字体系统保持为 Inter，升级后的 campus-* 设计系统继续沿用且未回退。
+
+## Session 24
+
+- A：补齐演示级 seed 数据，统一为 3 个学期、15 门课程、20 个当前教学班、6 个主演示账号、历史选课记录与 3 条公告，并同步更新登录与 smoke 默认账号密码到 `@univ.edu / *1234!`。
+- B：对齐交付级本地部署基线，更新根目录 `docker-compose.yml`、保留现有可用 Dockerfile，并把 `.env.example` 调整到 `horizon_sis / sis_dev_pass / change_me_in_production` 的演示默认值。
+- C：完成四项核心流程安全修补核查：明确购物车窗口语义、确认后端 drop deadline 校验生效、确认学生档案接口仅本人可改、确认 `/admin/*` 端点继续受 `ADMIN` 守卫约束；同时补上学生端友好的 `DROP_DEADLINE_PASSED` 提示。
+- D：交付功能 281/282/283：`/admin/grade-entry` 成绩批量录入、基于 `/admin/holds` 的 Hold 管理升级、以及带状态徽章/详情展开/新建表单的学生申诉追踪器。
+- 本轮 gate 实跑结果为 `627 pass, 0 warn, 0 fail`；readiness 中旧的 future-term seed 断言已替换为当前演示数据检查。
