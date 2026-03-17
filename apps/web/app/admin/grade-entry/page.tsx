@@ -45,8 +45,13 @@ export default function AdminGradeEntryPage() {
   useEffect(() => {
     void apiFetch<SectionOption[]>("/admin/sections")
       .then((data) => {
-        const current = (data ?? []).filter((section) => section.term.registrationOpen);
-        const next = current.length > 0 ? current : data ?? [];
+        const allSections = data ?? [];
+        const next = [...allSections].sort((a, b) => {
+          if (a.term.registrationOpen && !b.term.registrationOpen) return -1;
+          if (!a.term.registrationOpen && b.term.registrationOpen) return 1;
+          if (a.term.name !== b.term.name) return b.term.name.localeCompare(a.term.name, "zh-Hans-CN");
+          return `${a.course.code}-${a.sectionCode}`.localeCompare(`${b.course.code}-${b.sectionCode}`, "zh-Hans-CN");
+        });
         setSections(next);
         if (next[0]) setSectionId(next[0].id);
       })
@@ -58,7 +63,16 @@ export default function AdminGradeEntryPage() {
     setLoading(true);
     setError("");
     void apiFetch<SectionEnrollment[]>(`/admin/sections/${sectionId}/enrollments`)
-      .then((data) => setRows((data ?? []).filter((row) => row.status === "ENROLLED")))
+      .then((data) =>
+        setRows(
+          (data ?? [])
+            .filter((row) => row.status === "ENROLLED" || row.status === "COMPLETED")
+            .sort((a, b) => {
+              if (a.status === b.status) return displayName(a).localeCompare(displayName(b), "zh-Hans-CN");
+              return a.status === "ENROLLED" ? -1 : 1;
+            })
+        )
+      )
       .catch((err) => {
         setRows([]);
         setError(err instanceof Error ? err.message : "无法加载选课名单");
@@ -90,11 +104,6 @@ export default function AdminGradeEntryPage() {
       return;
     }
 
-    if (isLocked) {
-      toast.warning("该学期成绩已锁定。如需修改，请联系系统管理员。");
-      return;
-    }
-
     try {
       setSaving(true);
       const result = await apiFetch<SaveResult>(`/sections/${sectionId}/grades/submit`, {
@@ -117,7 +126,7 @@ export default function AdminGradeEntryPage() {
       <section className="campus-hero">
         <p className="campus-eyebrow">Academic Operations</p>
         <h1 className="campus-title">成绩批量录入</h1>
-        <p className="campus-subtitle">按教学班批量录入或修改学生成绩，适合学期末集中处理。</p>
+        <p className="campus-subtitle">按教学班批量录入或修改学生成绩。默认优先显示当前学期，也可切换到历史学期班级。</p>
       </section>
 
       <div className="campus-toolbar">
@@ -161,7 +170,7 @@ export default function AdminGradeEntryPage() {
       {error ? <div className="campus-card border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div> : null}
       {selectedSection && isLocked ? (
         <div className="campus-card border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          该学期（{selectedSection.term.name}）的成绩已锁定。如需修改，请联系系统管理员。
+          该学期（{selectedSection.term.name}）的成绩已超过常规录入窗口。你当前以管理员身份可继续调整，请谨慎保存。
         </div>
       ) : null}
 
@@ -179,6 +188,7 @@ export default function AdminGradeEntryPage() {
               <tr>
                 <th>学生</th>
                 <th>邮箱</th>
+                <th>状态</th>
                 <th>当前成绩</th>
                 <th>绩点</th>
               </tr>
@@ -189,10 +199,14 @@ export default function AdminGradeEntryPage() {
                   <td>{displayName(row)}</td>
                   <td className="text-slate-500">{row.student.email}</td>
                   <td>
+                    <span className={`campus-chip ${row.status === "COMPLETED" ? "chip-blue" : "chip-emerald"}`}>
+                      {row.status === "COMPLETED" ? "已结课" : "在读"}
+                    </span>
+                  </td>
+                  <td>
                     <select
                       className="campus-select min-w-[120px]"
                       value={row.finalGrade ?? ""}
-                      disabled={isLocked}
                       onChange={(event) =>
                         setRows((current) =>
                           current.map((item) =>

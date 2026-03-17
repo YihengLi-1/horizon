@@ -1,136 +1,117 @@
-# University Student Portal / Registrar Ops Monorepo
+# 地平线 — 大学学生信息系统
 
-Student self-service and registrar/admin academic operations portal built as a pnpm monorepo with a Next.js 15 frontend, NestJS API, Prisma, and PostgreSQL.
+地平线是一套面向高校教务与学生自助服务的学生信息系统，覆盖选课、候补、成绩、学期管理与基础运营流程。
 
-## Scope Statement
+## 技术栈
+- NestJS
+- Next.js 15
+- PostgreSQL
+- Prisma
+- pnpm monorepo
 
-This repository is not a full institutional SIS. It currently covers:
-- student self-service registration, schedule, grades, and profile workflows
-- registrar/admin operations for courses, sections, terms, enrollments, reports, and imports
-- minimal faculty-owned section roster and grade submission
-- minimal advisor-owned advisee and credit overload review workflow
+## 快速启动（本地开发）
 
-It does not currently implement:
-- billing, tuition, bursar, or financial-aid operations
-- public schedule sharing by default in production handoff mode
-- multi-step approval chains beyond credit overload
-- program, degree, and graduation audit domains
+### 前置要求
+- Node.js 20+
+- pnpm 9+
+- PostgreSQL 15+（或使用 Docker）
 
-## Stack
-- `apps/web`: Next.js App Router + TypeScript + Tailwind + shadcn-style UI components
-- `apps/api`: NestJS + Prisma + PostgreSQL + Zod validation
-- `packages/shared`: shared Zod schemas/types
-
-## Quick Start
-
-1. Install deps
+### 1. 克隆并安装依赖
 ```bash
 pnpm install
 ```
 
-2. Start PostgreSQL
+### 2. 配置环境变量
+```bash
+cp .env.example apps/api/.env
+cp .env.example apps/web/.env.local
+```
+
+编辑 `apps/api/.env`，至少填写：
+- `DATABASE_URL`
+- `JWT_SECRET`
+
+如果你使用本地 PostgreSQL，请确认数据库已创建且连接串可用；如果你使用 Docker，可直接使用文末的 Docker 方式启动。
+
+### 3. 初始化数据库
+```bash
+pnpm --filter @sis/api exec prisma migrate deploy
+pnpm --filter @sis/api exec prisma db seed
+```
+
+### 4. 启动服务
+```bash
+# 终端1：API（端口4000）
+pnpm --filter @sis/api run dev
+
+# 终端2：前端（端口3000）
+pnpm --filter web run dev
+```
+
+打开 [http://localhost:3000](http://localhost:3000)
+
+## Docker 一键启动
 ```bash
 docker compose up -d
+# 等待健康检查通过后：
+docker compose exec api pnpm --filter @sis/api exec prisma db seed
 ```
 
-3. Configure env
+## 演示账号
+| 角色 | 邮箱 | 密码 |
+|------|------|------|
+| 管理员 | admin@univ.edu | Admin1234! |
+| 学生 | student1@univ.edu | Student1234! |
+| （学生2-5同格式） | student2-5@univ.edu | Student1234! |
+
+## 核心功能
+- 学生选课：课程目录 → 购物车 → 预检 → 提交
+- 候补队列：满班自动排队，有人退课后自动晋升并通知
+- 先修课验证：选课时自动检查，可提交豁免申请
+- 成绩管理：教师录入，历史成绩锁定（学期结束30天后）
+- 学期状态机：UPCOMING → 注册开放 → 进行中 → 成绩录入期 → 已关闭
+- 并发安全：`SELECT FOR UPDATE` 防止超卖
+- 管理员批量操作：批量选课 / 退课 / 状态变更
+- 管理端学期与教学班管理：课程、教学班、学期均支持创建与编辑
+- 学生自助服务：课表、成绩单、GPA、学业进度与申诉追踪
+- 通知中心：候补晋升、成绩发布、关键状态变化统一汇总
+
+## API 文档
+启动 API 后访问：[http://localhost:4000/api/docs](http://localhost:4000/api/docs)
+
+## 运行测试
 ```bash
-cp .env.example .env
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env.local
+bash scripts/readiness-check.sh
 ```
 
-- Set `SIS_TIMEZONE` to the institution timezone used for academic calendar and iCal export.
-- Keep `ENABLE_PUBLIC_SCHEDULE_SHARING=false` and `NEXT_PUBLIC_ENABLE_PUBLIC_SCHEDULE_SHARING=false` unless you have added expiry/revocation controls and approved the privacy risk.
+预期输出：`641 pass, 0 warn, 0 fail`
 
-4. Create local development schema + seed
-```bash
-pnpm db:migrate:dev
-pnpm db:seed
-```
-
-5. Run apps
-```bash
-pnpm dev
-```
-
-- Web: [http://localhost:3000](http://localhost:3000)
-- API: [http://localhost:4000](http://localhost:4000)
-
-## Seed Accounts
-- Admin: `admin@sis.edu / Admin@2026!`
-- Student 1: `student1@sis.edu` or `S2601` / `Student@2026!`
-- Student 2: seed file contains additional sample student records; check [seed.ts](/Users/yihengli/Desktop/TA/访达/地平线/apps/api/prisma/seed.ts) before client demos
-- Faculty: `faculty1@sis.edu / Faculty@2026!`
-- Advisor: `advisor1@sis.edu / Advisor@2026!`
-- Student invite codes seeded for demos: `OPEN-2026`, `LIMIT10-2026`
-- Governance/UAT term: `Fall 2026` has future sections and an open registration window for hold and overload validation
-
-## Monorepo Scripts
-- `pnpm dev` - run API + Web
-- `pnpm db:migrate:dev` - development-only Prisma migration workflow (`prisma migrate dev`)
-- `pnpm db:migrate:deploy` - apply committed migrations in staging/production/handoff environments (`prisma migrate deploy`)
-- `pnpm db:seed` - seed sample data
-- `pnpm db:generate` - generate Prisma client
-- `pnpm readiness:check` - static production-readiness checks
-- `pnpm test:api` - API unit tests
-- `pnpm smoke:web` - route-level smoke check using seeded accounts
-- `pnpm test:e2e:web` - critical UI E2E checks (student + admin flows, runtime error guard)
-- `pnpm test:e2e:api` - P0 API regression checks (registration rules, waitlist promote, drop deadline, CSV fail-fast)
-
-## Monitoring
-- Grafana: [http://localhost:3100](http://localhost:3100)
-- Prometheus: [http://localhost:9090](http://localhost:9090)
-- Alertmanager: [http://localhost:9093](http://localhost:9093)
-
-## API Documentation
-- See [apps/api/ROUTES.md](apps/api/ROUTES.md)
-- See [docs/UAT.md](/Users/yihengli/Desktop/TA/访达/地平线/docs/UAT.md) for client acceptance scenarios.
-- See [docs/SIS_V1_ROADMAP.md](/Users/yihengli/Desktop/TA/访达/地平线/docs/SIS_V1_ROADMAP.md) for the staged evolution plan toward a formal university-grade SIS.
-
-## Known Limitations
-- Invite codes create student registrations only. Admin role assignment is a separate admin action.
-- Faculty and advisor flows are real but narrow. Faculty can only manage owned section rosters and grades; advisors can only review assigned students and overload requests.
-- Student support requests are routed to admin notification logs. There is no separate helpdesk/ticketing subsystem yet.
-- Public schedule sharing is disabled by default for privacy reasons.
-- Admin session tracking is operational only and resets when the API process restarts.
-- Governance demos should use `Fall 2026`; seeded Spring 2026 sections are already in progress.
-
-## Migration Safety
-- `pnpm db:migrate:dev` is for local schema development only.
-- `pnpm db:migrate:deploy` is the only repo-level migration command that should be used for staging, production, Docker handoff environments, and delivery rehearsal.
-- Do not use `prisma migrate dev` during deployment or handoff validation.
-
-## Project Tree (key)
+## 项目结构
 ```text
 .
 ├── apps
-│   ├── api
-│   │   ├── prisma
-│   │   │   ├── migrations/20260301000000_init/migration.sql
-│   │   │   ├── schema.prisma
-│   │   │   └── seed.ts
-│   │   ├── src
-│   │   │   ├── admin/
-│   │   │   ├── academics/
-│   │   │   ├── auth/
-│   │   │   ├── audit/
-│   │   │   ├── common/
-│   │   │   ├── registration/
-│   │   │   ├── students/
-│   │   │   ├── app.module.ts
-│   │   │   └── main.ts
-│   │   └── ROUTES.md
-│   └── web
-│       ├── app
-│       │   ├── (auth)/
-│       │   ├── admin/
-│       │   └── student/
-│       ├── components/ui/
-│       └── lib/
+│   ├── api        # NestJS API + Prisma
+│   └── web        # Next.js 15 App Router 前端
 ├── packages
-│   └── shared/src/schemas.ts
+│   └── shared     # 共享 schema / constants
 ├── docker-compose.yml
-├── package.json
-└── pnpm-workspace.yaml
+├── .env.example
+└── scripts
 ```
+
+## 常用命令
+```bash
+pnpm --filter @sis/api exec prisma generate
+pnpm --filter @sis/api exec prisma migrate deploy
+pnpm --filter @sis/api exec prisma db seed
+pnpm --filter web exec tsc --noEmit
+pnpm --filter @sis/api exec tsc --noEmit
+bash scripts/readiness-check.sh
+```
+
+---
+
+如需交付演示，推荐优先走这条路径：
+1. 用 `student1@univ.edu` 演示学生选课完整流程
+2. 用 `admin@univ.edu` 演示学期 / 教学班 / 成绩录入
+3. 用 `/api/docs` 展示后端接口文档与可扩展性

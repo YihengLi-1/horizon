@@ -122,3 +122,20 @@
 - 管理端死胡同审查：`/admin/students` 现有详情抽屉可查看学生资料/选课/成绩/hold 安全信息，`/admin/sections` 已可进 roster 与 analytics，`/admin/grade-entry` 当前学期默认选择逻辑正常，`/admin/holds` 的学生搜索可用；本轮仅补了 `/admin/courses` 的“查看教学班”入口，让课程列表可直接跳到按课程码过滤的班级列表，不再停在课程定义本身 → 文件：`apps/web/app/admin/courses/page.tsx`。
 - 文案/标签检查：对 `apps/web` 和 `apps/api/src` 做了 `E2E|TODO|FIXME|dummy|test data|lorem` 搜索，运行时代码中未发现仍暴露在用户界面的垃圾占位字符串；同时把 readiness 中旧的 seed 学期短名断言改为正式中文学期名，避免脚本继续误报 → 文件：`scripts/readiness-check.sh`。
 - gate：`641 pass, 0 warn, 0 fail`
+
+## Session 32
+
+- 管理员 CRUD 审查：复核后确认 `POST/PATCH /admin/courses`、`/admin/sections`、`/admin/terms` 以及 `admin/courses|sections|terms` 页内联创建/编辑表单本来就齐，不重复加新实现；本轮只补强了 `/admin/courses` 行级“查看教学班”延续入口，避免课程列表停在定义层 → 文件：`apps/api/src/admin/admin.controller.ts`、`apps/api/src/admin/admin.service.ts`、`apps/web/app/admin/courses/page.tsx`、`apps/web/app/admin/sections/page.tsx`、`apps/web/app/admin/terms/page.tsx`
+- 邮件基础设施审查：仓库原本已有 `NotificationsService + nodemailer + SMTP_*`，不再新建第二套 MailerService；复核确认单次选课成功、退课确认、候补晋升、成绩发布四类邮件都已接入现有通知服务，继续沿用开发态“未配置 SMTP 时跳过发送”的安全行为 → 文件：`apps/api/src/notifications/notifications.service.ts`、`apps/api/src/registration/registration.service.ts`
+- Demo 流程走查修复 1：`/admin/grade-entry` 之前只保留“当前 registrationOpen 学期”的班级，历史学期成绩录入在 UI 上根本选不到；现改为“当前学期优先排序，但保留所有学期班级”，让 2024 秋/2025 春历史教学班可被选中 → 文件：`apps/web/app/admin/grade-entry/page.tsx`
+- Demo 流程走查修复 2：`/admin/grade-entry` 之前只显示 `ENROLLED` 学生，并且把成绩锁定期对管理员也一刀切禁用，导致历史学期班级即使能打开也看不到 `COMPLETED` 记录、也无法演示修改；现改为显示 `ENROLLED + COMPLETED`，并允许管理员在锁定期带警告继续调整成绩，教师/普通用户仍受锁定限制 → 文件：`apps/web/app/admin/grade-entry/page.tsx`、`apps/api/src/registration/registration.service.ts`
+- Demo 流程验证：实测 `localhost:3000` 会重定向到 `/login`，`student1@univ.edu` 登录后可读到当前学期 `2025年秋季学期`、历史成绩和 3 条公告；`/academics/sections` 当前学期能返回 20 个真实教学班；管理员登录后 `/admin/sections` 能看到 `2024年秋季学期 / 2025年春季学期 / 2025年秋季学期` 三个学期的教学班，历史班级 `sec-f24-bus101` 能读到 3 条可录成绩的学生记录，`/admin/students` 也能检索到 `student1@univ.edu` → 文件：运行时走查
+- gate：`641 pass, 0 warn, 0 fail`
+
+## Session 33
+
+- migration 历史修复状态：本轮未再做破坏性重建，因为当前 `apps/api/prisma/migrations` 已能被 Prisma 正常解析；实跑 `pnpm exec prisma migrate diff --from-empty --to-schema-datamodel ./prisma/schema.prisma --script` 可成功生成完整初始化 SQL，`pnpm exec prisma migrate status` 结果为 `Database schema is up to date!`，无 drift、无 pending migration。当前状态已满足生产侧 `prisma migrate deploy` 的前提。
+- README 交付文档完成：重写根目录 `README.md`，补齐系统介绍、技术栈、本地开发快速启动、Docker 一键启动、演示账号、核心功能、API 文档与测试命令；文档内容已和当前真实账号、端口、种子数据、交付 gate 对齐。
+- 环境变量模板补齐说明：重写根目录 `.env.example`，为每个变量补上用途注释，覆盖数据库、JWT、SMTP、CSRF、RBAC、Docker、备份、监控与限流，确保新接手同学可以直接按注释完成配置。
+- 系统状态：可交付。数据库迁移状态干净、README 可用于 30 分钟上手、Docker/本地两条启动路径均有明确说明，当前可直接进入演示和部署交接阶段。
+- gate：`641 pass, 0 warn, 0 fail`
