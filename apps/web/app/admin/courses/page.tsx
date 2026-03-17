@@ -265,18 +265,18 @@ export default function CoursesPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">Catalog Management</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">Courses</h1>
+            <h1 className="campus-title">Courses</h1>
             <p className="text-sm text-slate-600 md:text-base">
               Maintain course definitions, credit values, and prerequisite mappings for registration validation.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-700">{stats.total} Courses</span>
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-600">Avg {stats.avg} cr</span>
+              <span className="campus-chip chip-emerald">{stats.total} Courses</span>
+              <span className="campus-chip chip-purple">Avg {stats.avg} cr</span>
               {stats.withPrereq > 0 && (
-                <span className="campus-chip border-blue-300 bg-blue-50 text-blue-700">{stats.withPrereq} with Prerequisites</span>
+                <span className="campus-chip chip-blue">{stats.withPrereq} with Prerequisites</span>
               )}
               {visibleCourses.length !== courses.length && (
-                <span className="campus-chip border-amber-300 bg-amber-50 text-amber-700">{visibleCourses.length} visible</span>
+                <span className="campus-chip chip-amber">{visibleCourses.length} visible</span>
               )}
             </div>
           </div>
@@ -301,26 +301,26 @@ export default function CoursesPage() {
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="campus-kpi border-slate-200">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Courses</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{stats.total}</p>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">Total Courses</p>
+          <p className="campus-kpi-value">{stats.total}</p>
           <p className="text-[11px] text-slate-400">Avg {stats.avg} credits</p>
         </div>
-        <div className="campus-kpi border-emerald-200 bg-emerald-50/60">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">No Prerequisites</p>
-          <p className="mt-1 text-2xl font-semibold text-emerald-900">{stats.noPrereq}</p>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label text-emerald-700">No Prerequisites</p>
+          <p className="campus-kpi-value text-emerald-700">{stats.noPrereq}</p>
           <p className="text-[11px] text-emerald-500">Open enrollment</p>
         </div>
-        <div className="campus-kpi border-blue-200 bg-blue-50/60">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Has Prerequisites</p>
-          <p className="mt-1 text-2xl font-semibold text-blue-900">{stats.withPrereq}</p>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label text-blue-700">Has Prerequisites</p>
+          <p className="campus-kpi-value text-blue-700">{stats.withPrereq}</p>
           <p className="text-[11px] text-blue-500">Gated enrollment</p>
         </div>
-        <div className="campus-kpi border-slate-200">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Credit Distribution</p>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">Credit Distribution</p>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {stats.byCredits.map(({ cr, count }) => (
-              <span key={cr} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-xs font-medium text-slate-700">
+              <span key={cr} className="campus-chip chip-purple gap-1 rounded-lg px-2 py-0.5">
                 <span className="font-semibold">{cr}cr</span>
                 <span className="text-slate-400">×{count}</span>
               </span>
@@ -588,11 +588,11 @@ export default function CoursesPage() {
 
       <section className="campus-card overflow-hidden">
         <div className="max-h-[560px] overflow-auto rounded-3xl">
-          <table className="w-full border-collapse text-sm">
-            <thead className="sticky top-0 z-10 bg-slate-50">
-              <tr className="border-b border-slate-200 text-left">
+          <table className="campus-table text-sm">
+            <thead className="sticky top-0 z-10">
+              <tr>
                 {(["code", "title", "credits", "prereqs"] as const).map((col) => (
-                  <th key={col} className="px-4 py-2.5">
+                  <th key={col}>
                     <button
                       type="button"
                       onClick={() => toggleSort(col)}
@@ -605,7 +605,7 @@ export default function CoursesPage() {
                     </button>
                   </th>
                 ))}
-                <th className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Actions</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -660,12 +660,12 @@ export default function CoursesPage() {
                       onDoubleClick={() => startEdit(course)}
                       title="Double-click to edit credits"
                     >
-                      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${
+                      <span className={`campus-chip items-center px-2 py-0.5 text-xs ${
                         course.credits >= 4
-                          ? "border-violet-200 bg-violet-50 text-violet-700"
+                          ? "chip-purple"
                           : course.credits === 3
-                          ? "border-blue-200 bg-blue-50 text-blue-700"
-                          : "border-slate-200 bg-slate-50 text-slate-600"
+                          ? "chip-blue"
+                          : "chip-amber"
                       }`}>
                         {course.credits} cr
                       </span>

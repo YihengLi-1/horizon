@@ -1503,4 +1503,77 @@ export class StudentsService {
       summary: { totalCredits, cumulativeGpa, dCredits, holdsCount },
     };
   }
+
+  async getEnrollmentLog(userId: string) {
+    type EnrollmentLogRow = {
+      auditId: string;
+      createdAt: Date;
+      action: string;
+      courseCode: string;
+      courseTitle: string;
+      sectionCode: string;
+      termName: string;
+    };
+
+    const rows = await this.prisma.$queryRaw<EnrollmentLogRow[]>(Prisma.sql`
+      WITH enroll_logs AS (
+        SELECT DISTINCT
+          al.id AS "auditId",
+          al."createdAt",
+          al.action,
+          e."sectionId" AS "sectionId"
+        FROM "AuditLog" al
+        JOIN "Enrollment" e
+          ON e."studentId" = al."actorUserId"
+         AND e."deletedAt" IS NULL
+         AND (al.metadata ->> 'termId') = e."termId"
+         AND e."createdAt" BETWEEN al."createdAt" - INTERVAL '15 seconds' AND al."createdAt" + INTERVAL '15 seconds'
+        WHERE al."actorUserId" = ${userId}
+          AND UPPER(al.action) LIKE '%ENROLL%'
+      ),
+      drop_logs AS (
+        SELECT DISTINCT
+          al.id AS "auditId",
+          al."createdAt",
+          al.action,
+          COALESCE(e."sectionId", al.metadata ->> 'sectionId') AS "sectionId"
+        FROM "AuditLog" al
+        LEFT JOIN "Enrollment" e
+          ON e.id = al."entityId"
+        WHERE al."actorUserId" = ${userId}
+          AND UPPER(al.action) LIKE '%DROP%'
+      ),
+      combined AS (
+        SELECT * FROM enroll_logs
+        UNION ALL
+        SELECT * FROM drop_logs WHERE "sectionId" IS NOT NULL
+      )
+      SELECT
+        combined."auditId",
+        combined."createdAt",
+        combined.action,
+        c.code AS "courseCode",
+        c.title AS "courseTitle",
+        s."sectionCode",
+        t.name AS "termName"
+      FROM combined
+      JOIN "Section" s
+        ON s.id = combined."sectionId"
+      JOIN "Course" c
+        ON c.id = s."courseId"
+      JOIN "Term" t
+        ON t.id = s."termId"
+      ORDER BY combined."createdAt" DESC, c.code ASC
+    `);
+
+    return rows.map((row) => ({
+      auditId: row.auditId,
+      createdAt: row.createdAt,
+      action: row.action,
+      courseCode: row.courseCode,
+      courseTitle: row.courseTitle,
+      sectionCode: row.sectionCode,
+      termName: row.termName
+    }));
+  }
 }

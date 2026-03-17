@@ -742,6 +742,19 @@ check_exists "apps/web/app/admin/retention/page.tsx" "Admin retention cohort pag
 check_contains "apps/web/app/admin/retention/page.tsx" "retentionPct" "Retention rate rendering"
 check_contains "apps/web/components/app-shell.tsx" "/admin/retention" "Retention nav link"
 
+# ── Session 21b: enrollment-log, system-health, schedule-image ──────────────
+check_contains "apps/api/src/students/students.service.ts" "getEnrollmentLog" "Student enrollment log service"
+check_contains "apps/api/src/students/students.controller.ts" "enrollment-log" "Student enrollment log endpoint"
+check_exists "apps/web/app/student/enrollment-log/page.tsx" "Student enrollment log page"
+check_contains "apps/web/components/app-shell.tsx" "/student/enrollment-log" "Enrollment log nav link"
+check_contains "apps/api/src/admin/admin.service.ts" "getSystemHealth" "Admin system health service"
+check_contains "apps/api/src/admin/admin.controller.ts" "system-health" "Admin system health endpoint"
+check_exists "apps/web/app/admin/system-health/page.tsx" "Admin system health page"
+check_contains "apps/web/components/app-shell.tsx" "/admin/system-health" "System health nav link"
+check_exists "apps/web/app/student/schedule-image/page.tsx" "Student schedule image page"
+check_contains "apps/web/app/student/schedule-image/page.tsx" "drawAndDownload" "Schedule image canvas export"
+check_contains "apps/web/components/app-shell.tsx" "/student/schedule-image" "Schedule image nav link"
+
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"
 else

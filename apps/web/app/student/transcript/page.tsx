@@ -117,6 +117,10 @@ export default function TranscriptPage() {
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(true);
   const [filterStatus, setFilterStatus] = useState("all");
+  const generatedAt = new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date());
 
   useEffect(() => {
     void apiFetch<Enrollment[]>("/registration/grades")
@@ -174,6 +178,28 @@ export default function TranscriptPage() {
 
   return (
     <div className="campus-page space-y-6">
+      <div className="no-print flex justify-end">
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="inline-flex h-10 items-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+        >
+          打印成绩单
+        </button>
+      </div>
+
+      <div className="print-only hidden border-b border-slate-300 pb-3">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xl font-bold text-slate-900">地平线大学</p>
+            <p className="text-sm text-slate-600">正式成绩单</p>
+          </div>
+          <div className="text-right text-xs text-slate-500">
+            <p>生成时间：{generatedAt}</p>
+          </div>
+        </div>
+      </div>
+
       <section className="campus-hero">
         <p className="campus-eyebrow">Academic Record</p>
         <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">完整修课记录</h1>
@@ -266,7 +292,7 @@ export default function TranscriptPage() {
             const groupCredits = visibleEnrollments.filter((e) => e.status === "COMPLETED" && e.finalGrade && e.finalGrade !== "W").reduce((s, e) => s + e.section.credits, 0);
             const isPast = new Date(group.termEndDate) < new Date();
             return (
-              <section key={group.termName} className="campus-card overflow-hidden">
+              <section key={group.termName} className="campus-card overflow-hidden" style={{ breakInside: "avoid" }}>
                 <div className={`flex items-center justify-between px-4 py-3 ${isPast ? "bg-slate-50 border-b border-slate-100" : "bg-indigo-50 border-b border-indigo-100"}`}>
                   <h2 className="text-sm font-bold text-slate-900">{group.termName}</h2>
                   <div className="flex items-center gap-2">
@@ -302,6 +328,10 @@ export default function TranscriptPage() {
           })}
         </div>
       )}
+
+      <div className="print-only hidden border-t border-slate-300 pt-3 text-xs text-slate-500">
+        本文件由地平线学生信息系统生成，如有疑问请联系注册处
+      </div>
     </div>
   );
 }

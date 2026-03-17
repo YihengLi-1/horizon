@@ -79,7 +79,7 @@ export default function AdminAlertsPage() {
     <div className="campus-page space-y-6">
       <section className="campus-hero">
         <p className="campus-eyebrow">Operations</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">
+        <h1 className="campus-title">
           系统警报中心
         </h1>
         <p className="mt-1 text-sm text-slate-500">
@@ -122,10 +122,10 @@ export default function AdminAlertsPage() {
             key={f}
             type="button"
             onClick={() => setFilter(f)}
-            className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+            className={`campus-chip px-3 py-1 text-xs transition ${
               filter === f
-                ? "border-indigo-400 bg-indigo-600 text-white"
-                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                ? "chip-blue"
+                : "chip-purple hover:bg-slate-50"
             }`}
           >
             {f === "all" ? "全部" : f === "error" ? "🔴 紧急" : f === "warning" ? "🟡 警告" : "🔵 提示"}
@@ -181,10 +181,10 @@ export default function AdminAlertsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-1">
                     <h3 className="text-sm font-bold text-slate-900">{alert.title}</h3>
-                    <span className={`campus-chip text-xs border ${meta.badge}`}>
+                    <span className={`campus-chip text-xs ${alert.severity === "error" ? "chip-red" : alert.severity === "warning" ? "chip-amber" : "chip-blue"}`}>
                       {meta.label}
                     </span>
-                    <span className="campus-chip text-xs border-slate-200 bg-slate-50 text-slate-500">
+                    <span className="campus-chip chip-purple text-xs">
                       {TYPE_LABEL[alert.type] ?? alert.type}
                     </span>
                   </div>

@@ -35,6 +35,14 @@ type EnrollmentReceipt = {
   totalCredits: number;
 };
 
+type StudentProfile = {
+  legalName?: string;
+  user?: {
+    studentId?: string;
+    email?: string;
+  };
+};
+
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function formatMeetingTimes(meetingTimes: MeetingTime[]) {
@@ -58,6 +66,7 @@ export default function StudentReceiptPage() {
   const [terms, setTerms] = useState<Term[]>([]);
   const [termId, setTermId] = useState("");
   const [receipt, setReceipt] = useState<EnrollmentReceipt | null>(null);
+  const [student, setStudent] = useState<StudentProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -72,6 +81,10 @@ export default function StudentReceiptPage() {
         setTermId(initialTermId);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "加载学期失败"));
+
+    void apiFetch<StudentProfile>("/students/me")
+      .then((data) => setStudent(data))
+      .catch(() => setStudent(null));
   }, []);
 
   useEffect(() => {
@@ -108,13 +121,35 @@ export default function StudentReceiptPage() {
 
   return (
     <div className="campus-page space-y-6">
+      <div className="no-print sticky top-4 z-20 flex justify-end">
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="inline-flex h-10 items-center rounded-lg border border-blue-200 bg-white px-4 text-sm font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50"
+        >
+          打印确认单
+        </button>
+      </div>
+
+      <div className="print-only hidden border-b border-slate-300 pb-3">
+        <div className="space-y-1">
+          <p className="text-xl font-bold text-slate-900">地平线大学</p>
+          <p className="text-sm text-slate-600">选课确认单</p>
+        </div>
+        <div className="mt-3 grid gap-1 text-xs text-slate-500 sm:grid-cols-3">
+          <p>学生姓名：{student?.legalName || "—"}</p>
+          <p>学号：{student?.user?.studentId || "—"}</p>
+          <p>打印时间：{printedAt}</p>
+        </div>
+      </div>
+
       <section className="campus-hero print:pb-0">
         <p className="campus-eyebrow">Enrollment Record</p>
         <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">选课确认单</h1>
         <p className="mt-1 text-sm text-slate-500">打印当前学期已选课程、班级和学分汇总</p>
       </section>
 
-      <div className="campus-toolbar print:hidden">
+      <div className="campus-toolbar no-print">
         <select className="campus-select" value={termId} onChange={(event) => setTermId(event.target.value)}>
           <option value="">自动选择当前学期</option>
           {terms.map((term) => (
@@ -123,13 +158,6 @@ export default function StudentReceiptPage() {
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-        >
-          打印确认单
-        </button>
       </div>
 
       {error ? <div className="campus-card border-red-200 bg-red-50 px-6 py-4 text-sm text-red-700">{error}</div> : null}
@@ -160,6 +188,7 @@ export default function StudentReceiptPage() {
             <p>
               学期区间：{formatDate(receipt.term.startDate)} - {formatDate(receipt.term.endDate)}
             </p>
+            <p>学生：{student?.legalName || "—"} · {student?.user?.studentId || "—"}</p>
           </div>
 
           {receipt.items.length === 0 ? (
@@ -168,26 +197,30 @@ export default function StudentReceiptPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[860px] text-sm">
+              <table className="campus-table min-w-[960px] text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <th className="px-4 py-3">课程</th>
-                    <th className="px-4 py-3">标题</th>
-                    <th className="px-4 py-3">学分</th>
-                    <th className="px-4 py-3">教学班</th>
-                    <th className="px-4 py-3">教师</th>
-                    <th className="px-4 py-3">上课时间</th>
+                  <tr>
+                    <th>课程代码</th>
+                    <th>课程名称</th>
+                    <th>学分</th>
+                    <th>教学班</th>
+                    <th>教师</th>
+                    <th>上课时间</th>
+                    <th>状态</th>
                   </tr>
                 </thead>
                 <tbody>
                   {receipt.items.map((item) => (
-                    <tr key={item.enrollmentId} className="border-b border-slate-50">
-                      <td className="px-4 py-3 font-mono text-xs font-bold text-indigo-700">{item.courseCode}</td>
-                      <td className="px-4 py-3 text-slate-700">{item.title}</td>
-                      <td className="px-4 py-3 text-slate-700">{item.credits}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-600">§{item.sectionCode}</td>
-                      <td className="px-4 py-3 text-slate-700">{item.instructorName}</td>
-                      <td className="px-4 py-3 text-slate-500">{formatMeetingTimes(item.meetingTimes)}</td>
+                    <tr key={item.enrollmentId}>
+                      <td className="font-mono text-xs font-bold text-indigo-700">{item.courseCode}</td>
+                      <td>{item.title}</td>
+                      <td>{item.credits}</td>
+                      <td className="font-mono text-xs text-slate-600">§{item.sectionCode}</td>
+                      <td>{item.instructorName}</td>
+                      <td className="text-slate-500">{formatMeetingTimes(item.meetingTimes)}</td>
+                      <td>
+                        <span className="campus-chip chip-emerald">ENROLLED</span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
