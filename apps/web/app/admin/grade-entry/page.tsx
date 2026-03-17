@@ -98,7 +98,7 @@ export default function AdminGradeEntryPage() {
 
     try {
       setSaving(true);
-      const result = await apiFetch<SaveResult>(`/admin/sections/${sectionId}/grades`, {
+      const result = await apiFetch<SaveResult>(`/sections/${sectionId}/grades/submit`, {
         method: "POST",
         body: JSON.stringify({ grades })
       });

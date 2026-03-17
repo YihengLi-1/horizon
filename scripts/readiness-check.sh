@@ -838,8 +838,11 @@ check_contains "apps/web/components/app-shell.tsx" "/student/prereq-waivers|/adm
 
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"
+elif rg -n 'SwaggerModule\.setup\(\s*"api/docs"' apps/api/src/main.ts >/dev/null 2>&1 \
+  && rg -n 'SwaggerModule\.createDocument' apps/api/src/main.ts >/dev/null 2>&1; then
+  ok "Swagger docs configured at /api/docs"
 else
-  warning "Swagger docs not reachable (start API first)"
+  bad "Swagger docs bootstrap missing"
 fi
 
 echo
