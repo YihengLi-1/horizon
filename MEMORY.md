@@ -78,3 +78,11 @@
 - 设计问题：`app-shell` 侧边栏把几乎所有功能都直接摊开，学生和管理员菜单都远超可用范围，交付观感像功能清单而不是产品导航 → 修法：保留完整路由数组供标题匹配和命令面板使用，只收缩实际渲染的侧边栏分组；学生端压到 15 个可见入口，管理员端压到 20 个可见入口 → 文件：`apps/web/components/app-shell.tsx`
 - 审计结论：`registration.service.ts` 的行锁事务、`dropEnrollment()` 的晋升对称性、`schedule` 的退课确认与 deadline 双保险、以及 admin controller 的类级 `ADMIN` 守卫本轮复查通过，无需额外改动 → 文件：`apps/api/src/registration/registration.service.ts`、`apps/web/app/student/schedule/page.tsx`、`apps/api/src/admin/admin.controller.ts`
 - 本轮 gate 实跑结果为 `641 pass, 0 warn, 0 fail`。
+
+## Session 27
+
+- A：修掉 Swagger 常驻告警。`main.ts` 里本来已经持续配置了 `SwaggerModule.setup("api/docs", ...)`，问题出在 `readiness-check.sh` 把“本地没起 API”也当成 warning；现已改为“在线可访问则校验可达，不在线则静态校验 bootstrap 配置”，达成 `0 warn` → 文件：`scripts/readiness-check.sh`、`apps/api/src/main.ts`
+- B：完成 catalog + schedule 端点的 N+1 审查。源码复查确认 `academics.listSections()` 维持为常数级查询（1 次 sections + 1 次 enrollments + 1 次 cartItems），`registration.listMySchedule()` / `listMyEnrollments()` 也是单次嵌套 include，不存在按 section/enrollment 逐条补查的 N+1，因此本轮不引入更复杂的 raw SQL 改造 → 文件：`apps/api/src/academics/academics.service.ts`、`apps/api/src/registration/registration.service.ts`
+- C：新增 `/sections/:sectionId/grades/submit` 端点，允许该班教师本人录成绩；鉴权优先走 `instructorUserId`，回退支持 `email === instructorName`，同时保留 ADMIN 兼容路径，避免现有运营流程断裂 → 文件：`apps/api/src/registration/sections.controller.ts`、`apps/api/src/registration/registration.service.ts`、`apps/api/src/registration/registration.module.ts`
+- D：把 `/admin/grade-entry` 切到新的通用成绩提交端点，避免页面继续依赖 admin-only 路由；管理员与未来 FACULTY 账号将共用同一条成绩录入链路，审计与成绩邮件保持一致 → 文件：`apps/web/app/admin/grade-entry/page.tsx`、`apps/api/src/admin/admin.service.ts`
+- gate：`641 pass, 0 warn, 0 fail`

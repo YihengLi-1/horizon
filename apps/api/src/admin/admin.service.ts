@@ -1527,73 +1527,7 @@ export class AdminService {
     grades: Array<{ enrollmentId: string; grade: string; gradePoints?: number }>,
     actorUserId: string
   ) {
-    const section = await this.prisma.section.findUnique({
-      where: { id: sectionId },
-      include: { course: true, term: true }
-    });
-
-    if (!section) {
-      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
-    }
-
-    const normalized = grades
-      .map((item) => ({
-        enrollmentId: item.enrollmentId,
-        grade: item.grade.trim().toUpperCase()
-      }))
-      .filter((item) => item.enrollmentId && item.grade);
-
-    if (normalized.length === 0) {
-      throw new BadRequestException({ code: "NO_GRADES_SUBMITTED", message: "No grades submitted" });
-    }
-
-    const succeeded: string[] = [];
-    const failed: Array<{ enrollmentId: string; reason: string }> = [];
-
-    for (const item of normalized) {
-      try {
-        const enrollment = await this.prisma.enrollment.findFirst({
-          where: { id: item.enrollmentId, sectionId, deletedAt: null },
-          select: { id: true }
-        });
-
-        if (!enrollment) {
-          failed.push({ enrollmentId: item.enrollmentId, reason: "Enrollment not found in this section" });
-          continue;
-        }
-
-        await this.updateGrade({ enrollmentId: item.enrollmentId, finalGrade: item.grade }, actorUserId);
-        succeeded.push(item.enrollmentId);
-      } catch (error) {
-        failed.push({
-          enrollmentId: item.enrollmentId,
-          reason:
-            error && typeof error === "object" && "message" in error && typeof error.message === "string"
-              ? error.message
-              : "Unable to update grade"
-        });
-      }
-    }
-
-    await this.auditService.log({
-      actorUserId,
-      action: "GRADE_BULK_UPDATE",
-      entityType: "section",
-      entityId: sectionId,
-      metadata: {
-        sectionCode: section.sectionCode,
-        courseCode: section.course.code,
-        termName: section.term.name,
-        count: succeeded.length,
-        failed: failed.length
-      }
-    });
-
-    return {
-      updated: succeeded.length,
-      succeeded,
-      failed
-    };
+    return this.registrationService.submitSectionGrades(sectionId, grades, actorUserId);
   }
 
   async listEnrollments(params: {

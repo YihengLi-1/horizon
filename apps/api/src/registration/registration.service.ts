@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { EnrollmentStatus, Prisma } from "@prisma/client";
 import { Request } from "express";
@@ -1539,6 +1539,160 @@ export class RegistrationService {
       },
       orderBy: { updatedAt: "desc" }
     });
+  }
+
+  async submitSectionGrades(
+    sectionId: string,
+    grades: Array<{ enrollmentId: string; grade: string; gradePoints?: number }>,
+    actorUserId: string,
+    req?: Request
+  ) {
+    const [actor, section] = await Promise.all([
+      this.prisma.user.findFirst({
+        where: { id: actorUserId, deletedAt: null },
+        select: { id: true, email: true, role: true }
+      }),
+      this.prisma.section.findUnique({
+        where: { id: sectionId },
+        include: { course: true, term: true }
+      })
+    ]);
+
+    if (!actor) {
+      throw new NotFoundException({ code: "USER_NOT_FOUND", message: "User not found" });
+    }
+
+    if (!section) {
+      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
+    }
+
+    const normalizedInstructor = section.instructorName.trim().toLowerCase();
+    const isAssignedInstructor =
+      (section.instructorUserId && section.instructorUserId === actor.id) ||
+      (normalizedInstructor.length > 0 && actor.email.trim().toLowerCase() === normalizedInstructor);
+
+    if (actor.role !== "ADMIN" && !isAssignedInstructor) {
+      throw new ForbiddenException("只有该班级教师可以录入成绩");
+    }
+
+    const normalizedGrades = grades
+      .map((item) => ({
+        enrollmentId: item.enrollmentId?.trim(),
+        grade: item.grade?.trim().toUpperCase()
+      }))
+      .filter((item) => item.enrollmentId && item.grade);
+
+    if (normalizedGrades.length === 0) {
+      throw new BadRequestException({ code: "NO_GRADES_SUBMITTED", message: "No grades submitted" });
+    }
+
+    const enrollmentMap = new Map(
+      (
+        await this.prisma.enrollment.findMany({
+          where: {
+            id: { in: normalizedGrades.map((item) => item.enrollmentId) },
+            sectionId,
+            deletedAt: null
+          },
+          include: {
+            student: {
+              include: {
+                studentProfile: {
+                  select: { legalName: true }
+                }
+              }
+            },
+            section: {
+              include: {
+                course: { select: { code: true } },
+                term: { select: { name: true } }
+              }
+            }
+          }
+        })
+      ).map((enrollment) => [enrollment.id, enrollment] as const)
+    );
+
+    const succeeded: string[] = [];
+    const failed: Array<{ enrollmentId: string; reason: string }> = [];
+
+    for (const item of normalizedGrades) {
+      const enrollment = enrollmentMap.get(item.enrollmentId);
+
+      if (!enrollment) {
+        failed.push({ enrollmentId: item.enrollmentId, reason: "Enrollment not found in this section" });
+        continue;
+      }
+
+      if (enrollment.status === "COMPLETED" && actor.role !== "ADMIN") {
+        failed.push({
+          enrollmentId: item.enrollmentId,
+          reason: "Completed enrollments are locked and cannot be modified"
+        });
+        continue;
+      }
+
+      try {
+        await this.prisma.enrollment.update({
+          where: { id: item.enrollmentId },
+          data: {
+            finalGrade: item.grade,
+            status: enrollment.status === "DROPPED" ? enrollment.status : "COMPLETED"
+          }
+        });
+
+        await this.auditService.log({
+          actorUserId,
+          action: "grade_update",
+          entityType: "enrollment",
+          entityId: item.enrollmentId,
+          metadata: {
+            sectionId,
+            finalGrade: item.grade
+          },
+          req
+        });
+
+        if (enrollment.student.email && item.grade) {
+          await this.notificationsService.sendGradePostedEmail({
+            to: enrollment.student.email,
+            legalName: enrollment.student.studentProfile?.legalName ?? null,
+            termName: enrollment.section.term.name,
+            courseCode: enrollment.section.course.code,
+            sectionCode: section.sectionCode,
+            finalGrade: item.grade
+          });
+        }
+
+        succeeded.push(item.enrollmentId);
+      } catch (error) {
+        failed.push({
+          enrollmentId: item.enrollmentId,
+          reason: error instanceof Error ? error.message : "Unable to update grade"
+        });
+      }
+    }
+
+    await this.auditService.log({
+      actorUserId,
+      action: "GRADE_BULK_UPDATE",
+      entityType: "section",
+      entityId: sectionId,
+      metadata: {
+        sectionCode: section.sectionCode,
+        courseCode: section.course.code,
+        termName: section.term.name,
+        count: succeeded.length,
+        failed: failed.length
+      },
+      req
+    });
+
+    return {
+      updated: succeeded.length,
+      succeeded,
+      failed
+    };
   }
 
   async swap(studentId: string, dropSectionId: string, addSectionId: string, req?: Request) {
