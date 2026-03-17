@@ -6,22 +6,10 @@ import { ApiError, apiFetch } from "@/lib/api";
 import { SkeletonTable } from "@/components/skeleton-table";
 import { API_URL } from "@/lib/config";
 import { enrollmentStatusLabel } from "@/lib/labels";
+import { COURSE_TONES, fmt, GRID_END, GRID_ROW_COUNT, GRID_SLOT, GRID_START, hashCourseTone, WEEKDAY } from "@/lib/schedule-utils";
 import PrintButton from "./PrintButton";
 
-const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const GRID_DAY_INDEXES = [1, 2, 3, 4, 5, 6, 0];
-const GRID_START = 8 * 60;
-const GRID_END = 21 * 60;
-const GRID_SLOT = 30;
-const GRID_ROW_COUNT = (GRID_END - GRID_START) / GRID_SLOT;
-const COURSE_TONES = [
-  { start: "#2563eb", end: "#1d4ed8", soft: "#dbeafe" },
-  { start: "#7c3aed", end: "#6d28d9", soft: "#ede9fe" },
-  { start: "#0f766e", end: "#0f766e", soft: "#ccfbf1" },
-  { start: "#ea580c", end: "#c2410c", soft: "#ffedd5" },
-  { start: "#be123c", end: "#9f1239", soft: "#ffe4e6" },
-  { start: "#0891b2", end: "#0e7490", soft: "#cffafe" }
-];
 
 type Term = {
   id: string;
@@ -55,12 +43,6 @@ type Enrollment = {
   };
 };
 
-function fmt(minutes: number): string {
-  const h = Math.floor(minutes / 60).toString().padStart(2, "0");
-  const m = (minutes % 60).toString().padStart(2, "0");
-  return `${h}:${m}`;
-}
-
 function daysUntilFrom(dateStr: string, nowMs: number): number {
   const target = new Date(dateStr);
   return Math.ceil((target.getTime() - nowMs) / (1000 * 60 * 60 * 24));
@@ -76,14 +58,6 @@ function statusBadge(status: string) {
   if (status === "WAITLISTED") return "border-amber-200 bg-amber-50 text-amber-700";
   if (status === "PENDING_APPROVAL") return "border-blue-200 bg-blue-50 text-blue-700";
   return "border-slate-200 bg-slate-50 text-slate-600";
-}
-
-function hashCourseTone(courseKey: string) {
-  let hash = 0;
-  for (let index = 0; index < courseKey.length; index += 1) {
-    hash = (hash * 31 + courseKey.charCodeAt(index)) >>> 0;
-  }
-  return COURSE_TONES[hash % COURSE_TONES.length];
 }
 
 function useLocalStorage<T>(key: string, initialValue: T): [T, (next: T | ((value: T) => T)) => void] {

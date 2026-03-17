@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { GRADE_POINTS } from "@sis/shared/constants";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/components/toast-provider";
 
@@ -27,19 +28,6 @@ type SaveResult = {
 };
 
 const GRADE_OPTIONS = ["A", "A-", "B+", "B", "B-", "C+", "C", "D", "F", "W", "I"];
-const GRADE_POINTS: Record<string, number> = {
-  A: 4,
-  "A-": 3.7,
-  "B+": 3.3,
-  B: 3,
-  "B-": 2.7,
-  "C+": 2.3,
-  C: 2,
-  D: 1,
-  F: 0,
-  W: 0,
-  I: 0
-};
 
 function displayName(row: SectionEnrollment) {
   return row.student.studentProfile?.legalName || row.student.email;

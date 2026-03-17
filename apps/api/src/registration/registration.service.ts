@@ -82,6 +82,8 @@ type CompletedEnrollmentWithCourse = Prisma.EnrollmentGetPayload<{
   };
 }>;
 
+const WAITLIST_REBALANCE_BUFFER = 10000;
+
 export function hasMeetingConflict(a: Meeting[], b: Meeting[]): boolean {
   return a.some((m1) =>
     b.some((m2) => m1.weekday === m2.weekday && m1.startMinutes < m2.endMinutes && m2.startMinutes < m1.endMinutes)
@@ -199,6 +201,47 @@ export class RegistrationService {
     await tx.$queryRaw(
       Prisma.sql`SELECT id FROM "Section" WHERE id IN (${Prisma.join(sectionIds)}) FOR UPDATE`
     );
+  }
+
+  private async rebalanceWaitlistPositions(
+    tx: Prisma.TransactionClient,
+    sectionId: string
+  ): Promise<void> {
+    await tx.enrollment.updateMany({
+      where: {
+        deletedAt: null,
+        sectionId,
+        status: "WAITLISTED",
+        waitlistPosition: { not: null }
+      },
+      data: {
+        waitlistPosition: { increment: WAITLIST_REBALANCE_BUFFER }
+      }
+    });
+
+    const remainingWaitlisted = await tx.enrollment.findMany({
+      where: {
+        deletedAt: null,
+        sectionId,
+        status: "WAITLISTED",
+        waitlistPosition: { not: null }
+      },
+      orderBy: [{ waitlistPosition: "asc" }, { createdAt: "asc" }],
+      select: {
+        id: true
+      }
+    });
+
+    for (let index = 0; index < remainingWaitlisted.length; index += 1) {
+      await tx.enrollment.update({
+        where: { id: remainingWaitlisted[index].id },
+        data: { waitlistPosition: index + 1 }
+      });
+    }
+  }
+
+  async normalizeWaitlistPositions(tx: Prisma.TransactionClient, sectionId: string): Promise<void> {
+    await this.rebalanceWaitlistPositions(tx, sectionId);
   }
 
   private getPassedCourseIds(completedEnrollments: CompletedEnrollmentWithCourse[]): Set<string> {
@@ -373,31 +416,7 @@ export class RegistrationService {
       }
     });
 
-    if (nextWaiting.waitlistPosition !== null) {
-      await tx.enrollment.updateMany({
-        where: {
-          deletedAt: null,
-          sectionId: nextWaiting.sectionId,
-          status: "WAITLISTED",
-          waitlistPosition: { gt: nextWaiting.waitlistPosition }
-        },
-        data: {
-          waitlistPosition: { increment: 10000 }
-        }
-      });
-
-      await tx.enrollment.updateMany({
-        where: {
-          deletedAt: null,
-          sectionId: nextWaiting.sectionId,
-          status: "WAITLISTED",
-          waitlistPosition: { gt: nextWaiting.waitlistPosition + 10000 }
-        },
-        data: {
-          waitlistPosition: { decrement: 9999 }
-        }
-      });
-    }
+    await this.rebalanceWaitlistPositions(tx, nextWaiting.sectionId);
 
     await this.auditService.logInTransaction(tx, {
       actorUserId: input.actorUserId,
@@ -486,7 +505,10 @@ export class RegistrationService {
         return;
       }
       const codes = missing.map((link) => link.prerequisiteCourse.code).join(", ");
-      throw new BadRequestException(`PREREQ_NOT_MET: ${codes}`);
+      throw new BadRequestException({
+        code: "PREREQ_NOT_MET",
+        message: `先修课程未满足：${codes}`
+      });
     }
   }
 
@@ -733,7 +755,7 @@ export class RegistrationService {
 
       const enrolledCount = section.enrollments.filter((enrollment) => enrollment.status === "ENROLLED").length;
       if (section.capacity > 0 && enrolledCount >= section.capacity) {
-        throw new BadRequestException("SECTION_FULL");
+        throw new BadRequestException({ code: "SECTION_FULL", message: "该教学班已满员" });
       }
 
       await this.assertPrerequisitesSatisfied(tx, studentId, section);
@@ -752,7 +774,7 @@ export class RegistrationService {
       }
 
       if (existing) {
-        throw new BadRequestException("ALREADY_REGISTERED");
+        throw new BadRequestException({ code: "ALREADY_REGISTERED", message: "该教学班已存在有效注册记录" });
       }
 
       const otherEnrollments = await tx.enrollment.findMany({
@@ -787,7 +809,7 @@ export class RegistrationService {
       );
 
       if (hasConflict) {
-        throw new BadRequestException("TIME_CONFLICT");
+        throw new BadRequestException({ code: "TIME_CONFLICT", message: "当前课程与已选课程时间冲突" });
       }
 
       const effectiveMaxCredits = await this.getEffectiveMaxCredits(section.term.maxCredits);
@@ -1376,29 +1398,7 @@ export class RegistrationService {
       });
 
       if (previousStatus === "WAITLISTED" && oldWaitlistPosition !== null) {
-        await tx.enrollment.updateMany({
-          where: {
-            deletedAt: null,
-            sectionId: locked.sectionId,
-            status: "WAITLISTED",
-            waitlistPosition: { gt: oldWaitlistPosition }
-          },
-          data: {
-            waitlistPosition: { increment: 10000 }
-          }
-        });
-
-        await tx.enrollment.updateMany({
-          where: {
-            deletedAt: null,
-            sectionId: locked.sectionId,
-            status: "WAITLISTED",
-            waitlistPosition: { gt: oldWaitlistPosition + 10000 }
-          },
-          data: {
-            waitlistPosition: { decrement: 9999 }
-          }
-        });
+        await this.rebalanceWaitlistPositions(tx, locked.sectionId);
       }
 
       await this.auditService.logInTransaction(tx, {
@@ -1725,16 +1725,16 @@ export class RegistrationService {
       }
 
       if (dropSection.courseId !== addSection.courseId) {
-        throw new BadRequestException("SWAP_DIFFERENT_COURSE");
+        throw new BadRequestException({ code: "SWAP_DIFFERENT_COURSE", message: "只能在同一门课程的教学班之间调换" });
       }
 
       if (dropSection.termId !== addSection.termId) {
-        throw new BadRequestException("SWAP_DIFFERENT_TERM");
+        throw new BadRequestException({ code: "SWAP_DIFFERENT_TERM", message: "只能在同一学期内调换教学班" });
       }
 
       const addEnrolledCount = addSection.enrollments.filter((enrollment) => enrollment.status === "ENROLLED").length;
       if (addSection.capacity > 0 && addEnrolledCount >= addSection.capacity) {
-        throw new BadRequestException("SECTION_FULL");
+        throw new BadRequestException({ code: "SECTION_FULL", message: "目标教学班已满员" });
       }
 
       const currentEnrollment = await tx.enrollment.findFirst({
@@ -1760,7 +1760,7 @@ export class RegistrationService {
       });
 
       if (existingTarget) {
-        throw new BadRequestException("ALREADY_REGISTERED");
+        throw new BadRequestException({ code: "ALREADY_REGISTERED", message: "目标教学班已存在有效注册记录" });
       }
 
       await this.assertPrerequisitesSatisfied(tx, studentId, addSection);
@@ -1798,7 +1798,7 @@ export class RegistrationService {
       );
 
       if (conflicts) {
-        throw new BadRequestException("TIME_CONFLICT");
+        throw new BadRequestException({ code: "TIME_CONFLICT", message: "目标教学班与现有课表时间冲突" });
       }
 
       const created = await tx.enrollment.create({

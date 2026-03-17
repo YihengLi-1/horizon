@@ -1,5 +1,6 @@
 import { getMeServer, requireRole } from "@/lib/server-auth";
 import Link from "next/link";
+import { GRADE_POINTS } from "@sis/shared/constants";
 import { serverApi } from "@/lib/server-api";
 import CertificateButton from "./CertificateButton";
 import GpaCalculator from "./GpaCalculator";
@@ -41,22 +42,6 @@ type TranscriptTerm = {
       credits: number;
     };
   }>;
-};
-
-const GRADE_POINTS: Record<string, number> = {
-  "A+": 4.0,
-  A: 4.0,
-  "A-": 3.7,
-  "B+": 3.3,
-  B: 3.0,
-  "B-": 2.7,
-  "C+": 2.3,
-  C: 2.0,
-  "C-": 1.7,
-  "D+": 1.3,
-  D: 1.0,
-  "D-": 0.7,
-  F: 0.0
 };
 
 function gradePoints(grade: string): number | null {

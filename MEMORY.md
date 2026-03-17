@@ -86,3 +86,11 @@
 - C：新增 `/sections/:sectionId/grades/submit` 端点，允许该班教师本人录成绩；鉴权优先走 `instructorUserId`，回退支持 `email === instructorName`，同时保留 ADMIN 兼容路径，避免现有运营流程断裂 → 文件：`apps/api/src/registration/sections.controller.ts`、`apps/api/src/registration/registration.service.ts`、`apps/api/src/registration/registration.module.ts`
 - D：把 `/admin/grade-entry` 切到新的通用成绩提交端点，避免页面继续依赖 admin-only 路由；管理员与未来 FACULTY 账号将共用同一条成绩录入链路，审计与成绩邮件保持一致 → 文件：`apps/web/app/admin/grade-entry/page.tsx`、`apps/api/src/admin/admin.service.ts`
 - gate：`641 pass, 0 warn, 0 fail`
+
+## Session 28
+
+- 重构：把 `GRADE_POINTS` 集中到 `packages/shared/src/constants.ts`，补齐 `@sis/shared/constants` 子路径导出和 web/api tsconfig 路径映射，并把 students/admin service 及 GPA 相关前端页面统一改为从 shared 导入，删除散落的本地常量定义 → 文件：`packages/shared/src/constants.ts`、`packages/shared/package.json`、`packages/shared/src/index.ts`、`apps/api/src/students/students.service.ts`、`apps/api/src/admin/admin.service.ts`、`apps/web/lib/degreeRequirements.ts`、`apps/web/app/student/*`、`apps/web/app/admin/grade-entry/page.tsx`
+- 重构：在 `registration.service.ts` 提取 `WAITLIST_REBALANCE_BUFFER` 与私有 `rebalanceWaitlistPositions()`，并新增可复用的 `normalizeWaitlistPositions()` 包装，消除 registration/admin 中至少 4 处 waitlist `+10000 / -9999 / 重排` 重复逻辑 → 文件：`apps/api/src/registration/registration.service.ts`、`apps/api/src/admin/admin.service.ts`
+- 重构：新增 `apps/web/lib/schedule-utils.ts`，集中 `fmt / deriveStudentCohortYear / registrationPriorityOffsetDays / registrationPriorityLabel / WEEKDAY / GRID_* / COURSE_TONES / hashCourseTone`，并让 `student/catalog` 与 `student/schedule` 改为共享导入，去掉页面内重复定义 → 文件：`apps/web/lib/schedule-utils.ts`、`apps/web/app/student/catalog/page.tsx`、`apps/web/app/student/schedule/page.tsx`
+- 修复：统一 `registration.service.ts` 中 `BadRequestException` 为 `{ code, message }` 结构，覆盖 `SECTION_FULL / ALREADY_REGISTERED / TIME_CONFLICT / PREREQ_NOT_MET / SWAP_*` 等路径；同时把 `quick-add` 的错误解析改为优先读 `error.code`，避免前端偶发解析不到错误码 → 文件：`apps/api/src/registration/registration.service.ts`、`apps/web/app/student/quick-add/page.tsx`
+- 清理：复核 `app-shell.tsx` 后确认当前已不存在未使用的 `Suspense` import，无需再做额外代码改动；本轮 gate 维持 `641 pass, 0 warn, 0 fail`

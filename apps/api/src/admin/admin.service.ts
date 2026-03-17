@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { EnrollmentStatus, Modality, Prisma } from "@prisma/client";
 import argon2 from "argon2";
 import { createHash } from "crypto";
+import { GRADE_POINTS } from "@sis/shared/constants";
 import {
   assignAdvisorSchema,
   createHoldSchema,
@@ -1995,30 +1996,9 @@ export class AdminService {
     });
 
     if (previousStatus === "WAITLISTED" && enrollment.waitlistPosition !== null) {
-      await this.prisma.$transaction([
-        this.prisma.enrollment.updateMany({
-          where: {
-            deletedAt: null,
-            sectionId: enrollment.sectionId,
-            status: "WAITLISTED",
-            waitlistPosition: { gt: enrollment.waitlistPosition }
-          },
-          data: {
-            waitlistPosition: { increment: 10000 }
-          }
-        }),
-        this.prisma.enrollment.updateMany({
-          where: {
-            deletedAt: null,
-            sectionId: enrollment.sectionId,
-            status: "WAITLISTED",
-            waitlistPosition: { gt: enrollment.waitlistPosition + 10000 }
-          },
-          data: {
-            waitlistPosition: { decrement: 9999 }
-          }
-        })
-      ]);
+      await this.prisma.$transaction(async (tx) => {
+        await this.registrationService.normalizeWaitlistPositions(tx, enrollment.sectionId);
+      });
     }
 
     await this.auditService.log({
@@ -2082,31 +2062,7 @@ export class AdminService {
         }
       });
 
-      if (nextWaiting.waitlistPosition !== null) {
-        await tx.enrollment.updateMany({
-          where: {
-            deletedAt: null,
-            sectionId: nextWaiting.sectionId,
-            status: "WAITLISTED",
-            waitlistPosition: { gt: nextWaiting.waitlistPosition }
-          },
-          data: {
-            waitlistPosition: { increment: 10000 }
-          }
-        });
-
-        await tx.enrollment.updateMany({
-          where: {
-            deletedAt: null,
-            sectionId: nextWaiting.sectionId,
-            status: "WAITLISTED",
-            waitlistPosition: { gt: nextWaiting.waitlistPosition + 10000 }
-          },
-          data: {
-            waitlistPosition: { decrement: 9999 }
-          }
-        });
-      }
+      await this.registrationService.normalizeWaitlistPositions(tx, nextWaiting.sectionId);
     });
 
       await this.auditService.log({
@@ -2261,37 +2217,15 @@ export class AdminService {
         });
       }
 
-      await tx.enrollment.updateMany({
+      await this.registrationService.normalizeWaitlistPositions(tx, input.sectionId);
+
+      const remainingWaitlistCount = await tx.enrollment.count({
         where: {
           deletedAt: null,
           sectionId: input.sectionId,
-          status: "WAITLISTED",
-          waitlistPosition: { not: null }
-        },
-        data: {
-          waitlistPosition: { increment: 10000 }
+          status: "WAITLISTED"
         }
       });
-
-      const remainingWaitlisted = await tx.enrollment.findMany({
-        where: {
-          deletedAt: null,
-          sectionId: input.sectionId,
-          status: "WAITLISTED",
-          waitlistPosition: { not: null }
-        },
-        orderBy: [{ waitlistPosition: "asc" }, { createdAt: "asc" }],
-        select: {
-          id: true
-        }
-      });
-
-      for (let index = 0; index < remainingWaitlisted.length; index += 1) {
-        await tx.enrollment.update({
-          where: { id: remainingWaitlisted[index].id },
-          data: { waitlistPosition: index + 1 }
-        });
-      }
 
       const promotedCount = promotedEnrollmentIds.length;
       const availableSeatsAfter = Math.max(0, section.capacity - (enrolledCount + promotedCount));
@@ -2326,7 +2260,7 @@ export class AdminService {
           sectionId: item.sectionId
         })),
         promotedCount,
-        remainingWaitlistCount: remainingWaitlisted.length,
+        remainingWaitlistCount,
         availableSeatsBefore,
         availableSeatsAfter
       };
@@ -4128,11 +4062,6 @@ export class AdminService {
       }
     });
 
-    const GRADE_POINTS: Record<string, number> = {
-      "A+": 4, A: 4, "A-": 3.7, "B+": 3.3, B: 3, "B-": 2.7,
-      "C+": 2.3, C: 2, "C-": 1.7, "D+": 1.3, D: 1, "D-": 0.7, F: 0
-    };
-
     type CohortAcc = {
       count: number;
       activeCount: number;
@@ -4317,11 +4246,6 @@ export class AdminService {
   }
 
   // ── Term Comparison ─────────────────────────────────────────────────
-  private readonly GRADE_POINTS_MAP: Record<string, number> = {
-    "A+": 4, A: 4, "A-": 3.7, "B+": 3.3, B: 3, "B-": 2.7,
-    "C+": 2.3, C: 2, "C-": 1.7, "D+": 1.3, D: 1, "D-": 0.7, F: 0
-  };
-
   private async fetchTermStats(tid: string) {
     const [enrollments, sections] = await Promise.all([
       this.prisma.enrollment.findMany({
@@ -4337,7 +4261,7 @@ export class AdminService {
     let wp = 0, cr = 0;
     for (const e of enrollments) {
       if (e.status !== "COMPLETED" || !e.finalGrade) continue;
-      const pts = this.GRADE_POINTS_MAP[e.finalGrade];
+      const pts = GRADE_POINTS[e.finalGrade];
       if (pts !== undefined) { wp += pts * e.section.credits; cr += e.section.credits; }
     }
 
@@ -6104,11 +6028,6 @@ export class AdminService {
 
     if (!user) throw new Error("Student not found");
 
-    const GRADE_POINTS: Record<string, number> = {
-      "A+": 4, "A": 4, "A-": 3.7, "B+": 3.3, "B": 3, "B-": 2.7,
-      "C+": 2.3, "C": 2, "C-": 1.7, "D+": 1.3, "D": 1, "D-": 0.7, "F": 0
-    };
-
     const completed = user.enrollments.filter((e) => e.status === "COMPLETED" && e.finalGrade);
     const graded = completed.filter((e) => GRADE_POINTS[e.finalGrade!] !== undefined);
     const totalCredits = completed.reduce((s, e) => s + e.section.course.credits, 0);
@@ -6581,10 +6500,6 @@ export class AdminService {
       select: { id: true, finalGrade: true, studentId: true }
     });
 
-    const GRADE_POINTS: Record<string, number> = {
-      "A+": 4, "A": 4, "A-": 3.7, "B+": 3.3, "B": 3, "B-": 2.7,
-      "C+": 2.3, "C": 2, "C-": 1.7, "D+": 1.3, "D": 1, "D-": 0.7, "F": 0, "W": 0
-    };
     const GRADE_ORDER = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-", "F", "W"];
 
     function boost(grade: string): string {
@@ -6655,10 +6570,6 @@ export class AdminService {
     }));
 
     const graded = rows.filter((r) => r.finalGrade !== "—");
-    const GRADE_POINTS: Record<string, number> = {
-      "A+": 4, "A": 4, "A-": 3.7, "B+": 3.3, "B": 3, "B-": 2.7,
-      "C+": 2.3, "C": 2, "C-": 1.7, "D+": 1.3, "D": 1, "D-": 0.7, "F": 0
-    };
     const avgGpa = graded.length > 0
       ? Math.round((graded.reduce((s, r) => s + (GRADE_POINTS[r.finalGrade] ?? 0), 0) / graded.length) * 100) / 100
       : null;
