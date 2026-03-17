@@ -295,7 +295,7 @@ export default async function AdminDashboardPage() {
       </section>
 
       {/* Primary stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="campus-kpi-grid">
         <StatCard label="学生" value={data.students} sub="系统内账号" href="/admin/students" />
         <StatCard label="课程" value={data.courses} sub="目录课程数" href="/admin/courses" />
         <StatCard label="教学班" value={data.sections} sub="全部学期" href="/admin/sections" />
@@ -427,7 +427,7 @@ export default async function AdminDashboardPage() {
         <EnrollmentTrendChart />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="campus-kpi-grid">
         <StatCard
           label="API"
           value={systemHealthy ? "正常" : "异常"}

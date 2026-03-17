@@ -23,6 +23,7 @@ import {
   Mail,
   Megaphone,
   ScrollText,
+  Search,
   Settings,
   Shield,
   ShieldAlert,
@@ -36,6 +37,7 @@ import {
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
 import { SkipLink } from "@/components/SkipLink";
+import { CommandPalette } from "@/components/command-palette";
 import { LogoutButton } from "@/components/logout-button";
 import SessionExpiryBanner from "@/components/SessionExpiryBanner";
 import StudentMobileNav from "@/components/StudentMobileNav";
@@ -100,7 +102,9 @@ const studentItems: NavItem[] = [
   { href: "/student/credit-summary", label: "学分汇总", icon: <BarChart3 className={iconClass} /> },
   { href: "/student/gpa-goal", label: "GPA 目标规划", icon: <BarChart3 className={iconClass} /> },
   { href: "/student/course-history", label: "课程修读历史", icon: <History className={iconClass} /> },
+  { href: "/student/term-compare", label: "学期对比", icon: <BarChart3 className={iconClass} /> },
   { href: "/student/graduation-checklist", label: "毕业条件核查", icon: <GraduationCap className={iconClass} /> },
+  { href: "/student/honors", label: "我的荣誉榜", icon: <Star className={iconClass} /> },
   { href: "/student/deadlines", label: "截止日期追踪", icon: <CalendarDays className={iconClass} /> }
 ];
 
@@ -160,6 +164,8 @@ const adminItems: NavItem[] = [
   { href: "/admin/dept-gpa", label: "学院 GPA 对比", icon: <BarChart3 className={iconClass} /> },
   { href: "/admin/retention", label: "学生留存 Cohort", icon: <BarChart3 className={iconClass} /> },
   { href: "/admin/system-health", label: "系统健康", icon: <Shield className={iconClass} /> },
+  { href: "/admin/reg-windows", label: "注册窗口管理", icon: <CalendarRange className={iconClass} /> },
+  { href: "/admin/bulk-ops", label: "批量操作", icon: <ListChecks className={iconClass} /> },
   { href: "/admin/audit-logs", label: "审计日志", icon: <ScrollText className={iconClass} /> },
   { href: "/admin/notifications", label: "通知记录", icon: <Bell className={iconClass} /> },
   { href: "/admin/sessions", label: "会话管理", icon: <Shield className={iconClass} /> },
@@ -204,6 +210,7 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [announcementCount, setAnnouncementCount] = useState(0);
   const navMeta = areaMeta[area];
   const sidebarId = "sidebar";
@@ -228,6 +235,15 @@ export function AppShell({
     return currentNavItem ? `${navMeta.label} / ${currentNavItem.label}` : navMeta.label;
   }, [currentNavItem, navMeta.label]);
   const userInitial = (userLabel.trim().slice(0, 1) || navMeta.label.slice(0, 1)).toUpperCase();
+  const quickNavigation = useMemo(() => {
+    const merged = [...studentItems, ...adminItems];
+    const seen = new Set<string>();
+    return merged.filter((item) => {
+      if (seen.has(item.href)) return false;
+      seen.add(item.href);
+      return true;
+    }).map((item) => ({ href: item.href, label: item.label }));
+  }, []);
 
   const navGroups = useMemo(() => {
     const groups: NavGroup[] =
@@ -236,6 +252,7 @@ export function AppShell({
             { label: "概览", hrefs: ["/admin/dashboard", "/admin/alerts", "/admin/search"] },
             { label: "学术管理", hrefs: ["/admin/students", "/admin/students/at-risk", "/admin/student-progress", "/admin/dropout-risk", "/admin/graduation", "/admin/instructors", "/admin/faculty-schedule", "/admin/courses", "/admin/sections", "/admin/terms", "/admin/calendar"] },
             { label: "注册管理", hrefs: ["/admin/enrollments", "/admin/section-swap", "/admin/closeout", "/admin/waitlist", "/admin/waitlist-analytics", "/admin/holds", "/admin/requests", "/admin/appeals"] },
+            { label: "工具", hrefs: ["/admin/bulk-ops", "/admin/reg-windows"] },
             { label: "系统", hrefs: ["/admin/announcements", "/admin/cohort-message", "/admin/status-email", "/admin/invite-codes", "/admin/import", "/admin/export", "/admin/reports", "/admin/grade-distribution", "/admin/demand", "/admin/capacity-plan", "/admin/term-compare", "/admin/registration-heatmap", "/admin/prereq-audit", "/admin/offering-history", "/admin/cohort-analytics", "/admin/term-enrollment-forecast", "/admin/course-demand-compare", "/admin/enrollment-audit", "/admin/top-performers", "/admin/dept-workload", "/admin/enrollment-velocity", "/admin/prereq-map", "/admin/grade-curve", "/admin/section-roster", "/admin/term-capacity", "/admin/major-trends", "/admin/late-drops", "/admin/course-pairings", "/admin/instructor-performance", "/admin/dept-gpa", "/admin/retention", "/admin/system-health", "/admin/digest", "/admin/audit-logs", "/admin/notifications", "/admin/sessions", "/admin/settings"] }
           ]
         : area === "faculty"
@@ -245,7 +262,7 @@ export function AppShell({
         : [
             { label: "概览", hrefs: ["/student/dashboard", "/student/notifications", "/student/announcements"] },
             { label: "选课", hrefs: ["/student/catalog", "/student/readiness", "/student/planner", "/student/cart", "/student/quick-add", "/student/waitlist", "/student/conflicts", "/student/schedule", "/student/schedule-image", "/student/receipt"] },
-            { label: "学业", hrefs: ["/student/grades", "/student/degree", "/student/degree-audit", "/student/standing", "/student/recommendations", "/student/what-if", "/student/credit-summary", "/student/gpa-goal", "/student/course-history", "/student/graduation-checklist", "/student/deadlines", "/student/gpa-sim", "/student/grade-estimator", "/student/peer-compare", "/student/enrollment-timeline", "/student/enrollment-log", "/student/transcript", "/student/calendar", "/student/history", "/student/bookmarks", "/student/watched", "/student/study-timer", "/student/reviews", "/student/my-notes", "/student/appeals", "/student/advisor", "/student/settings", "/student/contact", "/student/profile", "/student/help"] }
+            { label: "学业", hrefs: ["/student/grades", "/student/degree", "/student/degree-audit", "/student/standing", "/student/recommendations", "/student/what-if", "/student/credit-summary", "/student/gpa-goal", "/student/course-history", "/student/term-compare", "/student/honors", "/student/graduation-checklist", "/student/deadlines", "/student/gpa-sim", "/student/grade-estimator", "/student/peer-compare", "/student/enrollment-timeline", "/student/enrollment-log", "/student/transcript", "/student/calendar", "/student/history", "/student/bookmarks", "/student/watched", "/student/study-timer", "/student/reviews", "/student/my-notes", "/student/appeals", "/student/advisor", "/student/settings", "/student/contact", "/student/profile", "/student/help"] }
           ];
 
     return groups
@@ -278,6 +295,26 @@ export function AppShell({
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [sidebarOpen]);
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const isShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
+      if (isShortcut) {
+        event.preventDefault();
+        setIsPaletteOpen(true);
+      }
+      if (event.key === "Escape") {
+        setIsPaletteOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   useEffect(() => {
     if (area !== "admin") return;
@@ -330,7 +367,7 @@ export function AppShell({
       <SessionExpiryBanner />
       <SkipLink />
       <div
-        className={`fixed inset-0 z-40 bg-slate-950/45 transition md:hidden ${
+        className={`fixed inset-0 z-40 bg-slate-950/45 transition lg:hidden ${
           sidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         onClick={() => setSidebarOpen(false)}
@@ -342,8 +379,8 @@ export function AppShell({
         aria-modal={sidebarOpen ? "true" : undefined}
         aria-label={`${navMeta.label} navigation`}
         id={sidebarId}
-        className={`no-print fixed inset-y-0 left-0 z-50 w-64 border-r border-[hsl(221_20%_91%)] bg-white text-slate-900 shadow-[0_24px_55px_-40px_rgba(15,23,42,0.4)] transition-transform md:block md:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "hidden -translate-x-full"
+        className={`app-shell-sidebar no-print fixed inset-y-0 left-0 z-50 w-64 border-r border-[hsl(221_20%_91%)] bg-white text-slate-900 shadow-[0_24px_55px_-40px_rgba(15,23,42,0.4)] transition-transform duration-200 ease-out lg:translate-x-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="flex h-16 items-center justify-between border-b border-[hsl(221_20%_91%)] px-5">
@@ -354,7 +391,7 @@ export function AppShell({
           <button
             type="button"
             onClick={() => setSidebarOpen(false)}
-            className="inline-flex size-8 items-center justify-center rounded-md border border-slate-300 text-slate-600 hover:bg-slate-100 md:hidden"
+            className="inline-flex size-8 items-center justify-center rounded-md border border-slate-300 text-slate-600 hover:bg-slate-100 lg:hidden"
             aria-label="Close sidebar"
           >
             <X className="size-4" />
@@ -387,20 +424,24 @@ export function AppShell({
         </div>
       </aside>
 
-      <div className="relative md:pl-64">
+      <div className="relative lg:pl-64">
         <header className="no-print sticky top-0 z-30 border-b border-[hsl(221_20%_91%)] bg-white">
           <div className="mx-auto flex h-14 max-w-[1360px] items-center justify-between px-4 md:px-8 lg:px-10">
-            <div className="flex min-w-0 items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3 lg:hidden">
               <button
                 type="button"
                 onClick={() => setSidebarOpen((prev) => !prev)}
-                className="inline-flex size-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 md:hidden"
+                className="inline-flex size-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 lg:hidden"
                 aria-label="Toggle sidebar"
                 aria-controls={sidebarId}
                 aria-expanded={sidebarOpen}
               >
                 <AlignJustify className="size-4" />
               </button>
+              <h1 className="truncate text-sm font-semibold text-slate-900">{pageTitle}</h1>
+            </div>
+
+            <div className="hidden min-w-0 items-center gap-3 lg:flex">
               <div className="min-w-0">
                 <p className="truncate text-[11px] font-medium tracking-[0.06em] text-slate-500">
                   {breadcrumb}
@@ -410,9 +451,27 @@ export function AppShell({
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsPaletteOpen(true)}
+                className="hidden items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm transition hover:bg-slate-50 lg:inline-flex"
+                aria-label="Open command palette"
+              >
+                <Search className="size-4" />
+                <span>搜索</span>
+                <span className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] text-slate-500">⌘K</span>
+              </button>
               {area === "student" ? (
+                <div className="hidden lg:block">
                 <NotificationBell apiBase={API_URL} />
+                </div>
               ) : null}
+              <div className="hidden items-center gap-3 lg:flex">
+                <div className="min-w-0 text-right">
+                  <p className="truncate text-sm font-semibold text-slate-900">{userLabel}</p>
+                  <p className="truncate text-xs text-slate-500">{navMeta.label}</p>
+                </div>
+              </div>
               <span className="inline-flex size-9 items-center justify-center rounded-full bg-[hsl(221_83%_43%)] text-sm font-semibold text-white">
                 {userInitial}
               </span>
@@ -427,6 +486,12 @@ export function AppShell({
           <div style={{ animation: "fadeSlideIn 0.18s ease forwards" }}>{children}</div>
         </main>
       </div>
+      <CommandPalette
+        isOpen={isPaletteOpen}
+        onClose={() => setIsPaletteOpen(false)}
+        navigationItems={quickNavigation}
+        isAdmin={area === "admin"}
+      />
       {area === "student" ? <StudentMobileNav /> : null}
     </div>
   );

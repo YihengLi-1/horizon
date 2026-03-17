@@ -679,7 +679,8 @@ export default function SchedulePage() {
                 ))}
               </div>
 
-              <div className="hidden max-h-[460px] overflow-auto md:block">
+              <div className="hidden overflow-x-auto -mx-4 px-4 md:block">
+              <div className="max-h-[460px] overflow-auto">
                 <table className="campus-table">
             <thead className="sticky top-0 z-10">
               <tr>
@@ -790,7 +791,8 @@ export default function SchedulePage() {
                 ))
               )}
             </tbody>
-          </table>
+                </table>
+              </div>
               </div>
             </>
           )}
@@ -822,7 +824,7 @@ export default function SchedulePage() {
               {enrollments.length === 0 ? "本学期暂无课程" : "当前筛选下没有可展示的课程。"}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto -mx-4 px-4">
               <div className="grid min-w-[980px] grid-cols-[60px_repeat(7,minmax(0,1fr))] auto-rows-[28px]">
                 <div className="border-b border-r border-slate-200 bg-slate-50" />
                 {GRID_DAY_INDEXES.map((weekday) => (

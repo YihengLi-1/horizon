@@ -28,7 +28,11 @@ function createAdminService() {
     log: jest.fn()
   } as any;
   const notificationsService = {} as any;
-  return { prisma, auditService, service: new AdminService(prisma, auditService, notificationsService) };
+  const registrationService = {
+    enroll: jest.fn(),
+    dropEnrollment: jest.fn()
+  } as any;
+  return { prisma, auditService, service: new AdminService(prisma, auditService, notificationsService, registrationService) };
 }
 
 describe("AdminService helpers", () => {

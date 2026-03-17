@@ -911,6 +911,69 @@ export class AdminController {
     return ok(await this.adminService.getRetentionCohort());
   }
 
+  @Post("bulk-enroll")
+  @RequireAdminPermissions("enrollments:write")
+  async bulkEnroll(
+    @Body() body: { studentIds?: string[]; sectionId?: string },
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(
+      await this.adminService.bulkEnroll(body.studentIds ?? [], body.sectionId ?? "", user.userId)
+    );
+  }
+
+  @Post("bulk-drop")
+  @RequireAdminPermissions("enrollments:write")
+  async bulkDrop(
+    @Body() body: { enrollmentIds?: string[] },
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(await this.adminService.bulkDrop(body.enrollmentIds ?? [], user.userId));
+  }
+
+  @Post("bulk-update-status")
+  @RequireAdminPermissions("students:write")
+  async bulkUpdateStatus(
+    @Body() body: { studentIds?: string[]; status?: string },
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(
+      await this.adminService.bulkUpdateStudentStatus(body.studentIds ?? [], body.status ?? "", user.userId)
+    );
+  }
+
+  @Get("reg-windows")
+  @RequireAdminPermissions("terms:read")
+  async regWindows() {
+    return ok(await this.adminService.getRegistrationWindows());
+  }
+
+  @Post("reg-windows")
+  @RequireAdminPermissions("terms:write")
+  async createRegWindow(
+    @Body() body: { termId?: string; openAt?: string; closeAt?: string },
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(
+      await this.adminService.updateRegistrationWindow(
+        body.termId ?? "",
+        body.openAt ?? "",
+        body.closeAt ?? "",
+        user.userId
+      )
+    );
+  }
+
+  @Patch("reg-windows/:termId")
+  @RequireAdminPermissions("terms:write")
+  async updateRegWindow(
+    @Param("termId") termId: string,
+    @Body() body: { openAt?: string; closeAt?: string },
+    @CurrentUser() user: { userId: string }
+  ) {
+    return ok(await this.adminService.updateRegistrationWindow(termId, body.openAt ?? "", body.closeAt ?? "", user.userId));
+  }
+
   @Get("system-health")
   @RequireAdminPermissions("dashboard:read")
   async systemHealth() {

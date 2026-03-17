@@ -22,6 +22,7 @@ import { maintenanceModeCache } from "../common/maintenance.middleware";
 import { sanitizeHtml } from "../common/sanitize";
 import { dispatch } from "../common/webhook";
 import { NotificationsService } from "../notifications/notifications.service";
+import { RegistrationService } from "../registration/registration.service";
 
 type CreateTermInput = z.infer<typeof createTermSchema>;
 type CreateCourseInput = z.infer<typeof createCourseSchema>;
@@ -230,8 +231,29 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
-    private readonly notificationsService: NotificationsService
+    private readonly notificationsService: NotificationsService,
+    private readonly registrationService: RegistrationService
   ) {}
+
+  private normalizeAdminActionError(error: unknown): string {
+    if (error && typeof error === "object" && "getResponse" in error && typeof error.getResponse === "function") {
+      const response = error.getResponse() as unknown;
+      if (typeof response === "string") return response;
+      if (response && typeof response === "object") {
+        const message = (response as { message?: unknown; code?: unknown }).message;
+        if (typeof message === "string") return message;
+        if (Array.isArray(message)) return message.join(", ");
+        const code = (response as { code?: unknown }).code;
+        if (typeof code === "string") return code;
+      }
+    }
+
+    return error instanceof Error ? error.message : "Unknown error";
+  }
+
+  private normalizeUniqueIds(values: string[]): string[] {
+    return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+  }
 
   private getImportCacheKey(scope: string, actorUserId: string, idempotencyKey: string): string {
     return `${scope}::${actorUserId}::${idempotencyKey}`;
@@ -6725,6 +6747,197 @@ export class AdminService {
         retention: cohort.retention.sort((a, b) => a.offset - b.offset)
       }))
     };
+  }
+
+  async bulkEnroll(studentIds: string[], sectionId: string, actorUserId: string) {
+    const uniqueStudentIds = this.normalizeUniqueIds(studentIds);
+    const normalizedSectionId = sectionId.trim();
+
+    if (!normalizedSectionId || uniqueStudentIds.length === 0) {
+      throw new BadRequestException({
+        code: "BULK_INPUT_INVALID",
+        message: "sectionId and at least one studentId are required"
+      });
+    }
+
+    const succeeded: string[] = [];
+    const failed: Array<{ studentId: string; reason: string }> = [];
+
+    for (const studentId of uniqueStudentIds) {
+      try {
+        await this.registrationService.enroll(studentId, normalizedSectionId);
+        succeeded.push(studentId);
+      } catch (error) {
+        failed.push({
+          studentId,
+          reason: this.normalizeAdminActionError(error)
+        });
+      }
+    }
+
+    await this.auditService.log({
+      actorUserId,
+      action: "ADMIN_BULK_ENROLL",
+      entityType: "section",
+      entityId: normalizedSectionId,
+      metadata: {
+        requestedCount: uniqueStudentIds.length,
+        succeededCount: succeeded.length,
+        failedCount: failed.length
+      }
+    });
+
+    return { succeeded, failed };
+  }
+
+  async bulkDrop(enrollmentIds: string[], actorUserId: string) {
+    const uniqueEnrollmentIds = this.normalizeUniqueIds(enrollmentIds);
+
+    if (uniqueEnrollmentIds.length === 0) {
+      throw new BadRequestException({
+        code: "BULK_INPUT_INVALID",
+        message: "At least one enrollmentId is required"
+      });
+    }
+
+    const failed: Array<{ enrollmentId: string; reason: string }> = [];
+    let succeeded = 0;
+
+    for (const enrollmentId of uniqueEnrollmentIds) {
+      try {
+        const enrollment = await this.prisma.enrollment.findUnique({
+          where: { id: enrollmentId },
+          select: { id: true, studentId: true }
+        });
+
+        if (!enrollment) {
+          failed.push({ enrollmentId, reason: "Enrollment not found" });
+          continue;
+        }
+
+        await this.registrationService.dropEnrollment(enrollment.studentId, { enrollmentId }, undefined as never);
+        succeeded += 1;
+      } catch (error) {
+        failed.push({
+          enrollmentId,
+          reason: this.normalizeAdminActionError(error)
+        });
+      }
+    }
+
+    await this.auditService.log({
+      actorUserId,
+      action: "ADMIN_BULK_DROP",
+      entityType: "enrollment",
+      metadata: {
+        requestedCount: uniqueEnrollmentIds.length,
+        succeededCount: succeeded,
+        failedCount: failed.length
+      }
+    });
+
+    return { succeeded, failed };
+  }
+
+  async bulkUpdateStudentStatus(studentIds: string[], status: string, actorUserId: string) {
+    const uniqueStudentIds = this.normalizeUniqueIds(studentIds);
+    const normalized = status.trim().toUpperCase();
+    const statusMap: Record<string, string> = {
+      ACTIVE: "Active",
+      INACTIVE: "Inactive",
+      SUSPENDED: "Suspended"
+    };
+    const mappedStatus = statusMap[normalized];
+
+    if (!mappedStatus || uniqueStudentIds.length === 0) {
+      throw new BadRequestException({
+        code: "BULK_INPUT_INVALID",
+        message: "studentIds and a valid status are required"
+      });
+    }
+
+    const result = await this.prisma.studentProfile.updateMany({
+      where: {
+        userId: { in: uniqueStudentIds }
+      },
+      data: {
+        academicStatus: mappedStatus
+      }
+    });
+
+    await this.auditService.log({
+      actorUserId,
+      action: "ADMIN_BULK_UPDATE_STUDENT_STATUS",
+      entityType: "student_profile",
+      metadata: {
+        requestedCount: uniqueStudentIds.length,
+        updated: result.count,
+        status: mappedStatus
+      }
+    });
+
+    return { updated: result.count };
+  }
+
+  async getRegistrationWindows() {
+    const now = Date.now();
+    const terms = await this.prisma.term.findMany({
+      orderBy: { startDate: "desc" },
+      select: {
+        id: true,
+        name: true,
+        startDate: true,
+        endDate: true,
+        registrationOpenAt: true,
+        registrationCloseAt: true
+      }
+    });
+
+    return terms.map((term) => {
+      const openAt = new Date(term.registrationOpenAt).getTime();
+      const closeAt = new Date(term.registrationCloseAt).getTime();
+      const status = now < openAt ? "scheduled" : now > closeAt ? "closed" : "open";
+      return {
+        ...term,
+        status
+      };
+    });
+  }
+
+  async updateRegistrationWindow(termId: string, openAt: string, closeAt: string, actorUserId: string) {
+    if (!termId.trim() || !openAt || !closeAt) {
+      throw new BadRequestException({
+        code: "WINDOW_INPUT_INVALID",
+        message: "termId, openAt, and closeAt are required"
+      });
+    }
+
+    const updated = await this.prisma.term.update({
+      where: { id: termId },
+      data: {
+        registrationOpenAt: new Date(openAt),
+        registrationCloseAt: new Date(closeAt)
+      },
+      select: {
+        id: true,
+        name: true,
+        registrationOpenAt: true,
+        registrationCloseAt: true
+      }
+    });
+
+    await this.auditService.log({
+      actorUserId,
+      action: "ADMIN_UPDATE_REG_WINDOW",
+      entityType: "term",
+      entityId: termId,
+      metadata: {
+        registrationOpenAt: updated.registrationOpenAt,
+        registrationCloseAt: updated.registrationCloseAt
+      }
+    });
+
+    return updated;
   }
 
   async getSystemHealth() {

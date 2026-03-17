@@ -154,7 +154,7 @@ export default function EnrollmentAuditPage() {
           <div className="px-4 py-2 border-b border-slate-100 text-xs text-slate-500">
             显示 {filtered.length} 条（最多 500 条）
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto -mx-4 px-4">
             <table className="campus-table text-xs">
               <thead>
                 <tr>
