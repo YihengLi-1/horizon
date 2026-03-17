@@ -373,6 +373,7 @@ model CartItem {
   section   Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, termId, sectionId])
+  @@index([studentId])
 }
 
 model AuditLog {
@@ -432,10 +433,12 @@ model Announcement {
   title     String
   body      String
   audience  String   @default("ALL")
+  active    Boolean  @default(true)
   pinned    Boolean  @default(false)
   createdAt DateTime @default(now())
   expiresAt DateTime?
 
+  @@index([active, expiresAt])
   @@index([expiresAt])
   @@index([audience])
 }

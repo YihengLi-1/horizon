@@ -21,6 +21,7 @@ import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../common/prisma.service";
 import { apiCache } from "../common/cache";
 import { maintenanceModeCache } from "../common/maintenance.middleware";
+import { getTermStatus } from "../common/term-status";
 import { sanitizeHtml } from "../common/sanitize";
 import { dispatch } from "../common/webhook";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -2490,6 +2491,7 @@ export class AdminService {
 
   async getAnnouncements() {
     return this.prisma.announcement.findMany({
+      where: { active: true },
       orderBy: [{ pinned: "desc" }, { createdAt: "desc" }]
     });
   }
@@ -2555,6 +2557,7 @@ export class AdminService {
         title,
         body,
         audience: data.audience ?? "ALL",
+        active: true,
         pinned: data.pinned ?? false,
         expiresAt: data.expiresAt ? new Date(data.expiresAt) : null
       }
@@ -2590,7 +2593,10 @@ export class AdminService {
   }
 
   async deleteAnnouncement(id: string) {
-    return this.prisma.announcement.delete({ where: { id } });
+    return this.prisma.announcement.update({
+      where: { id },
+      data: { active: false }
+    });
   }
 
   async getRegistrationStats() {
@@ -7276,9 +7282,7 @@ export class AdminService {
     });
 
     return terms.map((term) => {
-      const openAt = new Date(term.registrationOpenAt).getTime();
-      const closeAt = new Date(term.registrationCloseAt).getTime();
-      const status = now < openAt ? "scheduled" : now > closeAt ? "closed" : "open";
+      const status = getTermStatus(term, new Date(now));
       return {
         ...term,
         status,
