@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import ProfileCompletenessCard from "@/components/profile-completeness-card";
 import { useToast } from "@/components/Toast";
 import { apiFetch } from "@/lib/api";
 
@@ -23,9 +24,20 @@ type ProfileResponse = {
 
 type FormState = {
   legalName: string;
+  programMajor: string;
   dob: string;
   address: string;
   emergencyContact: string;
+};
+
+type ProfileCompletenessResponse = {
+  score: number;
+  missing: string[];
+  fields: Array<{
+    name: string;
+    label: string;
+    filled: boolean;
+  }>;
 };
 
 type TranscriptRow = {
@@ -110,6 +122,22 @@ function getGradient(name: string): string {
     hash = (hash * 31 + char.charCodeAt(0)) & 0xffffffff;
   }
   return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
+}
+
+function buildCompleteness(form: FormState): ProfileCompletenessResponse {
+  const fields = [
+    { name: "legalName", label: "姓名", filled: Boolean(form.legalName.trim()) },
+    { name: "programMajor", label: "专业", filled: Boolean(form.programMajor.trim()) },
+    { name: "dob", label: "出生日期", filled: Boolean(form.dob) },
+    { name: "address", label: "地址", filled: Boolean(form.address.trim()) },
+    { name: "emergencyContact", label: "紧急联系人", filled: Boolean(form.emergencyContact.trim()) }
+  ];
+
+  return {
+    score: fields.reduce((sum, field) => sum + (field.filled ? 20 : 0), 0),
+    missing: fields.filter((field) => !field.filled).map((field) => field.label),
+    fields
+  };
 }
 
 function ChangePasswordCard() {
@@ -265,8 +293,9 @@ function ChangePasswordCard() {
 }
 
 export default function StudentProfilePage() {
+  const toast = useToast();
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
-  const [form, setForm] = useState<FormState>({ legalName: "", dob: "", address: "", emergencyContact: "" });
+  const [form, setForm] = useState<FormState>({ legalName: "", programMajor: "", dob: "", address: "", emergencyContact: "" });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -288,6 +317,7 @@ export default function StudentProfilePage() {
         setProfile(data);
         setForm({
           legalName: data.legalName || "",
+          programMajor: data.programMajor || "",
           dob: data.dob ? new Date(data.dob).toISOString().slice(0, 10) : "",
           address: data.address || "",
           emergencyContact: data.emergencyContact || ""
@@ -390,19 +420,22 @@ export default function StudentProfilePage() {
     setError("");
     setSaving(true);
     try {
-      await apiFetch("/students/me", {
+      await apiFetch("/students/profile", {
         method: "PATCH",
         body: JSON.stringify({
           ...form,
           dob: form.dob ? new Date(form.dob).toISOString() : null
         })
       });
-      setMessage("Profile saved successfully.");
+      toast.success("档案已保存");
+      setMessage("档案已保存。");
       if (profile) {
         setProfile({ ...profile, ...form, dob: form.dob || null });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Update failed");
+      const nextError = err instanceof Error ? err.message : "Update failed";
+      setError(nextError);
+      toast.error(nextError);
     } finally {
       setSaving(false);
     }
@@ -443,6 +476,7 @@ export default function StudentProfilePage() {
         : academicStanding === "Academic Probation"
           ? "text-red-600 bg-red-50 border-red-200"
           : "text-slate-600 bg-slate-50 border-slate-200";
+  const completeness = useMemo(() => buildCompleteness(form), [form]);
   const saveGoal = () => {
     const next = goalDraft.trim();
     setGoal(next);
@@ -475,6 +509,34 @@ export default function StudentProfilePage() {
 
   return (
     <div className="campus-page">
+      <section className="campus-hero">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-3xl space-y-2">
+            <p className="campus-eyebrow">Student Profile</p>
+            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">我的档案</h1>
+            <p className="text-base text-slate-600">完善档案信息，确保教务通知、学业支持和注册流程都基于最新资料。</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="campus-chip chip-blue">{profile?.user.studentId ?? "Student"}</span>
+            <span className="campus-chip chip-purple">{form.programMajor || "未填写专业"}</span>
+          </div>
+        </div>
+        <div className="mt-4">
+          <div className="mb-2 flex items-center justify-between text-sm text-slate-600">
+            <span>当前完整度</span>
+            <span className="font-semibold text-slate-900">{completeness.score}%</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+            <div
+              className={`h-full rounded-full transition-all ${
+                completeness.score > 80 ? "bg-emerald-500" : completeness.score >= 60 ? "bg-amber-500" : "bg-red-500"
+              }`}
+              style={{ width: `${completeness.score}%` }}
+            />
+          </div>
+        </div>
+      </section>
+
       <section className="campus-card overflow-hidden p-0">
         <div className="relative border-b border-slate-200 bg-slate-50 px-5 py-6 md:px-7">
           <div className="relative flex flex-wrap items-center justify-between gap-4">
@@ -504,7 +566,7 @@ export default function StudentProfilePage() {
 
         <div className="grid gap-4 px-5 py-4 md:grid-cols-3 md:px-7">
           <Field label="Student ID" value={profile?.user.studentId ?? "—"} readOnly />
-          <Field label="Major" value={profile?.programMajor ?? "—"} readOnly />
+          <Field label="Major" value={form.programMajor || "—"} readOnly />
           <Field label="Email" value={profile?.user.email ?? "—"} readOnly />
         </div>
       </section>
@@ -516,7 +578,7 @@ export default function StudentProfilePage() {
           <form onSubmit={onSubmit} className="campus-card overflow-hidden">
             <div className="border-b border-slate-200 px-5 py-4 md:px-6">
               <h2 className="text-lg font-semibold text-slate-900">Personal Information</h2>
-              <p className="mt-0.5 text-sm text-slate-500">Update your legal name, date of birth, and contact information.</p>
+              <p className="mt-0.5 text-sm text-slate-500">更新姓名、专业、出生日期和联系信息，提升档案完整度。</p>
             </div>
             <div className="grid gap-5 px-5 py-5 sm:grid-cols-2 md:px-6">
               <div className="sm:col-span-2">
@@ -527,6 +589,12 @@ export default function StudentProfilePage() {
                   onChange={(v) => setForm((prev) => ({ ...prev, legalName: v }))}
                 />
               </div>
+              <Field
+                label="Major"
+                value={form.programMajor}
+                placeholder="Program / Major"
+                onChange={(v) => setForm((prev) => ({ ...prev, programMajor: v }))}
+              />
               <Field
                 label="Date of Birth"
                 type="date"
@@ -573,6 +641,13 @@ export default function StudentProfilePage() {
           </form>
 
           <aside className="space-y-4">
+            <ProfileCompletenessCard
+              score={completeness.score}
+              missing={completeness.missing}
+              fields={completeness.fields}
+              title="档案完成度"
+            />
+
             <section className="campus-card p-4">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Enrollment Summary</h3>
               {summaryError ? (

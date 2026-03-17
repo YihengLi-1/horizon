@@ -104,6 +104,12 @@ export class StudentsController {
     return ok(await this.studentsService.getStudentHonors(user.userId));
   }
 
+  @Roles("STUDENT")
+  @Get("profile-completeness")
+  async getProfileCompleteness(@CurrentUser() user: { userId: string }) {
+    return ok(await this.studentsService.getProfileCompleteness(user.userId));
+  }
+
   @Roles("STUDENT", "ADMIN")
   @Post("schedule/share")
   async shareSchedule(@CurrentUser() user: { userId: string }, @Body() body: { termId?: string }) {
@@ -159,6 +165,15 @@ export class StudentsController {
     @Body(new ZodValidationPipe(updateProfileSchema)) body: unknown
   ) {
     return ok(await this.studentsService.updateMyProfile(user.userId, body as never));
+  }
+
+  @Roles("STUDENT")
+  @Patch("profile")
+  async updateProfile(
+    @CurrentUser() user: { userId: string },
+    @Body(new ZodValidationPipe(updateProfileSchema)) body: unknown
+  ) {
+    return ok(await this.studentsService.updateStudentProfile(user.userId, body as never));
   }
 
   @Roles("STUDENT", "ADMIN")

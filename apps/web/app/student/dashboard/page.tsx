@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle, BellRing, BookOpenCheck, CalendarClock, GraduationCap, Sparkles } from "lucide-react";
+import ProfileCompletenessCard from "@/components/profile-completeness-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { serverApi } from "@/lib/server-api";
 import { requireRole } from "@/lib/server-auth";
@@ -76,6 +77,16 @@ type Announcement = {
   audience: string;
   pinned: boolean;
   expiresAt?: string | null;
+};
+
+type ProfileCompleteness = {
+  score: number;
+  missing: string[];
+  fields: Array<{
+    name: string;
+    label: string;
+    filled: boolean;
+  }>;
 };
 
 const GRADE_POINTS: Record<string, number> = {
@@ -234,11 +245,16 @@ function getNextAction(enrollments: Enrollment[], cartItems: CartItem[], term: T
 }
 
 export default async function StudentDashboardPage() {
-  const [terms, me, grades, announcements] = await Promise.all([
+  const [terms, me, grades, announcements, profileCompleteness] = await Promise.all([
     serverApi<Term[]>("/academics/terms").catch(() => [] as Term[]),
     requireRole("STUDENT"),
     serverApi<GradeItem[]>("/registration/grades").catch(() => [] as GradeItem[]),
-    serverApi<Announcement[]>("/students/announcements").catch(() => [] as Announcement[])
+    serverApi<Announcement[]>("/students/announcements").catch(() => [] as Announcement[]),
+    serverApi<ProfileCompleteness>("/students/profile-completeness").catch(() => ({
+      score: 0,
+      missing: [],
+      fields: []
+    }))
   ]);
 
   const term = terms[0] ?? null;
@@ -543,6 +559,12 @@ export default async function StudentDashboardPage() {
           </div>
         )}
       </section>
+
+      <ProfileCompletenessCard
+        score={profileCompleteness.score}
+        missing={profileCompleteness.missing}
+        fields={profileCompleteness.fields}
+      />
 
       {/* Degree progress bar */}
       {completedCredits > 0 ? (

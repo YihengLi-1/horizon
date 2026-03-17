@@ -6,6 +6,7 @@
 - 2026-03-16: 557 pass, 0 warn, 0 fail
 - 2026-03-16: 568 pass, 0 warn, 0 fail
 - 2026-03-16: 593 pass, 0 warn, 0 fail
+- 2026-03-16: 615 pass, 0 warn, 0 fail
 
 ## Entries
 
@@ -15,6 +16,9 @@
 - 275. Implemented `/student/term-compare` with raw SQL term-by-term GPA/credits/course count analysis, SVG dual-axis trend chart, comparison table, CSV export, and student nav wiring.
 - 276. Implemented `/admin/reg-windows` with admin GET/POST/PATCH registration-window management over term open/close timestamps, inline datetime editing, and tool-nav wiring.
 - 277. Implemented `/student/honors` with raw SQL honor determination for dean's list / honors dean's list / academic excellence / full-attendance scholar and a badge-wall student UI.
+- 278. Added a notification center with `/notifications`, `/notifications/unread-count`, and `/notifications/:id/read`, plus a global bell dropdown with 30s polling.
+- 279. Added student profile completeness with `/students/profile-completeness`, `/students/profile`, a reusable circular completeness card, and upgraded dashboard/profile UX.
+- 280. Added `/admin/announcements-mgmt`, `/student/saved-courses`, and audit-log-backed student tags with admin drawer editing and dedicated `/admin/student-tags` route.
 
 ## Session 21
 
@@ -36,3 +40,11 @@
 - C：新增 admin 批量操作能力，落地 `bulk-enroll / bulk-drop / bulk-update-status` API 与 `/admin/bulk-ops` 三标签页执行中心。
 - D：新增功能 275/276/277：`/student/term-compare`、`/admin/reg-windows`、`/student/honors`，并补齐对应 service/controller/page/nav。
 - 本轮 gate 实跑结果为 `593 pass, 0 warn, 0 fail`；本次保持 Inter 字体系统与升级后的 campus-* 设计系统不回退。
+
+## Session 23
+
+- A：新增通知中心，落地 `/notifications`、`/notifications/unread-count`、`/notifications/:id/read`，并把铃铛组件接入 app shell 顶栏，支持 30 秒轮询与全部标记已读。
+- B：新增双层 `ErrorBoundary` 与集中式 `ToastProvider + useToast`，`quick-add` 已接入新的 toast API，错误与提示不再分散在页面里各自实现。
+- C：落地学生档案完整度：新增 `profile-completeness` API、`/students/profile` 保存接口、圆形进度卡片，并升级 `/student/profile` 与 `/student/dashboard` 的完整度展示与编辑体验。
+- D：交付功能 278/279/280：`/admin/announcements-mgmt`、`/student/saved-courses`、`/admin/student-tags`，其中学生标签采用审计日志快照方案，避免引入本轮 schema 迁移风险。
+- 本轮 gate 实跑结果为 `615 pass, 0 warn, 0 fail`；字体系统保持为 Inter，升级后的 campus-* 设计系统继续沿用且未回退。

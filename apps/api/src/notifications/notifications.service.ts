@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import nodemailer, { type Transporter } from "nodemailer";
 import {
   buildEnrollmentSubmissionEmail,
@@ -192,5 +193,101 @@ export class NotificationsService {
     finalGrade: string;
   }): Promise<boolean> {
     return this.send({ to: input.to, ...buildGradePostedEmail(input) });
+  }
+
+  async getNotifications(userId: string) {
+    type NotificationAuditRow = {
+      id: string;
+      action: string;
+      metadata: Prisma.JsonValue | null;
+      createdAt: Date;
+    };
+
+    const rows = await this.prisma.$queryRaw<NotificationAuditRow[]>(Prisma.sql`
+      SELECT
+        al.id,
+        al.action,
+        al.metadata,
+        al."createdAt"
+      FROM "AuditLog" al
+      WHERE al."actorUserId" = ${userId}
+         OR (
+           UPPER(al.action) LIKE 'WAITLIST%'
+           AND al.metadata ->> 'studentId' = ${userId}
+         )
+      ORDER BY al."createdAt" DESC
+      LIMIT 30
+    `);
+
+    return rows.map((row) => {
+      const metadata = (row.metadata && typeof row.metadata === "object" ? row.metadata : {}) as Record<string, unknown>;
+      const action = row.action.toUpperCase();
+      const courseCode =
+        typeof metadata.course === "string"
+          ? metadata.course
+          : typeof metadata.courseCode === "string"
+            ? metadata.courseCode
+            : typeof metadata.sectionId === "string"
+              ? metadata.sectionId
+              : "课程";
+
+      if (action.includes("WAITLIST")) {
+        return {
+          id: row.id,
+          type: "warning",
+          title: "候补名单更新",
+          body: `${courseCode} 的候补状态有更新`,
+          read: false,
+          createdAt: row.createdAt
+        };
+      }
+      if (action.includes("DROP")) {
+        return {
+          id: row.id,
+          type: "error",
+          title: "退课记录",
+          body: `${courseCode} 已发生退课变更`,
+          read: false,
+          createdAt: row.createdAt
+        };
+      }
+      if (action.includes("ENROLL")) {
+        return {
+          id: row.id,
+          type: "success",
+          title: "选课状态更新",
+          body: `${courseCode} 的选课记录已更新`,
+          read: false,
+          createdAt: row.createdAt
+        };
+      }
+
+      return {
+        id: row.id,
+        type: "info",
+        title: row.action,
+        body: typeof metadata.message === "string" ? metadata.message : "有一条新的系统记录",
+        read: false,
+        createdAt: row.createdAt
+      };
+    });
+  }
+
+  async markNotificationRead(_id: string) {
+    return { ok: true };
+  }
+
+  async getUnreadCount(userId: string) {
+    const rows = await this.prisma.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+      SELECT COUNT(*)::int AS count
+      FROM "AuditLog" al
+      WHERE al."actorUserId" = ${userId}
+         OR (
+           UPPER(al.action) LIKE 'WAITLIST%'
+           AND al.metadata ->> 'studentId' = ${userId}
+         )
+    `);
+
+    return { count: Number(rows[0]?.count ?? 0) };
   }
 }
