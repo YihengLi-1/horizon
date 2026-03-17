@@ -1670,7 +1670,7 @@ export class RegistrationService {
       (normalizedInstructor.length > 0 && actor.email.trim().toLowerCase() === normalizedInstructor);
 
     const termStatus = getTermStatus(section.term);
-    if (termStatus === "CLOSED") {
+    if (termStatus === "CLOSED" && actor.role !== "ADMIN") {
       throw new ForbiddenException({
         code: "GRADES_LOCKED",
         message: "该学期成绩已锁定，如需修改请联系教务处",
@@ -1679,7 +1679,7 @@ export class RegistrationService {
       });
     }
 
-    if (termStatus !== "IN_PROGRESS" && termStatus !== "GRADING") {
+    if (termStatus !== "IN_PROGRESS" && termStatus !== "GRADING" && actor.role !== "ADMIN") {
       throw new ForbiddenException({
         code: "GRADES_NOT_OPEN",
         message: "该学期当前不在成绩录入窗口",
