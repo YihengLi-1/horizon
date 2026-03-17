@@ -272,6 +272,70 @@ export class AdminService {
     return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
   }
 
+  private deriveStudentCohortYear(studentId: string | null | undefined, createdAt: Date | null | undefined): number {
+    const idMatch = studentId?.match(/^U(\d{2})/i);
+    if (idMatch) {
+      const yy = Number(idMatch[1]);
+      return yy >= 80 ? 1900 + yy : 2000 + yy;
+    }
+    return createdAt?.getUTCFullYear() ?? new Date().getUTCFullYear();
+  }
+
+  private getRegistrationPriorityOffsetDays(cohortYear: number): number {
+    if (cohortYear <= 2022) return 0;
+    if (cohortYear === 2023) return 2;
+    if (cohortYear === 2024) return 4;
+    return 6;
+  }
+
+  private getRegistrationPriorityLabel(cohortYear: number): string {
+    if (cohortYear <= 2022) return "大四";
+    if (cohortYear === 2023) return "大三";
+    if (cohortYear === 2024) return "大二";
+    return "大一";
+  }
+
+  private getPriorityWindowsSummary(registrationOpenAt: Date): string[] {
+    const cohorts = [
+      { label: "大四", year: 2022 },
+      { label: "大三", year: 2023 },
+      { label: "大二", year: 2024 },
+      { label: "大一", year: 2025 }
+    ];
+
+    return cohorts.map((cohort) => {
+      const openAt = new Date(
+        registrationOpenAt.getTime() + this.getRegistrationPriorityOffsetDays(cohort.year) * 24 * 60 * 60 * 1000
+      );
+      return `${cohort.label}：${openAt.toLocaleString()}`;
+    });
+  }
+
+  private async writeWaitlistPromotionNotification(
+    tx: Prisma.TransactionClient,
+    input: {
+      enrollmentId: string;
+      studentId: string;
+      sectionId: string;
+      courseCode: string;
+      courseName: string;
+    }
+  ) {
+    await this.auditService.logInTransaction(tx, {
+      actorUserId: input.studentId,
+      action: "WAITLIST_PROMOTED",
+      entityType: "enrollment",
+      entityId: input.enrollmentId,
+      metadata: {
+        studentId: input.studentId,
+        sectionId: input.sectionId,
+        courseCode: input.courseCode,
+        courseName: input.courseName,
+        message: `你已从等待队列晋升，成功选入 ${input.courseCode} ${input.courseName}`
+      }
+    });
+  }
+
   private getImportCacheKey(scope: string, actorUserId: string, idempotencyKey: string): string {
     return `${scope}::${actorUserId}::${idempotencyKey}`;
   }
@@ -1625,6 +1689,287 @@ export class AdminService {
     return { approved: result.count };
   }
 
+  async getPendingOverloads() {
+    const rows = await this.prisma.enrollment.findMany({
+      where: {
+        deletedAt: null,
+        status: "PENDING_APPROVAL",
+        section: {
+          is: {
+            requireApproval: false
+          }
+        }
+      },
+      include: {
+        student: {
+          select: {
+            id: true,
+            email: true,
+            studentId: true,
+            studentProfile: {
+              select: {
+                legalName: true
+              }
+            }
+          }
+        },
+        section: {
+          include: {
+            course: true,
+            term: true
+          }
+        }
+      },
+      orderBy: [{ createdAt: "asc" }]
+    });
+
+    const currentCreditsByEnrollment = await Promise.all(
+      rows.map(async (row) => {
+        const currentCredits = await this.prisma.enrollment.findMany({
+          where: {
+            deletedAt: null,
+            studentId: row.studentId,
+            termId: row.termId,
+            status: "ENROLLED"
+          },
+          include: {
+            section: {
+              select: {
+                credits: true
+              }
+            }
+          }
+        });
+
+        return [
+          row.id,
+          currentCredits.reduce((sum, item) => sum + item.section.credits, 0)
+        ] as const;
+      })
+    );
+
+    const creditMap = new Map(currentCreditsByEnrollment);
+
+    return rows.map((row) => ({
+      id: row.id,
+      studentId: row.studentId,
+      studentEmail: row.student.email,
+      studentName: row.student.studentProfile?.legalName ?? row.student.email,
+      termId: row.termId,
+      termName: row.section.term.name,
+      sectionId: row.sectionId,
+      sectionCode: row.section.sectionCode,
+      courseCode: row.section.course.code,
+      courseTitle: row.section.course.title,
+      currentCredits: creditMap.get(row.id) ?? 0,
+      requestedCredits: row.section.credits,
+      submittedAt: row.createdAt
+    }));
+  }
+
+  async decidePendingOverload(enrollmentId: string, approve: boolean, actorUserId: string) {
+    const result = await this.runAdminTransactionWithRetry(async (tx) => {
+      const enrollment = await tx.enrollment.findFirst({
+        where: {
+          id: enrollmentId,
+          deletedAt: null,
+          status: "PENDING_APPROVAL",
+          section: {
+            is: {
+              requireApproval: false
+            }
+          }
+        },
+        include: {
+          student: {
+            select: {
+              id: true,
+              email: true,
+              studentProfile: {
+                select: {
+                  legalName: true
+                }
+              }
+            }
+          },
+          section: {
+            include: {
+              course: true,
+              term: true
+            }
+          }
+        }
+      });
+
+      if (!enrollment) {
+        throw new NotFoundException({
+          code: "PENDING_OVERLOAD_NOT_FOUND",
+          message: "Pending overload request not found"
+        });
+      }
+
+      if (approve) {
+        await tx.$queryRaw(
+          Prisma.sql`SELECT id, capacity FROM "Section" WHERE id = ${enrollment.sectionId} FOR UPDATE`
+        );
+
+        const enrolledCount = await tx.enrollment.count({
+          where: {
+            deletedAt: null,
+            sectionId: enrollment.sectionId,
+            status: "ENROLLED"
+          }
+        });
+
+        if (enrollment.section.capacity > 0 && enrolledCount >= enrollment.section.capacity) {
+          throw new ConflictException({
+            code: "SECTION_FULL",
+            message: "Section is full; cannot approve overload request"
+          });
+        }
+      }
+
+      const updated = await tx.enrollment.update({
+        where: { id: enrollmentId },
+        data: approve
+          ? { status: "ENROLLED" }
+          : {
+              status: "DROPPED",
+              droppedAt: new Date()
+            }
+      });
+
+      await this.auditService.logInTransaction(tx, {
+        actorUserId,
+        action: approve ? "ADMIN_APPROVE_OVERLOAD" : "ADMIN_REJECT_OVERLOAD",
+        entityType: "enrollment",
+        entityId: enrollmentId,
+        metadata: {
+          studentId: enrollment.studentId,
+          sectionId: enrollment.sectionId,
+          courseCode: enrollment.section.course.code
+        }
+      });
+
+      await this.auditService.logInTransaction(tx, {
+        actorUserId: enrollment.studentId,
+        action: approve ? "CREDIT_OVERLOAD_APPROVED" : "CREDIT_OVERLOAD_REJECTED",
+        entityType: "enrollment",
+        entityId: enrollmentId,
+        metadata: {
+          studentId: enrollment.studentId,
+          sectionId: enrollment.sectionId,
+          courseCode: enrollment.section.course.code,
+          courseName: enrollment.section.course.title,
+          message: approve
+            ? `你的超学分申请已获批准，已选入 ${enrollment.section.course.code} ${enrollment.section.course.title}`
+            : `你的超学分申请未获批准，${enrollment.section.course.code} ${enrollment.section.course.title} 未加入课表`
+        }
+      });
+
+      return {
+        updated,
+        studentEmail: enrollment.student.email,
+        studentName: enrollment.student.studentProfile?.legalName ?? null,
+        courseCode: enrollment.section.course.code,
+        sectionCode: enrollment.section.sectionCode,
+        termName: enrollment.section.term.name
+      };
+    });
+
+    return result.updated;
+  }
+
+  async getPrereqWaivers(adminUserId: string, status?: string) {
+    const pending =
+      !status || status === "PENDING"
+        ? await this.governanceService.listAdminRequests(adminUserId)
+        : [];
+
+    const historyStatuses =
+      status === "APPROVED" || status === "REJECTED"
+        ? [status]
+        : ["APPROVED", "REJECTED"];
+
+    const history = await this.prisma.academicRequest.findMany({
+      where: {
+        type: "PREREQ_OVERRIDE",
+        status: { in: historyStatuses as ("APPROVED" | "REJECTED")[] }
+      },
+      include: {
+        student: {
+          select: {
+            id: true,
+            email: true,
+            studentId: true,
+            studentProfile: {
+              select: {
+                legalName: true
+              }
+            }
+          }
+        },
+        section: {
+          select: {
+            id: true,
+            sectionCode: true,
+            course: {
+              select: {
+                code: true,
+                title: true
+              }
+            }
+          }
+        },
+        decidedBy: {
+          select: {
+            id: true,
+            email: true
+          }
+        },
+        steps: {
+          orderBy: {
+            stepOrder: "asc"
+          }
+        }
+      },
+      orderBy: [{ decisionAt: "desc" }, { updatedAt: "desc" }]
+    });
+
+    return { pending, history };
+  }
+
+  async decidePrereqWaiver(
+    adminUserId: string,
+    requestId: string,
+    input: { status: "APPROVED" | "REJECTED"; adminNote?: string | null }
+  ) {
+    const decided = await this.governanceService.decideAdminRequest(adminUserId, requestId, {
+      decision: input.status,
+      decisionNote: input.adminNote?.trim() || (input.status === "APPROVED" ? "Approved" : "Rejected")
+    });
+
+    await this.auditService.log({
+      actorUserId: decided.student.id,
+      action: input.status === "APPROVED" ? "PREREQ_WAIVER_APPROVED" : "PREREQ_WAIVER_REJECTED",
+      entityType: "academic_request",
+      entityId: decided.id,
+      metadata: {
+        studentId: decided.student.id,
+        sectionId: decided.section?.id ?? null,
+        courseCode: decided.section?.course.code ?? null,
+        courseName: decided.section?.course.title ?? null,
+        message:
+          input.status === "APPROVED"
+            ? `你的先修课豁免申请已获批准：${decided.section?.course.code ?? ""} ${decided.section?.course.title ?? ""}`
+            : `你的先修课豁免申请未获批准：${decided.section?.course.code ?? ""} ${decided.section?.course.title ?? ""}`,
+        adminNote: input.adminNote ?? null
+      }
+    });
+
+    return decided;
+  }
+
   // ── Term Closeout ────────────────────────────────────────────────────────────
   async getTermCloseoutPreview(termId: string) {
     const term = await this.prisma.term.findUnique({ where: { id: termId } });
@@ -1830,7 +2175,7 @@ export class AdminService {
       }
     });
 
-    await this.auditService.log({
+      await this.auditService.log({
       actorUserId,
       action: "AUTO_PROMOTE_WAITLIST",
       entityType: "enrollment",
@@ -1840,6 +2185,16 @@ export class AdminService {
         sectionId: nextWaiting.sectionId,
         courseCode: nextWaiting.section.course.code
       }
+    });
+
+    await this.prisma.$transaction(async (tx) => {
+      await this.writeWaitlistPromotionNotification(tx, {
+        enrollmentId: nextWaiting.id,
+        studentId: nextWaiting.studentId,
+        sectionId: nextWaiting.sectionId,
+        courseCode: nextWaiting.section.course.code,
+        courseName: nextWaiting.section.course.title
+      });
     });
 
     void dispatch({
@@ -1946,6 +2301,21 @@ export class AdminService {
       });
 
       const promotedEnrollmentIds = waitlistedToPromote.map((item) => item.id);
+      const promotedRows = promoteN
+        ? await tx.enrollment.findMany({
+            where: {
+              deletedAt: null,
+              id: { in: promotedEnrollmentIds }
+            },
+            include: {
+              section: {
+                include: {
+                  course: true
+                }
+              }
+            }
+          })
+        : [];
 
       if (promotedEnrollmentIds.length > 0) {
         await tx.enrollment.updateMany({
@@ -2004,6 +2374,16 @@ export class AdminService {
           availableSeatsAfter
         }
       });
+
+      for (const row of promotedRows) {
+        await this.writeWaitlistPromotionNotification(tx, {
+          enrollmentId: row.id,
+          studentId: row.studentId,
+          sectionId: row.sectionId,
+          courseCode: row.section.course.code,
+          courseName: row.section.course.title
+        });
+      }
 
       return {
         promoted: waitlistedToPromote.map((item) => ({
@@ -7056,7 +7436,8 @@ export class AdminService {
       const status = now < openAt ? "scheduled" : now > closeAt ? "closed" : "open";
       return {
         ...term,
-        status
+        status,
+        priorityWindows: this.getPriorityWindowsSummary(term.registrationOpenAt)
       };
     });
   }

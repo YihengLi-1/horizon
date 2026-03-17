@@ -820,6 +820,22 @@ check_contains "apps/web/components/app-shell.tsx" "/admin/grade-entry" "Admin g
 check_contains "apps/web/app/admin/holds/AdminHoldsClient.tsx" "/admin/holds" "Admin holds page uses /admin endpoints"
 check_contains "apps/web/app/student/appeals/page.tsx" "expandedId|查看详情|管理员回复" "Student appeals expandable tracker"
 
+# ── Session 25: concurrency lock, prereq waivers, overload approval, priority window, dropped visibility ─
+check_contains "apps/api/src/registration/registration.service.ts" "FOR UPDATE" "Registration flow uses row locks for section capacity"
+check_contains "apps/api/src/registration/registration.service.ts" "WAITLIST_PROMOTED" "Waitlist promotion writes student-facing audit notification"
+check_contains "apps/api/src/registration/registration.service.ts" "assertStudentRegistrationWindowOpen|getStudentRegistrationWindowInfo" "Priority registration window enforcement exists"
+check_contains "apps/api/src/academics/academics.service.ts" "myStatus|myWaitlistPosition" "Catalog sections include per-student status echo"
+check_contains "apps/api/src/admin/admin.service.ts" "getPendingOverloads|decidePendingOverload|getPrereqWaivers|decidePrereqWaiver" "Admin overload and prereq waiver queues implemented"
+check_contains "apps/api/src/admin/admin.controller.ts" "pending-overloads|prereq-waivers" "Admin overload and prereq waiver endpoints"
+check_contains "apps/api/src/students/students.controller.ts" "prereq-waiver-request|prereq-waivers" "Student prereq waiver endpoints"
+check_exists "apps/web/app/student/prereq-waivers/page.tsx" "Student prereq waiver page"
+check_exists "apps/web/app/admin/prereq-waivers/page.tsx" "Admin prereq waiver page"
+check_exists "apps/web/app/admin/pending-overloads/page.tsx" "Admin pending overload page"
+check_contains "apps/web/app/student/catalog/page.tsx" "myStatus|myWaitlistPosition|最后 .*席|加入等待队列" "Catalog shows seat pressure and current registration state"
+check_contains "apps/web/app/student/schedule/page.tsx" "showDropped|已退课|droppedAt" "Schedule exposes dropped-record toggle and timestamps"
+check_contains "apps/web/app/admin/reg-windows/page.tsx" "priorityWindows|分年级开放" "Admin reg windows show cohort-specific opening times"
+check_contains "apps/web/components/app-shell.tsx" "/student/prereq-waivers|/admin/prereq-waivers|/admin/pending-overloads" "Session 25 nav links wired"
+
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"
 else

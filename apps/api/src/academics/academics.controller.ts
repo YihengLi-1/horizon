@@ -30,8 +30,12 @@ export class AcademicsController {
   }
 
   @Get("sections")
-  async listSections(@Query("termId") termId?: string, @Query("courseId") courseId?: string) {
-    return ok(await this.academicsService.listSections(termId, courseId));
+  async listSections(
+    @CurrentUser() user: { userId: string },
+    @Query("termId") termId?: string,
+    @Query("courseId") courseId?: string
+  ) {
+    return ok(await this.academicsService.listSections(termId, courseId, user.userId));
   }
 
   @Public()

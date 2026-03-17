@@ -9,6 +9,7 @@ type WindowRow = {
   registrationOpenAt: string;
   registrationCloseAt: string;
   status: "open" | "closed" | "scheduled";
+  priorityWindows: string[];
 };
 
 type Drafts = Record<string, { openAt: string; closeAt: string }>;
@@ -98,6 +99,7 @@ export default function AdminRegWindowsPage() {
                 <th>状态</th>
                 <th>开放时间</th>
                 <th>关闭时间</th>
+                <th>分年级开放</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -121,6 +123,13 @@ export default function AdminRegWindowsPage() {
                       value={drafts[row.id]?.closeAt ?? ""}
                       onChange={(e) => setDrafts((prev) => ({ ...prev, [row.id]: { ...prev[row.id], closeAt: e.target.value } }))}
                     />
+                  </td>
+                  <td>
+                    <div className="space-y-1 text-xs text-slate-600">
+                      {(row.priorityWindows ?? []).map((entry) => (
+                        <p key={entry}>{entry}</p>
+                      ))}
+                    </div>
                   </td>
                   <td>
                     <button

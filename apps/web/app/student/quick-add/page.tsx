@@ -31,6 +31,7 @@ type CartItem = {
 type EnrollResult = {
   id: string;
   status: string;
+  pendingReason?: "CREDIT_OVERLOAD" | "SECTION_APPROVAL" | null;
 };
 
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -119,7 +120,9 @@ export default function QuickAddPage() {
       }, 2000);
       toast.success(
         result.status === "PENDING_APPROVAL"
-          ? `已提交 §${item.section.sectionCode}，等待审批`
+          ? result.pendingReason === "CREDIT_OVERLOAD"
+            ? "学分已超上限，已提交超学分申请，等待审批"
+            : `已提交 §${item.section.sectionCode}，等待审批`
           : `已注册 §${item.section.sectionCode}`
       );
     } catch (err) {

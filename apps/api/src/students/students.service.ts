@@ -15,6 +15,7 @@ import { toDateOrNull } from "../common/grade.utils";
 import { AuditService } from "../audit/audit.service";
 import { apiCache } from "../common/cache";
 import { verifyPasswordHash } from "../common/password-hash";
+import { GovernanceService } from "../governance/governance.service";
 
 const GRADE_POINTS: Record<string, number> = {
   "A+": 4.0,
@@ -58,7 +59,8 @@ export class StudentsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService: AuditService
+    private readonly auditService: AuditService,
+    private readonly governanceService: GovernanceService
   ) {}
 
   private getInstitutionTimezone(): string {
@@ -1890,5 +1892,14 @@ export class StudentsService {
       sectionCode: row.sectionCode,
       termName: row.termName
     }));
+  }
+
+  async listMyPrereqWaivers(userId: string) {
+    const requests = await this.governanceService.listMyAcademicRequests(userId);
+    return requests.filter((request) => request.type === "PREREQ_OVERRIDE");
+  }
+
+  async submitPrereqWaiverRequest(userId: string, input: { sectionId: string; reason: string }) {
+    return this.governanceService.submitPrereqOverrideRequest(userId, input);
   }
 }

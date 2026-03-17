@@ -201,6 +201,21 @@ export class StudentsController {
   }
 
   @Roles("STUDENT")
+  @Get("prereq-waivers")
+  async getMyPrereqWaivers(@CurrentUser() user: { userId: string }) {
+    return ok(await this.studentsService.listMyPrereqWaivers(user.userId));
+  }
+
+  @Roles("STUDENT")
+  @Post("prereq-waiver-request")
+  async submitPrereqWaiverRequest(
+    @CurrentUser() user: { userId: string },
+    @Body() body: { sectionId: string; reason: string }
+  ) {
+    return ok(await this.studentsService.submitPrereqWaiverRequest(user.userId, body));
+  }
+
+  @Roles("STUDENT")
   @Post("appeals")
   async submitAppeal(
     @CurrentUser() user: { userId: string },

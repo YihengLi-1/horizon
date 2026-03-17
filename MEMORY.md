@@ -8,6 +8,7 @@
 - 2026-03-16: 593 pass, 0 warn, 0 fail
 - 2026-03-16: 615 pass, 0 warn, 0 fail
 - 2026-03-16: 627 pass, 0 warn, 0 fail
+- 2026-03-17: 641 pass, 0 warn, 0 fail
 
 ## Entries
 
@@ -57,3 +58,12 @@
 - C：完成四项核心流程安全修补核查：明确购物车窗口语义、确认后端 drop deadline 校验生效、确认学生档案接口仅本人可改、确认 `/admin/*` 端点继续受 `ADMIN` 守卫约束；同时补上学生端友好的 `DROP_DEADLINE_PASSED` 提示。
 - D：交付功能 281/282/283：`/admin/grade-entry` 成绩批量录入、基于 `/admin/holds` 的 Hold 管理升级、以及带状态徽章/详情展开/新建表单的学生申诉追踪器。
 - 本轮 gate 实跑结果为 `627 pass, 0 warn, 0 fail`；readiness 中旧的 future-term seed 断言已替换为当前演示数据检查。
+
+## Session 25
+
+- 修复1：在 `registration.service.ts` 的注册与退课链路里统一使用事务重试 + `SELECT ... FOR UPDATE` 锁住 `Section` 行，并在事务内重算容量与写入/退课，消除并发抢座导致的超卖风险。
+- 修复2：waitlist 自动晋升与管理员手动晋升现在都会写入学生可见的 `WAITLIST_PROMOTED` 审计通知，通知铃铛轮询可以直接拾取这类晋升消息。
+- 修复3：补齐先修课豁免完整流程，新增学生申请页 `/student/prereq-waivers`、管理员审批页 `/admin/prereq-waivers` 以及对应 endpoints，并复用既有 governance `PREREQ_OVERRIDE` 审批与生效逻辑。
+- 修复4/5：课程目录补上实时剩余座位与 `myStatus` 回显（已选/等待中/已在购物车），超学分注册改为 `PENDING_APPROVAL` 队列而非直接拒绝，并新增 `/admin/pending-overloads` 供管理员审批。
+- 修复6/7：按入学年份推算注册优先窗口并在 catalog / reg-windows 中展示分年级开放时间；学生课表页新增“显示退课记录”开关，`DROPPED` 课程可带退课时间回看但默认不干扰主课表。
+- 本轮 gate 实跑结果为 `641 pass, 0 warn, 0 fail`。
