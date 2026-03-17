@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { BookOpen, Search } from "lucide-react";
 import { RegistrationStepper } from "@/components/registration-stepper";
 import { useToast } from "@/components/Toast";
 import GradeDistBar from "@/components/GradeDistBar";
@@ -752,19 +753,19 @@ export default function StudentCatalogPage() {
               Plan registration with clear seat, prerequisite, and schedule signals before submitting your cart.
             </p>
             <div className="flex flex-wrap items-center gap-2 pt-1">
-              {activeTerm ? <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{activeTerm.name}</span> : null}
-              {activeTerm ? <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Max {activeTerm.maxCredits} credits</span> : null}
-              <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-700">{sections.length} sections</span>
+              {activeTerm ? <span className="campus-chip chip-blue">{activeTerm.name}</span> : null}
+              {activeTerm ? <span className="campus-chip chip-purple">Max {activeTerm.maxCredits} credits</span> : null}
+              <span className="campus-chip chip-emerald">{sections.length} sections</span>
               {cartItems.length > 0 && (
-                <span className="campus-chip border-blue-300 bg-blue-50 text-blue-700">In cart {cartItems.length}</span>
+                <span className="campus-chip chip-blue">In cart {cartItems.length}</span>
               )}
               {catalogStats.conflictCount > 0 ? (
-                <span className="campus-chip border-red-300 bg-red-50 text-red-700">
+                <span className="campus-chip chip-red">
                   Conflicts {catalogStats.conflictCount}
                 </span>
               ) : null}
               {isFilteredView ? (
-                <span className="campus-chip border-amber-300 bg-amber-50 text-amber-700">
+                <span className="campus-chip chip-amber">
                   Visible {filteredSections.length}
                 </span>
               ) : null}
@@ -815,10 +816,10 @@ export default function StudentCatalogPage() {
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search</span>
             <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">⌕</span>
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
               <input
                 ref={searchRef}
-                className="campus-input pl-8"
+                className="campus-input pl-9"
                 placeholder="Code, title, instructor…  [/]"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -1120,27 +1121,22 @@ export default function StudentCatalogPage() {
           : null}
 
         {!loading && termId && sections.length === 0 ? (
-          <div className="py-12 text-center">
-            <p className="text-3xl">📚</p>
-            <p className="mt-2 text-sm font-medium text-slate-600">No sections available</p>
-            <p className="mt-1 text-xs text-slate-400">
-              Check back when registration opens for the current term.
-            </p>
+          <div className="campus-empty">
+            <BookOpen className="campus-empty-icon" />
+            <p className="campus-empty-title">暂无可选教学班</p>
+            <p className="campus-empty-desc">当前学期还没有开放课程，请稍后再来查看。</p>
           </div>
         ) : !loading && filteredSections.length === 0 && termId ? (
-          <div className="py-12 text-center">
-            <p className="text-3xl">🔍</p>
-            <p className="mt-2 text-sm font-medium text-slate-600">
-              No sections match your filters
-            </p>
-            <p className="mt-1 text-xs text-slate-400">
-              Try adjusting your search, term, or modality filter.
-            </p>
+          <div className="campus-empty">
+            <Search className="campus-empty-icon" />
+            <p className="campus-empty-title">没有符合筛选条件的课程</p>
+            <p className="campus-empty-desc">试着放宽搜索词、授课方式或学分筛选条件。</p>
           </div>
         ) : null}
 
-        {!loading &&
-          pagedSections.map((section) => {
+        {!loading ? (
+          <div className="grid gap-4 xl:grid-cols-2">
+            {pagedSections.map((section) => {
             const sectionMeetingTimes = section.meetingTimes ?? [];
             const enrolledCount = getEnrolledCount(section);
             const waitlistCount = getWaitlistedCount(section);
@@ -1169,7 +1165,7 @@ export default function StudentCatalogPage() {
                 role="article"
                 aria-label={`${section.course.code} ${section.course.title}`}
                 onClick={() => trackView(section)}
-                className={`relative campus-card overflow-hidden p-0 transition hover:shadow-md ${
+                className={`relative campus-card overflow-hidden p-0 transition hover:-translate-y-[1px] ${
                   cartConflict ? "border-amber-300" : compareIds.includes(section.id) ? "border-blue-400 ring-2 ring-blue-200" : "border-slate-200"
                 }`}
               >
@@ -1197,7 +1193,7 @@ export default function StudentCatalogPage() {
                       <div className="flex flex-wrap justify-end gap-2">
                         <BookmarkButton sectionId={section.id} />
                         <Badge>§{section.sectionCode}</Badge>
-                        <Badge>{section.credits} cr</Badge>
+                        <Badge color="blue">{section.credits} cr</Badge>
                         {section.course.weeklyHours ? (
                           <Badge color="amber">⏱ {section.course.weeklyHours}h/wk</Badge>
                         ) : null}
@@ -1314,7 +1310,7 @@ export default function StudentCatalogPage() {
                     ) : null}
                   </div>
 
-                  <aside className="flex w-full flex-col justify-between gap-4 border-t border-slate-200 bg-slate-50/40 p-4 lg:border-l lg:border-t-0">
+                    <aside className="flex w-full flex-col justify-between gap-4 border-t border-slate-200 bg-[linear-gradient(180deg,hsl(221_40%_98%)_0%,white_100%)] p-4 lg:border-l lg:border-t-0">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Seat Status</p>
                       <p className={`mt-1 text-lg font-semibold ${isFull ? "text-red-700" : "text-emerald-700"}`}>
@@ -1330,9 +1326,9 @@ export default function StudentCatalogPage() {
                             className={`h-full rounded-full transition-all ${
                               enrolledCount >= section.capacity
                                 ? "bg-red-500"
-                                : enrolledCount / section.capacity >= 0.85
-                                  ? "bg-amber-400"
-                                  : "bg-emerald-400"
+                                : enrolledCount / section.capacity >= 0.9
+                                  ? "bg-red-400"
+                                  : "bg-[linear-gradient(90deg,hsl(221_83%_43%)_0%,hsl(262_80%_58%)_100%)]"
                             }`}
                             style={{ width: `${Math.min(100, Math.round((enrolledCount / section.capacity) * 100))}%` }}
                           />
@@ -1408,12 +1404,12 @@ export default function StudentCatalogPage() {
                           disabled={addingSectionId === section.id || alreadyCompleted}
                           aria-label={`加选 ${section.course.title}`}
                           aria-disabled={addingSectionId === section.id || alreadyCompleted}
-                          className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-70 ${
+                          className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${
                             cartConflict
-                              ? "bg-amber-600 hover:bg-amber-700"
+                              ? "border-amber-300 bg-white text-amber-700 hover:bg-amber-600 hover:text-white"
                               : isFull
-                                ? "bg-slate-700 hover:bg-slate-800"
-                                : "bg-primary hover:bg-primary/90"
+                                ? "border-slate-700 bg-white text-slate-700 hover:bg-slate-800 hover:text-white"
+                                : "border-[hsl(221_83%_43%)] bg-white text-[hsl(221_83%_43%)] hover:bg-[hsl(221_83%_43%)] hover:text-white"
                           }`}
                         >
                           {addingSectionId === section.id ? (
@@ -1435,7 +1431,9 @@ export default function StudentCatalogPage() {
                 </div>
               </article>
             );
-          })}
+            })}
+          </div>
+        ) : null}
       </section>
 
       {!loading && filteredSections.length > 0 ? (
@@ -1590,15 +1588,15 @@ function Badge({
   modality?: string;
   color?: "blue" | "slate" | "amber";
 }) {
-  let cls = "bg-slate-100 text-slate-700";
-  if (color === "blue") cls = "bg-blue-50 text-blue-700 border border-blue-200";
-  else if (color === "slate") cls = "border border-slate-200 bg-slate-100 text-slate-600";
-  else if (color === "amber") cls = "border border-amber-200 bg-amber-50 text-amber-700";
-  else if (modality === "ONLINE") cls = "bg-emerald-50 text-emerald-700";
-  else if (modality === "HYBRID") cls = "bg-indigo-50 text-indigo-700";
+  let cls = "campus-chip";
+  if (color === "blue") cls = "campus-chip chip-blue";
+  else if (color === "slate") cls = "campus-chip";
+  else if (color === "amber") cls = "campus-chip chip-amber";
+  else if (modality === "ONLINE") cls = "campus-chip chip-emerald";
+  else if (modality === "HYBRID") cls = "campus-chip chip-purple";
 
   return (
-    <span className={`inline-flex items-center rounded-lg px-3 py-1 text-sm font-medium ${cls}`}>
+    <span className={`${cls} text-sm`}>
       {children}
     </span>
   );
@@ -1615,15 +1613,15 @@ function StatChip({
 }) {
   const cls =
     tone === "emerald"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      ? "campus-chip chip-emerald"
       : tone === "red"
-        ? "border-red-200 bg-red-50 text-red-800"
+        ? "campus-chip chip-red"
         : tone === "blue"
-          ? "border-blue-200 bg-blue-50 text-blue-800"
-          : "border-amber-200 bg-amber-50 text-amber-800";
+          ? "campus-chip chip-blue"
+          : "campus-chip chip-amber";
 
   return (
-    <span className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium ${cls}`}>
+    <span className={`inline-flex items-center gap-2 ${cls} text-sm`}>
       <span>{label}</span>
       <span className="rounded-md bg-white/90 px-2 py-0.5 font-semibold">{value}</span>
     </span>

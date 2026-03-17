@@ -224,6 +224,7 @@ export function AppShell({
   const breadcrumb = useMemo(() => {
     return currentNavItem ? `${navMeta.label} / ${currentNavItem.label}` : navMeta.label;
   }, [currentNavItem, navMeta.label]);
+  const userInitial = (userLabel.trim().slice(0, 1) || navMeta.label.slice(0, 1)).toUpperCase();
 
   const navGroups = useMemo(() => {
     const groups: NavGroup[] =
@@ -302,24 +303,18 @@ export function AppShell({
         href={item.href}
         onClick={() => setSidebarOpen(false)}
         aria-current={active ? "page" : undefined}
-        className={`group flex items-center gap-3 rounded-r-lg border-l-2 px-3 py-2.5 text-sm no-underline transition ${
+        className={`group mx-2 my-px flex h-9 items-center gap-3 rounded-lg px-3 text-sm no-underline transition ${
           active
-            ? "border-blue-500 bg-blue-50 text-blue-700 font-semibold dark:bg-blue-900/30 dark:text-blue-300"
-            : "border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            ? "bg-[hsl(221_83%_43%)] font-semibold text-white"
+            : "text-[hsl(221_15%_50%)] hover:bg-[hsl(221_40%_96%)] hover:text-[hsl(221_40%_25%)]"
         }`}
       >
-        <span
-          className={`inline-flex size-7 items-center justify-center rounded-md border ${
-            active
-              ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300"
-              : "border-slate-200 bg-white text-slate-500 group-hover:border-slate-300 group-hover:text-slate-700"
-          }`}
-        >
+        <span className={`inline-flex size-4 items-center justify-center ${active ? "text-white" : "text-current"}`}>
           {item.icon}
         </span>
         <span className="font-medium">{item.label}</span>
         {item.href === "/admin/announcements" && announcementCount > 0 ? (
-          <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-violet-500 px-1.5 text-[10px] font-bold text-white">
+          <span className={`ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${active ? "bg-white/20 text-white" : "bg-violet-500 text-white"}`}>
             {announcementCount}
           </span>
         ) : null}
@@ -328,7 +323,7 @@ export function AppShell({
   };
 
   return (
-    <div data-area={area} className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div data-area={area} className="min-h-screen bg-slate-50 text-slate-900">
       <SessionExpiryBanner />
       <SkipLink />
       <div
@@ -344,16 +339,14 @@ export function AppShell({
         aria-modal={sidebarOpen ? "true" : undefined}
         aria-label={`${navMeta.label} navigation`}
         id={sidebarId}
-        className={`no-print fixed inset-y-0 left-0 z-50 w-72 border-r border-slate-200 bg-white text-slate-900 shadow-[0_26px_55px_-36px_rgba(15,23,42,0.65)] transition-transform dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 md:block md:translate-x-0 ${
+        className={`no-print fixed inset-y-0 left-0 z-50 w-64 border-r border-[hsl(221_20%_91%)] bg-white text-slate-900 shadow-[0_24px_55px_-40px_rgba(15,23,42,0.4)] transition-transform md:block md:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "hidden -translate-x-full"
         }`}
       >
-        <div className="h-1 w-full bg-[#153c70]" />
-
-        <div className="flex h-20 items-center justify-between border-b border-slate-200 px-5">
+        <div className="flex h-16 items-center justify-between border-b border-[hsl(221_20%_91%)] px-5">
           <div className="min-w-0">
-            <p className="font-heading text-[1.45rem] font-semibold leading-none text-[#102949]">地平线</p>
-            <p className="mt-1 text-sm text-slate-500">{navMeta.subtitle}</p>
+            <p className="font-heading text-[1.1rem] font-bold leading-none text-[hsl(221_83%_43%)]">地平线</p>
+            <p className="mt-1 text-xs text-slate-500">{navMeta.subtitle}</p>
           </div>
           <button
             type="button"
@@ -365,32 +358,35 @@ export function AppShell({
           </button>
         </div>
 
-        <div className="flex h-[calc(100%-81px)] flex-col px-4 py-5">
-          <p className="mb-2 px-1 text-xs font-semibold tracking-[0.08em] text-slate-500">
-            {navMeta.label}
-          </p>
+        <div className="flex h-[calc(100%-64px)] flex-col py-4">
           <nav aria-label="Main navigation">
             {navGroups.map((group) => (
               <div key={group.label} className="mt-4 first:mt-0">
-                <p className="mb-1 px-3 text-[11px] font-semibold tracking-[0.08em] text-slate-400">
+                <p className="px-5 pb-1 pt-3 text-[12px] font-semibold uppercase tracking-[0.16em] text-[hsl(221_15%_60%)]">
                   {group.label}
                 </p>
-                <div className="space-y-1.5">{group.items.map(renderNavItem)}</div>
+                <div>{group.items.map(renderNavItem)}</div>
               </div>
             ))}
           </nav>
-          <div className="mt-auto">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
-              <p className="truncate font-semibold text-slate-800">{userLabel}</p>
-              <p className="mt-0.5">{navMeta.label}</p>
+          <div className="mt-auto border-t border-[hsl(221_20%_91%)] px-4 pt-4">
+            <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+              <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-[hsl(221_83%_43%)] text-sm font-semibold text-white">
+                {userInitial}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-slate-900">{userLabel}</p>
+                <p className="truncate text-xs text-slate-500">{navMeta.label}</p>
+              </div>
+              <LogoutButton iconOnly compact />
             </div>
           </div>
         </div>
       </aside>
 
-      <div className="relative md:pl-72">
-        <header className="no-print sticky top-0 z-30 border-b border-slate-200/85 bg-white/95 backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/95">
-          <div className="mx-auto flex h-16 max-w-[1360px] items-center justify-between px-4 md:px-8 lg:px-10">
+      <div className="relative md:pl-64">
+        <header className="no-print sticky top-0 z-30 border-b border-[hsl(221_20%_91%)] bg-white">
+          <div className="mx-auto flex h-14 max-w-[1360px] items-center justify-between px-4 md:px-8 lg:px-10">
             <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
@@ -403,10 +399,10 @@ export function AppShell({
                 <AlignJustify className="size-4" />
               </button>
               <div className="min-w-0">
-                <p className="truncate text-[11px] font-semibold tracking-[0.08em] text-slate-500">
+                <p className="truncate text-[11px] font-medium tracking-[0.06em] text-slate-500">
                   {breadcrumb}
                 </p>
-                <h1 className="truncate font-heading text-lg font-semibold text-slate-900">{pageTitle}</h1>
+                <h1 className="truncate text-base font-semibold text-slate-900">{pageTitle}</h1>
               </div>
             </div>
 
@@ -414,16 +410,18 @@ export function AppShell({
               {area === "student" ? (
                 <NotificationBell apiBase={API_URL} />
               ) : null}
-              <LogoutButton />
+              <span className="inline-flex size-9 items-center justify-center rounded-full bg-[hsl(221_83%_43%)] text-sm font-semibold text-white">
+                {userInitial}
+              </span>
             </div>
           </div>
         </header>
 
         <main
           id="main-content"
-          className={`mx-auto max-w-[1360px] p-4 dark:bg-slate-950 md:p-8 lg:p-10 ${area === "student" ? "pb-16 md:pb-0" : ""}`}
+          className={`mx-auto max-w-[1360px] p-4 md:p-8 lg:p-10 ${area === "student" ? "pb-16 md:pb-0" : ""}`}
         >
-          {children}
+          <div style={{ animation: "fadeSlideIn 0.18s ease forwards" }}>{children}</div>
         </main>
       </div>
       {area === "student" ? <StudentMobileNav /> : null}

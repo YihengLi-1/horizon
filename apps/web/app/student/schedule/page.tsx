@@ -13,6 +13,14 @@ const GRID_START = 8 * 60;
 const GRID_END = 21 * 60;
 const GRID_SLOT = 30;
 const GRID_ROW_COUNT = (GRID_END - GRID_START) / GRID_SLOT;
+const COURSE_TONES = [
+  { start: "#2563eb", end: "#1d4ed8", soft: "#dbeafe" },
+  { start: "#7c3aed", end: "#6d28d9", soft: "#ede9fe" },
+  { start: "#0f766e", end: "#0f766e", soft: "#ccfbf1" },
+  { start: "#ea580c", end: "#c2410c", soft: "#ffedd5" },
+  { start: "#be123c", end: "#9f1239", soft: "#ffe4e6" },
+  { start: "#0891b2", end: "#0e7490", soft: "#cffafe" }
+];
 
 type Term = {
   id: string;
@@ -66,6 +74,14 @@ function statusBadge(status: string) {
   if (status === "WAITLISTED") return "border-amber-200 bg-amber-50 text-amber-700";
   if (status === "PENDING_APPROVAL") return "border-blue-200 bg-blue-50 text-blue-700";
   return "border-slate-200 bg-slate-50 text-slate-600";
+}
+
+function hashCourseTone(courseKey: string) {
+  let hash = 0;
+  for (let index = 0; index < courseKey.length; index += 1) {
+    hash = (hash * 31 + courseKey.charCodeAt(index)) >>> 0;
+  }
+  return COURSE_TONES[hash % COURSE_TONES.length];
 }
 
 function useLocalStorage<T>(key: string, initialValue: T): [T, (next: T | ((value: T) => T)) => void] {
@@ -207,10 +223,7 @@ export default function SchedulePage() {
               rowStart,
               rowSpan,
               colStart,
-              tone:
-                enrollment.status === "WAITLISTED"
-                  ? "border-amber-500 bg-amber-100 text-amber-900"
-                  : "border-emerald-500 bg-emerald-100 text-emerald-900"
+              tone: hashCourseTone(enrollment.section.course.code)
             };
           })
       ),
@@ -620,6 +633,10 @@ export default function SchedulePage() {
             visibleEnrollments.map((enrollment) => (
               <article key={enrollment.id} className="rounded-xl border border-slate-200 bg-white p-3">
                 <p className="text-sm font-semibold text-slate-900">
+                  <span
+                    className="mr-2 inline-block h-3.5 w-1.5 rounded-full align-middle"
+                    style={{ background: hashCourseTone(enrollment.section.course.code).start }}
+                  />
                   {enrollment.section.course.code} - {enrollment.section.course.title}
                 </p>
                 <p className="mt-1 text-xs text-slate-600">
@@ -656,15 +673,15 @@ export default function SchedulePage() {
         </div>
 
         <div className="hidden max-h-[460px] overflow-auto md:block">
-          <table className="w-full border-collapse text-sm">
+          <table className="campus-table">
             <thead className="sticky top-0 z-10">
-              <tr className="border-b border-slate-100 bg-slate-50 text-left">
-                <th className="px-4 py-3 font-semibold text-slate-700">Course</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Section</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Instructor</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Meeting</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Status</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Action</th>
+              <tr>
+                <th>Course</th>
+                <th>Section</th>
+                <th>Instructor</th>
+                <th>Meeting</th>
+                <th>Status</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -705,20 +722,24 @@ export default function SchedulePage() {
               ) : (
                 visibleEnrollments.map((enrollment) => (
                   <Fragment key={enrollment.id}>
-                    <tr key={enrollment.id} className="border-b border-slate-100 odd:bg-white even:bg-slate-50/40 hover:bg-slate-100/60">
-                      <td className="px-4 py-3 font-medium text-slate-800">
+                    <tr key={enrollment.id} className="odd:bg-white even:bg-slate-50/40">
+                      <td className="font-medium text-slate-800">
+                        <span
+                          className="mr-3 inline-block h-4 w-1.5 rounded-full align-middle"
+                          style={{ background: hashCourseTone(enrollment.section.course.code).start }}
+                        />
                         {enrollment.section.course.code}
                         <span className="ml-1 font-normal text-slate-500">— {enrollment.section.course.title}</span>
                         <span className="ml-1.5 text-xs font-normal text-slate-400">({enrollment.section.credits} cr)</span>
                       </td>
-                      <td className="px-4 py-3 text-slate-700">
+                      <td className="text-slate-700">
                         §{enrollment.section.sectionCode}
                         {enrollment.status === "PENDING_APPROVAL" ? <span className="ml-1 text-xs text-blue-700">(Pending)</span> : null}
                         {enrollment.section.location ? <span className="ml-1 text-xs text-slate-400">@ {enrollment.section.location}</span> : null}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{enrollment.section.instructorName}</td>
-                      <td className="px-4 py-3 text-slate-600 text-xs">{meetingSummary(enrollment.section.meetingTimes)}</td>
-                      <td className="px-4 py-3">
+                      <td className="text-slate-600">{enrollment.section.instructorName}</td>
+                      <td className="text-xs text-slate-600">{meetingSummary(enrollment.section.meetingTimes)}</td>
+                      <td>
                         <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadge(enrollment.status)}`}>
                           {enrollmentStatusLabel(enrollment.status)}
                         </span>
@@ -726,7 +747,7 @@ export default function SchedulePage() {
                           <p className="mt-0.5 text-[10px] text-amber-700">#{enrollment.waitlistPosition} in queue</p>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td>
                         {dropDeadlinePassed && (enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL") ? (
                           <div className="space-y-1">
                             <button
@@ -755,7 +776,7 @@ export default function SchedulePage() {
                     </tr>
                     {dropError[enrollment.id] ? (
                       <tr key={`err-${enrollment.id}`} className="bg-red-50">
-                        <td colSpan={6} className="px-4 py-2 text-xs text-red-700">{dropError[enrollment.id]}</td>
+                        <td colSpan={6} className="text-xs text-red-700">{dropError[enrollment.id]}</td>
                       </tr>
                     ) : null}
                   </Fragment>
@@ -833,15 +854,16 @@ export default function SchedulePage() {
                   <div
                     key={key}
                     title={`${enrollment.section.course.title}\n${enrollment.section.instructorName}\n${enrollment.section.location ?? "TBA"}`}
-                    className={`z-10 mx-1 my-0.5 overflow-hidden rounded-md border-l-4 px-2 py-1 shadow-sm ${tone}`}
+                    className="z-10 mx-1 my-0.5 overflow-hidden rounded-md px-2 py-1 text-white shadow-md"
                     style={{
                       gridColumnStart: colStart,
                       gridRowStart: rowStart,
-                      gridRowEnd: `span ${rowSpan}`
+                      gridRowEnd: `span ${rowSpan}`,
+                      background: `linear-gradient(180deg, ${tone.start} 0%, ${tone.end} 100%)`
                     }}
                   >
                     <p className="truncate text-xs font-bold">{enrollment.section.course.code}</p>
-                    <p className="text-[10px] opacity-80">{fmt(meetingTime.startMinutes)}-{fmt(meetingTime.endMinutes)}</p>
+                    <p className="text-[10px] text-white/85">{fmt(meetingTime.startMinutes)}-{fmt(meetingTime.endMinutes)}</p>
                   </div>
                 ))}
               </div>

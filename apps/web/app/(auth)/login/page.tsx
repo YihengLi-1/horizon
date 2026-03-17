@@ -3,10 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Eye, EyeOff, GraduationCap, ShieldCheck, Sparkles } from "lucide-react";
 import { ApiError, apiFetch } from "@/lib/api";
 
 type LoginResult = {
@@ -22,6 +19,13 @@ const DEMO_FACULTY_EMAIL = process.env.NEXT_PUBLIC_DEMO_FACULTY_EMAIL || "facult
 const DEMO_FACULTY_PASSWORD = process.env.NEXT_PUBLIC_DEMO_FACULTY_PASSWORD || "Faculty@2026!";
 const DEMO_ADVISOR_EMAIL = process.env.NEXT_PUBLIC_DEMO_ADVISOR_EMAIL || "advisor1@sis.edu";
 const DEMO_ADVISOR_PASSWORD = process.env.NEXT_PUBLIC_DEMO_ADVISOR_PASSWORD || "Advisor@2026!";
+
+const FEATURES = [
+  { icon: GraduationCap, text: "统一查看选课、成绩与毕业进度" },
+  { icon: ShieldCheck, text: "角色分层清晰，面向真实教务场景" },
+  { icon: Sparkles, text: "从注册到审批的关键流程都可直接演示" }
+];
+
 export default function LoginPage() {
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
@@ -54,6 +58,7 @@ export default function LoginPage() {
         method: "POST",
         body: JSON.stringify({ identifier, password })
       });
+
       if (data.role === "ADMIN") {
         router.push("/admin/dashboard");
         return;
@@ -87,7 +92,7 @@ export default function LoginPage() {
           setError(err.message);
         }
       } else {
-        setError(err instanceof Error ? err.message : "Login failed");
+        setError(err instanceof Error ? err.message : "登录失败");
       }
     } finally {
       setLoading(false);
@@ -119,126 +124,149 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="rounded-3xl border-slate-200/90 bg-gradient-to-br from-white via-white to-indigo-50/60 shadow-[0_20px_50px_-32px_rgba(15,23,42,0.75)]">
-      <CardHeader className="pb-4">
-        <p className="text-xs font-semibold tracking-[0.12em] text-slate-500">地平线</p>
-        <CardTitle className="font-heading text-2xl text-slate-900">登录系统</CardTitle>
-        <CardDescription className="text-slate-600">使用学号或邮箱与密码登录。</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form aria-label="Sign in form" className="space-y-4" onSubmit={onSubmit}>
-          <div className="space-y-1">
-            <label className="text-sm font-medium">学号或邮箱</label>
-            <Input
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              required
-              aria-required="true"
-              autoComplete="email"
-              autoFocus
-              aria-describedby="email-error"
-            />
-            <span id="email-error" className="sr-only" aria-live="polite">
-              {error && !locked ? error : ""}
-            </span>
+    <div className="min-h-screen bg-[linear-gradient(180deg,hsl(221_50%_98%)_0%,white_100%)]">
+      <div className="grid min-h-screen lg:grid-cols-2">
+        <section className="hidden lg:flex lg:min-h-screen lg:flex-col lg:justify-between lg:bg-[hsl(221_83%_43%)] lg:px-14 lg:py-12 lg:text-white">
+          <div>
+            <p className="text-sm font-semibold tracking-[0.16em] text-white/75">HORIZON</p>
+            <h1 className="mt-8 text-4xl font-bold leading-tight text-white">地平线学生信息系统</h1>
+            <p className="mt-4 max-w-md text-base leading-7 text-white/80">
+              面向真实大学选课、学业管理与审批流程的统一门户，适合课程演示、答辩和正式交付展示。
+            </p>
           </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium">密码</label>
-            <div className="relative">
-              <Input
-                type={showPw ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                aria-required="true"
-                autoComplete="current-password"
-                className="pr-10"
-                aria-describedby="pw-error"
-              />
-              <button
-                type="button"
-                tabIndex={-1}
-                onClick={() => setShowPw((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                aria-label={showPw ? "隐藏密码" : "显示密码"}
-              >
-                {showPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
-            </div>
-            <span id="pw-error" className="sr-only" aria-live="polite">
-              {error}
-            </span>
-          </div>
-          {error ? (
-            <div
-              className={`rounded-xl border px-3 py-2 text-sm ${
-                locked
-                  ? "border-amber-200 bg-amber-50 text-amber-800"
-                  : "border-red-200 bg-red-50 text-red-700"
-              }`}
-            >
-              {error}
-            </div>
-          ) : null}
-          <Button disabled={loading} className="h-10 w-full bg-primary text-white shadow-md transition-all duration-200 hover:bg-primary/90 hover:shadow-lg" type="submit">
-            {loading ? (
-              <span className="inline-flex items-center gap-2">
-                <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                登录中...
-              </span>
-            ) : (
-              "登录"
-            )}
-          </Button>
-        </form>
 
-        {showDemoAccounts ? (
-          <div className="mt-5 rounded-2xl border border-amber-200/80 bg-amber-50/70 p-4">
-            <h2 className="text-sm font-semibold text-slate-900">演示账号</h2>
-            <p className="mt-1 text-xs text-slate-600">点击按钮可自动填充测试账号。</p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 border-slate-300 bg-white text-slate-700 shadow-md transition-all duration-200 hover:bg-slate-100 hover:shadow-lg"
-                onClick={fillStudentDemo}
-              >
-                填充学生账号
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 border-slate-300 bg-white text-slate-700 shadow-md transition-all duration-200 hover:bg-slate-100 hover:shadow-lg"
-                onClick={fillAdminDemo}
-              >
-                填充管理账号
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 border-slate-300 bg-white text-slate-700 shadow-md transition-all duration-200 hover:bg-slate-100 hover:shadow-lg"
-                onClick={fillFacultyDemo}
-              >
-                填充教师账号
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 border-slate-300 bg-white text-slate-700 shadow-md transition-all duration-200 hover:bg-slate-100 hover:shadow-lg"
-                onClick={fillAdvisorDemo}
-              >
-                填充顾问账号
-              </Button>
+          <div className="space-y-4">
+            {FEATURES.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <div key={feature.text} className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/8 px-4 py-3 backdrop-blur-sm">
+                  <span className="inline-flex size-10 items-center justify-center rounded-full bg-white/14">
+                    <Icon className="size-5 text-white" />
+                  </span>
+                  <span className="text-sm text-white/90">{feature.text}</span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-8">
+          <div className="w-full max-w-[380px]">
+            <div className="rounded-[22px] border border-slate-200 bg-[linear-gradient(180deg,white_0%,hsl(221_45%_99%)_100%)] p-7 shadow-2xl">
+              <div className="mb-6">
+                <p className="text-xs font-semibold tracking-[0.14em] text-[hsl(221_65%_42%)]">地平线</p>
+                <h2 className="mt-3 text-[1.75rem] font-bold text-slate-900">登录系统</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">使用学号或邮箱登录，进入学生、教师、顾问或管理工作台。</p>
+              </div>
+
+              <form aria-label="Sign in form" className="space-y-4" onSubmit={onSubmit}>
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-slate-700">学号或邮箱</span>
+                  <input
+                    className="campus-input"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    required
+                    autoComplete="email"
+                    autoFocus
+                    aria-describedby="email-error"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-slate-700">密码</span>
+                  <div className="relative">
+                    <input
+                      className="campus-input pr-10"
+                      type={showPw ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      autoComplete="current-password"
+                      aria-describedby="pw-error"
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowPw((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
+                      aria-label={showPw ? "隐藏密码" : "显示密码"}
+                    >
+                      {showPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                  <span id="email-error" className="sr-only" aria-live="polite">
+                    {error && !locked ? error : ""}
+                  </span>
+                  <span id="pw-error" className="sr-only" aria-live="polite">
+                    {error}
+                  </span>
+                </label>
+
+                {error ? (
+                  <div
+                    className={`rounded-xl border px-3 py-2 text-sm ${
+                      locked
+                        ? "border-amber-200 bg-amber-50 text-amber-800"
+                        : "border-red-200 bg-red-50 text-red-700"
+                    }`}
+                  >
+                    {error}
+                  </div>
+                ) : null}
+
+                <button
+                  disabled={loading}
+                  type="submit"
+                  className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[hsl(221_83%_43%)] px-4 text-sm font-semibold text-white shadow-md transition duration-200 hover:bg-[hsl(221_83%_38%)] hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {loading ? (
+                    <>
+                      <span className="size-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />
+                      登录中...
+                    </>
+                  ) : (
+                    "登录"
+                  )}
+                </button>
+              </form>
+
+              {showDemoAccounts ? (
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-white/80 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900">演示账号</h3>
+                      <p className="mt-1 text-xs text-slate-500">点击后会自动填充常用测试账号。</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <button type="button" onClick={fillStudentDemo} className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-[hsl(221_83%_43%)] hover:bg-[hsl(221_80%_97%)] hover:text-[hsl(221_83%_38%)]">
+                      学生账号
+                    </button>
+                    <button type="button" onClick={fillAdminDemo} className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-[hsl(221_83%_43%)] hover:bg-[hsl(221_80%_97%)] hover:text-[hsl(221_83%_38%)]">
+                      管理账号
+                    </button>
+                    <button type="button" onClick={fillFacultyDemo} className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-[hsl(221_83%_43%)] hover:bg-[hsl(221_80%_97%)] hover:text-[hsl(221_83%_38%)]">
+                      教师账号
+                    </button>
+                    <button type="button" onClick={fillAdvisorDemo} className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-[hsl(221_83%_43%)] hover:bg-[hsl(221_80%_97%)] hover:text-[hsl(221_83%_38%)]">
+                      顾问账号
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="mt-6 flex items-center justify-between gap-4 text-xs text-slate-500">
+                <span>版本 v1.0</span>
+                <div className="flex items-center gap-3">
+                  <Link className="hover:text-slate-700" href="/forgot">帮助与重置密码</Link>
+                  <Link className="hover:text-slate-700" href="/register">注册</Link>
+                </div>
+              </div>
             </div>
           </div>
-        ) : null}
-
-        <div className="mt-6 text-center text-sm text-slate-500">
-          <Link className="font-medium text-primary underline underline-offset-2" href="/register">注册</Link>
-          <span className="mx-2 text-slate-300">·</span>
-          <Link className="font-medium text-primary underline underline-offset-2" href="/forgot">忘记密码？</Link>
-        </div>
-      </CardContent>
-    </Card>
+        </section>
+      </div>
+    </div>
   );
 }

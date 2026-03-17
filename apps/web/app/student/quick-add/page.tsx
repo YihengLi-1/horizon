@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Check, LoaderCircle, X } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { ApiError, apiFetch } from "@/lib/api";
 
@@ -67,6 +68,7 @@ export default function QuickAddPage() {
   const [error, setError] = useState("");
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
+  const [itemStates, setItemStates] = useState<Record<string, "idle" | "loading" | "success" | "error">>({});
 
   const totalCredits = useMemo(
     () => items.reduce((sum, item) => sum + item.section.credits, 0),
@@ -92,6 +94,7 @@ export default function QuickAddPage() {
   async function handleEnroll(item: CartItem) {
     setSubmittingId(item.id);
     setItemErrors((prev) => ({ ...prev, [item.id]: "" }));
+    setItemStates((prev) => ({ ...prev, [item.id]: "loading" }));
     try {
       const result = await apiFetch<EnrollResult>("/registration/enroll", {
         method: "POST",
@@ -105,7 +108,15 @@ export default function QuickAddPage() {
         method: "DELETE"
       }).catch(() => null);
 
-      setItems((prev) => prev.filter((row) => row.id !== item.id));
+      setItemStates((prev) => ({ ...prev, [item.id]: "success" }));
+      window.setTimeout(() => {
+        setItems((prev) => prev.filter((row) => row.id !== item.id));
+        setItemStates((prev) => {
+          const next = { ...prev };
+          delete next[item.id];
+          return next;
+        });
+      }, 2000);
       toast(
         result.status === "PENDING_APPROVAL"
           ? `已提交 §${item.section.sectionCode}，等待审批`
@@ -115,6 +126,10 @@ export default function QuickAddPage() {
     } catch (err) {
       const message = normalizeQuickAddError(err);
       setItemErrors((prev) => ({ ...prev, [item.id]: message }));
+      setItemStates((prev) => ({ ...prev, [item.id]: "error" }));
+      window.setTimeout(() => {
+        setItemStates((prev) => ({ ...prev, [item.id]: "idle" }));
+      }, 2000);
       toast(message, "error");
     } finally {
       setSubmittingId(null);
@@ -167,8 +182,36 @@ export default function QuickAddPage() {
         <div className="campus-card px-6 py-14 text-center text-sm text-slate-400">购物车中暂无待注册课程</div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          {items.map((item) => (
-            <article key={item.id} className="campus-card p-5">
+          {items.map((item) => {
+            const state = itemStates[item.id] ?? "idle";
+            const buttonClass =
+              state === "success"
+                ? "bg-emerald-600 hover:bg-emerald-600"
+                : state === "error"
+                  ? "bg-red-600 hover:bg-red-600"
+                  : "bg-slate-900 hover:bg-slate-700";
+            const content =
+              state === "loading" ? (
+                <>
+                  <LoaderCircle className="size-4 animate-spin" />
+                  提交中…
+                </>
+              ) : state === "success" ? (
+                <>
+                  <Check className="size-4" />
+                  已成功
+                </>
+              ) : state === "error" ? (
+                <>
+                  <X className="size-4" />
+                  失败
+                </>
+              ) : (
+                "立即注册"
+              );
+
+            return (
+              <article key={item.id} className="campus-card p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
                   <p className="font-mono text-xs font-bold text-indigo-700">{item.section.course.code}</p>
@@ -196,13 +239,14 @@ export default function QuickAddPage() {
                   type="button"
                   onClick={() => void handleEnroll(item)}
                   disabled={submittingId === item.id}
-                  className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${buttonClass}`}
                 >
-                  {submittingId === item.id ? "提交中…" : "立即注册"}
+                  {content}
                 </button>
               </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
     </div>

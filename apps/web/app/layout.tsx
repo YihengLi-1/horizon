@@ -1,17 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Merriweather, Source_Sans_3 } from "next/font/google";
+import { Inter } from "next/font/google";
 import { ToastProvider } from "@/components/Toast";
 import "./globals.css";
 
-const bodyFont = Source_Sans_3({
+const bodyFont = Inter({
   subsets: ["latin"],
-  variable: "--font-body"
+  variable: "--font-body",
+  weight: ["400", "500", "600", "700"]
 });
 
-const headingFont = Merriweather({
+const headingFont = Inter({
   subsets: ["latin"],
   variable: "--font-heading",
-  weight: ["400", "700", "900"]
+  weight: ["400", "500", "600", "700"]
 });
 
 export const metadata: Metadata = {
