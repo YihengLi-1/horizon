@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 type Announcement = {
@@ -70,6 +71,14 @@ export default function PinnedAnnouncements({ announcements }: { announcements: 
                 </div>
                 <p className="mt-2 text-sm font-semibold text-slate-900">{announcement.title}</p>
                 <p className="mt-1 text-sm leading-6 text-slate-600">{announcement.body}</p>
+                <div className="mt-3">
+                  <Link
+                    href="/student/announcements"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-700 no-underline hover:text-indigo-800"
+                  >
+                    查看公告详情 →
+                  </Link>
+                </div>
               </div>
               <button
                 type="button"

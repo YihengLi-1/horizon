@@ -108,6 +108,7 @@ export default function SchedulePage() {
   const [viewMode, setViewMode] = useLocalStorage<"list" | "grid">("schedule_view_mode", "list");
   const [clientNow, setClientNow] = useState<number | null>(null);
   const [todayWeekday, setTodayWeekday] = useState(0);
+  const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<string | null>(null);
 
   useEffect(() => {
     const now = Date.now();
@@ -191,6 +192,10 @@ export default function SchedulePage() {
     }
     return slots;
   }, []);
+  const selectedEnrollment = useMemo(
+    () => visibleEnrollments.find((enrollment) => enrollment.id === selectedEnrollmentId) ?? null,
+    [selectedEnrollmentId, visibleEnrollments]
+  );
   const gridBlocks = useMemo(
     () =>
       visibleEnrollments
@@ -878,10 +883,12 @@ export default function SchedulePage() {
                   </Fragment>
                 ))}
                 {gridBlocks.map(({ key, enrollment, meetingTime, rowStart, rowSpan, colStart, tone }) => (
-                  <div
+                  <button
+                    type="button"
                     key={key}
                     title={`${enrollment.section.course.title}\n${enrollment.section.instructorName}\n${enrollment.section.location ?? "TBA"}`}
-                    className="z-10 mx-1 my-0.5 overflow-hidden rounded-md px-2 py-1 text-white shadow-md"
+                    onClick={() => setSelectedEnrollmentId(enrollment.id)}
+                    className="z-10 mx-1 my-0.5 overflow-hidden rounded-md px-2 py-1 text-left text-white shadow-md transition hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
                     style={{
                       gridColumnStart: colStart,
                       gridRowStart: rowStart,
@@ -891,11 +898,40 @@ export default function SchedulePage() {
                   >
                     <p className="truncate text-xs font-bold">{enrollment.section.course.code}</p>
                     <p className="text-[10px] text-white/85">{fmt(meetingTime.startMinutes)}-{fmt(meetingTime.endMinutes)}</p>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
           )}
+          {selectedEnrollment ? (
+            <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50/60 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">课程详情</p>
+                  <h3 className="mt-1 text-base font-semibold text-slate-900">
+                    {selectedEnrollment.section.course.code} · {selectedEnrollment.section.course.title}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    §{selectedEnrollment.section.sectionCode} · {selectedEnrollment.section.instructorName} · {selectedEnrollment.section.location ?? "地点待定"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedEnrollmentId(null)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                >
+                  关闭
+                </button>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadge(selectedEnrollment.status)}`}>
+                  {enrollmentStatusLabel(selectedEnrollment.status)}
+                </span>
+                <span className="campus-chip chip-blue">{selectedEnrollment.section.credits} 学分</span>
+                <span className="campus-chip chip-purple">{meetingSummary(selectedEnrollment.section.meetingTimes)}</span>
+              </div>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
