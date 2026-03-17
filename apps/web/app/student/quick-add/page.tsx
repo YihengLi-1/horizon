@@ -56,7 +56,8 @@ function normalizeQuickAddError(error: unknown) {
     if (error.code === "CREDIT_LIMIT_EXCEEDED") return "超过当前学期可选学分上限";
     if (error.code === "ACTIVE_REGISTRATION_HOLD") return "存在生效中的限制，当前无法注册";
     if (error.code === "REGISTRATION_WINDOW_CLOSED") return "当前不在选课开放时间内";
-    if (error.message.includes("PREREQ_NOT_MET")) return error.message.replace("PREREQ_NOT_MET: ", "先修课程未满足：");
+    if (error.code === "PREREQ_NOT_MET") return error.message;
+    if (error.code === "ALREADY_REGISTERED") return "该教学班已存在有效注册记录";
     return error.message;
   }
   return error instanceof Error ? error.message : "注册失败，请稍后重试";

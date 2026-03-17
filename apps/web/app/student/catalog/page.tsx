@@ -11,6 +11,13 @@ import CoursePairings from "@/components/CoursePairings";
 import MultiDimRating from "@/components/MultiDimRating";
 import SectionReviews from "@/components/SectionReviews";
 import { apiFetch } from "@/lib/api";
+import {
+  WEEKDAY,
+  deriveStudentCohortYear,
+  fmt,
+  registrationPriorityLabel,
+  registrationPriorityOffsetDays
+} from "@/lib/schedule-utils";
 import BookmarkButton from "./BookmarkButton";
 import RecommendedCourses from "./RecommendedCourses";
 
@@ -85,14 +92,6 @@ type GradeEnrollment = {
     };
   };
 };
-
-const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function fmt(minutes: number): string {
-  const h = Math.floor(minutes / 60).toString().padStart(2, "0");
-  const m = (minutes % 60).toString().padStart(2, "0");
-  return `${h}:${m}`;
-}
 
 function meetingChip(mt: MeetingTime): string {
   return `${WEEKDAY[mt.weekday] ?? mt.weekday} ${fmt(mt.startMinutes)}–${fmt(mt.endMinutes)}`;
@@ -199,29 +198,6 @@ function Alert({
       </div>
     </div>
   );
-}
-
-function deriveStudentCohortYear(studentId?: string | null, createdAt?: string) {
-  const match = studentId?.match(/^U(\d{2})/i);
-  if (match) {
-    const yy = Number(match[1]);
-    return yy >= 80 ? 1900 + yy : 2000 + yy;
-  }
-  return createdAt ? new Date(createdAt).getFullYear() : new Date().getFullYear();
-}
-
-function registrationPriorityOffsetDays(cohortYear: number) {
-  if (cohortYear <= 2022) return 0;
-  if (cohortYear === 2023) return 2;
-  if (cohortYear === 2024) return 4;
-  return 6;
-}
-
-function registrationPriorityLabel(cohortYear: number) {
-  if (cohortYear <= 2022) return "大四";
-  if (cohortYear === 2023) return "大三";
-  if (cohortYear === 2024) return "大二";
-  return "大一";
 }
 
 function seatToneText(availableSeats: number) {

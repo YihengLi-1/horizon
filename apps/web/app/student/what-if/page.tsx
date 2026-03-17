@@ -8,16 +8,13 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import { GRADE_POINTS } from "@sis/shared/constants";
 import { apiFetch } from "@/lib/api";
 
 type TermHistory = { termName: string; credits: number; courses: number; termGpa: number | null };
 type StandingData = { cumulativeGpa: number | null; totalCredits: number; standing: string; termHistory: TermHistory[] };
 
 const GRADE_OPTIONS = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-", "F"];
-const GRADE_POINTS: Record<string, number> = {
-  "A+": 4, "A": 4, "A-": 3.7, "B+": 3.3, "B": 3, "B-": 2.7,
-  "C+": 2.3, "C": 2, "C-": 1.7, "D+": 1.3, "D": 1, "D-": 0.7, "F": 0
-};
 
 type ScenarioTerm = {
   termName: string;

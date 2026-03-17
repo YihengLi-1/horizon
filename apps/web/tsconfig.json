@@ -27,6 +27,9 @@
       "@sis/shared": [
         "../../packages/shared/src"
       ],
+      "@sis/shared/*": [
+        "../../packages/shared/src/*"
+      ],
       "@/*": [
         "./*"
       ]

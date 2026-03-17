@@ -9,6 +9,7 @@ import {
 } from "@nestjs/common";
 import argon2 from "argon2";
 import { Prisma } from "@prisma/client";
+import { GRADE_POINTS } from "@sis/shared/constants";
 import { PrismaService } from "../common/prisma.service";
 import { ChangePasswordInput, UpdateProfileInput } from "@sis/shared";
 import { toDateOrNull } from "../common/grade.utils";
@@ -16,22 +17,6 @@ import { AuditService } from "../audit/audit.service";
 import { apiCache } from "../common/cache";
 import { verifyPasswordHash } from "../common/password-hash";
 import { GovernanceService } from "../governance/governance.service";
-
-const GRADE_POINTS: Record<string, number> = {
-  "A+": 4.0,
-  A: 4.0,
-  "A-": 3.7,
-  "B+": 3.3,
-  B: 3.0,
-  "B-": 2.7,
-  "C+": 2.3,
-  C: 2.0,
-  "C-": 1.7,
-  "D+": 1.3,
-  D: 1.0,
-  "D-": 0.7,
-  F: 0.0
-};
 
 type TranscriptEnrollment = Prisma.EnrollmentGetPayload<{
   include: {
@@ -309,11 +294,6 @@ export class StudentsService {
   }
 
   async getGpaStats(userId: string) {
-    const GRADE_POINTS: Record<string, number> = {
-      "A+": 4, A: 4, "A-": 3.7, "B+": 3.3, B: 3, "B-": 2.7,
-      "C+": 2.3, C: 2, "C-": 1.7, "D+": 1.3, D: 1, "D-": 0.7, F: 0
-    };
-
     // Compute GPA for all students
     const allStudents = await this.prisma.user.findMany({
       where: { role: "STUDENT", deletedAt: null },
@@ -1300,11 +1280,6 @@ export class StudentsService {
   }
 
   async getAcademicStanding(userId: string) {
-    const GRADE_POINTS: Record<string, number> = {
-      "A+": 4, "A": 4, "A-": 3.7, "B+": 3.3, "B": 3, "B-": 2.7,
-      "C+": 2.3, "C": 2, "C-": 1.7, "D+": 1.3, "D": 1, "D-": 0.7, "F": 0
-    };
-
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -1464,11 +1439,6 @@ export class StudentsService {
       orderBy: { createdAt: "desc" }
     });
 
-    const GRADE_POINTS: Record<string, number> = {
-      "A+": 4, "A": 4, "A-": 3.7, "B+": 3.3, "B": 3, "B-": 2.7,
-      "C+": 2.3, "C": 2, "C-": 1.7, "D+": 1.3, "D": 1, "D-": 0.7, "F": 0
-    };
-
     const items = enrollments.map((e) => ({
       enrollmentId: e.id,
       status: e.status,
@@ -1523,11 +1493,6 @@ export class StudentsService {
         section: { select: { credits: true, course: { select: { code: true } } } }
       }
     });
-
-    const GRADE_POINTS: Record<string, number> = {
-      "A+": 4, "A": 4, "A-": 3.7, "B+": 3.3, "B": 3, "B-": 2.7,
-      "C+": 2.3, "C": 2, "C-": 1.7, "D+": 1.3, "D": 1, "D-": 0.7, "F": 0
-    };
 
     const totalCredits = enrollments.reduce((s, e) => s + e.section.credits, 0);
     const gradedEnrollments = enrollments.filter((e) => e.finalGrade && e.finalGrade in GRADE_POINTS);
