@@ -33,3 +33,9 @@ test-results/
 
 # Personal notes (not for repo)
 MEMORY.md
+
+# Backup files
+*.bak
+*.bak2
+*.bak_force
+*.orig
