@@ -62,7 +62,9 @@ docker compose exec api pnpm --filter @sis/api exec prisma db seed
 |------|------|------|
 | 管理员 | admin@univ.edu | Admin1234! |
 | 学生 | student1@univ.edu | Student1234! |
-| （学生2-5同格式） | student2-5@univ.edu | Student1234! |
+| 学生2–5 | student2@univ.edu … student5@univ.edu | Student1234! |
+| 教师 | faculty1@univ.edu | Faculty1234! |
+| 顾问 | advisor1@univ.edu | Advisor1234! |
 
 ## 核心功能
 - 学生选课：课程目录 → 购物车 → 预检 → 提交
@@ -84,7 +86,7 @@ docker compose exec api pnpm --filter @sis/api exec prisma db seed
 bash scripts/readiness-check.sh
 ```
 
-预期输出：`641 pass, 0 warn, 0 fail`
+预期输出：`457 pass, 0 warn, 0 fail`
 
 ## 项目结构
 ```text
