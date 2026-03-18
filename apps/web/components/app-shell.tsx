@@ -102,6 +102,8 @@ const adminItems: NavItem[] = [
   { href: "/admin/system-health",      label: "系统状态",   icon: <Shield className={iconClass} /> },
   // 人员管理
   { href: "/admin/staff",              label: "教职导师",   icon: <Users className={iconClass} /> },
+  // 系统管理
+  { href: "/admin/users-mgmt",         label: "用户管理",   icon: <Users className={iconClass} /> },
   // 学生管理
   { href: "/admin/students",           label: "学生",       icon: <Users className={iconClass} /> },
   { href: "/admin/holds",              label: "学籍限制",   icon: <ShieldAlert className={iconClass} /> },
@@ -258,7 +260,7 @@ export function AppShell({
             { label: "管理",     hrefs: ["/admin/announcements-mgmt", "/admin/bulk-ops", "/admin/enrollment-audit", "/admin/grade-distribution", "/admin/audit-logs"] },
             { label: "分析",     hrefs: ["/admin/instructor-performance", "/admin/dept-gpa", "/admin/retention", "/admin/demand-report", "/admin/data-quality", "/admin/notification-log", "/admin/term-comparison", "/admin/course-pairings", "/admin/digest-preview", "/admin/dropout-risk", "/admin/top-performers", "/admin/dept-workload", "/admin/waitlist-analytics", "/admin/graduation", "/admin/registration-heatmap", "/admin/faculty-schedule", "/admin/capacity-plan", "/admin/alerts", "/admin/enrollment-velocity", "/admin/term-capacity", "/admin/late-drops", "/admin/major-trends"] },
             { label: "工具",     hrefs: ["/admin/closeout", "/admin/prereq-audit", "/admin/offering-history", "/admin/section-swap", "/admin/schedule-conflicts", "/admin/grade-curve", "/admin/cohort-analytics", "/admin/term-enrollment-forecast", "/admin/prereq-map", "/admin/section-roster", "/admin/status-email", "/admin/cohort-message", "/admin/calendar", "/admin/reports-summary"] },
-            { label: "系统",     hrefs: ["/admin/search", "/admin/invite-codes", "/admin/settings", "/admin/webhooks"] },
+            { label: "系统",     hrefs: ["/admin/users-mgmt", "/admin/search", "/admin/invite-codes", "/admin/settings", "/admin/webhooks"] },
           ]
         : area === "faculty"
           ? [{ label: "教学", hrefs: ["/faculty/dashboard", "/faculty/sections", "/faculty/requests", "/faculty/grade-stats"] }]

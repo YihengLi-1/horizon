@@ -7475,4 +7475,52 @@ export class AdminService {
       students: [...byStudent.values()],
     };
   }
+
+  // ── User Management ────────────────────────────────────────────────────────
+  async listUsers(opts: { search?: string; role?: string; page: number; limit: number }) {
+    const { search, role, page, limit } = opts;
+    type Row = {
+      id: string; email: string; student_id: string | null; role: string;
+      email_verified_at: Date | null; last_login_at: Date | null;
+      login_attempts: number; locked_until: Date | null; created_at: Date;
+    };
+    const conditions: string[] = [`"deletedAt" IS NULL`];
+    if (role) conditions.push(`"role" = '${role.replace(/'/g, "''")}'`);
+    if (search) {
+      const s = search.replace(/'/g, "''");
+      conditions.push(`("email" ILIKE '%${s}%' OR "studentId" ILIKE '%${s}%')`);
+    }
+    const where = conditions.join(" AND ");
+    const offset = (page - 1) * limit;
+    const [countRows, rows] = await Promise.all([
+      this.prisma.$queryRawUnsafe<[{ total: bigint }]>(`SELECT COUNT(*)::bigint AS total FROM "User" WHERE ${where}`),
+      this.prisma.$queryRawUnsafe<Row[]>(`SELECT id, email, "studentId" AS student_id, role, "emailVerifiedAt" AS email_verified_at, "lastLoginAt" AS last_login_at, "loginAttempts" AS login_attempts, "lockedUntil" AS locked_until, "createdAt" AS created_at FROM "User" WHERE ${where} ORDER BY "createdAt" DESC LIMIT ${limit} OFFSET ${offset}`),
+    ]);
+    const total = Number(countRows[0]?.total ?? 0);
+    const users = rows.map((r) => ({
+      id: r.id, email: r.email, studentId: r.student_id, role: r.role,
+      emailVerifiedAt: r.email_verified_at, lastLoginAt: r.last_login_at,
+      loginAttempts: Number(r.login_attempts), lockedUntil: r.locked_until, createdAt: r.created_at,
+    }));
+    return { total, page, limit, users };
+  }
+
+  async setUserLock(userId: string, lock: boolean, actorUserId: string) {
+    const lockedUntil = lock ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) : null;
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { lockedUntil },
+      select: { id: true, email: true, lockedUntil: true },
+    });
+    await this.prisma.auditLog.create({
+      data: {
+        actorUserId,
+        action: lock ? "USER_LOCKED" : "USER_UNLOCKED",
+        entityType: "User",
+        entityId: userId,
+        metadata: {},
+      },
+    });
+    return user;
+  }
 }
