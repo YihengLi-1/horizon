@@ -1,11 +1,35 @@
+# Dependencies
 node_modules
 .pnpm-store
+
+# Build outputs
 .next
 apps/web/.next-dev
-reports/automation
 dist
 coverage
+apps/api/generated
+
+# Environment
 .env
 .env.*
 !.env.example
-apps/api/generated
+
+# OS / editor
+.DS_Store
+.idea
+*.swp
+
+# Claude internal
+.claude/
+
+# Legacy / old copies
+sis/
+sis 2/
+sis.zip
+
+# Generated reports & test artifacts
+reports/
+test-results/
+
+# Personal notes (not for repo)
+MEMORY.md
