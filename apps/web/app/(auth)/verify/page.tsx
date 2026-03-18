@@ -41,7 +41,7 @@ export default function VerifyPage() {
       <CardContent>
         <div
           className={`rounded-xl border px-3 py-2 text-sm ${
-            status.includes("verified")
+            status.includes("成功")
               ? "border-emerald-200 bg-emerald-50 text-emerald-800"
               : status.includes("失败") || status.includes("缺失") || status.includes("过期")
                 ? "border-red-200 bg-red-50 text-red-700"
