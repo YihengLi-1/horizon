@@ -441,6 +441,31 @@ export class AdminController {
     return ok({ removed: true });
   }
 
+  @Get("users")
+  @RequireAdminPermissions("students:read")
+  async listUsers(
+    @Query("search") search?: string,
+    @Query("role") role?: string,
+    @Query("page") page = "1",
+    @Query("limit") limit = "20",
+  ) {
+    return ok(await this.adminService.listUsers({
+      search, role,
+      page: parseInt(page, 10) || 1,
+      limit: Math.min(parseInt(limit, 10) || 20, 100),
+    }));
+  }
+
+  @Patch("users/:id/lock")
+  @RequireAdminPermissions("students:write")
+  async setUserLock(
+    @Param("id") id: string,
+    @Body() body: { lock: boolean },
+    @CurrentUser() user: { userId: string },
+  ) {
+    return ok(await this.adminService.setUserLock(id, body.lock, user.userId));
+  }
+
   @Patch("users/:id/role")
   @RequireAdminPermissions("students:write")
   async updateRole(
