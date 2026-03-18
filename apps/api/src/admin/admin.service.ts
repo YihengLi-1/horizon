@@ -3853,7 +3853,7 @@ export class AdminService {
     if (issues.length > 0) {
       throw new BadRequestException({
         code: "CSV_ROW_INVALID",
-        message: "CSV contains duplicate sections",
+        message: "CSV 中存在重复教学班",
         details: issues
       });
     }
@@ -3902,7 +3902,7 @@ export class AdminService {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         throw new BadRequestException({
           code: "CSV_ROW_INVALID",
-          message: "CSV contains duplicate sections",
+          message: "CSV 中存在重复教学班",
           details: [
             {
               rowNumber: 0,

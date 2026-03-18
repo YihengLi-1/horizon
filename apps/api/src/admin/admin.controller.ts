@@ -430,7 +430,7 @@ export class AdminController {
   async createWebhook(@Body() body: { url: string; events: string[]; secret?: string }) {
     return ok({
       id: registerWebhook(body.url, body.events, body.secret ?? ""),
-      message: "Webhook registered"
+      message: "Webhook 已注册"
     });
   }
 

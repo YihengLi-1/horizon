@@ -682,7 +682,7 @@ export class RegistrationService {
       };
 
       if (existingSectionIds.has(section.id)) {
-        pushIssue("ALREADY_REGISTERED", "Already enrolled/waitlisted for this section");
+        pushIssue("ALREADY_REGISTERED", "已选课或已在候补队列中");
         continue;
       }
 
@@ -704,7 +704,7 @@ export class RegistrationService {
           "PREREQUISITE_NOT_MET",
           missingPrereqCodes.length > 0
             ? `Missing prerequisite(s): ${missingPrereqCodes.join(", ")}`
-            : "Prerequisites not met"
+            : "先修课要求未满足"
         );
         continue;
       }
@@ -734,7 +734,7 @@ export class RegistrationService {
         }));
 
         if (hasMeetingConflict(thisMeetings, scheduledMeetings)) {
-          pushIssue("TIME_CONFLICT", "Time conflict with current schedule/cart");
+          pushIssue("TIME_CONFLICT", "与当前课表/购物车时间冲突");
           continue;
         }
 
@@ -807,7 +807,7 @@ export class RegistrationService {
       });
 
       if (!section) {
-        throw new NotFoundException("Section not found");
+        throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "教学班不存在" });
       }
 
       await this.assertStudentRegistrationWindowOpen(tx, studentId, {
@@ -1737,14 +1737,14 @@ export class RegistrationService {
       const enrollment = enrollmentMap.get(item.enrollmentId);
 
       if (!enrollment) {
-        failed.push({ enrollmentId: item.enrollmentId, reason: "Enrollment not found in this section" });
+        failed.push({ enrollmentId: item.enrollmentId, reason: "在该教学班中未找到注册记录" });
         continue;
       }
 
       if (enrollment.status === "COMPLETED" && actor.role !== "ADMIN") {
         failed.push({
           enrollmentId: item.enrollmentId,
-          reason: "Completed enrollments are locked and cannot be modified"
+          reason: "已完成的注册记录已锁定，不可修改"
         });
         continue;
       }
@@ -1785,7 +1785,7 @@ export class RegistrationService {
       } catch (error) {
         failed.push({
           enrollmentId: item.enrollmentId,
-          reason: error instanceof Error ? error.message : "Unable to update grade"
+          reason: error instanceof Error ? error.message : "成绩更新失败"
         });
       }
     }
@@ -1838,7 +1838,7 @@ export class RegistrationService {
       ]);
 
       if (!dropSection || !addSection) {
-        throw new NotFoundException("Section not found");
+        throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "教学班不存在" });
       }
 
       if (dropSection.courseId !== addSection.courseId) {
@@ -1864,7 +1864,7 @@ export class RegistrationService {
       });
 
       if (!currentEnrollment) {
-        throw new NotFoundException("Enrollment not found");
+        throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "注册记录不存在" });
       }
 
       const existingTarget = await tx.enrollment.findFirst({
@@ -2072,7 +2072,7 @@ export class RegistrationService {
         data: {
           userId: watch.userId,
           type: "SEAT_AVAILABLE",
-          subject: "Seat available",
+          subject: "有席位空余",
           body: `${watch.section.course.code} 有空位，快去选！`
         }
       }).catch(() => {});
