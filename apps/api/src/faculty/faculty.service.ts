@@ -174,4 +174,57 @@ export class FacultyService {
 
     return updated;
   }
+
+  async getGradeStats(facultyUserId: string) {
+    const sections = await this.prisma.section.findMany({
+      where: { instructorUserId: facultyUserId },
+      include: {
+        term: { select: { id: true, name: true } },
+        course: { select: { code: true, title: true, credits: true } },
+        enrollments: {
+          where: { deletedAt: null, status: "COMPLETED" },
+          select: { finalGrade: true }
+        }
+      },
+      orderBy: [{ term: { startDate: "desc" } }, { sectionCode: "asc" }]
+    });
+
+    const GRADE_POINTS: Record<string, number> = {
+      "A+": 4.0, "A": 4.0, "A-": 3.7,
+      "B+": 3.3, "B": 3.0, "B-": 2.7,
+      "C+": 2.3, "C": 2.0, "C-": 1.7,
+      "D+": 1.3, "D": 1.0, "D-": 0.7, "F": 0.0
+    };
+    const GRADE_ORDER = ["A+","A","A-","B+","B","B-","C+","C","C-","D+","D","D-","F","W"];
+
+    return sections.map((s) => {
+      const gradeCounts: Record<string, number> = {};
+      let pts = 0, creditHours = 0;
+      for (const e of s.enrollments) {
+        if (!e.finalGrade) continue;
+        gradeCounts[e.finalGrade] = (gradeCounts[e.finalGrade] ?? 0) + 1;
+        if (GRADE_POINTS[e.finalGrade] !== undefined) {
+          pts += GRADE_POINTS[e.finalGrade] * (s.course.credits ?? 3);
+          creditHours += s.course.credits ?? 3;
+        }
+      }
+      const completed = s.enrollments.length;
+      const passCount = s.enrollments.filter((e) => e.finalGrade && !["F","W"].includes(e.finalGrade)).length;
+      const distribution = GRADE_ORDER
+        .filter((g) => gradeCounts[g])
+        .map((g) => ({ grade: g, count: gradeCounts[g] }));
+      return {
+        sectionId: s.id,
+        sectionCode: s.sectionCode,
+        termId: s.termId,
+        termName: s.term.name,
+        courseCode: s.course.code,
+        courseTitle: s.course.title,
+        completed,
+        avgGpa: creditHours > 0 ? Math.round((pts / creditHours) * 100) / 100 : null,
+        passRate: completed > 0 ? Math.round((passCount / completed) * 100) : null,
+        distribution
+      };
+    });
+  }
 }

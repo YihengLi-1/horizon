@@ -31,4 +31,9 @@ export class FacultyController {
   ) {
     return ok(await this.facultyService.submitGrade(user.userId, sectionId, enrollmentId, body.finalGrade?.trim() || ""));
   }
+
+  @Get("grade-stats")
+  async gradeStats(@CurrentUser() user: { userId: string }) {
+    return ok(await this.facultyService.getGradeStats(user.userId));
+  }
 }
