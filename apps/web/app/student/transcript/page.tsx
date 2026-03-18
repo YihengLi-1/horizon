@@ -112,6 +112,15 @@ const STATUS_CHIP: Record<string, string> = {
   CART:              "border-slate-200 bg-slate-50 text-slate-400"
 };
 
+const STATUS_LABEL: Record<string, string> = {
+  COMPLETED:        "已完成",
+  ENROLLED:         "在读",
+  WAITLISTED:       "候补",
+  DROPPED:          "已退课",
+  PENDING_APPROVAL: "待审批",
+  CART:             "购物车"
+};
+
 export default function TranscriptPage() {
   const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,24 +132,11 @@ export default function TranscriptPage() {
   }).format(new Date());
 
   useEffect(() => {
-    void apiFetch<Enrollment[]>("/registration/grades")
-      .then((data) => {
-        // /registration/grades returns only COMPLETED — we need ALL enrollments
-        // Fallback to the transcript/enrollment list
-        setAllEnrollments(data);
-      })
+    // /registration/enrollments (no termId) returns all enrollments across terms
+    void apiFetch<Enrollment[]>("/registration/enrollments")
+      .then((data) => setAllEnrollments(data ?? []))
       .catch(() => setAllEnrollments([]))
       .finally(() => setLoading(false));
-
-    // Also try to get all enrollments (not just completed)
-    void apiFetch<Enrollment[]>("/students/me")
-      .then((me: unknown) => {
-        const user = me as { enrollments?: Enrollment[] };
-        if (user?.enrollments) {
-          setAllEnrollments(user.enrollments);
-        }
-      })
-      .catch(() => {});
   }, []);
 
   const issues = detectIssues(allEnrollments);
@@ -270,7 +266,7 @@ export default function TranscriptPage() {
         >
           <option value="all">所有状态 ({allEnrollments.length})</option>
           {statuses.map((s) => (
-            <option key={s} value={s}>{s} ({statusCounts[s] ?? 0})</option>
+            <option key={s} value={s}>{STATUS_LABEL[s] ?? s} ({statusCounts[s] ?? 0})</option>
           ))}
         </select>
         <label className="flex items-center gap-2 text-xs text-slate-600 ml-auto cursor-pointer">
@@ -326,7 +322,7 @@ export default function TranscriptPage() {
                           <p className="text-xs text-slate-400 mt-0.5">§{e.section.sectionCode} · {e.section.instructorName} · {e.section.credits}cr</p>
                         </div>
                         <span className={`campus-chip text-xs ${STATUS_CHIP[e.status] ?? "border-slate-200 bg-slate-50 text-slate-500"}`}>
-                          {e.status}
+                          {STATUS_LABEL[e.status] ?? e.status}
                         </span>
                         <span className={`text-base font-bold w-8 text-right ${gradeColor(e.finalGrade)}`}>
                           {e.finalGrade ?? (e.status === "COMPLETED" ? "—" : "")}
