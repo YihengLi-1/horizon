@@ -239,6 +239,8 @@ async function resetDatabase() {
 async function seedUsers() {
   const adminPasswordHash = await bcrypt.hash("Admin1234!", 12);
   const studentPasswordHash = await bcrypt.hash("Student1234!", 12);
+  const facultyPasswordHash = await bcrypt.hash("Faculty1234!", 12);
+  const advisorPasswordHash = await bcrypt.hash("Advisor1234!", 12);
 
   await prisma.user.create({
     data: {
@@ -247,6 +249,42 @@ async function seedUsers() {
       passwordHash: adminPasswordHash,
       role: Role.ADMIN,
       emailVerifiedAt: NOW
+    }
+  });
+
+  // Demo faculty account
+  await prisma.user.create({
+    data: {
+      id: "seed-faculty-1",
+      email: "faculty1@univ.edu",
+      passwordHash: facultyPasswordHash,
+      role: Role.FACULTY,
+      emailVerifiedAt: NOW,
+      facultyProfile: {
+        create: {
+          displayName: "陈建国",
+          department: "计算机科学",
+          title: "副教授"
+        }
+      }
+    }
+  });
+
+  // Demo advisor account
+  await prisma.user.create({
+    data: {
+      id: "seed-advisor-1",
+      email: "advisor1@univ.edu",
+      passwordHash: advisorPasswordHash,
+      role: Role.ADVISOR,
+      emailVerifiedAt: NOW,
+      advisorProfile: {
+        create: {
+          displayName: "刘晓燕",
+          department: "学生事务处",
+          officeLocation: "行政楼 B201"
+        }
+      }
     }
   });
 
@@ -558,7 +596,9 @@ async function main() {
   ]);
 
   console.log("Demo accounts:", {
-    admin: "admin@univ.edu / Admin1234!",
+    admin:    "admin@univ.edu    / Admin1234!",
+    faculty:  "faculty1@univ.edu / Faculty1234!",
+    advisor:  "advisor1@univ.edu / Advisor1234!",
     student1: "student1@univ.edu / Student1234!",
     student2: "student2@univ.edu / Student1234!",
     student3: "student3@univ.edu / Student1234!",
