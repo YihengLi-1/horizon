@@ -108,7 +108,7 @@ export class StudentsService {
     });
 
     if (!user?.studentProfile) {
-      throw new NotFoundException({ code: "PROFILE_NOT_FOUND", message: "Student profile not found" });
+      throw new NotFoundException({ code: "PROFILE_NOT_FOUND", message: "学生档案不存在" });
     }
 
     const { enrollments, ...rest } = user;
@@ -168,7 +168,7 @@ export class StudentsService {
       );
       throw new InternalServerErrorException({
         code: "NOTIFICATIONS_UNAVAILABLE",
-        message: "Unable to load notifications right now"
+        message: "通知加载失败，请稍后重试"
       });
     }
   }
@@ -247,7 +247,7 @@ export class StudentsService {
       );
       throw new InternalServerErrorException({
         code: "TRANSCRIPT_UNAVAILABLE",
-        message: "Unable to load transcript right now"
+        message: "成绩单加载失败，请稍后重试"
       });
     }
   }
@@ -588,7 +588,7 @@ export class StudentsService {
     if (!this.isScheduleSharingEnabled()) {
       throw new ForbiddenException({
         code: "SCHEDULE_SHARING_DISABLED",
-        message: "Public schedule sharing is disabled in this deployment"
+        message: "当前部署未开启课表公开分享功能"
       });
     }
 
@@ -640,7 +640,7 @@ export class StudentsService {
 
   async getScheduleSnapshot(token: string) {
     if (!this.isScheduleSharingEnabled()) {
-      throw new NotFoundException({ code: "SCHEDULE_SNAPSHOT_DISABLED", message: "Schedule sharing is disabled" });
+      throw new NotFoundException({ code: "SCHEDULE_SNAPSHOT_DISABLED", message: "课表分享已禁用" });
     }
 
     const snapshot = await this.prisma.scheduleSnapshot.findUnique({
@@ -652,7 +652,7 @@ export class StudentsService {
     });
 
     if (!snapshot) {
-      throw new NotFoundException({ code: "SCHEDULE_SNAPSHOT_NOT_FOUND", message: "Schedule snapshot not found" });
+      throw new NotFoundException({ code: "SCHEDULE_SNAPSHOT_NOT_FOUND", message: "课表快照不存在" });
     }
 
     return snapshot;
@@ -667,7 +667,7 @@ export class StudentsService {
     const category = input.category?.trim() || "other";
 
     if (!message) {
-      throw new BadRequestException({ code: "CONTACT_MESSAGE_REQUIRED", message: "Message is required" });
+      throw new BadRequestException({ code: "CONTACT_MESSAGE_REQUIRED", message: "消息内容不能为空" });
     }
 
     const user = await this.prisma.user.findFirst({
@@ -675,7 +675,7 @@ export class StudentsService {
       select: { id: true, email: true }
     });
     if (!user) {
-      throw new NotFoundException({ code: "USER_NOT_FOUND", message: "Student not found" });
+      throw new NotFoundException({ code: "USER_NOT_FOUND", message: "学生不存在" });
     }
 
     const adminRecipients = await this.prisma.user.findMany({
@@ -797,7 +797,7 @@ export class StudentsService {
     });
     const existing = user?.studentProfile ?? null;
     if (!existing) {
-      throw new NotFoundException({ code: "PROFILE_NOT_FOUND", message: "Student profile not found" });
+      throw new NotFoundException({ code: "PROFILE_NOT_FOUND", message: "学生档案不存在" });
     }
 
     const updated = await this.prisma.studentProfile.update({
@@ -856,7 +856,7 @@ export class StudentsService {
     });
 
     if (!user) {
-      throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
+      throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "学生不存在" });
     }
 
     const updated = await this.prisma.studentProfile.upsert({
@@ -1003,7 +1003,7 @@ export class StudentsService {
       }
     });
     if (!user) {
-      throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
+      throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "学生不存在" });
     }
     const completedEnrollments = user.enrollments.filter(
       (enrollment) => enrollment.status === "COMPLETED" && enrollment.finalGrade
@@ -1028,7 +1028,7 @@ export class StudentsService {
     });
 
     if (existing) {
-      throw new BadRequestException({ code: "USER_EXISTS", message: "Student email or ID already exists" });
+      throw new BadRequestException({ code: "USER_EXISTS", message: "邮箱或学号已被注册" });
     }
 
     const passwordHash = await argon2.hash(input.password);
@@ -1078,7 +1078,7 @@ export class StudentsService {
       include: { studentProfile: true }
     });
     if (!user) {
-      throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
+      throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "学生不存在" });
     }
 
     const updated = await this.prisma.user.update({
@@ -1112,12 +1112,12 @@ export class StudentsService {
   async changePassword(userId: string, input: ChangePasswordInput) {
     const user = await this.prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
     if (!user) {
-      throw new NotFoundException({ code: "USER_NOT_FOUND", message: "User not found" });
+      throw new NotFoundException({ code: "USER_NOT_FOUND", message: "用户不存在" });
     }
 
     const valid = await verifyPasswordHash(user.passwordHash, input.currentPassword);
     if (!valid) {
-      throw new UnauthorizedException({ code: "INVALID_CURRENT_PASSWORD", message: "Current password is incorrect" });
+      throw new UnauthorizedException({ code: "INVALID_CURRENT_PASSWORD", message: "当前密码不正确" });
     }
 
     const newHash = await argon2.hash(input.newPassword);
@@ -1137,7 +1137,7 @@ export class StudentsService {
   async adminDeleteStudent(id: string, actorUserId: string) {
     const user = await this.prisma.user.findFirst({ where: { id, role: "STUDENT", deletedAt: null } });
     if (!user) {
-      throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
+      throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "学生不存在" });
     }
 
     await this.prisma.$transaction(async (tx) => {

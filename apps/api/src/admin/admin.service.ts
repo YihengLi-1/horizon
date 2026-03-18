@@ -185,7 +185,7 @@ function parseCsvRows(csv: string): string[][] {
 
       throw new BadRequestException({
         code: "CSV_INVALID",
-        message: "Invalid CSV format: unexpected character after quoted field"
+        message: "CSV格式错误：引号字段后有意外字符"
       });
     }
 
@@ -193,7 +193,7 @@ function parseCsvRows(csv: string): string[][] {
       if (field.trim().length > 0) {
         throw new BadRequestException({
           code: "CSV_INVALID",
-          message: "Invalid CSV format: unexpected quote in unquoted field"
+          message: "CSV格式错误：非引号字段中出现引号"
         });
       }
       field = "";
@@ -223,7 +223,7 @@ function parseCsvRows(csv: string): string[][] {
   if (inQuotes) {
     throw new BadRequestException({
       code: "CSV_INVALID",
-      message: "Invalid CSV format: unterminated quoted field"
+      message: "CSV格式错误：引号字段未闭合"
     });
   }
 
@@ -602,7 +602,7 @@ export class AdminService {
       if (!instructor) {
         throw new BadRequestException({
           code: "FACULTY_NOT_FOUND",
-          message: "Assigned instructor must be an active faculty account"
+          message: "指定教师必须是有效的教职账户"
         });
       }
 
@@ -733,7 +733,7 @@ export class AdminService {
         }
       }
     });
-    if (!student) throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
+    if (!student) throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "学生不存在" });
     return student;
   }
 
@@ -877,11 +877,11 @@ export class AdminService {
     ]);
 
     if (!student) {
-      throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
+      throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "学生不存在" });
     }
 
     if (!advisor) {
-      throw new NotFoundException({ code: "ADVISOR_NOT_FOUND", message: "Advisor not found" });
+      throw new NotFoundException({ code: "ADVISOR_NOT_FOUND", message: "顾问不存在" });
     }
 
     const assignment = await this.prisma.$transaction(async (tx) => {
@@ -966,7 +966,7 @@ export class AdminService {
     apiCache.del("terms");
     const term = await this.prisma.term.findUnique({ where: { id } });
     if (!term) {
-      throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "Term not found" });
+      throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "学期不存在" });
     }
 
     const updated = await this.prisma.term.update({
@@ -1011,7 +1011,7 @@ export class AdminService {
     if (activeSectionCount > 0) {
       throw new ConflictException({
         code: "TERM_HAS_ACTIVE_ENROLLMENTS",
-        message: "This term still has active student enrollments"
+        message: "该学期仍有在读学生，无法删除"
       });
     }
     await this.prisma.term.delete({ where: { id } });
@@ -1029,7 +1029,7 @@ export class AdminService {
     apiCache.del("terms");
     const term = await this.prisma.term.findUnique({ where: { id } });
     if (!term) {
-      throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "Term not found" });
+      throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "学期不存在" });
     }
 
     const updated = await this.prisma.term.update({
@@ -1096,7 +1096,7 @@ export class AdminService {
   async updateCourse(id: string, input: Partial<CreateCourseInput>, actorUserId: string) {
     const course = await this.prisma.course.findUnique({ where: { id } });
     if (!course) {
-      throw new NotFoundException({ code: "COURSE_NOT_FOUND", message: "Course not found" });
+      throw new NotFoundException({ code: "COURSE_NOT_FOUND", message: "课程不存在" });
     }
 
     await this.prisma.course.update({
@@ -1144,7 +1144,7 @@ export class AdminService {
     });
 
     if (!course || course.deletedAt) {
-      throw new NotFoundException({ code: "COURSE_NOT_FOUND", message: "Course not found" });
+      throw new NotFoundException({ code: "COURSE_NOT_FOUND", message: "课程不存在" });
     }
 
     const sectionCount = await this.prisma.section.count({
@@ -1271,7 +1271,7 @@ export class AdminService {
       }
     });
     if (!section) {
-      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
+      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "教学班不存在" });
     }
 
     const instructor = await this.resolveInstructorAssignment(
@@ -1363,13 +1363,13 @@ export class AdminService {
     });
 
     if (!section) {
-      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
+      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "教学班不存在" });
     }
 
     if (section._count.enrollments > 0) {
       throw new ConflictException({
         code: "SECTION_HAS_ACTIVE_ENROLLMENTS",
-        message: "Cannot delete section with active students"
+        message: "该教学班有在读学生，无法删除"
       });
     }
 
@@ -1390,7 +1390,7 @@ export class AdminService {
     if (!cleanSubject || !cleanMessage) {
       throw new BadRequestException({
         code: "SECTION_NOTIFY_INVALID",
-        message: "Subject and message are required"
+        message: "主题和正文不能为空"
       });
     }
 
@@ -1399,7 +1399,7 @@ export class AdminService {
       include: { course: true }
     });
     if (!section) {
-      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
+      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "教学班不存在" });
     }
 
     const enrollments = await this.prisma.enrollment.findMany({
@@ -1465,7 +1465,7 @@ export class AdminService {
       include: { meetingTimes: true }
     });
     if (!src) {
-      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
+      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "教学班不存在" });
     }
 
     const clone = await this.prisma.section.create({
@@ -1519,7 +1519,7 @@ export class AdminService {
     });
 
     if (!section) {
-      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
+      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "教学班不存在" });
     }
 
     return this.prisma.enrollment.findMany({
@@ -1765,7 +1765,7 @@ export class AdminService {
       if (!enrollment) {
         throw new NotFoundException({
           code: "PENDING_OVERLOAD_NOT_FOUND",
-          message: "Pending overload request not found"
+          message: "超学分申请不存在"
         });
       }
 
@@ -1934,7 +1934,7 @@ export class AdminService {
   // ── Term Closeout ────────────────────────────────────────────────────────────
   async getTermCloseoutPreview(termId: string) {
     const term = await this.prisma.term.findUnique({ where: { id: termId } });
-    if (!term) throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "Term not found" });
+    if (!term) throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "学期不存在" });
 
     const [enrolled, waitlisted, pendingApproval, completed] = await Promise.all([
       this.prisma.enrollment.count({ where: { section: { termId }, status: "ENROLLED", deletedAt: null } }),
@@ -1948,7 +1948,7 @@ export class AdminService {
 
   async bulkCloseOutTerm(termId: string, actorUserId: string, action: "enroll_to_completed" | "waitlist_to_dropped" | "pending_to_dropped") {
     const term = await this.prisma.term.findUnique({ where: { id: termId } });
-    if (!term) throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "Term not found" });
+    if (!term) throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "学期不存在" });
 
     let updated = 0;
 
@@ -2196,7 +2196,7 @@ export class AdminService {
       });
 
       if (!section) {
-        throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
+        throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "教学班不存在" });
       }
 
       const enrolledCount = await tx.enrollment.count({
@@ -4382,7 +4382,7 @@ export class AdminService {
       where: { id: studentId, role: "STUDENT", deletedAt: null },
       select: { id: true }
     });
-    if (!student) throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
+    if (!student) throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "学生不存在" });
 
     const latest = await this.prisma.auditLog.findFirst({
       where: {
@@ -4402,7 +4402,7 @@ export class AdminService {
       where: { id: studentId, role: "STUDENT", deletedAt: null },
       select: { id: true }
     });
-    if (!student) throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
+    if (!student) throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "学生不存在" });
 
     const normalized = normalizeTags(tags);
 
@@ -5900,7 +5900,7 @@ export class AdminService {
     });
 
     if (!section) {
-      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
+      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "教学班不存在" });
     }
 
     const gradeRows = await this.prisma.$queryRaw<Array<{ grade: string; count: number }>>(Prisma.sql`

@@ -216,16 +216,16 @@ export class AuthService {
   async register(input: RegisterInput, req: Request) {
     const invite = await this.prisma.inviteCode.findUnique({ where: { code: input.inviteCode } });
     if (!invite || !invite.active) {
-      throw new BadRequestException({ code: "INVALID_INVITE", message: "Invite code is invalid" });
+      throw new BadRequestException({ code: "INVALID_INVITE", message: "邀请码无效" });
     }
     if (invite.usedAt) {
-      throw new BadRequestException({ code: "INVITE_USED", message: "Invite code already used" });
+      throw new BadRequestException({ code: "INVITE_USED", message: "邀请码已被使用" });
     }
     if (invite.expiresAt && invite.expiresAt < new Date()) {
-      throw new BadRequestException({ code: "INVITE_EXPIRED", message: "Invite code expired" });
+      throw new BadRequestException({ code: "INVITE_EXPIRED", message: "邀请码已过期" });
     }
     if (invite.maxUses && invite.usedCount >= invite.maxUses) {
-      throw new BadRequestException({ code: "INVITE_EXHAUSTED", message: "Invite code already used up" });
+      throw new BadRequestException({ code: "INVITE_EXHAUSTED", message: "邀请码已用尽" });
     }
 
     const existingUser = await this.prisma.user.findFirst({
@@ -234,7 +234,7 @@ export class AuthService {
       }
     });
     if (existingUser) {
-      throw new BadRequestException({ code: "USER_EXISTS", message: "Email or studentId already exists" });
+      throw new BadRequestException({ code: "USER_EXISTS", message: "邮箱或学号已被注册" });
     }
 
     const passwordHash = await argon2.hash(input.password);
@@ -289,7 +289,7 @@ export class AuthService {
     });
 
     return {
-      message: "Registration successful. Verify email before login.",
+      message: "注册成功，请先验证邮箱后再登录。",
       ...((AUTH_EXPOSE_DEBUG_LINKS || process.env.NODE_ENV !== "production") ? { activationLink } : {})
     };
   }
@@ -298,7 +298,7 @@ export class AuthService {
     const tokenRecord = await this.prisma.emailVerificationToken.findUnique({ where: { token: input.token } });
 
     if (!tokenRecord || tokenRecord.usedAt || tokenRecord.expiresAt < new Date()) {
-      throw new BadRequestException({ code: "INVALID_TOKEN", message: "Verification token is invalid or expired" });
+      throw new BadRequestException({ code: "INVALID_TOKEN", message: "验证链接无效或已过期" });
     }
 
     await this.prisma.$transaction([
@@ -312,7 +312,7 @@ export class AuthService {
       })
     ]);
 
-    return { message: "Email verified" };
+    return { message: "邮箱验证成功" };
   }
 
   async login(input: LoginInput, req: Request, res: Response) {
@@ -339,7 +339,7 @@ export class AuthService {
     if (!user) {
       this.recordLoginFailure(loginAttemptKey, now);
       await this.auditLoginFailure(req, input.identifier, "invalid_credentials");
-      throw new UnauthorizedException({ code: "INVALID_CREDENTIALS", message: "Invalid credentials" });
+      throw new UnauthorizedException({ code: "INVALID_CREDENTIALS", message: "邮箱或密码不正确" });
     }
 
     if (user.lockedUntil && user.lockedUntil > new Date()) {
@@ -347,7 +347,7 @@ export class AuthService {
       await this.auditLoginFailure(req, input.identifier, "account_locked");
       throw new ForbiddenException({
         code: "ACCOUNT_LOCKED",
-        message: "Account locked, try again later",
+        message: "账号已锁定，请稍后再试",
         details: { retryAfterSeconds, lockedUntil: user.lockedUntil.toISOString() }
       });
     }
@@ -365,13 +365,13 @@ export class AuthService {
         }
       });
       await this.auditLoginFailure(req, input.identifier, "invalid_credentials");
-      throw new UnauthorizedException({ code: "INVALID_CREDENTIALS", message: "Invalid credentials" });
+      throw new UnauthorizedException({ code: "INVALID_CREDENTIALS", message: "邮箱或密码不正确" });
     }
 
     if (!user.emailVerifiedAt) {
       this.recordLoginFailure(loginAttemptKey, now);
       await this.auditLoginFailure(req, input.identifier, "email_not_verified");
-      throw new UnauthorizedException({ code: "EMAIL_NOT_VERIFIED", message: "Email must be verified before login" });
+      throw new UnauthorizedException({ code: "EMAIL_NOT_VERIFIED", message: "请先完成邮箱验证后再登录" });
     }
 
     this.clearLoginAttempts(loginAttemptKey);
@@ -451,13 +451,13 @@ export class AuthService {
       req
     });
 
-    return { message: "Logged out" };
+    return { message: "已退出登录" };
   }
 
   async refresh(req: Request, res: Response) {
     const refreshToken = req.cookies?.[REFRESH_COOKIE];
     if (typeof refreshToken !== "string" || refreshToken.length === 0) {
-      throw new UnauthorizedException({ code: "REFRESH_TOKEN_MISSING", message: "Refresh token missing" });
+      throw new UnauthorizedException({ code: "REFRESH_TOKEN_MISSING", message: "刷新令牌缺失" });
     }
 
     const tokenRecord = await this.prisma.refreshToken.findUnique({
@@ -470,7 +470,7 @@ export class AuthService {
     });
 
     if (!tokenRecord || tokenRecord.expiresAt <= new Date() || tokenRecord.user.deletedAt) {
-      throw new UnauthorizedException({ code: "REFRESH_TOKEN_INVALID", message: "Refresh token invalid or expired" });
+      throw new UnauthorizedException({ code: "REFRESH_TOKEN_INVALID", message: "刷新令牌无效或已过期" });
     }
 
     const sessionId = refreshToken.split(".")[0] || Math.random().toString(36).slice(2);
@@ -538,7 +538,7 @@ export class AuthService {
       }
     });
     if (!user) {
-      return { message: "If the account exists, a reset link has been generated" };
+      return { message: "如果该邮箱已注册，重置链接已发送" };
     }
 
     const token = randomBytes(32).toString("hex");
@@ -563,7 +563,7 @@ export class AuthService {
     });
 
     return {
-      message: "If the account exists, a reset link has been generated",
+      message: "如果该邮箱已注册，重置链接已发送",
       ...(AUTH_EXPOSE_DEBUG_LINKS ? { resetLink } : {})
     };
   }
@@ -572,7 +572,7 @@ export class AuthService {
     const tokenRecord = await this.prisma.passwordResetToken.findUnique({ where: { token: input.token } });
 
     if (!tokenRecord || tokenRecord.usedAt || tokenRecord.expiresAt < new Date()) {
-      throw new BadRequestException({ code: "INVALID_TOKEN", message: "Reset token is invalid or expired" });
+      throw new BadRequestException({ code: "INVALID_TOKEN", message: "重置链接无效或已过期" });
     }
 
     const passwordHash = await argon2.hash(input.newPassword);
@@ -582,7 +582,7 @@ export class AuthService {
         data: { passwordHash }
       });
       if (updated.count === 0) {
-        throw new BadRequestException({ code: "INVALID_TOKEN", message: "Reset token is invalid or expired" });
+        throw new BadRequestException({ code: "INVALID_TOKEN", message: "重置链接无效或已过期" });
       }
 
       await tx.passwordResetToken.deleteMany({
@@ -592,7 +592,7 @@ export class AuthService {
       });
     });
 
-    return { message: "Password reset successful" };
+    return { message: "密码重置成功" };
   }
 
   async changePassword(userId: string, oldPassword: string, newPassword: string) {
