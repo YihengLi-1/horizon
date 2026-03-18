@@ -424,7 +424,7 @@ export default function AdminSectionsPage() {
         ...prev,
         [sectionId]: {
           type: "success",
-          text: `Promoted ${result.promotedCount}. Remaining waitlist ${result.remainingWaitlistCount}. Seats before ${result.availableSeatsBefore}, after ${result.availableSeatsAfter}.`
+          text: `已晋升 ${result.promotedCount} 人，剩余候补 ${result.remainingWaitlistCount}，余位：${result.availableSeatsBefore} → ${result.availableSeatsAfter}`
         }
       }));
 
@@ -482,7 +482,7 @@ export default function AdminSectionsPage() {
             ...prev,
             [item.section.id]: {
               type: "success",
-              text: `Promoted ${result.promotedCount}. Remaining waitlist ${result.remainingWaitlistCount}. Seats before ${result.availableSeatsBefore}, after ${result.availableSeatsAfter}.`
+              text: `已晋升 ${result.promotedCount} 人，剩余候补 ${result.remainingWaitlistCount}，余位：${result.availableSeatsBefore} → ${result.availableSeatsAfter}`
             }
           }));
         } catch (error) {
@@ -502,12 +502,12 @@ export default function AdminSectionsPage() {
       if (failedSections.length > 0) {
         setBulkMessage({
           type: "error",
-          text: `Promoted ${summary.totalPromoted} across ${summary.sectionsTouched} section(s). Failed: ${failedSections.join(", ")}.`
+          text: `共晋升 ${summary.totalPromoted} 人，涉及 ${summary.sectionsTouched} 个班级。失败：${failedSections.join("、")}。`
         });
       } else {
         setBulkMessage({
           type: "success",
-          text: `Promoted ${summary.totalPromoted} across ${summary.sectionsTouched} section(s).`
+          text: `已批量晋升 ${summary.totalPromoted} 人，涉及 ${summary.sectionsTouched} 个班级。`
         });
       }
 
