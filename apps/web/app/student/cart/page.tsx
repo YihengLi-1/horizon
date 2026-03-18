@@ -809,8 +809,8 @@ export default function StudentCartPage() {
       }
       resetPrecheck();
       setSubmitIssues([]);
-      setMessage(`Removed ${invalidCartItemIds.length} invalid item(s) from cart.`);
-      toast(`Removed ${invalidCartItemIds.length} invalid item(s).`, "success");
+      setMessage(`已从购物车移除 ${invalidCartItemIds.length} 门无效课程。`);
+      toast(`已移除 ${invalidCartItemIds.length} 门无效课程。`, "success");
       await loadCart(termId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "移除无效课程失败");
@@ -877,11 +877,11 @@ export default function StudentCartPage() {
       });
 
       setSubmitResults(result);
-      setMessage(`Submitted ${result.length} item(s).`);
+      setMessage(`已成功提交 ${result.length} 门课程。`);
       if (result.some((item) => item.status === "PENDING_APPROVAL" && item.pendingReason === "CREDIT_OVERLOAD")) {
         toast("学分已超上限，已提交超学分申请，等待审批", "info");
       } else {
-        toast(`Submitted ${result.length} item(s).`, "success");
+        toast(`已成功提交 ${result.length} 门课程。`, "success");
       }
       resetPrecheck();
       await Promise.all([loadCart(termId), loadCurrentEnrollments(termId), loadSections(termId)]);
