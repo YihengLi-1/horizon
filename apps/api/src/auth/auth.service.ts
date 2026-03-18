@@ -315,6 +315,48 @@ export class AuthService {
     return { message: "邮箱验证成功" };
   }
 
+  async resendVerificationEmail(email: string) {
+    // Always return success to prevent email enumeration
+    const user = await this.prisma.user.findFirst({
+      where: { email: email.trim().toLowerCase(), deletedAt: null }
+    });
+
+    if (!user || user.emailVerifiedAt) {
+      // Already verified or not found — no-op, don't leak info
+      return { message: "若该邮箱存在且尚未验证，我们已向您重新发送验证邮件。" };
+    }
+
+    // Invalidate old tokens
+    await this.prisma.emailVerificationToken.updateMany({
+      where: { userId: user.id, usedAt: null },
+      data: { usedAt: new Date() }
+    });
+
+    const token = randomBytes(32).toString("hex");
+    await this.prisma.emailVerificationToken.create({
+      data: {
+        token,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+      }
+    });
+
+    const activationLink = `${process.env.WEB_URL || "http://localhost:3000"}/verify?token=${token}`;
+
+    const legalName = (user as { studentProfile?: { legalName?: string } }).studentProfile?.legalName ?? user.email;
+
+    await this.notificationsService.sendVerificationEmail({
+      to: user.email,
+      legalName,
+      activationLink
+    }).catch(() => undefined); // silent if mail not configured
+
+    return {
+      message: "若该邮箱存在且尚未验证，我们已向您重新发送验证邮件。",
+      ...((AUTH_EXPOSE_DEBUG_LINKS || process.env.NODE_ENV !== "production") ? { activationLink } : {})
+    };
+  }
+
   async login(input: LoginInput, req: Request, res: Response) {
     const now = Date.now();
     const loginAttemptKey = this.getLoginAttemptKey(input.identifier, req);

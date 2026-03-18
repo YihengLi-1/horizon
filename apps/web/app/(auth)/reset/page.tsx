@@ -60,70 +60,79 @@ export default function ResetPage() {
         <CardTitle className="font-heading text-2xl text-slate-900">重置密码</CardTitle>
       </CardHeader>
       <CardContent>
-        <form className="space-y-3" onSubmit={onSubmit}>
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700">新密码</label>
-            <div className="relative">
-              <Input
-                className="h-10 pr-10"
-                type={showPw ? "text" : "password"}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-                minLength={8}
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                tabIndex={-1}
-                onClick={() => setShowPw((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                aria-label={showPw ? "隐藏密码" : "显示密码"}
-              >
-                {showPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
-            </div>
-            {newPassword ? (
-              <div className="mt-2 space-y-1">
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map((seg) => (
-                    <div
-                      key={seg}
-                      className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
-                        seg <= pwStrength.score ? pwStrength.bg : "bg-slate-200"
-                      }`}
-                    />
-                  ))}
-                </div>
-                <p className={`text-xs font-medium ${pwStrength.color}`}>{pwStrength.label}</p>
-              </div>
-            ) : null}
-          </div>
-          {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
-          {message ? (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-              <p>{message}</p>
-            </div>
-          ) : null}
-          <Button disabled={loading} className="h-10 w-full bg-primary text-white hover:bg-primary/90" type="submit">
-            {loading ? (
-              <span className="inline-flex items-center gap-2">
-                <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                重置中…
-              </span>
-            ) : (
-              "重置密码"
-            )}
-          </Button>
-        </form>
         {message ? (
-          <Link className="mt-4 block text-sm font-medium text-primary underline underline-offset-2" href="/login">
-            使用新密码登录 →
-          </Link>
+          <div className="space-y-4 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-emerald-200 bg-emerald-50 text-3xl">
+              ✓
+            </div>
+            <div className="space-y-1">
+              <p className="text-lg font-semibold text-slate-800">密码已重置</p>
+              <p className="text-sm text-slate-500">{message}</p>
+            </div>
+            <Link
+              href="/login"
+              className="inline-flex h-10 w-full items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-md transition hover:bg-primary/90"
+            >
+              使用新密码登录 →
+            </Link>
+          </div>
         ) : (
-          <Link className="mt-4 block text-sm font-medium text-primary underline underline-offset-2" href="/login">
-            返回登录
-          </Link>
+          <>
+            <form className="space-y-3" onSubmit={onSubmit}>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">新密码</label>
+                <div className="relative">
+                  <Input
+                    className="h-10 pr-10"
+                    type={showPw ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => setShowPw((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    aria-label={showPw ? "隐藏密码" : "显示密码"}
+                  >
+                    {showPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+                {newPassword ? (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map((seg) => (
+                        <div
+                          key={seg}
+                          className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
+                            seg <= pwStrength.score ? pwStrength.bg : "bg-slate-200"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <p className={`text-xs font-medium ${pwStrength.color}`}>{pwStrength.label}</p>
+                  </div>
+                ) : null}
+              </div>
+              {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
+              <Button disabled={loading} className="h-10 w-full bg-primary text-white hover:bg-primary/90" type="submit">
+                {loading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                    重置中…
+                  </span>
+                ) : (
+                  "重置密码"
+                )}
+              </Button>
+            </form>
+            <Link className="mt-4 block text-sm font-medium text-primary underline underline-offset-2" href="/login">
+              返回登录
+            </Link>
+          </>
         )}
       </CardContent>
     </Card>

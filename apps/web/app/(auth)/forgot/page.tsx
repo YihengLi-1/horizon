@@ -95,7 +95,7 @@ export default function ForgotPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="student@example.edu"
+                placeholder="student@univ.edu"
               />
             </div>
             {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}

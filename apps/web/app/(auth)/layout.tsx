@@ -9,11 +9,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-100/90">地平线学籍管理系统</p>
               <h1 className="mt-3 max-w-md font-heading text-4xl font-bold leading-tight text-white">
-                Student Information & Registration Portal
+                学生信息与选课注册门户
               </h1>
               <p className="mt-4 max-w-md text-sm text-slate-200">
-                A focused academic workspace inspired by modern university service portals:
-                clear tasks, registration readiness, and registrar-friendly workflows.
+                面向真实高校场景的学务管理平台：清晰的任务列表、选课就绪检查，以及对教务人员友好的审批流程。
               </p>
             </div>
             <div className="space-y-2 text-xs text-slate-200/90">

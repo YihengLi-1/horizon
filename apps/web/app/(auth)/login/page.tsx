@@ -33,6 +33,7 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [locked, setLocked] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [showDemoAccounts, setShowDemoAccounts] = useState(SHOW_DEMO_ACCOUNTS);
 
@@ -52,6 +53,7 @@ export default function LoginPage() {
     event.preventDefault();
     setError("");
     setLocked(false);
+    setUnverifiedEmail("");
     setLoading(true);
     try {
       const data = await apiFetch<LoginResult>("/auth/login", {
@@ -86,6 +88,9 @@ export default function LoginPage() {
         if (err.code === "ACCOUNT_LOCKED") {
           setLocked(true);
           setError("账号已锁定，请 15 分钟后重试或联系管理员");
+        } else if (err.code === "EMAIL_NOT_VERIFIED") {
+          setUnverifiedEmail(identifier.trim());
+          setError("邮箱尚未验证，请查收注册邮件并完成验证后再登录。");
         } else if (err.code === "API_UNAVAILABLE") {
           setError("当前无法连接到后端服务。请先启动 API 和数据库，再重试登录。");
         } else {
@@ -96,6 +101,26 @@ export default function LoginPage() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendDone, setResendDone] = useState(false);
+
+  const resendVerification = async () => {
+    if (!unverifiedEmail || resendLoading) return;
+    setResendLoading(true);
+    try {
+      await apiFetch("/auth/resend-verification", {
+        method: "POST",
+        body: JSON.stringify({ email: unverifiedEmail })
+      });
+      setResendDone(true);
+    } catch {
+      // silently fail - show generic hint
+      setResendDone(true);
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -212,6 +237,26 @@ export default function LoginPage() {
                     }`}
                   >
                     {error}
+                  </div>
+                ) : null}
+
+                {unverifiedEmail ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+                    {resendDone ? (
+                      <p>验证邮件已重新发送，请查收收件箱（含垃圾箱）。</p>
+                    ) : (
+                      <p>
+                        未收到验证邮件？{" "}
+                        <button
+                          type="button"
+                          disabled={resendLoading}
+                          onClick={() => void resendVerification()}
+                          className="font-semibold underline underline-offset-2 hover:text-amber-900 disabled:opacity-60"
+                        >
+                          {resendLoading ? "发送中…" : "重新发送验证邮件"}
+                        </button>
+                      </p>
+                    )}
                   </div>
                 ) : null}
 

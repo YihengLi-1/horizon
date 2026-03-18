@@ -31,6 +31,14 @@ export class AuthController {
     return ok(await this.authService.verifyEmail(parsed));
   }
 
+  @Post("resend-verification")
+  @HttpCode(HttpStatus.OK)
+  async resendVerification(@Body() body: { email?: string }) {
+    const email = (body.email ?? "").trim();
+    if (!email) return ok({ message: "若该邮箱存在且尚未验证，我们已向您重新发送验证邮件。" });
+    return ok(await this.authService.resendVerificationEmail(email));
+  }
+
   @Post("login")
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
