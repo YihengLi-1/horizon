@@ -485,7 +485,7 @@ export class GovernanceService {
 
     throw new BadRequestException({
       code: "ACTIVE_REGISTRATION_HOLD",
-      message: `Registration blocked by active hold(s): ${holds.map((hold) => hold.type).join(", ")}`,
+      message: `注册被以下学籍限制阻止：${holds.map((hold) => hold.type).join("、")}`,
       details: holds.map((hold) => ({
         id: hold.id,
         type: hold.type,
