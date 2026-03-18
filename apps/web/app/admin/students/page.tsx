@@ -67,6 +67,8 @@ type StudentNoteItem = {
 
 const ENROLLMENT_STATUSES = ["New", "Continuing", "Returning", "Graduated", "Withdrawn"];
 const ACADEMIC_STATUSES = ["Active", "Probation", "Suspended", "Graduated"];
+const ENROLLMENT_STATUS_LABEL: Record<string, string> = { New: "新生", Continuing: "在读", Returning: "复读", Graduated: "已毕业", Withdrawn: "已退学" };
+const ACADEMIC_STATUS_LABEL: Record<string, string> = { Active: "在读", Probation: "察看期", Suspended: "停学", Graduated: "已毕业" };
 const PAGE_SIZE = 50;
 
 export default function AdminStudentsPage() {
@@ -146,7 +148,7 @@ export default function AdminStudentsPage() {
       setStudents(list);
       void loadTagsForStudents(list);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load students");
+      setError(err instanceof Error ? err.message : "加载学生数据失败");
     } finally {
       setLoading(false);
     }
@@ -256,9 +258,9 @@ export default function AdminStudentsPage() {
       setStudentTagsMap((prev) => ({ ...prev, [detailStudent.id]: result.tags ?? [] }));
       setAvailableTags((prev) => [...new Set([...prev, ...(result.tags ?? [])])].sort((a, b) => a.localeCompare(b)));
       setTagDraft("");
-      setNotice("Student tags updated.");
+      setNotice("学生标签已更新");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update tags");
+      setError(err instanceof Error ? err.message : "标签更新失败");
     } finally {
       setSavingTags(false);
     }
@@ -285,10 +287,10 @@ export default function AdminStudentsPage() {
         body: JSON.stringify(form)
       });
       setForm({ legalName: "", studentId: "", email: "", password: "Student123!", role: "STUDENT" });
-      setNotice("Student created.");
+      setNotice("学生已创建");
       await loadStudents();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Create failed");
+      setError(err instanceof Error ? err.message : "创建失败");
     } finally {
       setCreating(false);
     }
@@ -329,26 +331,26 @@ export default function AdminStudentsPage() {
         })
       });
       setEditingId(null);
-      setNotice("Student updated.");
+      setNotice("学生信息已更新");
       await loadStudents();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Update failed");
+      setError(err instanceof Error ? err.message : "更新失败");
     } finally {
       setSavingId(null);
     }
   };
 
   const onDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete student "${name}"? This cannot be undone.`)) return;
+    if (!confirm(`确认删除学生"${name}"？此操作不可撤销。`)) return;
     try {
       setError("");
       setNotice("");
       await apiFetch(`/students/${id}`, { method: "DELETE" });
-      setNotice(`Student "${name}" deleted.`);
+      setNotice(`学生"${name}"已删除。`);
       if (editingId === id) setEditingId(null);
       await loadStudents();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      setError(err instanceof Error ? err.message : "删除失败");
     }
   };
 
@@ -367,7 +369,7 @@ export default function AdminStudentsPage() {
       ]);
       setDetailStudent({ ...student, ...loginHistory });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load student details");
+      setError(err instanceof Error ? err.message : "加载学生详情失败");
     } finally {
       setDetailLoadingId(null);
     }
@@ -384,10 +386,10 @@ export default function AdminStudentsPage() {
         body: JSON.stringify({ role })
       });
       setDetailStudent((prev) => (prev ? { ...prev, role } : prev));
-      setNotice(`Role updated to ${role}.`);
+      setNotice(`角色已更新为 ${role}。`);
       await loadStudents();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update role");
+      setError(err instanceof Error ? err.message : "角色更新失败");
     } finally {
       setRoleSaving(false);
     }
@@ -412,10 +414,10 @@ export default function AdminStudentsPage() {
             }
           : prev
       );
-      setNotice("Account unlocked.");
+      setNotice("账号已解锁");
       await loadStudents();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to unlock account");
+      setError(err instanceof Error ? err.message : "解锁账号失败");
     } finally {
       setUnlocking(false);
     }
@@ -454,7 +456,7 @@ export default function AdminStudentsPage() {
 
   const exportCsv = () => {
     const rows = [
-      ["Legal Name", "Student ID", "Email", "Major", "Enrollment Status", "Academic Status"],
+      ["姓名", "学号", "邮箱", "专业", "注册状态", "学术状态"],
       ...visibleStudents.map((s) => [
         s.studentProfile?.legalName ?? "",
         s.studentId,
@@ -490,8 +492,8 @@ export default function AdminStudentsPage() {
       <section className="campus-hero">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
-            <p className="campus-eyebrow">Student Records</p>
-            <h1 className="campus-title">Students</h1>
+            <p className="campus-eyebrow">学籍管理</p>
+            <h1 className="campus-title">学生管理</h1>
             <p className="text-sm text-slate-600 md:text-base">
               Manage core student accounts used for portal access and registration operations.
             </p>
@@ -507,14 +509,14 @@ export default function AdminStudentsPage() {
               disabled={visibleStudents.length === 0}
               className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:-translate-y-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Export CSV
+              CSV 导出
             </button>
             <button
               type="button"
               onClick={() => void loadStudents()}
               className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
             >
-              Refresh
+              刷新
             </button>
           </div>
         </div>
@@ -522,19 +524,19 @@ export default function AdminStudentsPage() {
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi">
-          <p className="campus-kpi-label">Total Students</p>
+          <p className="campus-kpi-label">学生总数</p>
           <p className="campus-kpi-value">{students.length}</p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label text-emerald-700">Active</p>
+          <p className="campus-kpi-label text-emerald-700">在读</p>
           <p className="campus-kpi-value text-emerald-700">{studentStats.active}</p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label text-amber-700">On Probation</p>
+          <p className="campus-kpi-label text-amber-700">察看期</p>
           <p className="campus-kpi-value text-amber-700">{studentStats.probation}</p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label text-red-700">Suspended</p>
+          <p className="campus-kpi-label text-red-700">停学</p>
           <p className="campus-kpi-value text-red-700">{studentStats.suspended}</p>
         </div>
       </section>
@@ -579,20 +581,20 @@ export default function AdminStudentsPage() {
       </details>
 
       <section className="campus-card p-5 md:p-6">
-        <h2 className="mb-3 text-base font-semibold text-slate-900">Create Student Account</h2>
+        <h2 className="mb-3 text-base font-semibold text-slate-900">新建学生账号</h2>
         <form className="grid gap-3 md:grid-cols-5" onSubmit={onCreate}>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Legal name</label>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">姓名</label>
             <input
               className="campus-input"
-              placeholder="Alice Chen"
+              placeholder="张三"
               value={form.legalName}
               onChange={(e) => setForm((p) => ({ ...p, legalName: e.target.value }))}
               required
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Student ID</label>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">学号</label>
             <input
               className="campus-input"
               placeholder="S4001"
@@ -602,7 +604,7 @@ export default function AdminStudentsPage() {
             />
           </div>
           <div className="md:col-span-2">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Email</label>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">邮箱</label>
             <input
               className="campus-input"
               type="email"
@@ -613,7 +615,7 @@ export default function AdminStudentsPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Initial password</label>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">初始密码</label>
             <input
               className="campus-input"
               type="password"
@@ -631,10 +633,10 @@ export default function AdminStudentsPage() {
               {creating ? (
                 <>
                   <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                  Creating
+                  创建中…
                 </>
               ) : (
-                "Add student"
+                "添加学生"
               )}
             </button>
           </div>
@@ -644,14 +646,14 @@ export default function AdminStudentsPage() {
       {editingId ? (
         <section className="campus-card border-blue-200 bg-blue-50/60 p-5 md:p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-blue-900">Editing: {editForm.legalName || editForm.email}</h2>
+            <h2 className="text-base font-semibold text-blue-900">编辑：{editForm.legalName || editForm.email}</h2>
             <button type="button" onClick={cancelEdit} className="text-sm font-medium text-blue-700 underline underline-offset-2">
-              Cancel
+              取消
             </button>
           </div>
           <form className="grid gap-3 md:grid-cols-3" onSubmit={onSaveEdit}>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Legal name</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">姓名</label>
               <input
                 className="campus-input"
                 value={editForm.legalName}
@@ -660,7 +662,7 @@ export default function AdminStudentsPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Student ID</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">学号</label>
               <input
                 className="campus-input"
                 value={editForm.studentId}
@@ -669,7 +671,7 @@ export default function AdminStudentsPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Email</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">邮箱</label>
               <input
                 className="campus-input"
                 type="email"
@@ -679,32 +681,32 @@ export default function AdminStudentsPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Program / Major</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">专业 / 项目</label>
               <input
                 className="campus-input"
-                placeholder="Computer Science"
+                placeholder="计算机科学与技术"
                 value={editForm.programMajor}
                 onChange={(e) => setEditForm((p) => ({ ...p, programMajor: e.target.value }))}
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Enrollment status</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">注册状态</label>
               <select
                 className="campus-select"
                 value={editForm.enrollmentStatus}
                 onChange={(e) => setEditForm((p) => ({ ...p, enrollmentStatus: e.target.value }))}
               >
-                {ENROLLMENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                {ENROLLMENT_STATUSES.map((s) => <option key={s} value={s}>{ENROLLMENT_STATUS_LABEL[s] ?? s}</option>)}
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Academic status</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">学业状态</label>
               <select
                 className="campus-select"
                 value={editForm.academicStatus}
                 onChange={(e) => setEditForm((p) => ({ ...p, academicStatus: e.target.value }))}
               >
-                {ACADEMIC_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                {ACADEMIC_STATUSES.map((s) => <option key={s} value={s}>{ACADEMIC_STATUS_LABEL[s] ?? s}</option>)}
               </select>
             </div>
             <div className="md:col-span-3 md:flex md:justify-end">
@@ -716,10 +718,10 @@ export default function AdminStudentsPage() {
                 {savingId === editingId ? (
                   <>
                     <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600" />
-                    Save
+                    保存中…
                   </>
                 ) : (
-                  "Save changes"
+                  "保存修改"
                 )}
               </button>
             </div>
@@ -730,35 +732,35 @@ export default function AdminStudentsPage() {
       <section className="campus-toolbar">
         <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search</span>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">搜索</span>
             <input
               ref={searchRef}
               className="campus-input"
-              placeholder="Name, Student ID, email, major…  [/]"
+              placeholder="姓名、学号、邮箱、专业…  [/]"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Academic Status</span>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">学业状态</span>
             <select
               className="campus-select"
               value={filterAcademic}
               onChange={(e) => setFilterAcademic(e.target.value)}
             >
-              <option value="">All statuses</option>
-              {ACADEMIC_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              <option value="">全部状态</option>
+              {ACADEMIC_STATUSES.map((s) => <option key={s} value={s}>{ACADEMIC_STATUS_LABEL[s] ?? s}</option>)}
             </select>
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Enrollment Status</span>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">注册状态</span>
             <select
               className="campus-select"
               value={filterEnrollment}
               onChange={(e) => setFilterEnrollment(e.target.value)}
             >
-              <option value="">All statuses</option>
-              {ENROLLMENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              <option value="">全部状态</option>
+              {ENROLLMENT_STATUSES.map((s) => <option key={s} value={s}>{ENROLLMENT_STATUS_LABEL[s] ?? s}</option>)}
             </select>
           </label>
           {(search || filterAcademic || filterEnrollment) ? (
@@ -767,13 +769,13 @@ export default function AdminStudentsPage() {
               onClick={() => { setSearch(""); setFilterAcademic(""); setFilterEnrollment(""); }}
               className="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Clear
+              清除
             </button>
           ) : null}
         </div>
         <p className="mt-2 text-xs text-slate-500">
-          Showing {visibleStudents.length} of {students.length} students
-          {visibleStudents.length !== pagedStudents.length ? ` (page ${safePage} of ${totalPages})` : ""}
+          显示 {visibleStudents.length} / 共 {students.length} 名学生
+          {visibleStudents.length !== pagedStudents.length ? `（第 ${safePage} / ${totalPages} 页）` : ""}
         </p>
       </section>
 
@@ -797,32 +799,32 @@ export default function AdminStudentsPage() {
       ) : null}
 
       <section className="campus-card overflow-hidden">
-        <p className="px-4 pt-4 text-xs text-slate-500 md:hidden">Tip: Swipe horizontally to view all columns.</p>
+        <p className="px-4 pt-4 text-xs text-slate-500 md:hidden">提示：横向滑动以查看所有列。</p>
         <div className="overflow-x-auto -mx-4 px-4">
         <div className="max-h-[560px] overflow-auto rounded-3xl">
           <table role="grid" aria-label="学生列表" className="campus-table hidden min-w-[760px] md:table">
             <thead className="sticky top-0 z-10">
               <tr role="row">
-                <th scope="col">Name</th>
-                <th scope="col">Student ID</th>
-                <th scope="col">Email</th>
-                <th scope="col">Major</th>
-                <th scope="col">Tags</th>
-                <th scope="col">Status</th>
-                <th scope="col">Actions</th>
+                <th scope="col">姓名</th>
+                <th scope="col">学号</th>
+                <th scope="col">邮箱</th>
+                <th scope="col">专业</th>
+                <th scope="col">标签</th>
+                <th scope="col">状态</th>
+                <th scope="col">操作</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                    Loading students...
+                    加载学生数据中...
                   </td>
                 </tr>
               ) : visibleStudents.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
-                    No students found.
+                    暂无学生数据。
                   </td>
                 </tr>
               ) : (
@@ -861,7 +863,7 @@ export default function AdminStudentsPage() {
                             : student.studentProfile.academicStatus === "Graduated" ? "chip-purple"
                             : "chip-emerald"
                           }`}>
-                            {student.studentProfile.academicStatus}
+                            {{Active:"在读",Probation:"察看",Suspended:"停学",Graduated:"已毕业",Withdrawn:"已退学"}[student.studentProfile.academicStatus] ?? student.studentProfile.academicStatus}
                           </span>
                         ) : <span className="text-xs text-slate-400">-</span>}
                       </div>
@@ -874,7 +876,7 @@ export default function AdminStudentsPage() {
                           onClick={() => void openDetails(student.id)}
                           className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
                         >
-                          {detailLoadingId === student.id ? "Loading…" : "Details"}
+                          {detailLoadingId === student.id ? "加载中…" : "详情"}
                         </button>
                         <button
                           type="button"
@@ -884,7 +886,7 @@ export default function AdminStudentsPage() {
                         >
                           {savingId === student.id ? (
                             <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600" />
-                          ) : editingId === student.id ? "Cancel" : "Edit"}
+                          ) : editingId === student.id ? "取消" : "编辑"}
                         </button>
                         <button
                           type="button"
@@ -892,7 +894,7 @@ export default function AdminStudentsPage() {
                           onClick={() => onDelete(student.id, student.studentProfile?.legalName ?? student.email)}
                           className="inline-flex h-8 items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
                         >
-                          Delete
+                          删除
                         </button>
                       </div>
                     </td>
@@ -906,7 +908,7 @@ export default function AdminStudentsPage() {
 
         <div className="space-y-3 p-4 md:hidden">
           {loading ? (
-            <div className="campus-card p-4 text-sm text-slate-500">Loading students...</div>
+            <div className="campus-card p-4 text-sm text-slate-500">加载学生数据中...</div>
           ) : visibleStudents.length === 0 ? (
             <div className="campus-card p-4 text-sm text-slate-500">No students found.</div>
           ) : (
@@ -938,14 +940,14 @@ export default function AdminStudentsPage() {
                     onClick={() => void openDetails(student.id)}
                     className="flex-1 rounded-lg border border-slate-200 bg-white py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                   >
-                    Details
+                    详情
                   </button>
                   <button
                     type="button"
                     onClick={() => (editingId === student.id ? cancelEdit() : startEdit(student))}
                     className="flex-1 rounded-lg border border-blue-200 bg-blue-50 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
                   >
-                    {editingId === student.id ? "Cancel" : "Edit"}
+                    {editingId === student.id ? "取消" : "编辑"}
                   </button>
                 </div>
                 {(studentTagsMap[student.id] ?? []).length > 0 ? (
@@ -966,7 +968,7 @@ export default function AdminStudentsPage() {
         {visibleStudents.length > PAGE_SIZE ? (
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-3 text-sm text-slate-600">
             <p>
-              Showing {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, visibleStudents.length)} of {visibleStudents.length} students
+              显示 {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, visibleStudents.length)} / 共 {visibleStudents.length} 名
             </p>
             <div className="flex items-center gap-1.5">
               <button
@@ -975,7 +977,7 @@ export default function AdminStudentsPage() {
                 disabled={safePage === 1}
                 className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                ← Prev
+                ← 上一页
               </button>
               {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
                 let pageNum: number;
@@ -1004,7 +1006,7 @@ export default function AdminStudentsPage() {
                 disabled={safePage === totalPages}
                 className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Next →
+                下页 →
               </button>
             </div>
           </div>
@@ -1020,7 +1022,7 @@ export default function AdminStudentsPage() {
           >
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
               <p className="text-base font-semibold text-slate-800 dark:text-slate-100">
-                {detailStudent.studentProfile?.legalName ?? "Student"}
+                {detailStudent.studentProfile?.legalName ?? "学生"}
               </p>
               <button onClick={() => setDetailStudent(null)} className="text-xl text-slate-400 hover:text-slate-600">
                 ✕
@@ -1028,31 +1030,34 @@ export default function AdminStudentsPage() {
             </div>
             <div className="space-y-5 p-6">
               <div className="mb-4 flex border-b border-slate-100 dark:border-slate-700">
-                {(["profile", "grades", "security", "notifications", "notes", "tags"] as const).map((tab) => (
+                {(["profile", "grades", "security", "notifications", "notes", "tags"] as const).map((tab) => {
+                  const TAB_LABELS: Record<string, string> = { profile: "基本信息", grades: "成绩", security: "安全", notifications: "通知", notes: "备注", tags: "标签" };
+                  return (
                   <button
                     key={tab}
                     type="button"
                     onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-2 text-sm font-medium capitalize transition-colors ${
+                    className={`px-4 py-2 text-sm font-medium transition-colors ${
                       activeTab === tab ? "border-b-2 border-blue-500 text-blue-600" : "text-slate-500 hover:text-slate-700"
                     }`}
                   >
-                    {tab}
+                    {TAB_LABELS[tab] ?? tab}
                   </button>
-                ))}
+                  );
+                })}
               </div>
 
               {activeTab === "profile" ? (
                 <>
                   <div className="campus-card space-y-2 p-4">
-                    <p className="text-xs font-semibold uppercase text-slate-400">Profile</p>
+                    <p className="text-xs font-semibold uppercase text-slate-400">基本信息</p>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
-                        <p className="text-xs text-slate-500">Email</p>
+                        <p className="text-xs text-slate-500">邮箱</p>
                         <p className="break-all font-medium text-slate-800 dark:text-slate-100">{detailStudent.email}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Student ID</p>
+                        <p className="text-xs text-slate-500">学号</p>
                         <p className="font-mono font-medium text-slate-800 dark:text-slate-100">{detailStudent.studentId ?? "—"}</p>
                       </div>
                       <div>
@@ -1066,7 +1071,7 @@ export default function AdminStudentsPage() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Role</p>
+                        <p className="text-xs text-slate-500">角色</p>
                         <p className="font-medium text-slate-800 dark:text-slate-100">{detailStudent.role ?? "STUDENT"}</p>
                       </div>
                     </div>
@@ -1075,7 +1080,7 @@ export default function AdminStudentsPage() {
                   {detailStudent.enrollments?.length ? (
                     <div className="campus-card p-4">
                       <p className="mb-3 text-xs font-semibold uppercase text-slate-400">
-                        Enrollments ({detailStudent.enrollments.length})
+                        在修课程（{detailStudent.enrollments.length}）
                       </p>
                       <div className="space-y-2">
                         {detailStudent.enrollments.map((enrollment) => (
@@ -1101,7 +1106,7 @@ export default function AdminStudentsPage() {
                   ) : null}
 
                   <div className="border-t border-slate-100 pt-4 dark:border-slate-700">
-                    <p className="mb-2 text-xs font-semibold uppercase text-slate-400">Role Management</p>
+                    <p className="mb-2 text-xs font-semibold uppercase text-slate-400">角色管理</p>
                     <div className="flex gap-2">
                       {(["STUDENT", "ADMIN"] as const).map((role) => (
                         <button
@@ -1115,7 +1120,7 @@ export default function AdminStudentsPage() {
                               : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                           } disabled:opacity-50`}
                         >
-                          {roleSaving && detailStudent.role !== role ? "Updating…" : role}
+                          {roleSaving && detailStudent.role !== role ? "更新中…" : role}
                         </button>
                       ))}
                     </div>
@@ -1124,7 +1129,7 @@ export default function AdminStudentsPage() {
               ) : activeTab === "grades" ? (
                 <div className="space-y-2">
                   {(detailStudent.enrollments ?? []).filter((enrollment) => enrollment.finalGrade).length === 0 ? (
-                    <p className="text-sm text-slate-400">No grades recorded.</p>
+                    <p className="text-sm text-slate-400">暂无成绩记录。</p>
                   ) : (
                     (detailStudent.enrollments ?? [])
                       .filter((enrollment) => enrollment.finalGrade)
@@ -1154,32 +1159,32 @@ export default function AdminStudentsPage() {
                 <div className="space-y-4">
                   <div className="campus-card space-y-3 p-4">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-xs font-semibold uppercase text-slate-400">Security Info</p>
+                      <p className="text-xs font-semibold uppercase text-slate-400">安全信息</p>
                       {detailLocked ? (
-                        <span className="campus-chip chip-amber">Locked</span>
+                        <span className="campus-chip chip-amber">已锁定</span>
                       ) : (
-                        <span className="campus-chip chip-emerald">Normal</span>
+                        <span className="campus-chip chip-emerald">正常</span>
                       )}
                     </div>
                     <div className="grid grid-cols-1 gap-3 text-sm">
                       <div>
-                        <p className="text-xs text-slate-500">Last Login</p>
+                        <p className="text-xs text-slate-500">最后登录</p>
                         <p className="font-medium text-slate-800 dark:text-slate-100">
-                          {detailStudent.lastLoginAt ? new Date(detailStudent.lastLoginAt).toLocaleString() : "Never"}
+                          {detailStudent.lastLoginAt ? new Date(detailStudent.lastLoginAt).toLocaleString() : "从未登录"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Failed Attempts</p>
+                        <p className="text-xs text-slate-500">失败次数</p>
                         <p className="font-medium text-slate-800 dark:text-slate-100">{detailStudent.loginAttempts ?? 0}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Locked Until</p>
+                        <p className="text-xs text-slate-500">锁定截止</p>
                         <p className="font-medium text-slate-800 dark:text-slate-100">
-                          {detailStudent.lockedUntil ? new Date(detailStudent.lockedUntil).toLocaleString() : "Not locked"}
+                          {detailStudent.lockedUntil ? new Date(detailStudent.lockedUntil).toLocaleString() : "未锁定"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Role</p>
+                        <p className="text-xs text-slate-500">角色</p>
                         <p className="font-medium text-slate-800 dark:text-slate-100">{detailStudent.role ?? "STUDENT"}</p>
                       </div>
                     </div>
@@ -1190,7 +1195,7 @@ export default function AdminStudentsPage() {
                         onClick={() => void unlockAccount()}
                         className="inline-flex h-9 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-4 text-xs font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
                       >
-                        {unlocking ? "Unlocking…" : "Unlock Account"}
+                        {unlocking ? "解锁中…" : "解锁账户"}
                       </button>
                     ) : null}
                   </div>
@@ -1198,9 +1203,9 @@ export default function AdminStudentsPage() {
               ) : activeTab === "notifications" ? (
                 <div className="space-y-3">
                   {notificationLoading ? (
-                    <p className="text-sm text-slate-400">Loading notification log…</p>
+                    <p className="text-sm text-slate-400">加载通知日志中…</p>
                   ) : notificationLog.length === 0 ? (
-                    <p className="text-sm text-slate-400">No notification records yet.</p>
+                    <p className="text-sm text-slate-400">暂无通知记录。</p>
                   ) : (
                     notificationLog.map((item) => (
                       <div key={item.id} className="rounded-lg border border-slate-100 px-3 py-2 dark:border-slate-700">
@@ -1303,7 +1308,7 @@ export default function AdminStudentsPage() {
               ) : (
                 <div className="space-y-4">
                   <div className="campus-card p-4">
-                    <p className="text-xs font-semibold uppercase text-slate-400">Student Tags</p>
+                    <p className="text-xs font-semibold uppercase text-slate-400">学生标签</p>
                     <p className="mt-1 text-sm text-slate-500">使用标签为学生标记风险、项目、特殊关注点或运营状态。</p>
 
                     <div className="mt-4 flex flex-wrap gap-2">

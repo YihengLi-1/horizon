@@ -80,7 +80,7 @@ export default function EnrollmentAuditPage() {
 
   function exportCsv() {
     if (!filtered.length) return;
-    const header = ["EnrollmentID", "Student", "Course", "Section", "Term", "Status", "Grade", "EnrolledAt", "DroppedAt"];
+    const header = ["报名ID", "学生", "课程", "班级", "学期", "状态", "成绩", "报名时间", "退课时间"];
     const rows = filtered.map((r) => [
       r.enrollmentId, r.studentEmail, r.courseCode, r.sectionCode, r.termName, r.status, r.finalGrade ?? "", r.enrolledAt, r.droppedAt ?? ""
     ]);
@@ -94,7 +94,7 @@ export default function EnrollmentAuditPage() {
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Enrollment Analytics</p>
+        <p className="campus-eyebrow">报名分析</p>
         <h1 className="campus-title">注册审计报告</h1>
         <p className="mt-1 text-sm text-slate-500">查看所有注册记录，支持筛选、搜索与 CSV 导出</p>
       </section>

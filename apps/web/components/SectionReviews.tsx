@@ -20,11 +20,11 @@ function Stars({ rating }: { rating: number }) {
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const days = Math.floor(diff / 86400000);
-  if (days < 1) return "today";
-  if (days < 7) return `${days}d ago`;
-  if (days < 30) return `${Math.floor(days / 7)}w ago`;
-  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
-  return `${Math.floor(days / 365)}y ago`;
+  if (days < 1) return "今天";
+  if (days < 7) return `${days}天前`;
+  if (days < 30) return `${Math.floor(days / 7)}周前`;
+  if (days < 365) return `${Math.floor(days / 30)}个月前`;
+  return `${Math.floor(days / 365)}年前`;
 }
 
 export default function SectionReviews({ sectionId }: { sectionId: string }) {
@@ -48,14 +48,14 @@ export default function SectionReviews({ sectionId }: { sectionId: string }) {
     <div className="mt-3 border-t border-slate-100 pt-3 space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-slate-500">
-          Student Reviews ({reviews.length})
+          学生评价（{reviews.length}条）
         </p>
         {reviews.length > 2 ? (
           <button
             onClick={() => setExpanded(!expanded)}
             className="text-[10px] font-medium text-indigo-600 hover:text-indigo-800"
           >
-            {expanded ? "Show less" : `Show all ${reviews.length}`}
+            {expanded ? "收起" : `查看全部 ${reviews.length} 条`}
           </button>
         ) : null}
       </div>

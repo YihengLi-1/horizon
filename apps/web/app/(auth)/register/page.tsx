@@ -18,7 +18,7 @@ function getStrength(password: string): number {
   return score;
 }
 
-const STRENGTH_LABEL = ["", "Very Weak", "Weak", "Fair", "Good", "Strong"];
+const STRENGTH_LABEL = ["", "极弱", "弱", "一般", "良好", "强"];
 const STRENGTH_COLOR = ["", "bg-red-400", "bg-orange-400", "bg-amber-400", "bg-blue-400", "bg-emerald-400"];
 
 type RegisterResult = {
@@ -67,11 +67,11 @@ export default function RegisterPage() {
     setError("");
     setResult(null);
     if (form.password !== confirmPassword) {
-      setError("Passwords do not match.");
+      setError("两次输入的密码不一致。");
       return;
     }
     if (form.password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError("密码至少需要8个字符。");
       return;
     }
     setLoading(true);
@@ -82,7 +82,7 @@ export default function RegisterPage() {
       });
       setResult(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      setError(err instanceof Error ? err.message : "注册失败");
     } finally {
       setLoading(false);
     }
@@ -92,14 +92,14 @@ export default function RegisterPage() {
     <Card className="rounded-3xl border-slate-200/90 bg-white/95 shadow-[0_20px_50px_-32px_rgba(15,23,42,0.75)]">
       <CardHeader className="pb-4">
         <CardTitle className="font-heading text-2xl text-slate-900">Create Student Account</CardTitle>
-        <CardDescription className="text-slate-600">Invite code and email verification are required.</CardDescription>
+        <CardDescription className="text-slate-600">邀请码 and email verification are required.</CardDescription>
       </CardHeader>
       <CardContent>
         <form className="space-y-3" onSubmit={onSubmit}>
           <div className="space-y-1">
             <label className="text-sm font-medium text-slate-700">Legal name</label>
             <Input
-              placeholder="Alice Chen"
+              placeholder="张三"
               className="h-10"
               value={form.legalName}
               onChange={(e) => setForm((prev) => ({ ...prev, legalName: e.target.value }))}
@@ -118,7 +118,7 @@ export default function RegisterPage() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700">Invite code</label>
+              <label className="text-sm font-medium text-slate-700">邀请码</label>
               <Input
                 placeholder="OPEN-2026"
                 className="h-10"
@@ -151,7 +151,7 @@ export default function RegisterPage() {
               <Input
                 type={showPw ? "text" : "password"}
                 className="h-10 pr-10"
-                placeholder="Create a secure password"
+                placeholder="设置安全密码"
                 value={form.password}
                 onChange={(e) => {
                   const nextPassword = e.target.value;
@@ -200,7 +200,7 @@ export default function RegisterPage() {
               <Input
                 type={showConfirm ? "text" : "password"}
                 className={`h-10 pr-10 ${pwMismatch ? "border-red-400 focus-visible:ring-red-300" : pwMatch ? "border-emerald-400 focus-visible:ring-emerald-300" : ""}`}
-                placeholder="Re-enter your password"
+                placeholder="再次输入密码"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
@@ -225,7 +225,7 @@ export default function RegisterPage() {
           {result ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
               <p>{result.message}</p>
-              <p className="mt-1 text-emerald-700">We sent a verification email. Please complete verification before login.</p>
+              <p className="mt-1 text-emerald-700">验证邮件已发送，请先完成邮箱验证后再登录。</p>
             </div>
           ) : null}
           <Button disabled={loading} className="h-10 w-full bg-primary text-white hover:bg-primary/90" type="submit">
@@ -235,7 +235,7 @@ export default function RegisterPage() {
                 Creating account...
               </span>
             ) : (
-              "Create Account"
+              "创建账户"
             )}
           </Button>
         </form>

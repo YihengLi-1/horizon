@@ -18,6 +18,21 @@ type AdviseeAssignment = {
   };
 };
 
+const STATUS_STYLE: Record<string, string> = {
+  GOOD_STANDING: "text-emerald-700 bg-emerald-50 border-emerald-200",
+  PROBATION: "text-red-700 bg-red-50 border-red-200",
+  SUSPENDED: "text-red-800 bg-red-100 border-red-300",
+  AT_RISK: "text-amber-700 bg-amber-50 border-amber-200",
+};
+const STATUS_LABEL: Record<string, string> = {
+  GOOD_STANDING: "成绩良好",
+  PROBATION: "学业观察",
+  SUSPENDED: "学业暂停",
+  AT_RISK: "存在风险",
+  ACTIVE: "在籍",
+  INACTIVE: "未在籍",
+};
+
 export default async function AdvisorDashboardPage() {
   await requireRole("ADVISOR");
   let assignments: AdviseeAssignment[] = [];
@@ -25,61 +40,93 @@ export default async function AdvisorDashboardPage() {
   try {
     assignments = await serverApi<AdviseeAssignment[]>("/advising/advisees");
   } catch (err) {
-    error = err instanceof Error ? err.message : "Unable to load advisor workspace";
+    error = err instanceof Error ? err.message : "顾问工作台加载失败";
   }
 
+  const atRisk = assignments.filter(
+    (a) => a.student.studentProfile?.academicStatus === "AT_RISK" || a.student.studentProfile?.academicStatus === "PROBATION"
+  );
+
   return (
-    <div className="campus-page space-y-6">
+    <div className="campus-page">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Advising</p>
-        <h1 className="font-heading text-3xl font-bold text-slate-900">Assigned Advisees</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Review your assigned students and record advising notes on their academic progress.
-        </p>
+        <p className="campus-eyebrow">顾问工作台</p>
+        <h1 className="campus-hero-title">我的学生</h1>
+        <p className="campus-hero-subtitle">查看您负责辅导的学生，记录学业指导意见</p>
       </section>
 
-      <section className="campus-toolbar">
+      <section className="grid gap-3 sm:grid-cols-3">
         <div className="campus-kpi">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Active Advisees</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{assignments.length}</p>
+          <p className="campus-kpi-label">辅导学生总数</p>
+          <p className="campus-kpi-value">{assignments.length}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">需关注学生</p>
+          <p className={`campus-kpi-value ${atRisk.length > 0 ? "text-amber-600" : "text-emerald-600"}`}>
+            {atRisk.length}
+          </p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">待审批请求</p>
+          <p className="campus-kpi-value">
+            <Link href="/advisor/requests" className="hover:underline text-blue-600">查看</Link>
+          </p>
         </div>
       </section>
 
       {error ? (
-        <section className="campus-card p-6 text-sm text-red-600">
-          Advisor workspace is temporarily unavailable: {error}
-        </section>
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
       ) : null}
 
       {!error && assignments.length === 0 ? (
-        <section className="campus-card p-8 text-center text-sm text-slate-500">
-          No active advisor assignments are linked to your account yet.
-        </section>
+        <div className="campus-card p-10 text-center text-slate-400">
+          <p className="text-sm">您目前尚未被分配任何学生</p>
+        </div>
       ) : null}
 
       {!error && assignments.length > 0 ? (
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {assignments.map((assignment) => (
-            <article key={assignment.id} className="campus-card p-5 space-y-4">
-              <div>
-                <p className="text-base font-semibold text-slate-900">
-                  {assignment.student.studentProfile?.legalName ?? assignment.student.email}
-                </p>
-                <p className="mt-1 text-sm text-slate-500">{assignment.student.studentId ?? "No student ID"}</p>
-              </div>
-              <div className="space-y-1 text-sm text-slate-600">
-                <p>{assignment.student.studentProfile?.programMajor ?? "Undeclared"}</p>
-                <p>{assignment.student.studentProfile?.academicStatus ?? "Academic status unavailable"}</p>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="campus-chip text-xs">{assignment.student.studentProfile?.enrollmentStatus ?? "Active"}</span>
-                <Link href={`/advisor/students/${assignment.student.id}`} className="campus-chip cursor-pointer text-xs">
-                  Open advisee
-                </Link>
-              </div>
-            </article>
-          ))}
-        </section>
+        <>
+          {atRisk.length > 0 ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              ⚠ 有 <strong>{atRisk.length}</strong> 名学生处于学业风险状态，建议优先约谈。
+            </div>
+          ) : null}
+
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {assignments.map((assignment) => {
+              const profile = assignment.student.studentProfile;
+              const academicStatus = profile?.academicStatus ?? "";
+              return (
+                <article key={assignment.id} className="campus-card p-5 space-y-3 hover:border-blue-300 transition">
+                  <div>
+                    <p className="text-base font-semibold text-slate-900">
+                      {profile?.legalName ?? assignment.student.email}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">{assignment.student.email}</p>
+                  </div>
+                  <div className="space-y-1 text-sm text-slate-600">
+                    <p className="text-xs">{profile?.programMajor ?? "专业未申报"}</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    {academicStatus ? (
+                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLE[academicStatus] ?? "border-slate-200 bg-slate-50 text-slate-500"}`}>
+                        {STATUS_LABEL[academicStatus] ?? academicStatus}
+                      </span>
+                    ) : (
+                      <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-400">—</span>
+                    )}
+                    <Link
+                      href={`/advisor/students/${assignment.student.id}`}
+                      className="text-xs text-blue-600 hover:text-blue-800 underline"
+                    >
+                      查看详情 →
+                    </Link>
+                  </div>
+                </article>
+              );
+            })}
+          </section>
+        </>
       ) : null}
     </div>
   );

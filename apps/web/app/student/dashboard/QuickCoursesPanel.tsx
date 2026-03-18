@@ -34,9 +34,9 @@ export default function QuickCoursesPanel({ enrollments }: { enrollments: Enroll
   return (
     <div className="campus-card overflow-hidden">
       <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-700">
-        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">My Current Courses</p>
+        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">我的当前课程</p>
         <Link href="/student/schedule" className="text-xs font-medium text-blue-600 hover:underline">
-          View Schedule →
+          查看课表 →
         </Link>
       </div>
       <div className="divide-y divide-slate-50 dark:divide-slate-700">
@@ -48,14 +48,14 @@ export default function QuickCoursesPanel({ enrollments }: { enrollments: Enroll
             <div className="flex items-start justify-between">
               <div>
                 <p className="font-mono text-xs font-semibold text-slate-600 dark:text-slate-400">{enrollment.section.course?.code ?? "—"}</p>
-                <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{enrollment.section.course?.title ?? "Course"}</p>
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{enrollment.section.course?.title ?? "课程"}</p>
                 {enrollment.section.location ? <p className="text-xs text-slate-400">{enrollment.section.location}</p> : null}
                 {enrollment.status === "WAITLISTED" && enrollment.waitlistPosition ? (
-                  <p className="text-xs text-amber-600">Queue #{enrollment.waitlistPosition}</p>
+                  <p className="text-xs text-amber-600">候补第 {enrollment.waitlistPosition} 位</p>
                 ) : null}
               </div>
               <span className={`campus-chip text-xs ${STATUS_CHIP[enrollment.status] ?? ""}`}>
-                {enrollment.status === "ENROLLED" ? "Enrolled" : enrollment.status === "WAITLISTED" ? "Waitlisted" : "Pending"}
+                {enrollment.status === "ENROLLED" ? "在读" : enrollment.status === "WAITLISTED" ? "候补中" : "待处理"}
               </span>
             </div>
           </div>

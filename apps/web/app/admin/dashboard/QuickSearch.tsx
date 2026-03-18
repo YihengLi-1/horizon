@@ -35,13 +35,13 @@ export default function QuickSearch() {
 
       const merged: SearchResult[] = [
         ...normalizeItems(students).map((student) => ({
-          type: "Student",
-          label: `${student.name ?? student.email ?? "Student"}`,
+          type: "学生",
+          label: `${student.name ?? student.email ?? "学生"}`,
           href: "/admin/students"
         })),
         ...normalizeItems(courses).map((course) => ({
-          type: "Course",
-          label: `${course.code ?? "—"} — ${course.title ?? "Untitled"}`,
+          type: "课程",
+          label: `${course.code ?? "—"} — ${course.title ?? "无标题"}`,
           href: "/admin/courses"
         }))
       ];
@@ -62,7 +62,7 @@ export default function QuickSearch() {
         }}
         onFocus={() => setOpen(true)}
         onBlur={() => window.setTimeout(() => setOpen(false), 200)}
-        placeholder="Quick search students, courses..."
+        placeholder="快速搜索学生、课程..."
         className="campus-input w-full pr-8 text-sm"
       />
       {open && results.length > 0 ? (
@@ -75,7 +75,7 @@ export default function QuickSearch() {
             >
               <span
                 className={`campus-chip text-xs ${
-                  result.type === "Student"
+                  result.type === "学生"
                     ? "border-blue-200 bg-blue-50 text-blue-700"
                     : "border-emerald-200 bg-emerald-50 text-emerald-700"
                 }`}

@@ -1,14 +1,9 @@
 "use client";
 
-/**
- * Admin Term Enrollment Forecast
- * Shows historical enrollment per term + linear regression forecast for next term.
- */
-
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
-type TermStat = {
+type TermPoint = {
   termId: string;
   termName: string;
   startDate: string;
@@ -19,9 +14,17 @@ type TermStat = {
   total: number;
 };
 
-type Forecast = { value: number; trend: "up" | "down" | "flat"; slope: number };
+type ForecastData = {
+  terms: TermPoint[];
+  forecast: { value: number; trend: "up" | "down" | "flat"; slope: number } | null;
+};
 
-type ForecastData = { terms: TermStat[]; forecast: Forecast | null };
+const STATUS_COLORS: Record<string, string> = {
+  enrolled: "bg-blue-400",
+  completed: "bg-emerald-400",
+  dropped: "bg-red-400",
+  waitlisted: "bg-amber-400",
+};
 
 export default function TermEnrollmentForecastPage() {
   const [data, setData] = useState<ForecastData | null>(null);
@@ -30,183 +33,163 @@ export default function TermEnrollmentForecastPage() {
 
   useEffect(() => {
     void apiFetch<ForecastData>("/admin/term-enrollment-forecast")
-      .then((d) => setData(d))
-      .catch((e) => setError(e instanceof Error ? e.message : "加载失败"))
+      .then((d) => setData(d ?? null))
+      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setLoading(false));
   }, []);
 
-  const chartMeta = useMemo(() => {
-    if (!data?.terms.length) return null;
-    const points = data.terms;
-    const maxTotal = Math.max(1, ...points.map((t) => t.total));
-    return { points, maxTotal };
-  }, [data]);
+  const terms = data?.terms ?? [];
+  const maxTotal = Math.max(1, ...terms.map((t) => t.total));
+  const forecastVal = data?.forecast?.value ?? 0;
+  const trend = data?.forecast?.trend;
+  const slope = data?.forecast?.slope;
 
-  const trendLabel = data?.forecast?.trend === "up" ? "↑ 上升" : data?.forecast?.trend === "down" ? "↓ 下降" : "→ 平稳";
-  const trendColor = data?.forecast?.trend === "up" ? "text-emerald-600" : data?.forecast?.trend === "down" ? "text-red-600" : "text-amber-600";
+  function trendIcon() {
+    if (trend === "up") return "↑";
+    if (trend === "down") return "↓";
+    return "→";
+  }
+  function trendColor() {
+    if (trend === "up") return "text-emerald-600";
+    if (trend === "down") return "text-red-600";
+    return "text-slate-500";
+  }
 
   return (
-    <div className="campus-page space-y-6">
+    <div className="campus-page">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Enrollment Forecast</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">学期选课预测</h1>
-        <p className="mt-1 text-sm text-slate-500">基于历史数据的线性趋势预测，辅助下学期容量规划</p>
+        <p className="campus-eyebrow">招生预测</p>
+        <h1 className="campus-hero-title">学期注册人数预测</h1>
+        <p className="campus-hero-subtitle">基于历史各学期注册数据进行线性趋势分析与下学期预测</p>
       </section>
 
-      {error && <div className="campus-card border-red-200 bg-red-50 px-6 py-4 text-sm text-red-700">{error}</div>}
+      <section className="grid gap-3 sm:grid-cols-4">
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">历史学期数</p>
+          <p className="campus-kpi-value">{loading ? "—" : terms.length}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">最近学期总注册</p>
+          <p className="campus-kpi-value">
+            {loading || !terms.length ? "—" : terms[terms.length - 1].total}
+          </p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">下学期预测</p>
+          <p className={`campus-kpi-value ${trendColor()}`}>
+            {loading || !data?.forecast ? "—" : forecastVal}
+          </p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">趋势</p>
+          <p className={`campus-kpi-value ${trendColor()}`}>
+            {loading || !data?.forecast ? "—" : `${trendIcon()} ${Math.abs(slope ?? 0)}/期`}
+          </p>
+        </div>
+      </section>
 
-      {loading ? (
-        <div className="campus-card px-6 py-14 text-center text-sm text-slate-500">⏳ 加载中…</div>
-      ) : !data ? (
-        <div className="campus-card px-6 py-14 text-center text-sm text-slate-400">暂无数据</div>
-      ) : (
-        <>
-          {/* Forecast KPI */}
-          {data.forecast && (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <div className="campus-kpi">
-                <p className="campus-kpi-label">历史学期数</p>
-                <p className="campus-kpi-value text-indigo-600">{data.terms.length}</p>
-              </div>
-              <div className="campus-kpi">
-                <p className="campus-kpi-label">下期预测总选课</p>
-                <p className="campus-kpi-value text-emerald-600">{data.forecast.value.toLocaleString()}</p>
-              </div>
-              <div className="campus-kpi">
-                <p className="campus-kpi-label">趋势</p>
-                <p className={`campus-kpi-value ${trendColor}`}>{trendLabel}</p>
-              </div>
-              <div className="campus-kpi">
-                <p className="campus-kpi-label">斜率（人/学期）</p>
-                <p className={`campus-kpi-value ${trendColor}`}>{data.forecast.slope > 0 ? "+" : ""}{data.forecast.slope}</p>
-              </div>
-            </div>
-          )}
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : null}
 
-          {/* SVG line chart */}
-          {chartMeta && (
-            <div className="campus-card p-4">
-              <h2 className="text-sm font-bold text-slate-900 mb-4">各学期选课总量趋势</h2>
-              <svg viewBox="0 0 700 260" className="w-full">
-                {/* Axes */}
-                <line x1="60" y1="220" x2="680" y2="220" stroke="#e2e8f0" strokeWidth="1.5" />
-                <line x1="60" y1="20" x2="60" y2="220" stroke="#e2e8f0" strokeWidth="1.5" />
-
-                {/* Y grid lines */}
-                {[0.25, 0.5, 0.75, 1].map((f) => {
-                  const y = 220 - f * 185;
-                  return (
-                    <g key={f}>
-                      <line x1="60" y1={y} x2="680" y2={y} stroke="#f1f5f9" strokeWidth="1" />
-                      <text x="55" y={y + 3} textAnchor="end" fontSize="8" fill="#94a3b8">
-                        {Math.round(f * chartMeta.maxTotal)}
-                      </text>
-                    </g>
-                  );
-                })}
-                <text x="55" y="223" textAnchor="end" fontSize="8" fill="#94a3b8">0</text>
-
-                {/* Stacked bars */}
-                {chartMeta.points.map((t, i) => {
-                  const n = chartMeta.points.length;
-                  const barW = Math.min(40, (620 / n) * 0.6);
-                  const cx = 60 + (i / Math.max(1, n - 1)) * 620;
-                  const stackColors = [
-                    { key: "enrolled" as const, color: "#4f46e5" },
-                    { key: "completed" as const, color: "#10b981" },
-                    { key: "dropped" as const, color: "#f59e0b" },
-                    { key: "waitlisted" as const, color: "#e2e8f0" },
-                  ];
-                  let cumH = 0;
-                  return (
-                    <g key={t.termId}>
-                      {stackColors.map(({ key, color }) => {
-                        const h = (t[key] / chartMeta.maxTotal) * 185;
-                        const y = 220 - cumH - h;
-                        cumH += h;
-                        return h > 0 ? (
-                          <rect key={key} x={cx - barW / 2} y={y} width={barW} height={h} fill={color} rx="1" />
-                        ) : null;
-                      })}
-                      <text x={cx} y="234" textAnchor="middle" fontSize="7.5" fill="#94a3b8">
-                        {t.termName.length > 8 ? t.termName.slice(-6) : t.termName}
-                      </text>
-                    </g>
-                  );
-                })}
-
-                {/* Forecast point */}
-                {data.forecast && (() => {
-                  const n = chartMeta.points.length;
-                  const fx = 60 + (n / Math.max(1, n - 1)) * 620;
-                  const fy = 220 - (Math.min(data.forecast.value, chartMeta.maxTotal * 1.2) / chartMeta.maxTotal) * 185;
-                  return (
-                    <g>
-                      <line x1={60 + ((n - 1) / Math.max(1, n - 1)) * 620} y1={220 - (chartMeta.points[n - 1]?.total / chartMeta.maxTotal) * 185} x2={Math.min(fx, 680)} y2={Math.max(fy, 10)} stroke="#4f46e5" strokeWidth="1.5" strokeDasharray="4,3" />
-                      <circle cx={Math.min(fx, 680)} cy={Math.max(fy, 10)} r="5" fill="#4f46e5" opacity="0.6" />
-                      <text x={Math.min(fx, 680)} y={Math.max(fy, 10) - 7} textAnchor="middle" fontSize="8" fill="#4f46e5" fontWeight="bold">
-                        预测 {data.forecast.value}
-                      </text>
-                    </g>
-                  );
-                })()}
-              </svg>
-
-              {/* Legend */}
-              <div className="flex gap-4 mt-2 flex-wrap text-xs text-slate-500">
-                {[["bg-indigo-600", "在读"], ["bg-emerald-500", "完成"], ["bg-amber-400", "退课"], ["bg-slate-200", "候补"]].map(([bg, lbl]) => (
-                  <span key={lbl} className="flex items-center gap-1">
-                    <span className={`inline-block w-3 h-3 rounded-sm ${bg}`} />{lbl}
-                  </span>
-                ))}
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-5 border-t-2 border-dashed border-indigo-500" />预测值
+      {/* Stacked bar chart */}
+      {!loading && terms.length > 0 ? (
+        <section className="campus-card p-5">
+          <p className="font-semibold text-slate-800 mb-4">各学期注册构成（堆叠柱状图）</p>
+          <div className="flex items-end gap-2 h-48 overflow-x-auto pb-1">
+            {terms.map((t) => (
+              <div key={t.termId} className="flex flex-col items-center gap-1 min-w-[56px]">
+                <div className="w-10 flex flex-col justify-end" style={{ height: "160px" }}>
+                  {/* forecast reference line via dashed border — rendered as stacked bars */}
+                  {(["enrolled", "completed", "dropped", "waitlisted"] as const).map((key) => {
+                    const val = t[key];
+                    const h = (val / maxTotal) * 160;
+                    return h > 0 ? (
+                      <div key={key} className={`w-full ${STATUS_COLORS[key]} rounded-sm`} style={{ height: `${h}px` }} />
+                    ) : null;
+                  })}
+                </div>
+                <span className="text-[10px] text-slate-500 text-center leading-tight w-12 truncate" title={t.termName}>
+                  {t.termName}
                 </span>
               </div>
-            </div>
-          )}
-
-          {/* Historical table */}
-          <div className="campus-card overflow-hidden">
-            <div className="px-4 pt-4 pb-2">
-              <h2 className="text-sm font-bold text-slate-900">历史数据明细</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-500">
-                    <th className="pb-2 pl-4 text-left font-semibold">学期</th>
-                    <th className="pb-2 pr-3 text-right font-semibold">在读</th>
-                    <th className="pb-2 pr-3 text-right font-semibold">完成</th>
-                    <th className="pb-2 pr-3 text-right font-semibold">退课</th>
-                    <th className="pb-2 pr-3 text-right font-semibold">候补</th>
-                    <th className="pb-2 pr-4 text-right font-semibold text-indigo-600">合计</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.terms.map((t) => (
-                    <tr key={t.termId} className="border-b border-slate-50 hover:bg-slate-50">
-                      <td className="py-2 pl-4 pr-3 font-medium text-slate-800">{t.termName}</td>
-                      <td className="py-2 pr-3 text-right text-indigo-600">{t.enrolled}</td>
-                      <td className="py-2 pr-3 text-right text-emerald-600">{t.completed}</td>
-                      <td className="py-2 pr-3 text-right text-amber-600">{t.dropped}</td>
-                      <td className="py-2 pr-3 text-right text-slate-400">{t.waitlisted}</td>
-                      <td className="py-2 pr-4 text-right font-bold text-slate-700">{t.total}</td>
-                    </tr>
-                  ))}
-                  {data.forecast && (
-                    <tr className="bg-indigo-50 border-t-2 border-indigo-200">
-                      <td className="py-2 pl-4 pr-3 font-bold text-indigo-800">下期预测</td>
-                      <td colSpan={4} className="py-2 pr-3 text-right text-indigo-600 text-xs italic">基于线性回归</td>
-                      <td className="py-2 pr-4 text-right font-bold text-indigo-700">{data.forecast.value}</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+            ))}
+            {/* Forecast column */}
+            {data?.forecast ? (
+              <div className="flex flex-col items-center gap-1 min-w-[56px]">
+                <div className="w-10 flex flex-col justify-end" style={{ height: "160px" }}>
+                  <div
+                    className="w-full bg-blue-200 rounded-sm border-2 border-dashed border-blue-500"
+                    style={{ height: `${Math.min(160, (forecastVal / maxTotal) * 160)}px` }}
+                  />
+                </div>
+                <span className="text-[10px] text-blue-600 font-bold text-center leading-tight">预测</span>
+              </div>
+            ) : null}
+          </div>
+          {/* Legend */}
+          <div className="flex flex-wrap gap-3 mt-3">
+            {[
+              { key: "enrolled", label: "在读" },
+              { key: "completed", label: "已完课" },
+              { key: "dropped", label: "已退课" },
+              { key: "waitlisted", label: "候补" },
+            ].map(({ key, label }) => (
+              <div key={key} className="flex items-center gap-1.5 text-xs text-slate-600">
+                <span className={`inline-block size-3 rounded-sm ${STATUS_COLORS[key]}`} />
+                {label}
+              </div>
+            ))}
+            <div className="flex items-center gap-1.5 text-xs text-blue-600">
+              <span className="inline-block size-3 rounded-sm bg-blue-200 border border-dashed border-blue-500" />
+              下学期预测
             </div>
           </div>
-        </>
-      )}
+        </section>
+      ) : null}
+
+      {/* Data table */}
+      <section className="campus-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <th className="px-4 py-3 text-left">学期</th>
+                <th className="px-4 py-3 text-right">在读</th>
+                <th className="px-4 py-3 text-right">已完课</th>
+                <th className="px-4 py-3 text-right">已退课</th>
+                <th className="px-4 py-3 text-right">候补</th>
+                <th className="px-4 py-3 text-right font-bold text-slate-700">合计</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-400">加载中…</td></tr>
+              ) : terms.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-400">暂无数据</td></tr>
+              ) : terms.map((t) => (
+                <tr key={t.termId} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="px-4 py-3 font-semibold text-slate-900">{t.termName}</td>
+                  <td className="px-4 py-3 text-right font-mono text-blue-600">{t.enrolled}</td>
+                  <td className="px-4 py-3 text-right font-mono text-emerald-600">{t.completed}</td>
+                  <td className="px-4 py-3 text-right font-mono text-red-400">{t.dropped}</td>
+                  <td className="px-4 py-3 text-right font-mono text-amber-500">{t.waitlisted}</td>
+                  <td className="px-4 py-3 text-right font-mono font-bold text-slate-800">{t.total}</td>
+                </tr>
+              ))}
+              {!loading && data?.forecast ? (
+                <tr className="border-t-2 border-blue-200 bg-blue-50/40">
+                  <td className="px-4 py-3 font-bold text-blue-700">下学期（预测）</td>
+                  <td colSpan={4} className="px-4 py-3 text-right text-xs text-slate-500">
+                    线性回归 · 斜率 {slope}/期
+                  </td>
+                  <td className="px-4 py-3 text-right font-bold text-blue-700">{forecastVal}</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }

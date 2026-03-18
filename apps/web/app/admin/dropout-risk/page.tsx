@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
-type DropoutRiskRow = {
+type RiskRow = {
   userId: string;
   name: string;
   email: string;
@@ -14,145 +14,197 @@ type DropoutRiskRow = {
   riskScore: number;
 };
 
-function csvCell(value: string | number) {
-  const text = String(value);
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
+type SortKey = "riskScore" | "gpa" | "dropCount";
 
-function riskTone(score: number) {
-  if (score >= 80) return { label: "高", color: "#dc2626", bg: "#fee2e2" };
-  if (score >= 50) return { label: "中", color: "#d97706", bg: "#fef3c7" };
-  return { label: "低", color: "#2563eb", bg: "#dbeafe" };
+function riskLevel(score: number): { label: string; color: string; bg: string; border: string } {
+  if (score >= 70) return { label: "高风险", color: "text-red-700", bg: "bg-red-50", border: "border-red-200" };
+  if (score >= 50) return { label: "中风险", color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200" };
+  return { label: "低风险", color: "text-blue-700", bg: "bg-blue-50", border: "border-blue-200" };
 }
 
 export default function DropoutRiskPage() {
-  const [rows, setRows] = useState<DropoutRiskRow[]>([]);
+  const [rows, setRows] = useState<RiskRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<SortKey>("riskScore");
+  const [asc, setAsc] = useState(false);
 
   useEffect(() => {
-    setLoading(true);
-    setError("");
-    void apiFetch<DropoutRiskRow[]>("/admin/dropout-risk")
-      .then((data) => setRows(data ?? []))
-      .catch((err) => {
-        setRows([]);
-        setError(err instanceof Error ? err.message : "加载退课风险失败");
-      })
+    void apiFetch<RiskRow[]>("/admin/dropout-risk")
+      .then((d) => setRows(d ?? []))
+      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setLoading(false));
   }, []);
 
-  const summary = useMemo(() => {
-    const highRiskCount = rows.length;
-    const avgRiskScore = rows.length > 0 ? rows.reduce((sum, row) => sum + row.riskScore, 0) / rows.length : 0;
-    const avgGpa = rows.length > 0 ? rows.reduce((sum, row) => sum + row.gpa, 0) / rows.length : 0;
-    return {
-      highRiskCount,
-      avgRiskScore: Math.round(avgRiskScore * 10) / 10,
-      avgGpa: Math.round(avgGpa * 100) / 100
-    };
-  }, [rows]);
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return [...rows]
+      .filter((r) => !q || r.name.toLowerCase().includes(q) || r.email.toLowerCase().includes(q) || (r.programMajor ?? "").toLowerCase().includes(q))
+      .sort((a, b) => {
+        const av = a[sort];
+        const bv = b[sort];
+        return asc ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+      });
+  }, [rows, search, sort, asc]);
+
+  const highRisk = rows.filter((r) => r.riskScore >= 70).length;
+  const midRisk = rows.filter((r) => r.riskScore >= 50 && r.riskScore < 70).length;
+  const noEnroll = rows.filter((r) => r.enrolledCredits === 0).length;
+
+  function toggleSort(key: SortKey) {
+    if (sort === key) setAsc((v) => !v);
+    else { setSort(key); setAsc(false); }
+  }
+
+  function sortIcon(key: SortKey) {
+    return sort === key ? (asc ? " ↑" : " ↓") : null;
+  }
 
   function exportCsv() {
-    const lines = [
-      ["name", "email", "programMajor", "dropCount", "gpa", "enrolledCredits", "riskScore"].join(","),
-      ...rows.map((row) =>
-        [row.name, row.email, row.programMajor, row.dropCount, row.gpa.toFixed(2), row.enrolledCredits, row.riskScore]
-          .map(csvCell)
-          .join(",")
-      )
+    const headers = ["姓名", "邮箱", "专业", "退课次数", "GPA", "在读学分", "风险评分"];
+    const csvRows = [
+      headers.join(","),
+      ...filtered.map((r) => [
+        `"${r.name}"`, `"${r.email}"`, `"${r.programMajor}"`,
+        r.dropCount, r.gpa.toFixed(2), r.enrolledCredits, r.riskScore,
+      ].join(",")),
     ];
-    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "dropout-risk.csv";
-    link.click();
-    URL.revokeObjectURL(url);
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(blob),
+      download: `dropout-risk-${new Date().toISOString().slice(0, 10)}.csv`,
+    });
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   return (
-    <div className="campus-page" style={{ display: "grid", gap: "1.5rem" }}>
+    <div className="campus-page">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Retention Watch</p>
-        <h1 style={{ margin: 0 }}>退课风险</h1>
-        <p style={{ marginTop: "0.5rem", color: "#64748b" }}>根据退课历史、GPA 和当前选课学分识别高退课风险学生</p>
+        <p className="campus-eyebrow">学生干预</p>
+        <h1 className="campus-hero-title">退学风险预警</h1>
+        <p className="campus-hero-subtitle">基于退课次数、GPA 和选课状态计算风险评分，辅助提前干预</p>
       </section>
 
-      <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+      <section className="grid gap-3 sm:grid-cols-4">
         <div className="campus-kpi">
-          <p className="campus-kpi-label">高风险人数</p>
-          <p className="campus-kpi-value">{summary.highRiskCount}</p>
+          <p className="campus-kpi-label">风险学生总数</p>
+          <p className="campus-kpi-value">{loading ? "—" : rows.length}</p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label">平均风险分</p>
-          <p className="campus-kpi-value">{summary.avgRiskScore.toFixed(1)}</p>
+          <p className="campus-kpi-label">高风险（≥70）</p>
+          <p className="campus-kpi-value text-red-600">{loading ? "—" : highRisk}</p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label">平均 GPA</p>
-          <p className="campus-kpi-value">{summary.avgGpa.toFixed(2)}</p>
+          <p className="campus-kpi-label">中风险（50–69）</p>
+          <p className="campus-kpi-value text-amber-600">{loading ? "—" : midRisk}</p>
         </div>
-      </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">未在读</p>
+          <p className="campus-kpi-value text-slate-600">{loading ? "—" : noEnroll}</p>
+        </div>
+      </section>
 
-      <div className="campus-toolbar" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ color: "#64748b", fontSize: "0.9rem" }}>仅展示风险分大于等于 30 的学生</span>
-        <button type="button" className="campus-chip" onClick={exportCsv} disabled={rows.length === 0}>
+      {highRisk > 0 ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          ⚠ 共 <span className="font-bold">{highRisk}</span> 名学生处于高风险状态，建议及时联系学生进行学业支持。
+        </div>
+      ) : null}
+
+      <div className="campus-toolbar">
+        <input
+          className="campus-input max-w-xs"
+          placeholder="按姓名、邮箱或专业搜索…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <button
+          type="button"
+          onClick={exportCsv}
+          disabled={!filtered.length}
+          className="campus-btn-ghost shrink-0 disabled:opacity-40"
+        >
           CSV 导出
         </button>
       </div>
 
-      {error ? <div className="campus-card" style={{ color: "#b91c1c" }}>{error}</div> : null}
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : null}
 
-      {loading ? (
-        <div className="campus-card" style={{ textAlign: "center", color: "#64748b" }}>加载中...</div>
-      ) : rows.length === 0 ? (
-        <div className="campus-card" style={{ textAlign: "center", color: "#64748b" }}>暂无高退课风险学生</div>
-      ) : (
-        <div className="campus-card" style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "860px" }}>
+      <section className="campus-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
             <thead>
-              <tr style={{ textAlign: "left", borderBottom: "1px solid #e2e8f0" }}>
-                <th style={{ padding: "0.9rem" }}>学生</th>
-                <th style={{ padding: "0.9rem" }}>专业</th>
-                <th style={{ padding: "0.9rem" }}>W/退课次数</th>
-                <th style={{ padding: "0.9rem" }}>GPA</th>
-                <th style={{ padding: "0.9rem" }}>当前学分</th>
-                <th style={{ padding: "0.9rem" }}>风险评分</th>
+              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <th className="px-4 py-3 text-left">学生</th>
+                <th className="px-4 py-3 text-left">专业</th>
+                <th
+                  className="cursor-pointer px-4 py-3 text-right hover:text-slate-800"
+                  onClick={() => toggleSort("dropCount")}
+                >退课次数{sortIcon("dropCount")}</th>
+                <th
+                  className="cursor-pointer px-4 py-3 text-right hover:text-slate-800"
+                  onClick={() => toggleSort("gpa")}
+                >GPA{sortIcon("gpa")}</th>
+                <th className="px-4 py-3 text-right">在读学分</th>
+                <th
+                  className="cursor-pointer px-4 py-3 text-right hover:text-slate-800"
+                  onClick={() => toggleSort("riskScore")}
+                >风险评分{sortIcon("riskScore")}</th>
+                <th className="px-4 py-3 text-left">风险等级</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => {
-                const tone = riskTone(row.riskScore);
-                return (
-                  <tr key={row.userId} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ padding: "0.9rem" }}>
-                      <div style={{ display: "grid", gap: "0.15rem" }}>
-                        <strong>{row.name}</strong>
-                        <span style={{ fontSize: "0.85rem", color: "#64748b" }}>{row.email}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: "0.9rem" }}>{row.programMajor}</td>
-                    <td style={{ padding: "0.9rem" }}>{row.dropCount}</td>
-                    <td style={{ padding: "0.9rem" }}>{row.gpa.toFixed(2)}</td>
-                    <td style={{ padding: "0.9rem" }}>{row.enrolledCredits}</td>
-                    <td style={{ padding: "0.9rem" }}>
-                      <div style={{ display: "grid", gap: "0.35rem" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span className="campus-chip" style={{ background: tone.bg, color: tone.color }}>{tone.label}风险</span>
-                          <strong style={{ color: tone.color }}>{row.riskScore}</strong>
+              {loading ? (
+                <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-400">加载中…</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-400">暂无高风险学生</td></tr>
+              ) : (
+                filtered.map((row) => {
+                  const risk = riskLevel(row.riskScore);
+                  return (
+                    <tr key={row.userId} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-slate-900">{row.name}</p>
+                        <p className="text-xs text-slate-500">{row.email}</p>
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">{row.programMajor || "—"}</td>
+                      <td className="px-4 py-3 text-right font-mono text-slate-700">{row.dropCount}</td>
+                      <td className={`px-4 py-3 text-right font-bold ${row.gpa >= 2.0 ? "text-emerald-600" : "text-red-600"}`}>
+                        {row.gpa > 0 ? row.gpa.toFixed(2) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-slate-700">{row.enrolledCredits}</td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <div className="h-1.5 w-16 rounded-full bg-slate-100">
+                            <div
+                              className={`h-1.5 rounded-full ${row.riskScore >= 70 ? "bg-red-400" : row.riskScore >= 50 ? "bg-amber-400" : "bg-blue-300"}`}
+                              style={{ width: `${row.riskScore}%` }}
+                            />
+                          </div>
+                          <span className="font-bold text-slate-900 w-7 text-right">{row.riskScore}</span>
                         </div>
-                        <div style={{ height: "10px", background: "#e2e8f0", borderRadius: "999px", overflow: "hidden" }}>
-                          <div style={{ width: `${row.riskScore}%`, height: "100%", background: tone.color }} />
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${risk.color} ${risk.bg} ${risk.border}`}>
+                          {risk.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
-      )}
+        {!loading && filtered.length > 0 ? (
+          <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-400">
+            共 {filtered.length} 名学生 · 风险评分 = 退课数×30 + 低GPA×40 + 无在读×30
+          </p>
+        ) : null}
+      </section>
     </div>
   );
 }

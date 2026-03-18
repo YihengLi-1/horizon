@@ -6,9 +6,9 @@ import { apiFetch } from "@/lib/api";
 type Dim = { label: string; key: "rating" | "difficulty" | "workload"; color: string };
 
 const dims: Dim[] = [
-  { label: "Overall", key: "rating", color: "text-indigo-500" },
-  { label: "Difficulty", key: "difficulty", color: "text-rose-500" },
-  { label: "Workload", key: "workload", color: "text-amber-500" }
+  { label: "总体", key: "rating", color: "text-indigo-500" },
+  { label: "难度", key: "difficulty", color: "text-rose-500" },
+  { label: "工作量", key: "workload", color: "text-amber-500" }
 ];
 
 function StarRow({
@@ -89,14 +89,14 @@ export default function MultiDimRating({
   if (saved) {
     return (
       <div className="text-xs text-emerald-600 flex items-center gap-1">
-        <span>✓</span> Rating saved
+        <span>✓</span> 评分已保存
       </div>
     );
   }
 
   return (
     <div className="space-y-2 border border-slate-100 rounded-lg p-3 bg-slate-50">
-      <p className="text-xs font-semibold text-slate-600 mb-2">Rate this course</p>
+      <p className="text-xs font-semibold text-slate-600 mb-2">课程评分</p>
       {dims.map((d) => (
         <StarRow
           key={d.key}
@@ -124,7 +124,7 @@ export default function MultiDimRating({
                   : "bg-white border-slate-200 text-slate-500"
               }`}
             >
-              {v ? "Yes" : "No"}
+              {v ? "是" : "否"}
             </button>
           ))}
         </div>
@@ -133,7 +133,7 @@ export default function MultiDimRating({
       <textarea
         value={comment}
         onChange={(e) => setComment(e.target.value)}
-        placeholder="Comments (optional, max 500 chars)"
+        placeholder="评论（选填，最多500字）"
         maxLength={500}
         rows={2}
         className="campus-input text-xs w-full mt-1 resize-none"
@@ -145,7 +145,7 @@ export default function MultiDimRating({
         disabled={saving || !values.rating}
         className="campus-btn-primary text-xs px-3 py-1.5 disabled:opacity-40"
       >
-        {saving ? "Saving…" : "Submit Rating"}
+        {saving ? "提交中…" : "提交评分"}
       </button>
     </div>
   );

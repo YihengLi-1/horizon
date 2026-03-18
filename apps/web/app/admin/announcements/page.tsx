@@ -146,22 +146,22 @@ export default function AnnouncementsPage() {
   return (
     <div className="campus-page space-y-6">
       <div className="campus-hero">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Announcements</h1>
-        <p className="mt-1 text-sm text-slate-500">Publish notices to students and admins</p>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">系统公告</h1>
+        <p className="mt-1 text-sm text-slate-500">向学生和管理员发布通知公告。</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="campus-kpi"><p className="text-xs font-semibold uppercase text-slate-500">Total</p><p className="mt-1 text-2xl font-bold text-slate-900">{stats.total}</p></div>
-        <div className="campus-kpi border-emerald-200 bg-emerald-50/70"><p className="text-xs font-semibold uppercase text-emerald-700">Active</p><p className="mt-1 text-2xl font-bold text-emerald-900">{stats.active}</p></div>
-        <div className="campus-kpi border-amber-200 bg-amber-50/70"><p className="text-xs font-semibold uppercase text-amber-700">Pinned</p><p className="mt-1 text-2xl font-bold text-amber-900">{stats.pinned}</p></div>
-        <div className="campus-kpi border-red-200 bg-red-50/70"><p className="text-xs font-semibold uppercase text-red-700">Expired</p><p className="mt-1 text-2xl font-bold text-red-900">{stats.expired}</p></div>
+        <div className="campus-kpi"><p className="text-xs font-semibold uppercase text-slate-500">总计</p><p className="mt-1 text-2xl font-bold text-slate-900">{stats.total}</p></div>
+        <div className="campus-kpi border-emerald-200 bg-emerald-50/70"><p className="text-xs font-semibold uppercase text-emerald-700">生效中</p><p className="mt-1 text-2xl font-bold text-emerald-900">{stats.active}</p></div>
+        <div className="campus-kpi border-amber-200 bg-amber-50/70"><p className="text-xs font-semibold uppercase text-amber-700">置顶</p><p className="mt-1 text-2xl font-bold text-amber-900">{stats.pinned}</p></div>
+        <div className="campus-kpi border-red-200 bg-red-50/70"><p className="text-xs font-semibold uppercase text-red-700">已过期</p><p className="mt-1 text-2xl font-bold text-red-900">{stats.expired}</p></div>
       </div>
 
       <form onSubmit={create} className="campus-card space-y-3 p-5">
-        <p className="text-sm font-semibold text-slate-700">New Announcement</p>
+        <p className="text-sm font-semibold text-slate-700">新建公告</p>
         <input
           required
-          placeholder="Title"
+          placeholder="标题"
           value={form.title}
           onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
           className="campus-input w-full"
@@ -169,7 +169,7 @@ export default function AnnouncementsPage() {
         <textarea
           required
           rows={4}
-          placeholder="Body"
+          placeholder="正文内容"
           value={form.body}
           onChange={(event) => setForm((prev) => ({ ...prev, body: event.target.value }))}
           className="campus-input w-full"
@@ -180,9 +180,9 @@ export default function AnnouncementsPage() {
             onChange={(event) => setForm((prev) => ({ ...prev, audience: event.target.value }))}
             className="campus-select"
           >
-            <option value="ALL">All Users</option>
-            <option value="STUDENT">Students</option>
-            <option value="ADMIN">Admins</option>
+            <option value="ALL">全部用户</option>
+            <option value="STUDENT">学生</option>
+            <option value="ADMIN">管理员</option>
           </select>
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -197,7 +197,7 @@ export default function AnnouncementsPage() {
             value={form.expiresAt}
             onChange={(event) => setForm((prev) => ({ ...prev, expiresAt: event.target.value }))}
             className="campus-input text-sm"
-            placeholder="Expires (optional)"
+            placeholder="过期时间（选填）"
           />
         </div>
         <button
@@ -205,7 +205,7 @@ export default function AnnouncementsPage() {
           disabled={saving}
           className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
         >
-          {saving ? "Publishing…" : "Publish"}
+          {saving ? "发布中…" : "发布"}
         </button>
       </form>
 
@@ -268,7 +268,7 @@ export default function AnnouncementsPage() {
                     <p className="mt-1 whitespace-pre-line text-sm text-slate-600 dark:text-slate-400">{announcement.body}</p>
                     <p className="mt-2 text-xs text-slate-400">
                       {new Date(announcement.createdAt).toLocaleString()}
-                      {announcement.expiresAt ? ` · Expires ${new Date(announcement.expiresAt).toLocaleString()}` : ""}
+                      {announcement.expiresAt ? ` · 过期：${new Date(announcement.expiresAt).toLocaleString('zh-CN')}` : ""}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -322,9 +322,9 @@ export default function AnnouncementsPage() {
                         onChange={(event) => setEditForm((prev) => ({ ...prev, audience: event.target.value }))}
                         className="campus-select"
                       >
-                        <option value="ALL">All Users</option>
-                        <option value="STUDENT">Students</option>
-                        <option value="ADMIN">Admins</option>
+                        <option value="ALL">全部用户</option>
+                        <option value="STUDENT">学生</option>
+                        <option value="ADMIN">管理员</option>
                       </select>
                       <label className="flex items-center gap-2 text-sm">
                         <input
@@ -343,7 +343,7 @@ export default function AnnouncementsPage() {
                     </div>
                     <div className="flex gap-2">
                       <button type="submit" disabled={savingEdit} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-                        {savingEdit ? "Saving…" : "Save"}
+                        {savingEdit ? "保存中…" : "保存"}
                       </button>
                       <button
                         type="button"
@@ -376,8 +376,8 @@ export default function AnnouncementsPage() {
             </div>
             <p className="mt-4 whitespace-pre-line text-sm text-slate-600">{previewing.body}</p>
             <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-400">
-              <span>Created {new Date(previewing.createdAt).toLocaleString()}</span>
-              {previewing.expiresAt ? <span>Expires {new Date(previewing.expiresAt).toLocaleString()}</span> : null}
+              <span>创建于 {new Date(previewing.createdAt).toLocaleString()}</span>
+              {previewing.expiresAt ? <span>过期：{new Date(previewing.expiresAt).toLocaleString('zh-CN')}</span> : null}
             </div>
           </div>
         </div>

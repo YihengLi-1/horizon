@@ -3,11 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
-type Term = {
-  id: string;
-  name: string;
-};
-
 type CapacityRow = {
   sectionId: string;
   courseCode: string;
@@ -20,240 +15,193 @@ type CapacityRow = {
   projectedDemand: number;
 };
 
-type CapacityFilter = "all" | "full" | "tight" | "comfortable";
-
-function utilizationTone(utilizationPct: number) {
-  if (utilizationPct >= 100) return "bg-red-500";
-  if (utilizationPct >= 80) return "bg-amber-500";
-  return "bg-emerald-500";
-}
-
-function utilizationLabel(filter: CapacityFilter) {
-  if (filter === "full") return "满员";
-  if (filter === "tight") return "紧张";
-  if (filter === "comfortable") return "充裕";
-  return "全部";
-}
-
-function csvCell(value: string | number) {
-  const text = String(value);
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, "\"\"")}"` : text;
-}
+type Term = { id: string; name: string };
+type FilterMode = "all" | "full" | "available" | "waitlisted";
 
 export default function CapacityPlanPage() {
+  const [rows, setRows] = useState<CapacityRow[]>([]);
   const [terms, setTerms] = useState<Term[]>([]);
   const [termId, setTermId] = useState("");
-  const [rows, setRows] = useState<CapacityRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState<CapacityFilter>("all");
+  const [search, setSearch] = useState("");
+  const [filterMode, setFilterMode] = useState<FilterMode>("all");
 
   useEffect(() => {
-    void apiFetch<Term[]>("/academics/terms")
-      .then((data) => {
-        const nextTerms = (data ?? []).sort((a, b) => b.name.localeCompare(a.name));
-        setTerms(nextTerms);
-        if (nextTerms[0]) {
-          setTermId(nextTerms[0].id);
-        }
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : "加载学期失败"));
+    void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? [])).catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (!termId && terms.length === 0) return;
     setLoading(true);
     setError("");
-    const suffix = termId ? `?termId=${termId}` : "";
-    void apiFetch<CapacityRow[]>(`/admin/capacity-plan${suffix}`)
-      .then((data) => setRows(data ?? []))
-      .catch((err) => {
-        setRows([]);
-        setError(err instanceof Error ? err.message : "加载容量规划失败");
-      })
+    const params = new URLSearchParams();
+    if (termId) params.set("termId", termId);
+    void apiFetch<CapacityRow[]>(`/admin/capacity-plan?${params}`)
+      .then((d) => setRows(d ?? []))
+      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setLoading(false));
-  }, [termId, terms.length]);
+  }, [termId]);
 
-  const filteredRows = useMemo(() => {
-    return rows.filter((row) => {
-      if (filter === "full") return row.utilizationPct >= 100;
-      if (filter === "tight") return row.utilizationPct >= 80 && row.utilizationPct < 100;
-      if (filter === "comfortable") return row.utilizationPct < 80;
-      return true;
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return rows.filter((r) => {
+      const matchSearch = !q || r.courseCode.toLowerCase().includes(q) || r.courseTitle.toLowerCase().includes(q) || r.sectionCode.toLowerCase().includes(q);
+      const matchFilter =
+        filterMode === "all" ? true :
+        filterMode === "full" ? r.utilizationPct >= 100 :
+        filterMode === "available" ? r.utilizationPct < 100 :
+        r.waitlisted > 0;
+      return matchSearch && matchFilter;
     });
-  }, [filter, rows]);
+  }, [rows, search, filterMode]);
 
-  const totals = useMemo(() => {
-    return filteredRows.reduce(
-      (acc, row) => {
-        acc.capacity += row.capacity;
-        acc.enrolled += row.enrolled;
-        acc.waitlisted += row.waitlisted;
-        acc.projectedDemand += row.projectedDemand;
-        return acc;
-      },
-      { capacity: 0, enrolled: 0, waitlisted: 0, projectedDemand: 0 }
-    );
-  }, [filteredRows]);
+  const fullSections = rows.filter((r) => r.utilizationPct >= 100).length;
+  const waitlistedSections = rows.filter((r) => r.waitlisted > 0).length;
+  const avgUtil = rows.length > 0 ? Math.round(rows.reduce((s, r) => s + r.utilizationPct, 0) / rows.length) : 0;
+
+  function utilColor(pct: number) {
+    if (pct >= 100) return "bg-red-400";
+    if (pct >= 80) return "bg-amber-400";
+    return "bg-emerald-400";
+  }
 
   function exportCsv() {
-    const header = [
-      "courseCode",
-      "courseTitle",
-      "sectionCode",
-      "capacity",
-      "enrolled",
-      "waitlisted",
-      "utilizationPct",
-      "projectedDemand"
+    const headers = ["课程代码", "课程名称", "教学班", "容量", "已注册", "候补", "利用率(%)", "预计需求"];
+    const csvRows = [
+      headers.join(","),
+      ...filtered.map((r) => [
+        r.courseCode, `"${r.courseTitle}"`, r.sectionCode,
+        r.capacity, r.enrolled, r.waitlisted, r.utilizationPct, r.projectedDemand
+      ].join(","))
     ];
-    const lines = [
-      header.join(","),
-      ...filteredRows.map((row) =>
-        [
-          row.courseCode,
-          row.courseTitle,
-          row.sectionCode,
-          row.capacity,
-          row.enrolled,
-          row.waitlisted,
-          row.utilizationPct,
-          row.projectedDemand
-        ]
-          .map(csvCell)
-          .join(",")
-      )
-    ];
-    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `capacity-plan-${termId || "all"}-${filter}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(blob),
+      download: `capacity-plan-${new Date().toISOString().slice(0, 10)}.csv`,
+    });
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   return (
-    <div className="campus-page space-y-6">
+    <div className="campus-page">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Section Operations</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">容量规划</h1>
-        <p className="mt-1 text-sm text-slate-500">按利用率排序查看容量压力、候补量和预估需求</p>
+        <p className="campus-eyebrow">资源规划</p>
+        <h1 className="campus-hero-title">容量规划</h1>
+        <p className="campus-hero-subtitle">教学班容量利用率与预计需求分析，帮助合理分配教学资源</p>
       </section>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-4">
         <div className="campus-kpi">
-          <p className="campus-kpi-label">教学班</p>
-          <p className="campus-kpi-value">{filteredRows.length}</p>
+          <p className="campus-kpi-label">教学班总数</p>
+          <p className="campus-kpi-value">{loading ? "—" : rows.length}</p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label">已选人数</p>
-          <p className="campus-kpi-value text-indigo-600">{totals.enrolled}</p>
+          <p className="campus-kpi-label">平均利用率</p>
+          <p className={`campus-kpi-value ${avgUtil >= 90 ? "text-red-600" : avgUtil >= 70 ? "text-amber-600" : "text-emerald-600"}`}>
+            {loading ? "—" : `${avgUtil}%`}
+          </p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label">候补人数</p>
-          <p className="campus-kpi-value text-amber-600">{totals.waitlisted}</p>
+          <p className="campus-kpi-label">已满班级数</p>
+          <p className="campus-kpi-value text-red-600">{loading ? "—" : fullSections}</p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label">预估需求</p>
-          <p className="campus-kpi-value text-emerald-600">{totals.projectedDemand}</p>
+          <p className="campus-kpi-label">有候补班级数</p>
+          <p className="campus-kpi-value text-amber-600">{loading ? "—" : waitlistedSections}</p>
         </div>
-      </div>
+      </section>
 
-      <div className="campus-toolbar flex-wrap gap-3">
-        <select className="campus-select" value={termId} onChange={(event) => setTermId(event.target.value)}>
-          <option value="">所有学期</option>
-          {terms.map((term) => (
-            <option key={term.id} value={term.id}>
-              {term.name}
-            </option>
-          ))}
+      {fullSections > 0 ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          ⚠ 共 <span className="font-bold">{fullSections}</span> 个班级已满员，建议考虑增加教学班或调整容量。
+        </div>
+      ) : null}
+
+      <div className="campus-toolbar">
+        <select className="campus-select w-40" value={termId} onChange={(e) => setTermId(e.target.value)}>
+          <option value="">全部学期</option>
+          {terms.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
-        <select
-          className="campus-select"
-          value={filter}
-          onChange={(event) => setFilter(event.target.value as CapacityFilter)}
-        >
-          <option value="all">{utilizationLabel("all")}</option>
-          <option value="full">{utilizationLabel("full")}</option>
-          <option value="tight">{utilizationLabel("tight")}</option>
-          <option value="comfortable">{utilizationLabel("comfortable")}</option>
+        <select className="campus-select w-36" value={filterMode} onChange={(e) => setFilterMode(e.target.value as FilterMode)}>
+          <option value="all">全部</option>
+          <option value="full">已满员</option>
+          <option value="available">有空位</option>
+          <option value="waitlisted">有候补</option>
         </select>
-        <button
-          type="button"
-          onClick={exportCsv}
-          disabled={filteredRows.length === 0}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-        >
+        <input
+          className="campus-input max-w-xs"
+          placeholder="搜索课程代码或名称…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <button type="button" onClick={exportCsv} disabled={!filtered.length} className="campus-btn-ghost shrink-0 disabled:opacity-40">
           CSV 导出
         </button>
       </div>
 
-      {error ? <div className="campus-card border-red-200 bg-red-50 px-6 py-4 text-sm text-red-700">{error}</div> : null}
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : null}
 
-      {loading ? (
-        <div className="campus-card px-6 py-14 text-center text-sm text-slate-500">⏳ 加载中…</div>
-      ) : filteredRows.length === 0 ? (
-        <div className="campus-card px-6 py-14 text-center text-sm text-slate-400">暂无容量规划数据</div>
-      ) : (
-        <div className="campus-card overflow-x-auto">
-          <table className="w-full min-w-[920px] text-sm">
+      <section className="campus-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <th className="px-4 py-3">课程</th>
-                <th className="px-4 py-3">教学班</th>
-                <th className="px-4 py-3">容量</th>
-                <th className="px-4 py-3">已选</th>
-                <th className="px-4 py-3">候补</th>
-                <th className="px-4 py-3">利用率</th>
-                <th className="px-4 py-3">容量条</th>
-                <th className="px-4 py-3">预估需求</th>
+              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <th className="px-4 py-3 text-left">课程</th>
+                <th className="px-4 py-3 text-left">教学班</th>
+                <th className="px-4 py-3 text-right">容量</th>
+                <th className="px-4 py-3 text-right">已注册</th>
+                <th className="px-4 py-3 text-right">候补</th>
+                <th className="px-4 py-3 text-right">预计需求</th>
+                <th className="px-4 py-3 text-left">利用率</th>
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((row) => (
-                <tr key={row.sectionId} className="border-b border-slate-50 hover:bg-slate-50/70">
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col gap-1">
-                      <span className="font-mono text-xs font-bold text-indigo-700">{row.courseCode}</span>
-                      <span className="text-slate-600">{row.courseTitle}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-600">§{row.sectionCode}</td>
-                  <td className="px-4 py-3 text-slate-700">{row.capacity}</td>
-                  <td className="px-4 py-3 font-semibold text-slate-800">{row.enrolled}</td>
-                  <td className="px-4 py-3 text-amber-700">{row.waitlisted}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`campus-chip ${
-                        row.utilizationPct >= 100
-                          ? "border-red-200 bg-red-50 text-red-700"
-                          : row.utilizationPct >= 80
-                            ? "border-amber-200 bg-amber-50 text-amber-700"
-                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      }`}
-                    >
-                      {row.utilizationPct}%
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-2 w-32 overflow-hidden rounded-full bg-slate-100">
-                        <div
-                          className={`h-full rounded-full ${utilizationTone(row.utilizationPct)}`}
-                          style={{ width: `${Math.min(100, row.utilizationPct)}%` }}
-                        />
+              {loading ? (
+                <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-400">加载中…</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-400">暂无数据</td></tr>
+              ) : (
+                filtered.map((row) => (
+                  <tr key={row.sectionId} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="px-4 py-3">
+                      <p className="font-semibold text-slate-900">{row.courseCode}</p>
+                      <p className="text-xs text-slate-500 truncate max-w-[160px]">{row.courseTitle}</p>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-600">{row.sectionCode}</td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-500">{row.capacity}</td>
+                    <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">{row.enrolled}</td>
+                    <td className={`px-4 py-3 text-right font-mono ${row.waitlisted > 0 ? "text-amber-600 font-bold" : "text-slate-400"}`}>
+                      {row.waitlisted || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-700">{row.projectedDemand}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-20 rounded-full bg-slate-100">
+                          <div
+                            className={`h-2 rounded-full ${utilColor(row.utilizationPct)}`}
+                            style={{ width: `${Math.min(row.utilizationPct, 100)}%` }}
+                          />
+                        </div>
+                        <span className={`text-xs font-bold ${row.utilizationPct >= 100 ? "text-red-600" : row.utilizationPct >= 80 ? "text-amber-600" : "text-emerald-600"}`}>
+                          {row.utilizationPct}%
+                        </span>
                       </div>
-                      <span className="text-xs text-slate-500">{row.enrolled}/{row.capacity}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 font-semibold text-slate-700">{row.projectedDemand}</td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
-      )}
+        {!loading && filtered.length > 0 ? (
+          <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-400">
+            共 {filtered.length} 个教学班 · 预计需求 = 已注册 + 候补人数
+          </p>
+        ) : null}
+      </section>
     </div>
   );
 }

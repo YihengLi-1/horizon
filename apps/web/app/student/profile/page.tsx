@@ -154,11 +154,11 @@ function ChangePasswordCard() {
     e.preventDefault();
     setErr("");
     if (form.newPassword !== form.confirmNewPassword) {
-      setErr("New passwords do not match.");
+      setErr("两次输入的密码不一致。");
       return;
     }
     if (form.newPassword.length < 8) {
-      setErr("New password must be at least 8 characters.");
+      setErr("新密码至少需要8个字符。");
       return;
     }
     setSaving(true);
@@ -172,7 +172,7 @@ function ChangePasswordCard() {
       setForm({ oldPassword: "", newPassword: "", confirmNewPassword: "" });
       router.push("/login");
     } catch (ex) {
-      const message = ex instanceof Error ? ex.message : "Failed to change password";
+      const message = ex instanceof Error ? ex.message : "密码修改失败";
       setErr(message);
       toast(message, "error");
     } finally {
@@ -183,11 +183,11 @@ function ChangePasswordCard() {
   return (
     <section className="campus-card overflow-hidden">
       <div className="border-b border-slate-200 px-4 py-3">
-        <h3 className="text-sm font-semibold text-slate-800">Change Password</h3>
+        <h3 className="text-sm font-semibold text-slate-800">修改密码</h3>
       </div>
       <form onSubmit={onSubmit} className="space-y-3 p-4">
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Current password</label>
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">当前密码</label>
           <div className="relative">
             <input
               type={showCurrent ? "text" : "password"}
@@ -202,14 +202,14 @@ function ChangePasswordCard() {
               tabIndex={-1}
               onClick={() => setShowCurrent((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              aria-label={showCurrent ? "Hide password" : "Show password"}
+              aria-label={showCurrent ? "隐藏密码" : "显示密码"}
             >
               {showCurrent ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">New password</label>
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">新密码</label>
           <div className="relative">
             <input
               type={showNew ? "text" : "password"}
@@ -225,7 +225,7 @@ function ChangePasswordCard() {
               tabIndex={-1}
               onClick={() => setShowNew((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              aria-label={showNew ? "Hide password" : "Show password"}
+              aria-label={showNew ? "隐藏密码" : "显示密码"}
             >
               {showNew ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
@@ -254,7 +254,7 @@ function ChangePasswordCard() {
           ) : null}
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Confirm new password</label>
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">确认新密码</label>
           <div className="relative">
             <input
               type={showConfirm ? "text" : "password"}
@@ -269,7 +269,7 @@ function ChangePasswordCard() {
               tabIndex={-1}
               onClick={() => setShowConfirm((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              aria-label={showConfirm ? "Hide password" : "Show password"}
+              aria-label={showConfirm ? "隐藏密码" : "显示密码"}
             >
               {showConfirm ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
@@ -285,7 +285,7 @@ function ChangePasswordCard() {
         >
           {saving ? (
             <><span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />Saving</>
-          ) : "Update password"}
+          ) : "更新密码"}
         </button>
       </form>
     </section>
@@ -323,7 +323,7 @@ export default function StudentProfilePage() {
           emergencyContact: data.emergencyContact || ""
         });
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load profile"))
+      .catch((err) => setError(err instanceof Error ? err.message : "个人资料加载失败"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -385,7 +385,7 @@ export default function StudentProfilePage() {
       })
       .catch((err) => {
         if (!alive) return;
-        setSummaryError(err instanceof Error ? err.message : "Failed to load enrollment summary");
+        setSummaryError(err instanceof Error ? err.message : "注册摘要加载失败");
       });
 
     return () => {
@@ -433,7 +433,7 @@ export default function StudentProfilePage() {
         setProfile({ ...profile, ...form, dob: form.dob || null });
       }
     } catch (err) {
-      const nextError = err instanceof Error ? err.message : "Update failed";
+      const nextError = err instanceof Error ? err.message : "更新失败";
       setError(nextError);
       toast.error(nextError);
     } finally {
@@ -457,23 +457,23 @@ export default function StudentProfilePage() {
     [form.legalName, profile?.user.email]
   );
   const expectedTerms = Math.max(0, Math.ceil((120 - completedCredits) / 15));
-  const expectedGraduation = expectedTerms === 0 ? "Eligible now" : `${expectedTerms} term(s)`;
+  const expectedGraduation = expectedTerms === 0 ? "现已符合条件" : `还需 ${expectedTerms} 个学期`;
   const DEGREE_CREDITS = 120;
   const degreeProgress = Math.min(100, Math.round((completedCredits / DEGREE_CREDITS) * 100));
   const academicStanding =
     currentGpa === null || completedCredits === 0
-      ? "Enrolled"
+      ? "在读"
       : currentGpa >= 3.5
-        ? "Dean's List"
+        ? "优秀学生"
         : currentGpa >= 2.0
-          ? "Good Standing"
-          : "Academic Probation";
+          ? "学业正常"
+          : "学业警告";
   const standingColor =
-    academicStanding === "Dean's List"
+    academicStanding === "优秀学生"
       ? "text-indigo-600 bg-indigo-50 border-indigo-200"
-      : academicStanding === "Good Standing"
+      : academicStanding === "学业正常"
         ? "text-emerald-700 bg-emerald-50 border-emerald-200"
-        : academicStanding === "Academic Probation"
+        : academicStanding === "学业警告"
           ? "text-red-600 bg-red-50 border-red-200"
           : "text-slate-600 bg-slate-50 border-slate-200";
   const completeness = useMemo(() => buildCompleteness(form), [form]);
@@ -512,7 +512,7 @@ export default function StudentProfilePage() {
       <section className="campus-hero">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
-            <p className="campus-eyebrow">Student Profile</p>
+            <p className="campus-eyebrow">学生档案</p>
             <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">我的档案</h1>
             <p className="text-base text-slate-600">完善档案信息，确保教务通知、学业支持和注册流程都基于最新资料。</p>
           </div>
@@ -545,7 +545,7 @@ export default function StudentProfilePage() {
                 {initials}
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Student Profile</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">学生档案</p>
                 <h1 className="font-heading text-3xl font-bold text-slate-900">{form.legalName || "Student"}</h1>
                 <p className="text-sm text-slate-600">{profile?.user.email || "—"}</p>
                 <button className="mt-2 cursor-not-allowed text-xs font-medium text-blue-600 opacity-50 hover:underline" disabled>
@@ -555,63 +555,63 @@ export default function StudentProfilePage() {
             </div>
             <div className="flex flex-wrap gap-2">
               <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusClass(profile?.enrollmentStatus)}`}>
-                {profile?.enrollmentStatus || "No enrollment status"}
+                {profile?.enrollmentStatus || "未设置注册状态"}
               </span>
               <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusClass(profile?.academicStatus)}`}>
-                {profile?.academicStatus || "No academic status"}
+                {profile?.academicStatus || "未设置学术状态"}
               </span>
             </div>
           </div>
         </div>
 
         <div className="grid gap-4 px-5 py-4 md:grid-cols-3 md:px-7">
-          <Field label="Student ID" value={profile?.user.studentId ?? "—"} readOnly />
-          <Field label="Major" value={form.programMajor || "—"} readOnly />
-          <Field label="Email" value={profile?.user.email ?? "—"} readOnly />
+          <Field label="学号" value={profile?.user.studentId ?? "—"} readOnly />
+          <Field label="专业" value={form.programMajor || "—"} readOnly />
+          <Field label="邮箱" value={profile?.user.email ?? "—"} readOnly />
         </div>
       </section>
 
       {loading ? (
-        <section className="campus-card px-5 py-8 text-center text-sm text-slate-500">Loading profile...</section>
+        <section className="campus-card px-5 py-8 text-center text-sm text-slate-500">加载中...</section>
       ) : (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
           <form onSubmit={onSubmit} className="campus-card overflow-hidden">
             <div className="border-b border-slate-200 px-5 py-4 md:px-6">
-              <h2 className="text-lg font-semibold text-slate-900">Personal Information</h2>
+              <h2 className="text-lg font-semibold text-slate-900">个人信息</h2>
               <p className="mt-0.5 text-sm text-slate-500">更新姓名、专业、出生日期和联系信息，提升档案完整度。</p>
             </div>
             <div className="grid gap-5 px-5 py-5 sm:grid-cols-2 md:px-6">
               <div className="sm:col-span-2">
                 <Field
-                  label="Legal Name"
+                  label="姓名"
                   value={form.legalName}
-                  placeholder="Full legal name"
+                  placeholder="法定姓名"
                   onChange={(v) => setForm((prev) => ({ ...prev, legalName: v }))}
                 />
               </div>
               <Field
-                label="Major"
+                label="专业"
                 value={form.programMajor}
-                placeholder="Program / Major"
+                placeholder="所在专业"
                 onChange={(v) => setForm((prev) => ({ ...prev, programMajor: v }))}
               />
               <Field
-                label="Date of Birth"
+                label="出生日期"
                 type="date"
                 value={form.dob}
                 onChange={(v) => setForm((prev) => ({ ...prev, dob: v }))}
               />
               <Field
-                label="Address"
+                label="联系地址"
                 value={form.address}
-                placeholder="123 Main St, City, State"
+                placeholder="省市区街道详细地址"
                 onChange={(v) => setForm((prev) => ({ ...prev, address: v }))}
               />
               <div className="sm:col-span-2">
                 <Field
-                  label="Emergency Contact"
+                  label="紧急联系人"
                   value={form.emergencyContact}
-                  placeholder="Name · Phone · Relationship"
+                  placeholder="姓名 · 电话 · 与本人关系"
                   onChange={(v) => setForm((prev) => ({ ...prev, emergencyContact: v }))}
                 />
               </div>
@@ -634,7 +634,7 @@ export default function StudentProfilePage() {
                     Saving…
                   </>
                 ) : (
-                  "Save Changes"
+                  "保存更改"
                 )}
               </button>
             </div>
@@ -649,7 +649,7 @@ export default function StudentProfilePage() {
             />
 
             <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Enrollment Summary</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">学业汇总</h3>
               {summaryError ? (
                 <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
                   无法加载学业汇总。{summaryError}
@@ -658,7 +658,7 @@ export default function StudentProfilePage() {
               {/* Academic standing badge */}
               <div className="mt-3 flex items-center gap-2">
                 <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${standingColor}`}>
-                  {academicStanding === "Dean's List" ? "🏅 " : academicStanding === "Academic Probation" ? "⚠️ " : "✓ "}
+                  {academicStanding === "优秀学生" ? "🏅 " : academicStanding === "学业警告" ? "⚠️ " : "✓ "}
                   {academicStanding}
                 </span>
                 {currentGpa !== null && (
@@ -669,7 +669,7 @@ export default function StudentProfilePage() {
               {/* Degree progress bar */}
               <div className="mt-3">
                 <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                  <span>Degree Progress</span>
+                  <span>毕业进度</span>
                   <span className="font-semibold text-slate-700">{completedCredits} / {DEGREE_CREDITS} cr ({degreeProgress}%)</span>
                 </div>
                 <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
@@ -708,7 +708,7 @@ export default function StudentProfilePage() {
                 onChange={(event) => setGoalDraft(event.target.value)}
                 rows={3}
                 className="campus-input mt-3 w-full"
-                placeholder="例如：Maintain 3.5 GPA this semester"
+                placeholder="例如：本学期维持 3.5 GPA"
               />
               <div className="mt-3 flex items-center justify-between gap-3">
                 <p className="text-xs text-slate-500">{goal ? `Current goal: ${goal}` : "No goal saved yet."}</p>
@@ -761,13 +761,13 @@ export default function StudentProfilePage() {
             </section>
 
             <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Profile Checklist</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">档案完整度检查</h3>
               <div className="mt-2 space-y-2 text-sm">
                 {[
-                  { label: "Legal name", done: Boolean(form.legalName), required: true },
-                  { label: "Date of birth", done: Boolean(form.dob), required: false },
-                  { label: "Address", done: Boolean(form.address), required: false },
-                  { label: "Emergency contact", done: Boolean(form.emergencyContact), required: false }
+                  { label: "法定姓名", done: Boolean(form.legalName), required: true },
+                  { label: "出生日期", done: Boolean(form.dob), required: false },
+                  { label: "家庭住址", done: Boolean(form.address), required: false },
+                  { label: "紧急联系人", done: Boolean(form.emergencyContact), required: false }
                 ].map(({ label, done, required }) => (
                   <div
                     key={label}
@@ -780,7 +780,7 @@ export default function StudentProfilePage() {
                     }`}
                   >
                     <span className="text-base leading-none">{done ? "✓" : required ? "!" : "○"}</span>
-                    <span>{label} — {done ? "set" : required ? "required" : "recommended"}</span>
+                    <span>{label} — {done ? "已填写" : required ? "必填" : "建议填写"}</span>
                   </div>
                 ))}
               </div>
@@ -789,14 +789,14 @@ export default function StudentProfilePage() {
             <ChangePasswordCard />
 
             <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Quick Links</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">快捷链接</h3>
               <div className="mt-2 space-y-1.5">
                 {[
-                  { href: "/student/dashboard", label: "Dashboard" },
-                  { href: "/student/schedule", label: "Class Schedule" },
-                  { href: "/student/grades", label: "Grades" },
-                  { href: "/student/catalog", label: "Course Catalog" },
-                  { href: "/student/cart", label: "Registration Cart" },
+                  { href: "/student/dashboard", label: "概览" },
+                  { href: "/student/schedule", label: "课程表" },
+                  { href: "/student/grades", label: "成绩" },
+                  { href: "/student/catalog", label: "课程目录" },
+                  { href: "/student/cart", label: "选课购物车" },
                 ].map(({ href, label }) => (
                   <Link
                     key={href}
@@ -811,11 +811,11 @@ export default function StudentProfilePage() {
             </section>
 
             <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Registrar Notes</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">教务处说明</h3>
               <ul className="mt-2 space-y-2 text-sm text-slate-600">
-                <li>Major, student ID, and enrollment status are managed by registrar staff.</li>
-                <li>For legal identity changes, submit documentation to Student Services.</li>
-                <li>Emergency contact updates apply immediately.</li>
+                <li>专业、学号和注册状态由教务处管理。</li>
+                <li>如需变更法定身份信息，请向学生事务处提交相关证明材料。</li>
+                <li>紧急联系人信息更新后立即生效。</li>
               </ul>
             </section>
           </aside>

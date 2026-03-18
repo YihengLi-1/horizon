@@ -18,7 +18,6 @@ import {
   registrationPriorityLabel,
   registrationPriorityOffsetDays
 } from "@/lib/schedule-utils";
-import BookmarkButton from "./BookmarkButton";
 import RecommendedCourses from "./RecommendedCourses";
 
 type MeetingTime = {
@@ -466,7 +465,7 @@ export default function StudentCatalogPage() {
       }));
       setSections(withDist);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load sections");
+      setError(err instanceof Error ? err.message : "教学班加载失败");
     } finally {
       setLoading(false);
     }
@@ -549,7 +548,7 @@ export default function StudentCatalogPage() {
         }
         setHydratedFilters(true);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load");
+        setError(err instanceof Error ? err.message : "加载失败");
         setHydratedFilters(true);
       }
     }
@@ -633,14 +632,15 @@ export default function StudentCatalogPage() {
     const labels: string[] = [];
     if (debouncedSearch.trim()) labels.push(`Search: ${debouncedSearch.trim()}`);
     if (filterModality !== "ALL") labels.push(`Modality: ${filterModality.replace("_", " ")}`);
-    if (filterCredits !== "ALL") labels.push(`Credits: ${filterCredits}`);
-    if (filterDept !== "ALL") labels.push(`Dept: ${filterDept}`);
-    if (availableOnly) labels.push("Seats available");
-    if (filters.days.length > 0) labels.push(`Days: ${filters.days.map((day) => WEEKDAY[day]).join(", ")}`);
-    if (filterPrereqReady) labels.push("Prerequisites met");
-    if (filterApprovalOnly) labels.push("Approval required");
-    if (filterNoConflict) labels.push("No cart conflicts");
-    if (sortBy !== "RELEVANCE") labels.push(`Sort: ${sortBy.replace("_", " ").toLowerCase()}`);
+    if (filterCredits !== "ALL") labels.push(`学分：${filterCredits}`);
+    if (filterDept !== "ALL") labels.push(`院系：${filterDept}`);
+    if (availableOnly) labels.push("有余位");
+    if (filters.days.length > 0) labels.push(`上课时间：${filters.days.map((day) => WEEKDAY[day]).join('、')}`);
+    if (filterPrereqReady) labels.push("先修课已满足");
+    if (filterApprovalOnly) labels.push("需审批");
+    if (filterNoConflict) labels.push("无购物车冲突");
+    const SORT_LABELS: Record<string, string> = { SEATS_ASC: "余量升序", CREDITS_ASC: "学分升序", CREDITS_DESC: "学分降序", RATING_DESC: "评分降序" };
+    if (sortBy !== "RELEVANCE") labels.push(`排序：${SORT_LABELS[sortBy] ?? sortBy}`);
     return labels;
   }, [
     debouncedSearch,
@@ -810,7 +810,7 @@ export default function StudentCatalogPage() {
       }
       await Promise.all([loadCart(termId), loadSections(termId), loadEnrollments(termId)]);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to add to cart";
+      const message = err instanceof Error ? err.message : "添加购物车失败";
       setError(message);
       if (/credit limit exceeded/i.test(message)) {
         const maxCredits = activeTerm?.maxCredits ?? 18;
@@ -834,7 +834,7 @@ export default function StudentCatalogPage() {
       setNotice(`${section.course.code} §${section.sectionCode} removed from cart.`);
       await Promise.all([loadCart(termId), loadSections(termId), loadEnrollments(termId)]);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to remove from cart";
+      const message = err instanceof Error ? err.message : "从购物车移除失败";
       setError(message);
       toast.error(message);
     } finally {
@@ -847,8 +847,8 @@ export default function StudentCatalogPage() {
       <section className="campus-hero">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
-            <p className="campus-eyebrow">Academic Planning</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">Course Catalog</h1>
+            <p className="campus-eyebrow">学业规划</p>
+            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">课程目录</h1>
             <p className="text-base text-slate-600">
               Plan registration with clear seat, prerequisite, and schedule signals before submitting your cart.
             </p>
@@ -896,7 +896,7 @@ export default function StudentCatalogPage() {
               onChange={(e) => void onTermChange(e.target.value)}
               disabled={terms.length === 0}
             >
-              {terms.length === 0 ? <option value="">No active terms</option> : null}
+              {terms.length === 0 ? <option value="">暂无活跃学期</option> : null}
               {terms.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </label>
@@ -920,7 +920,7 @@ export default function StudentCatalogPage() {
               <input
                 ref={searchRef}
                 className="campus-input pl-9"
-                placeholder="Code, title, instructor…  [/]"
+                placeholder="课程代码、名称、教师…  [/]"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -1049,7 +1049,7 @@ export default function StudentCatalogPage() {
               checked={filterPrereqReady}
               onChange={(event) => setFilterPrereqReady(event.target.checked)}
             />
-            Only sections with prerequisites met
+            仅显示先修课已满足的班级
           </label>
           <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
             <input
@@ -1073,9 +1073,9 @@ export default function StudentCatalogPage() {
 
         {/* Day filter */}
         <div className="mt-3">
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Meeting Days</p>
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">上课日筛选</p>
           <div className="flex flex-wrap gap-1.5">
-            {[{d:1,label:"Mon"},{d:2,label:"Tue"},{d:3,label:"Wed"},{d:4,label:"Thu"},{d:5,label:"Fri"},{d:6,label:"Sat"}].map(({ d, label }) => {
+            {[{d:1,label:"周一"},{d:2,label:"周二"},{d:3,label:"周三"},{d:4,label:"周四"},{d:5,label:"周五"},{d:6,label:"周六"}].map(({ d, label }) => {
               const active = filters.days.includes(d);
               return (
                 <button
@@ -1137,15 +1137,15 @@ export default function StudentCatalogPage() {
         {terms.length === 0 ? (
           <Alert
             type="warning"
-            message="No active term is available yet. Please contact registrar/admin to publish a term."
+            message="暂无活跃学期，请联系教务处发布学期。"
           />
         ) : null}
-        {!termId ? <Alert type="info" message="Select a term to view available sections." /> : null}
+        {!termId ? <Alert type="info" message="请先选择学期以查看可选教学班。" /> : null}
       </div>
 
       {/* Recently Viewed strip */}
       {recentlyViewed.length > 0 ? (
-        <section className="campus-card p-4" aria-label="Recently viewed sections">
+        <section className="campus-card p-4" aria-label="最近浏览的教学班">
           <div className="mb-2 flex items-center justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">最近查看</p>
             <button
@@ -1190,15 +1190,15 @@ export default function StudentCatalogPage() {
       {!loading && termId ? (
         <section className="campus-card p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-base font-semibold text-slate-800">Catalog Summary</h2>
-            <p className="text-sm text-slate-600">Approval-required sections submit as pending approval. Full sections may enter waitlist.</p>
+            <h2 className="text-base font-semibold text-slate-800">选课概览</h2>
+            <p className="text-sm text-slate-600">需审批的班级将以"待审批"状态提交；已满班级可加入候补名单。</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <StatChip label="Available" value={catalogStats.openCount} tone="emerald" />
-            <StatChip label="Full / Waitlist" value={catalogStats.fullCount} tone="red" />
-            <StatChip label="Approval Required" value={catalogStats.approvalCount} tone="blue" />
-            <StatChip label="Missing Prereq" value={catalogStats.prereqBlockedCount} tone="red" />
-            <StatChip label="Cart Conflict" value={catalogStats.conflictCount} tone="amber" />
+            <StatChip label="可选" value={catalogStats.openCount} tone="emerald" />
+            <StatChip label="已满/候补" value={catalogStats.fullCount} tone="red" />
+            <StatChip label="需审批" value={catalogStats.approvalCount} tone="blue" />
+            <StatChip label="先修不足" value={catalogStats.prereqBlockedCount} tone="red" />
+            <StatChip label="购物车冲突" value={catalogStats.conflictCount} tone="amber" />
           </div>
         </section>
       ) : null}
@@ -1294,7 +1294,6 @@ export default function StudentCatalogPage() {
                         </h3>
                       </div>
                     <div className="flex flex-wrap justify-end gap-2">
-                        <BookmarkButton sectionId={section.id} />
                         <button
                           type="button"
                           onClick={() => toggleSavedCourse(section)}
@@ -1312,9 +1311,9 @@ export default function StudentCatalogPage() {
                         {section.course.weeklyHours ? (
                           <Badge color="amber">⏱ {section.course.weeklyHours}h/wk</Badge>
                         ) : null}
-                        <Badge modality={section.modality}>{section.modality.replace("_", " ")}</Badge>
+                        <Badge modality={section.modality}>{section.modality === "ON_CAMPUS" ? "线下" : section.modality === "ONLINE" ? "线上" : section.modality === "HYBRID" ? "混合" : section.modality}</Badge>
                         {alreadyCompleted ? <Badge color="slate">已修</Badge> : null}
-                        {section.requireApproval ? <Badge color="blue">Approval Required</Badge> : null}
+                        {section.requireApproval ? <Badge color="blue">需审批</Badge> : null}
                       </div>
                     </div>
 
@@ -1376,7 +1375,7 @@ export default function StudentCatalogPage() {
                               {meetingChip(mt)}
                             </span>
                           ))
-                        : <span className="text-sm text-slate-400">No scheduled meeting time (asynchronous)</span>}
+                        : <span className="text-sm text-slate-400">无固定上课时间（异步）</span>}
                     </div>
 
                     {prereqs.length > 0 ? (
@@ -1427,7 +1426,7 @@ export default function StudentCatalogPage() {
 
                     <aside className="flex w-full flex-col justify-between gap-4 border-t border-slate-200 bg-[linear-gradient(180deg,hsl(221_40%_98%)_0%,white_100%)] p-4 lg:border-l lg:border-t-0">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Seat Status</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">名额状态</p>
                       <p className={`mt-1 text-lg font-semibold ${isUnlimited ? "text-emerald-700" : seatTone?.className ?? "text-slate-700"}`}>
                         {isUnlimited ? "不限人数" : seatTone?.text}
                       </p>
@@ -1673,7 +1672,7 @@ export default function StudentCatalogPage() {
                     { label: "课程名", fn: (s: Section) => s.course.title },
                     { label: "院系", fn: (s: Section) => s.course.code.replace(/\d+.*/, "") },
                     { label: "学分", fn: (s: Section) => `${s.credits} cr` },
-                    { label: "授课方式", fn: (s: Section) => s.modality.replace("_", " ") },
+                    { label: "授课方式", fn: (s: Section) => s.modality === "ON_CAMPUS" ? "线下" : s.modality === "ONLINE" ? "线上" : s.modality === "HYBRID" ? "混合" : s.modality },
                     { label: "教师", fn: (s: Section) => s.instructorName },
                     { label: "地点", fn: (s: Section) => s.location ?? "TBA" },
                     { label: "容量", fn: (s: Section) => `${getEnrolledCount(s)}/${s.capacity}` },

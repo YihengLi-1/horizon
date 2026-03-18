@@ -29,7 +29,7 @@ export default async function SectionRosterPage({ params }: { params: Promise<{ 
       <section className="campus-hero">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Section Roster</h1>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">教学班名单</h1>
             <p className="mt-1 text-sm text-slate-500">{rows.length} enrollment record(s)</p>
           </div>
           <div className="flex gap-2">
@@ -48,17 +48,17 @@ export default async function SectionRosterPage({ params }: { params: Promise<{ 
         <table className="w-full text-sm">
           <thead className="bg-slate-50">
             <tr>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Name</th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Email</th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Student ID</th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
-              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Grade</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">姓名</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">邮箱</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">学号</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">状态</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">成绩</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-slate-400">No roster records yet.</td>
+                <td colSpan={5} className="px-4 py-10 text-center text-slate-400">暂无名单记录。</td>
               </tr>
             ) : (
               rows.map((row) => (

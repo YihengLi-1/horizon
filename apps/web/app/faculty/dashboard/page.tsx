@@ -12,7 +12,7 @@ type FacultySection = {
   _count?: { enrollments?: number };
 };
 
-const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 
 function fmtTime(minutes: number) {
   const hours = Math.floor(minutes / 60);
@@ -27,35 +27,35 @@ export default async function FacultyDashboardPage() {
   try {
     sections = await serverApi<FacultySection[]>("/faculty/sections");
   } catch (err) {
-    error = err instanceof Error ? err.message : "Unable to load faculty workspace";
+    error = err instanceof Error ? err.message : "教师工作台加载失败";
   }
 
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Faculty</p>
-        <h1 className="font-heading text-3xl font-bold text-slate-900">My Sections</h1>
+        <p className="campus-eyebrow">教师</p>
+        <h1 className="font-heading text-3xl font-bold text-slate-900">我的教学班</h1>
         <p className="mt-2 text-sm text-slate-600">
-          View only the sections you own, open rosters, and submit final grades.
+          查看您负责的教学班，打开名单并录入期末成绩。
         </p>
       </section>
 
       <section className="campus-toolbar">
         <div className="campus-kpi">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Owned Sections</p>
+          <p className="campus-kpi-label">负责教学班</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{sections.length}</p>
         </div>
       </section>
 
       {error ? (
         <section className="campus-card p-6 text-sm text-red-600">
-          Faculty workspace is temporarily unavailable: {error}
+          教师工作台暂时不可用：{error}
         </section>
       ) : null}
 
       {!error && sections.length === 0 ? (
         <section className="campus-card p-8 text-center text-sm text-slate-500">
-          No teaching assignments are linked to your account yet.
+          您的账号暂无关联的教学班。
         </section>
       ) : null}
 
@@ -80,9 +80,9 @@ export default async function FacultyDashboardPage() {
                 ))}
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500">Capacity {section.capacity}</span>
+                <span className="text-slate-500">容量 {section.capacity}</span>
                 <Link href={`/faculty/sections/${section.id}`} className="campus-chip cursor-pointer text-xs">
-                  Open roster
+                  打开名单
                 </Link>
               </div>
             </article>

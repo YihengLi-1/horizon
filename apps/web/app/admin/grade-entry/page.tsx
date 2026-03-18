@@ -124,7 +124,7 @@ export default function AdminGradeEntryPage() {
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Academic Operations</p>
+        <p className="campus-eyebrow">学术管理</p>
         <h1 className="campus-title">成绩批量录入</h1>
         <p className="campus-subtitle">按教学班批量录入或修改学生成绩。默认优先显示当前学期，也可切换到历史学期班级。</p>
       </section>

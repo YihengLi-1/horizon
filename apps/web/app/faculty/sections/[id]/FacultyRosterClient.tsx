@@ -53,7 +53,7 @@ export default function FacultyRosterClient({ sectionId }: { sectionId: string }
       })
       .catch((err) => {
         if (!alive) return;
-        setError(err instanceof Error ? err.message : "Failed to load section roster");
+        setError(err instanceof Error ? err.message : "名单加载失败");
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -80,12 +80,12 @@ export default function FacultyRosterClient({ sectionId }: { sectionId: string }
       setItems((prev) =>
         prev.map((row) => (row.id === enrollmentId ? { ...row, finalGrade, status: "COMPLETED" } : row))
       );
-      setNotice(`Grade saved: ${finalGrade}`);
+      setNotice(`成绩已保存：${finalGrade}`);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError(err instanceof Error ? err.message : "Failed to save grade");
+        setError(err instanceof Error ? err.message : "成绩保存失败");
       }
     } finally {
       setSavingId(null);
@@ -95,26 +95,26 @@ export default function FacultyRosterClient({ sectionId }: { sectionId: string }
   return (
     <div className="space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Faculty</p>
+        <p className="campus-eyebrow">教师</p>
         <h1 className="font-heading text-3xl font-bold text-slate-900">
-          {section ? `${section.course.code} §${section.sectionCode}` : "Section Roster"}
+          {section ? `${section.course.code} §${section.sectionCode}` : "教学班名单"}
         </h1>
         <p className="mt-2 text-sm text-slate-600">
           {section
-            ? `${section.course.title} · ${section.term.name} · Instructor ${section.instructorName}`
-            : "Loading your owned section roster."}
+            ? `${section.course.title} · ${section.term.name} · 教师：${section.instructorName}`
+            : "加载教学班名单中。"}
         </p>
       </section>
 
       <section className="campus-card overflow-hidden">
         <div className="border-b border-slate-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-slate-800">Roster & Final Grades</h2>
+          <h2 className="text-sm font-semibold text-slate-800">名单与期末成绩</h2>
           <p className="mt-1 text-xs text-slate-500">
-            Only records for your owned section are listed here. Grade updates are audit-logged.
+            仅显示您所负责教学班的学生记录。成绩更新操作将被审计记录。
           </p>
         </div>
 
-        {loading ? <div className="px-4 py-10 text-center text-sm text-slate-400">Loading roster…</div> : null}
+        {loading ? <div className="px-4 py-10 text-center text-sm text-slate-400">加载名单中…</div> : null}
         {!loading && error ? <div className="px-4 py-10 text-center text-sm text-red-600">{error}</div> : null}
         {!loading && !error ? (
           <>
@@ -122,23 +122,23 @@ export default function FacultyRosterClient({ sectionId }: { sectionId: string }
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Student</th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Email</th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Final Grade</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">学生</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">邮箱</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">状态</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">期末成绩</th>
                 </tr>
               </thead>
               <tbody>
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-10 text-center text-slate-400">No roster records found.</td>
+                    <td colSpan={4} className="px-4 py-10 text-center text-slate-400">暂无名单记录。</td>
                   </tr>
                 ) : (
                   items.map((row) => (
                     <tr key={row.id} className="border-t border-slate-100">
                       <td className="px-4 py-3">
                         <p className="font-medium text-slate-900">{row.student.studentProfile?.legalName ?? "—"}</p>
-                        <p className="text-xs text-slate-500">{row.student.studentId ?? "No student ID"}</p>
+                        <p className="text-xs text-slate-500">{row.student.studentId ?? "无学号"}</p>
                       </td>
                       <td className="px-4 py-3 text-slate-600">{row.student.email}</td>
                       <td className="px-4 py-3">
@@ -157,14 +157,14 @@ export default function FacultyRosterClient({ sectionId }: { sectionId: string }
                                 }
                               }}
                             >
-                              <option value="">Select</option>
+                              <option value="">选择成绩</option>
                               {GRADES.map((grade) => (
                                 <option key={grade} value={grade}>
                                   {grade}
                                 </option>
                               ))}
                             </select>
-                            {savingId === row.id ? <span className="text-xs text-slate-400">Saving…</span> : null}
+                            {savingId === row.id ? <span className="text-xs text-slate-400">保存中…</span> : null}
                           </div>
                         ) : (
                           <span className="text-slate-400">—</span>
@@ -178,7 +178,7 @@ export default function FacultyRosterClient({ sectionId }: { sectionId: string }
 
             {gradeableRows.length === 0 ? (
               <div className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
-                No gradeable enrollments are currently in this section.
+                该教学班当前暂无可录入成绩的学生。
               </div>
             ) : null}
           </>

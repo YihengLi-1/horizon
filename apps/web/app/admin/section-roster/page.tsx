@@ -1,200 +1,277 @@
 "use client";
 
-/**
- * Admin Section Roster Export
- * Enter a section ID to view its full enrollment roster with grades and CSV export.
- */
-
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
-type RosterEntry = {
-  no: number; email: string; name: string;
-  status: string; finalGrade: string; enrolledAt: string;
+type SectionSummary = {
+  id: string;
+  sectionCode: string;
+  instructorName: string | null;
+  capacity: number;
+  course: { code: string; title: string };
+  term: { name: string };
+  enrollments: unknown[];
 };
+
+type RosterRow = {
+  no: number;
+  email: string;
+  name: string;
+  status: string;
+  finalGrade: string;
+  enrolledAt: string;
+};
+
 type RosterData = {
-  sectionId: string; courseCode: string; courseTitle: string;
-  credits: number; termName: string; instructorEmail: string;
-  capacity: number; enrolled: number; completed: number; dropped: number;
-  avgGpa: number | null; roster: RosterEntry[];
+  sectionId: string;
+  courseCode: string;
+  courseTitle: string;
+  credits: number;
+  termName: string;
+  instructorEmail: string;
+  capacity: number;
+  enrolled: number;
+  completed: number;
+  dropped: number;
+  avgGpa: number | null;
+  roster: RosterRow[];
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  ENROLLED: "在读",
+  COMPLETED: "已完课",
+  DROPPED: "已退课",
+  WAITLISTED: "候补",
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  ENROLLED: "text-indigo-600 bg-indigo-50",
-  COMPLETED: "text-emerald-700 bg-emerald-50",
-  DROPPED: "text-amber-700 bg-amber-50",
-  WAITLISTED: "text-slate-500 bg-slate-100",
+  ENROLLED: "text-blue-600 bg-blue-50 border-blue-200",
+  COMPLETED: "text-emerald-700 bg-emerald-50 border-emerald-200",
+  DROPPED: "text-red-600 bg-red-50 border-red-200",
+  WAITLISTED: "text-amber-700 bg-amber-50 border-amber-200",
 };
 
-function downloadCsv(data: RosterData) {
-  const header = "No,Name,Email,Status,Grade,Enrolled Date";
-  const lines = data.roster.map((r) =>
-    `${r.no},"${r.name}","${r.email}",${r.status},${r.finalGrade},${r.enrolledAt}`
-  );
-  const blob = new Blob([[header, ...lines].join("\n")], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = `roster-${data.courseCode}-${data.termName}.csv`;
-  a.click(); URL.revokeObjectURL(url);
-}
+const GRADE_COLOR: (g: string) => string = (g) => {
+  if (g.startsWith("A")) return "text-emerald-700 font-bold";
+  if (g.startsWith("B")) return "text-blue-600 font-bold";
+  if (g.startsWith("C")) return "text-amber-600 font-bold";
+  if (g === "F" || g === "W") return "text-red-600 font-bold";
+  return "text-slate-400";
+};
 
 export default function SectionRosterPage() {
-  const [sectionId, setSectionId] = useState("");
-  const [data, setData] = useState<RosterData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [sections, setSections] = useState<SectionSummary[]>([]);
+  const [sectionsLoading, setSectionsLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [roster, setRoster] = useState<RosterData | null>(null);
+  const [rosterLoading, setRosterLoading] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
-  async function load() {
-    if (!sectionId.trim()) return;
-    setLoading(true); setError(""); setData(null);
-    try {
-      const d = await apiFetch<RosterData>(`/admin/section-roster/${sectionId.trim()}`);
-      setData(d);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "加载失败");
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    void apiFetch<SectionSummary[]>("/admin/sections")
+      .then((d) => setSections(d ?? []))
+      .catch(() => {})
+      .finally(() => setSectionsLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedId) { setRoster(null); return; }
+    setRosterLoading(true);
+    setError("");
+    void apiFetch<RosterData>(`/admin/section-roster/${selectedId}`)
+      .then((d) => setRoster(d ?? null))
+      .catch((err) => setError(err instanceof Error ? err.message : "加载花名册失败"))
+      .finally(() => setRosterLoading(false));
+  }, [selectedId]);
+
+  const filteredSections = useMemo(() => {
+    const q = search.toLowerCase();
+    return sections.filter(
+      (s) => !q || s.course.code.toLowerCase().includes(q) || s.course.title.toLowerCase().includes(q) || s.sectionCode.toLowerCase().includes(q)
+    );
+  }, [sections, search]);
+
+  const filteredRoster = useMemo(() => {
+    if (!roster) return [];
+    return roster.roster.filter((r) => !statusFilter || r.status === statusFilter);
+  }, [roster, statusFilter]);
+
+  function exportCsv() {
+    if (!roster) return;
+    const headers = ["序号", "邮箱", "姓名", "状态", "成绩", "注册日期"];
+    const rows = [
+      headers.join(","),
+      ...filteredRoster.map((r) => [
+        r.no, `"${r.email}"`, `"${r.name}"`, STATUS_LABELS[r.status] ?? r.status, r.finalGrade, r.enrolledAt
+      ].join(","))
+    ];
+    const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(blob),
+      download: `roster-${roster.courseCode}-${new Date().toISOString().slice(0, 10)}.csv`,
+    });
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
-  const filtered = data
-    ? data.roster.filter((r) =>
-        !search ||
-        r.name.toLowerCase().includes(search.toLowerCase()) ||
-        r.email.toLowerCase().includes(search.toLowerCase())
-      )
-    : [];
-
   return (
-    <div className="campus-page space-y-6">
+    <div className="campus-page">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Enrollment Records</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">课程节名单</h1>
-        <p className="mt-1 text-sm text-slate-500">输入课程节 ID 查看完整注册名单并导出 CSV</p>
+        <p className="campus-eyebrow">班级管理</p>
+        <h1 className="campus-hero-title">班级花名册</h1>
+        <p className="campus-hero-subtitle">查看各教学班注册学生名单及成绩，支持 CSV 导出</p>
       </section>
 
-      {/* Input */}
-      <div className="campus-card p-4 space-y-3">
-        <div className="flex flex-wrap gap-3 items-end">
-          <div className="flex flex-col gap-1 flex-1 min-w-60">
-            <label className="text-xs font-medium text-slate-500">课程节 ID (Section ID)</label>
-            <input
-              className="campus-input"
-              placeholder="输入 Section UUID…"
-              value={sectionId}
-              onChange={(e) => setSectionId(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && void load()}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => void load()}
-            disabled={!sectionId.trim() || loading}
-            className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {loading ? "加载中…" : "查询名单"}
-          </button>
-        </div>
-      </div>
-
-      {error && <div className="campus-card border-red-200 bg-red-50 px-6 py-4 text-sm text-red-700">{error}</div>}
-
-      {data && (
+      {!selectedId ? (
         <>
-          {/* Section info */}
-          <div className="campus-card p-4 space-y-2">
-            <div className="flex flex-wrap gap-4 items-start justify-between">
-              <div>
-                <p className="font-mono text-lg font-bold text-indigo-700">{data.courseCode}</p>
-                <p className="text-slate-700">{data.courseTitle}</p>
-                <p className="text-xs text-slate-400 mt-1">{data.termName} · {data.credits} 学分 · 教师: {data.instructorEmail}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => downloadCsv(data)}
-                className="campus-chip border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
-              >
-                导出 CSV
-              </button>
-            </div>
-          </div>
-
-          {/* KPIs */}
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-            <div className="campus-kpi">
-              <p className="campus-kpi-label">容量</p>
-              <p className="campus-kpi-value text-slate-700">{data.capacity}</p>
-            </div>
-            <div className="campus-kpi">
-              <p className="campus-kpi-label">在读</p>
-              <p className="campus-kpi-value text-indigo-600">{data.enrolled}</p>
-            </div>
-            <div className="campus-kpi">
-              <p className="campus-kpi-label">完成</p>
-              <p className="campus-kpi-value text-emerald-600">{data.completed}</p>
-            </div>
-            <div className="campus-kpi">
-              <p className="campus-kpi-label">退课</p>
-              <p className="campus-kpi-value text-amber-600">{data.dropped}</p>
-            </div>
-            <div className="campus-kpi">
-              <p className="campus-kpi-label">平均 GPA</p>
-              <p className="campus-kpi-value text-slate-700">{data.avgGpa?.toFixed(2) ?? "—"}</p>
-            </div>
-          </div>
-
-          {/* Search + table */}
           <div className="campus-toolbar">
             <input
-              className="campus-input flex-1 min-w-48"
-              placeholder="搜索姓名或邮箱…"
+              className="campus-input max-w-xs"
+              placeholder="搜索课程代码、班级…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-
-          {data.roster.length === 0 ? (
-            <div className="campus-card px-6 py-10 text-center text-sm text-slate-400">该课程节暂无注册记录</div>
-          ) : (
-            <div className="campus-card overflow-hidden">
-              <div className="px-4 py-2 border-b border-slate-100 text-xs text-slate-500">
-                {filtered.length} / {data.roster.length} 条记录
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
-                      <th className="pb-2 pl-4 text-right font-semibold w-10">#</th>
-                      <th className="pb-2 pr-3 pl-3 text-left font-semibold">姓名</th>
-                      <th className="pb-2 pr-3 text-left font-semibold">邮箱</th>
-                      <th className="pb-2 pr-3 text-center font-semibold">状态</th>
-                      <th className="pb-2 pr-3 text-center font-semibold">成绩</th>
-                      <th className="pb-2 pr-4 text-right font-semibold">注册日期</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((r) => (
-                      <tr key={r.no} className="border-b border-slate-50 hover:bg-slate-50">
-                        <td className="py-2.5 pl-4 text-right text-slate-400">{r.no}</td>
-                        <td className="py-2.5 pr-3 pl-3 font-medium text-slate-800">{r.name}</td>
-                        <td className="py-2.5 pr-3 text-slate-500">{r.email}</td>
-                        <td className="py-2.5 pr-3 text-center">
-                          <span className={`inline-block rounded px-1.5 py-0.5 font-medium ${STATUS_COLORS[r.status] ?? "text-slate-600"}`}>
-                            {r.status}
-                          </span>
-                        </td>
-                        <td className="py-2.5 pr-3 text-center font-mono font-bold text-slate-700">{r.finalGrade}</td>
-                        <td className="py-2.5 pr-4 text-right text-slate-400">{r.enrolledAt}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+          <section className="campus-card overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="px-4 py-3 text-left">课程 / 班级</th>
+                  <th className="px-4 py-3 text-left">学期</th>
+                  <th className="px-4 py-3 text-left">教师</th>
+                  <th className="px-4 py-3 text-right">注册/容量</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sectionsLoading ? (
+                  <tr><td colSpan={4} className="px-4 py-10 text-center text-slate-400">加载中…</td></tr>
+                ) : filteredSections.length === 0 ? (
+                  <tr><td colSpan={4} className="px-4 py-10 text-center text-slate-400">暂无教学班</td></tr>
+                ) : filteredSections.map((s) => (
+                  <tr key={s.id} className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => setSelectedId(s.id)}>
+                    <td className="px-4 py-3">
+                      <p className="font-bold text-[hsl(221_83%_43%)]">{s.course.code}</p>
+                      <p className="text-xs text-slate-500">{s.course.title}</p>
+                      <p className="text-xs text-slate-400 font-mono">{s.sectionCode}</p>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-600">{s.term.name}</td>
+                    <td className="px-4 py-3 text-xs text-slate-600">{s.instructorName ?? "—"}</td>
+                    <td className="px-4 py-3 text-right font-mono text-sm">
+                      <span className={s.enrollments.length >= s.capacity ? "text-red-600 font-bold" : "text-slate-700"}>
+                        {s.enrollments.length}
+                      </span>
+                      <span className="text-slate-400">/{s.capacity}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
         </>
-      )}
+      ) : rosterLoading ? (
+        <div className="campus-card p-10 text-center text-slate-400">加载花名册中…</div>
+      ) : error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : roster ? (
+        <>
+          {/* KPIs */}
+          <section className="grid gap-3 sm:grid-cols-4">
+            <div className="campus-kpi">
+              <p className="campus-kpi-label">在读</p>
+              <p className="campus-kpi-value text-blue-600">{roster.enrolled}</p>
+            </div>
+            <div className="campus-kpi">
+              <p className="campus-kpi-label">已完课</p>
+              <p className="campus-kpi-value text-emerald-600">{roster.completed}</p>
+            </div>
+            <div className="campus-kpi">
+              <p className="campus-kpi-label">已退课</p>
+              <p className="campus-kpi-value text-red-500">{roster.dropped}</p>
+            </div>
+            <div className="campus-kpi">
+              <p className="campus-kpi-label">班级均 GPA</p>
+              <p className="campus-kpi-value">
+                {roster.avgGpa != null ? roster.avgGpa.toFixed(2) : "—"}
+              </p>
+            </div>
+          </section>
+
+          {/* Header info */}
+          <div className="campus-card px-5 py-4">
+            <div className="flex items-start justify-between flex-wrap gap-3">
+              <div>
+                <p className="font-bold text-slate-900 text-lg">{roster.courseCode} — {roster.courseTitle}</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {roster.credits} 学分 · {roster.termName} · 教师: {roster.instructorEmail}
+                </p>
+              </div>
+              <button type="button" onClick={() => setSelectedId(null)} className="campus-btn-ghost text-xs">
+                ← 返回列表
+              </button>
+            </div>
+          </div>
+
+          {/* Toolbar */}
+          <div className="campus-toolbar">
+            <select className="campus-select w-36" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="">全部状态</option>
+              <option value="ENROLLED">在读</option>
+              <option value="COMPLETED">已完课</option>
+              <option value="DROPPED">已退课</option>
+              <option value="WAITLISTED">候补</option>
+            </select>
+            <button type="button" onClick={exportCsv} disabled={!filteredRoster.length} className="campus-btn-ghost shrink-0 disabled:opacity-40">
+              CSV 导出
+            </button>
+          </div>
+
+          {/* Roster table */}
+          <section className="campus-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="px-4 py-3 text-right w-12">#</th>
+                    <th className="px-4 py-3 text-left">学生</th>
+                    <th className="px-4 py-3 text-left">状态</th>
+                    <th className="px-4 py-3 text-right">成绩</th>
+                    <th className="px-4 py-3 text-right">注册日期</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRoster.length === 0 ? (
+                    <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-400">暂无学生</td></tr>
+                  ) : filteredRoster.map((row) => (
+                    <tr key={row.no} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="px-4 py-3 text-right font-mono text-xs text-slate-400">{row.no}</td>
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-slate-900">{row.name}</p>
+                        <p className="text-xs text-slate-500">{row.email}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`rounded-md border px-2 py-0.5 text-xs font-semibold ${STATUS_COLORS[row.status] ?? "text-slate-600 bg-slate-50 border-slate-200"}`}>
+                          {STATUS_LABELS[row.status] ?? row.status}
+                        </span>
+                      </td>
+                      <td className={`px-4 py-3 text-right font-mono text-sm ${GRADE_COLOR(row.finalGrade)}`}>
+                        {row.finalGrade}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-xs text-slate-500">{row.enrolledAt}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {filteredRoster.length > 0 ? (
+              <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-400">
+                共 {filteredRoster.length} 条记录
+              </p>
+            ) : null}
+          </section>
+        </>
+      ) : null}
     </div>
   );
 }

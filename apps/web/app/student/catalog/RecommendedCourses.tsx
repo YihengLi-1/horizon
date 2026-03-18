@@ -41,7 +41,7 @@ export default function RecommendedCourses() {
   if (loading) {
     return (
       <div className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Recommended for You</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">为你推荐</p>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 3 }, (_, index) => (
             <div key={index} className="campus-card h-28 animate-pulse p-3" />
@@ -55,7 +55,7 @@ export default function RecommendedCourses() {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Recommended for You</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">为你推荐</p>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {items.map((section) => {
           const dept = section.course.code.slice(0, 2).toUpperCase();
@@ -78,7 +78,7 @@ export default function RecommendedCourses() {
                     href={`/student/catalog?dept=${encodeURIComponent(dept)}`}
                     className="text-xs font-semibold text-blue-600 hover:underline"
                   >
-                    Explore →
+                    查看 →
                   </Link>
                 </div>
               </div>

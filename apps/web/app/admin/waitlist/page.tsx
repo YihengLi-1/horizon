@@ -65,7 +65,7 @@ export default function WaitlistPage() {
       const data = await apiFetch<WaitlistRow[]>("/admin/waitlist");
       setRows(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load waitlist");
+      setError(err instanceof Error ? err.message : "加载候补名单失败");
     } finally {
       setLoading(false);
     }
@@ -96,7 +96,7 @@ export default function WaitlistPage() {
     } catch (err) {
       setMessageBySection((prev) => ({
         ...prev,
-        [sectionId]: { type: "error", text: err instanceof Error ? err.message : "Promote failed" }
+        [sectionId]: { type: "error", text: err instanceof Error ? err.message : "晋升失败" }
       }));
     } finally {
       setPromotingSectionId(null);
@@ -178,7 +178,7 @@ export default function WaitlistPage() {
         failures += 1;
         setMessageBySection((prev) => ({
           ...prev,
-          [group.sectionId]: { type: "error", text: "Promotion failed" }
+          [group.sectionId]: { type: "error", text: "晋升失败" }
         }));
       }
     }
@@ -194,7 +194,7 @@ export default function WaitlistPage() {
 
   const exportCsv = () => {
     const csvRows = [
-      ["Position", "Student Name", "Student ID", "Course", "Section", "Course Title"],
+      ["排队位置", "学生姓名", "学号", "课程代码", "班级", "课程名称"],
       ...rows.map((row) => [
         row.waitlistPosition !== null ? String(row.waitlistPosition) : "",
         row.student.studentProfile?.legalName ?? "",
@@ -219,8 +219,8 @@ export default function WaitlistPage() {
       <section className="campus-hero">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
-            <p className="campus-eyebrow">Waitlist Queue</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">Waitlist</h1>
+            <p className="campus-eyebrow">候补队列</p>
+            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">候补名单</h1>
             <p className="text-sm text-slate-600 md:text-base">
               Review ordered waitlist positions and promote the next student when ENROLLED seats free up.
             </p>
@@ -243,7 +243,7 @@ export default function WaitlistPage() {
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {bulkPromoting ? (
-                <><span className="size-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700" />Promoting All</>
+                <><span className="size-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700" />晋升全部</>
               ) : `Promote 1 from Each (${filteredGroups.length})`}
             </button>
             <button
@@ -252,7 +252,7 @@ export default function WaitlistPage() {
               disabled={rows.length === 0}
               className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Export CSV
+              CSV 导出
             </button>
             <button
               type="button"
@@ -267,68 +267,68 @@ export default function WaitlistPage() {
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-amber-200 bg-amber-50/60">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Total Waitlisted</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">候补总数</p>
           <p className="mt-1 text-2xl font-semibold text-amber-900">{totalWaitlisted}</p>
-          <p className="text-[11px] text-amber-500">across all sections</p>
+          <p className="text-[11px] text-amber-500">覆盖所有教学班</p>
         </div>
         <div className="campus-kpi border-slate-200">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sections with Queue</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">有候补队列的班级</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{grouped.length}</p>
         </div>
         <div className="campus-kpi border-slate-200">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Avg Queue Depth</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">平均队列深度</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{avgQueueDepth}</p>
-          <p className="text-[11px] text-slate-400">students per section</p>
+          <p className="text-[11px] text-slate-400">人/班</p>
         </div>
         <div className={`campus-kpi ${longestQueue >= 5 ? "border-red-200 bg-red-50/60" : "border-slate-200"}`}>
           <p className={`text-xs font-semibold uppercase tracking-wide ${longestQueue >= 5 ? "text-red-600" : "text-slate-500"}`}>
-            Longest Queue
+            最长队列
           </p>
           <p className={`mt-1 text-2xl font-semibold ${longestQueue >= 5 ? "text-red-800" : "text-slate-900"}`}>
             {longestQueue}
           </p>
-          <p className="text-[11px] text-slate-400">students in deepest queue</p>
+          <p className="text-[11px] text-slate-400">最深队列中的学生人数</p>
         </div>
       </section>
 
       <section className="campus-toolbar">
         <div className="flex flex-wrap items-end gap-3">
           <label className="block flex-1 min-w-48">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search</span>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">搜索</span>
             <input
               ref={searchRef}
               className="campus-input"
-              placeholder="Course, section, student name or ID…  [/]"
+              placeholder="课程、班级、学生姓名或学号…  [/]"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </label>
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Promote count
+              晋升人数
             </label>
             <select
               className="campus-select w-32"
               value={promoteCount}
               onChange={(e) => setPromoteCount(Number(e.target.value))}
             >
-              <option value={1}>1 student</option>
-              <option value={2}>2 students</option>
-              <option value={3}>3 students</option>
-              <option value={5}>5 students</option>
-              <option value={10}>10 students</option>
+              <option value={1}>1 人</option>
+              <option value={2}>2 人</option>
+              <option value={3}>3 人</option>
+              <option value={5}>5 人</option>
+              <option value={10}>10 人</option>
             </select>
           </div>
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Section filter
+              班级筛选
             </label>
             <select
               className="campus-select w-48"
               value={sectionFilter}
               onChange={(e) => setSectionFilter(e.target.value)}
             >
-              <option value="ALL">All sections</option>
+              <option value="ALL">全部班级</option>
               {grouped.map((group) => (
                 <option key={group.sectionId} value={group.sectionId}>
                   {group.courseCode} §{group.sectionCode}
@@ -343,7 +343,7 @@ export default function WaitlistPage() {
             onClick={() => setSearch("")}
             className="mt-2 text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
           >
-            Clear search
+            清除搜索
           </button>
         ) : null}
         {sectionFilter !== "ALL" ? (
@@ -352,7 +352,7 @@ export default function WaitlistPage() {
             onClick={() => setSectionFilter("ALL")}
             className="mt-2 ml-3 text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
           >
-            Clear section filter
+            清除班级筛选
           </button>
         ) : null}
       </section>
@@ -387,17 +387,17 @@ export default function WaitlistPage() {
 
       <section className="space-y-4">
         {loading ? (
-          <div className="campus-card px-4 py-8 text-center text-slate-500">Loading waitlist…</div>
+          <div className="campus-card px-4 py-8 text-center text-slate-500">加载候补名单中…</div>
         ) : filteredGroups.length === 0 ? (
           <div className="campus-card px-5 py-12 text-center">
             <p className="text-3xl">{grouped.length === 0 ? "✅" : "🔍"}</p>
             <p className="mt-3 text-base font-semibold text-slate-700">
-              {grouped.length === 0 ? "All clear — no waitlist entries" : "No queues match your search"}
+              {grouped.length === 0 ? "一切正常 — 暂无候补" : "没有匹配的候补队列"}
             </p>
             <p className="mt-1 text-sm text-slate-400">
               {grouped.length === 0
-                ? "Students are either enrolled or there are no pending waitlist positions."
-                : "Try adjusting your search term to find the queue you're looking for."}
+                ? "所有学生均已在读，或无待处理候补。"
+                : "请调整搜索词以查找目标队列。"}
             </p>
           </div>
         ) : (
@@ -417,7 +417,7 @@ export default function WaitlistPage() {
                         </span>
                       ) : null}
                       <span className={`campus-chip text-[11px] ${group.items.length >= 5 ? "border-red-200 bg-red-50 text-red-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
-                        {group.items.length} in queue
+                        {group.items.length} 在候补中
                       </span>
                       {group.items[0]?.section.capacity ? (
                         <span className="campus-chip border-slate-200 bg-white text-slate-500 text-[11px]">
@@ -430,7 +430,7 @@ export default function WaitlistPage() {
                   <div className="flex items-center gap-2">
                     {group.items[0]?.section.capacity ? (
                       <div className="hidden sm:flex flex-col items-end gap-0.5">
-                        <p className="text-[10px] text-slate-400">Queue / Cap</p>
+                        <p className="text-[10px] text-slate-400">候补/容量</p>
                         <div className="flex items-center gap-1.5">
                           <div className="w-20 overflow-hidden rounded-full bg-slate-200" style={{ height: 5 }}>
                             <div
@@ -459,10 +459,10 @@ export default function WaitlistPage() {
                       {promotingSectionId === group.sectionId ? (
                         <>
                           <span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                          Promoting
+                          晋升中
                         </>
                       ) : (
-                        `Promote ${promoteCount}`
+                        `晋升 ${promoteCount} 人`
                       )}
                     </button>
                   </div>
@@ -478,15 +478,15 @@ export default function WaitlistPage() {
                   </div>
                 ) : null}
 
-                <p className="px-4 pt-3 text-xs text-slate-500 md:hidden">Tip: Swipe horizontally to view all columns.</p>
+                <p className="px-4 pt-3 text-xs text-slate-500 md:hidden">提示：横向滑动可查看所有列。</p>
                 <div className="overflow-auto">
                   <table className="min-w-[560px] w-full border-collapse text-sm">
                     <thead className="bg-slate-50 text-left">
                       <tr className="border-b border-slate-200">
-                        <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Position</th>
-                        <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Student</th>
-                        <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Student ID</th>
-                        <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Waiting since</th>
+                        <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">排队位置</th>
+                        <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">学生</th>
+                        <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">学号</th>
+                        <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">等待自</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -503,7 +503,7 @@ export default function WaitlistPage() {
                               }`}>
                                 #{row.waitlistPosition ?? "—"}
                               </span>
-                              {isNext ? <span className="ml-1.5 text-[10px] font-semibold text-emerald-700">NEXT</span> : null}
+                              {isNext ? <span className="ml-1.5 text-[10px] font-semibold text-emerald-700">下一位</span> : null}
                             </td>
                             <td className="px-4 py-2.5 font-medium text-slate-800">{row.student.studentProfile?.legalName || "—"}</td>
                             <td className="px-4 py-2.5 font-mono text-xs text-slate-500">{row.student.studentId || "—"}</td>

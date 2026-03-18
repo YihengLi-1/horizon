@@ -8,7 +8,7 @@ export default function MaintenancePage() {
           我们正在进行系统升级，预计很快恢复，感谢您的耐心等待。
         </p>
         <p className="text-xs text-slate-400">
-          System under scheduled maintenance. Please check back soon.
+          系统正在计划内维护中，请稍后再试。
         </p>
         <a
           href="/"

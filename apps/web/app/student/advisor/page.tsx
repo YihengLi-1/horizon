@@ -71,7 +71,7 @@ export default function MyAdvisorPage() {
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Academic Support</p>
+        <p className="campus-eyebrow">学术支持</p>
         <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">我的学术顾问</h1>
         <p className="mt-1 text-sm text-slate-500">
           查看已分配的学术顾问信息及顾问留言
@@ -91,10 +91,10 @@ export default function MyAdvisorPage() {
             如需分配顾问，请联系教务处或发送请求
           </p>
           <Link
-            href="/student/contact"
+            href="/student/notifications"
             className="inline-block mt-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
           >
-            联系支持 →
+            查看通知 →
           </Link>
         </div>
       ) : (
@@ -143,10 +143,10 @@ export default function MyAdvisorPage() {
                 📧 预约面谈
               </a>
               <Link
-                href="/student/contact"
+                href="/student/notifications"
                 className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
-                💬 发送消息
+                🔔 查看通知
               </Link>
             </div>
           </div>
@@ -197,12 +197,12 @@ export default function MyAdvisorPage() {
             <h3 className="text-xs font-bold uppercase text-slate-500 mb-3">学术资源</h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {[
-                { label: "学习目标", icon: "🎯", href: "/student/profile" },
-                { label: "GPA 模拟", icon: "📊", href: "/student/gpa-sim" },
-                { label: "毕业进度", icon: "🎓", href: "/student/degree" },
-                { label: "可选课检测", icon: "✅", href: "/student/readiness" },
-                { label: "四年规划", icon: "📅", href: "/student/planner/4year" },
-                { label: "学术支持", icon: "💬", href: "/student/contact" }
+                { label: "个人资料", icon: "🎯", href: "/student/profile" },
+                { label: "毕业进度", icon: "🎓", href: "/student/degree-audit" },
+                { label: "成绩单", icon: "📄", href: "/student/transcript" },
+                { label: "课程规划", icon: "📅", href: "/student/planner" },
+                { label: "成绩", icon: "📊", href: "/student/grades" },
+                { label: "通知", icon: "🔔", href: "/student/notifications" }
               ].map((r) => (
                 <Link
                   key={r.href}

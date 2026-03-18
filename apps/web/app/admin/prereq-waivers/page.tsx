@@ -72,7 +72,7 @@ export default function AdminPrereqWaiversPage() {
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Approval Desk</p>
+        <p className="campus-eyebrow">审批中心</p>
         <h1 className="campus-title">先修豁免审批</h1>
         <p className="campus-subtitle">管理员终审先修课豁免请求，并把结果同步给学生。</p>
       </section>

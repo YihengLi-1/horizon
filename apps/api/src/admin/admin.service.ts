@@ -712,6 +712,31 @@ export class AdminService {
     };
   }
 
+  async getStudentById(studentId: string) {
+    const student = await this.prisma.user.findFirst({
+      where: { id: studentId, role: "STUDENT", deletedAt: null },
+      include: {
+        studentProfile: true,
+        enrollments: {
+          where: { deletedAt: null },
+          include: {
+            section: {
+              select: {
+                sectionCode: true,
+                credits: true,
+                course: { select: { code: true, title: true } },
+                term: { select: { name: true } }
+              }
+            }
+          },
+          orderBy: { createdAt: "desc" }
+        }
+      }
+    });
+    if (!student) throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
+    return student;
+  }
+
   async listTerms() {
     const cached = apiCache.get("terms");
     if (cached) return cached as any;

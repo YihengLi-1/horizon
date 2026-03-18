@@ -1,42 +1,27 @@
 "use client";
 
-/**
- * Student Private Notes
- * localStorage-based personal notes per course/section.
- * Notes are stored client-side and never sent to the server.
- */
-
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-
-const STORAGE_KEY = "sis_student_notes";
 
 type Note = {
   id: string;
-  courseCode: string;
-  courseName: string;
+  title: string;
   content: string;
-  createdAt: string;
-  updatedAt: string;
+  color: string;
   pinned: boolean;
-  color: "default" | "yellow" | "blue" | "green" | "red";
+  createdAt: number;
+  updatedAt: number;
 };
 
-const COLOR_MAP: Record<Note["color"], string> = {
-  default: "border-slate-200 bg-white",
-  yellow:  "border-amber-200 bg-amber-50",
-  blue:    "border-blue-200 bg-blue-50",
-  green:   "border-emerald-200 bg-emerald-50",
-  red:     "border-red-200 bg-red-50"
-};
+const COLORS = [
+  { value: "bg-white border-slate-200", label: "白色" },
+  { value: "bg-yellow-50 border-yellow-200", label: "黄色" },
+  { value: "bg-blue-50 border-blue-200", label: "蓝色" },
+  { value: "bg-green-50 border-green-200", label: "绿色" },
+  { value: "bg-pink-50 border-pink-200", label: "粉色" },
+  { value: "bg-purple-50 border-purple-200", label: "紫色" },
+];
 
-const COLOR_BTN: Record<Note["color"], string> = {
-  default: "bg-slate-200",
-  yellow:  "bg-amber-300",
-  blue:    "bg-blue-300",
-  green:   "bg-emerald-300",
-  red:     "bg-red-300"
-};
+const STORAGE_KEY = "campus_my_notes_v1";
 
 function loadNotes(): Note[] {
   if (typeof window === "undefined") return [];
@@ -52,202 +37,162 @@ function saveNotes(notes: Note[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
 }
 
-function uid() {
-  return Math.random().toString(36).slice(2);
-}
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "刚刚";
-  if (mins < 60) return `${mins} 分钟前`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} 小时前`;
-  return `${Math.floor(hours / 24)} 天前`;
-}
-
 export default function MyNotesPage() {
-  const [notes, setNotes]         = useState<Note[]>([]);
-  const [editId, setEditId]       = useState<string | null>(null);
-  const [showForm, setShowForm]   = useState(false);
-  const [search, setSearch]       = useState("");
-  const [newCode, setNewCode]     = useState("");
-  const [newName, setNewName]     = useState("");
-  const [newContent, setNewContent] = useState("");
-  const [newColor, setNewColor]   = useState<Note["color"]>("default");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [search, setSearch] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editColor, setEditColor] = useState(COLORS[0].value);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load from localStorage on mount
   useEffect(() => {
     setNotes(loadNotes());
   }, []);
 
-  useEffect(() => {
-    if (showForm || editId) {
-      setTimeout(() => textareaRef.current?.focus(), 50);
-    }
-  }, [showForm, editId]);
+  function persist(updated: Note[]) {
+    setNotes(updated);
+    saveNotes(updated);
+  }
 
-  function addNote() {
-    if (!newContent.trim()) return;
-    const now = new Date().toISOString();
-    const note: Note = {
-      id: uid(),
-      courseCode: newCode.trim().toUpperCase() || "通用",
-      courseName: newName.trim() || "",
-      content: newContent.trim(),
-      createdAt: now,
-      updatedAt: now,
-      pinned: false,
-      color: newColor
-    };
+  function createNote() {
+    const id = crypto.randomUUID();
+    const now = Date.now();
+    const note: Note = { id, title: "新笔记", content: "", color: COLORS[0].value, pinned: false, createdAt: now, updatedAt: now };
     const updated = [note, ...notes];
-    setNotes(updated);
-    saveNotes(updated);
-    setNewCode("");
-    setNewName("");
-    setNewContent("");
-    setNewColor("default");
-    setShowForm(false);
+    persist(updated);
+    startEdit(note);
   }
 
-  function updateNote(id: string, content: string) {
-    const updated = notes.map((n) =>
-      n.id === id ? { ...n, content, updatedAt: new Date().toISOString() } : n
+  function startEdit(note: Note) {
+    setEditingId(note.id);
+    setEditTitle(note.title);
+    setEditContent(note.content);
+    setEditColor(note.color);
+    setTimeout(() => contentRef.current?.focus(), 50);
+  }
+
+  function saveEdit() {
+    if (!editingId) return;
+    persist(
+      notes.map((n) =>
+        n.id === editingId
+          ? { ...n, title: editTitle.trim() || "无标题", content: editContent, color: editColor, updatedAt: Date.now() }
+          : n
+      )
     );
-    setNotes(updated);
-    saveNotes(updated);
-    setEditId(null);
-  }
-
-  function togglePin(id: string) {
-    const updated = notes.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n));
-    setNotes(updated);
-    saveNotes(updated);
-  }
-
-  function setColor(id: string, color: Note["color"]) {
-    const updated = notes.map((n) => (n.id === id ? { ...n, color } : n));
-    setNotes(updated);
-    saveNotes(updated);
+    setEditingId(null);
   }
 
   function deleteNote(id: string) {
-    const updated = notes.filter((n) => n.id !== id);
-    setNotes(updated);
-    saveNotes(updated);
+    persist(notes.filter((n) => n.id !== id));
+    if (editingId === id) setEditingId(null);
   }
 
-  const filtered = notes.filter((n) => {
-    const q = search.toLowerCase();
-    return (
-      n.courseCode.toLowerCase().includes(q) ||
-      n.courseName.toLowerCase().includes(q) ||
-      n.content.toLowerCase().includes(q)
-    );
-  });
+  function togglePin(id: string) {
+    persist(notes.map((n) => n.id === id ? { ...n, pinned: !n.pinned } : n));
+  }
+
+  const filtered = notes
+    .filter((n) => {
+      const q = search.toLowerCase();
+      return !q || n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q);
+    })
+    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt);
 
   const pinned = filtered.filter((n) => n.pinned);
   const unpinned = filtered.filter((n) => !n.pinned);
 
-  const NoteCard = ({ note }: { note: Note }) => {
-    const [draft, setDraft] = useState(note.content);
-    const isEditing = editId === note.id;
+  function fmt(ts: number) {
+    return new Date(ts).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+  }
 
+  function NoteCard({ note }: { note: Note }) {
+    const isEditing = editingId === note.id;
     return (
-      <div className={`rounded-xl border p-4 space-y-2 ${COLOR_MAP[note.color]}`}>
-        {/* Header */}
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-xs font-bold text-indigo-700">{note.courseCode}</span>
-          {note.courseName && (
-            <span className="text-xs text-slate-500 truncate">{note.courseName}</span>
-          )}
-          <div className="ml-auto flex items-center gap-1">
-            {/* Color picker */}
-            {(Object.keys(COLOR_BTN) as Note["color"][]).map((c) => (
-              <button
-                key={c}
-                type="button"
-                title={c}
-                onClick={() => setColor(note.id, c)}
-                className={`size-3 rounded-full ${COLOR_BTN[c]} ${note.color === c ? "ring-2 ring-offset-1 ring-slate-400" : ""}`}
-              />
-            ))}
-            <button
-              type="button"
-              title={note.pinned ? "取消置顶" : "置顶"}
-              onClick={() => togglePin(note.id)}
-              className={`ml-1 text-sm ${note.pinned ? "opacity-100" : "opacity-30 hover:opacity-60"}`}
-            >
-              📌
-            </button>
-          </div>
-        </div>
-
-        {/* Content */}
+      <div
+        className={`rounded-xl border p-4 flex flex-col gap-2 cursor-pointer transition ${note.color} ${isEditing ? "ring-2 ring-[hsl(221_83%_43%)]" : "hover:shadow-md"}`}
+        onClick={() => !isEditing && startEdit(note)}
+      >
         {isEditing ? (
           <>
-            <textarea
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300"
-              rows={4}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              ref={textareaRef}
+            <input
+              className="bg-transparent font-bold text-slate-900 border-b border-slate-200 pb-1 focus:outline-none w-full"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              placeholder="笔记标题"
             />
-            <div className="flex gap-2">
+            <textarea
+              ref={contentRef}
+              className="bg-transparent text-sm text-slate-700 focus:outline-none resize-none flex-1 min-h-[100px]"
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              placeholder="在此输入内容…"
+            />
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              {COLORS.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setEditColor(c.value); }}
+                  className={`h-5 w-5 rounded-full border-2 transition ${c.value.split(" ")[0]} ${editColor === c.value ? "border-slate-700 scale-125" : "border-transparent"}`}
+                  aria-label={c.label}
+                />
+              ))}
+              <div className="flex-1" />
               <button
                 type="button"
-                onClick={() => updateNote(note.id, draft)}
-                className="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-700"
+                onClick={(e) => { e.stopPropagation(); saveEdit(); }}
+                className="text-xs font-semibold text-[hsl(221_83%_43%)] hover:underline"
               >
                 保存
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditId(null)}
-                className="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:bg-slate-50"
-              >
-                取消
               </button>
             </div>
           </>
         ) : (
-          <p
-            className="text-sm text-slate-700 whitespace-pre-wrap cursor-text"
-            onClick={() => setEditId(note.id)}
-            title="点击编辑"
-          >
-            {note.content}
-          </p>
+          <>
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-semibold text-slate-900 truncate flex-1">{note.title}</p>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); togglePin(note.id); }}
+                  className={`text-base transition ${note.pinned ? "text-amber-500" : "text-slate-300 hover:text-amber-400"}`}
+                  aria-label={note.pinned ? "取消置顶" : "置顶"}
+                >
+                  📌
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}
+                  className="text-slate-300 hover:text-red-500 text-base transition"
+                  aria-label="删除笔记"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            {note.content ? (
+              <p className="text-sm text-slate-600 line-clamp-3">{note.content}</p>
+            ) : (
+              <p className="text-sm text-slate-300 italic">空笔记，点击编辑</p>
+            )}
+            <p className="text-[10px] text-slate-400 mt-auto">{fmt(note.updatedAt)}</p>
+          </>
         )}
-
-        {/* Footer */}
-        <div className="flex items-center justify-between text-xs text-slate-400">
-          <span title={note.updatedAt}>更新于 {timeAgo(note.updatedAt)}</span>
-          <button
-            type="button"
-            onClick={() => deleteNote(note.id)}
-            className="text-red-400 hover:text-red-600"
-          >
-            删除
-          </button>
-        </div>
       </div>
     );
-  };
+  }
 
   return (
-    <div className="campus-page space-y-6">
+    <div className="campus-page">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Academic Tools</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">我的课程笔记</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          私人笔记仅存储在本设备，不会上传到服务器
-        </p>
+        <p className="campus-eyebrow">个人工具</p>
+        <h1 className="campus-hero-title">我的笔记</h1>
+        <p className="campus-hero-subtitle">本地存储的个人学习笔记，支持置顶、颜色标记与搜索</p>
       </section>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-3 gap-4">
+      <section className="grid gap-3 sm:grid-cols-3">
         <div className="campus-kpi">
           <p className="campus-kpi-label">笔记总数</p>
           <p className="campus-kpi-value">{notes.length}</p>
@@ -257,119 +202,53 @@ export default function MyNotesPage() {
           <p className="campus-kpi-value text-amber-600">{notes.filter((n) => n.pinned).length}</p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label">涉及课程</p>
-          <p className="campus-kpi-value text-indigo-600">
-            {new Set(notes.map((n) => n.courseCode)).size}
-          </p>
+          <p className="campus-kpi-label">本地存储</p>
+          <p className="campus-kpi-value text-slate-500 text-base">仅本设备</p>
         </div>
-      </div>
+      </section>
 
-      {/* Toolbar */}
-      <div className="campus-toolbar flex-wrap gap-2">
+      <div className="campus-toolbar">
         <input
-          className="campus-input flex-1"
-          placeholder="搜索笔记内容或课程…"
+          className="campus-input max-w-xs"
+          placeholder="搜索笔记…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <button
-          type="button"
-          onClick={() => setShowForm((v) => !v)}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
-        >
-          {showForm ? "取消" : "＋ 新建笔记"}
+        <button type="button" onClick={createNote} className="campus-btn-ghost shrink-0">
+          + 新建笔记
         </button>
       </div>
 
-      {/* New note form */}
-      {showForm && (
-        <div className="campus-card p-5 space-y-3">
-          <h3 className="text-sm font-bold text-slate-900">新建笔记</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <input
-              className="campus-input"
-              placeholder="课程代码（如 CS101）"
-              value={newCode}
-              onChange={(e) => setNewCode(e.target.value)}
-            />
-            <input
-              className="campus-input"
-              placeholder="课程名称（可选）"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-            />
-          </div>
-          <textarea
-            ref={textareaRef}
-            className="campus-input w-full resize-none"
-            rows={4}
-            placeholder="在此输入笔记内容…"
-            value={newContent}
-            onChange={(e) => setNewContent(e.target.value)}
-          />
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500">颜色：</span>
-              {(Object.keys(COLOR_BTN) as Note["color"][]).map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  title={c}
-                  onClick={() => setNewColor(c)}
-                  className={`size-5 rounded-full ${COLOR_BTN[c]} ${newColor === c ? "ring-2 ring-offset-1 ring-slate-400" : ""}`}
-                />
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={addNote}
-              disabled={!newContent.trim()}
-              className="ml-auto rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
-            >
-              添加笔记
-            </button>
-          </div>
-        </div>
-      )}
+      {editingId ? (
+        <p className="text-xs text-slate-400">正在编辑，点击"保存"或点击其他地方完成编辑</p>
+      ) : null}
 
-      {notes.length === 0 ? (
-        <div className="campus-card px-6 py-16 text-center">
-          <p className="text-4xl">📝</p>
-          <p className="mt-3 text-lg font-semibold text-slate-700">暂无笔记</p>
-          <p className="mt-1 text-sm text-slate-500">
-            点击上方「新建笔记」开始记录学习心得或课程要点
-          </p>
+      {filtered.length === 0 ? (
+        <div className="campus-card p-12 text-center">
+          <p className="text-4xl mb-3">📝</p>
+          <p className="text-sm font-semibold text-slate-600">{search ? "未找到匹配笔记" : "暂无笔记"}</p>
+          {!search ? <p className="mt-1 text-xs text-slate-400">点击"新建笔记"开始记录你的学习内容</p> : null}
         </div>
       ) : (
-        <div className="space-y-5">
-          {/* Pinned */}
-          {pinned.length > 0 && (
-            <div>
-              <p className="text-xs font-bold uppercase text-slate-500 mb-3">📌 置顶笔记</p>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <>
+          {pinned.length > 0 ? (
+            <section>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">已置顶</p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {pinned.map((n) => <NoteCard key={n.id} note={n} />)}
               </div>
-            </div>
-          )}
-          {/* Others */}
-          {unpinned.length > 0 && (
-            <div>
-              {pinned.length > 0 && <p className="text-xs font-bold uppercase text-slate-500 mb-3">其他笔记</p>}
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            </section>
+          ) : null}
+          {unpinned.length > 0 ? (
+            <section>
+              {pinned.length > 0 ? <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 mt-4">其他</p> : null}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {unpinned.map((n) => <NoteCard key={n.id} note={n} />)}
               </div>
-            </div>
-          )}
-          {filtered.length === 0 && (
-            <p className="text-center text-sm text-slate-400 py-8">无符合搜索条件的笔记</p>
-          )}
-        </div>
+            </section>
+          ) : null}
+        </>
       )}
-
-      <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-        💡 笔记仅保存在当前浏览器本地，清除浏览器数据会导致笔记丢失。可查看
-        <Link href="/student/catalog" className="underline ml-1">课程目录</Link>了解各课程详情。
-      </div>
     </div>
   );
 }

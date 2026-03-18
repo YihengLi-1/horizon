@@ -1,256 +1,260 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, LoaderCircle, X } from "lucide-react";
-import { useToast } from "@/components/Toast";
-import { ApiError, apiFetch } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 
 type CartItem = {
   id: string;
+  sectionId: string;
   section: {
     id: string;
     sectionCode: string;
-    instructorName: string;
-    credits: number;
-    term: {
-      id: string;
-      name: string;
-    };
-    course: {
-      code: string;
-      title: string;
-    };
-    meetingTimes: Array<{
-      weekday: number;
-      startMinutes: number;
-      endMinutes: number;
-    }>;
+    course: { id: string; code: string; title: string; credits: number };
+    capacity: number;
+    enrolledCount: number;
+    instructorName: string | null;
+    meetingTimes: { weekday: number; startMinutes: number; endMinutes: number }[];
   };
 };
 
 type EnrollResult = {
-  id: string;
-  status: string;
-  pendingReason?: "CREDIT_OVERLOAD" | "SECTION_APPROVAL" | null;
+  sectionId: string;
+  status: "success" | "error";
+  code?: string;
+  message?: string;
 };
 
-const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function formatMeetingTimes(meetingTimes: CartItem["section"]["meetingTimes"]) {
-  if (!meetingTimes.length) return "TBD";
-  return meetingTimes
-    .map((meetingTime) => {
-      const startHour = String(Math.floor(meetingTime.startMinutes / 60)).padStart(2, "0");
-      const startMinute = String(meetingTime.startMinutes % 60).padStart(2, "0");
-      const endHour = String(Math.floor(meetingTime.endMinutes / 60)).padStart(2, "0");
-      const endMinute = String(meetingTime.endMinutes % 60).padStart(2, "0");
-      return `${WEEKDAY[meetingTime.weekday]} ${startHour}:${startMinute}-${endHour}:${endMinute}`;
-    })
-    .join(", ");
+const WEEKDAY = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+function fmt(m: number) {
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }
 
-function normalizeQuickAddError(error: unknown) {
-  if (error instanceof ApiError) {
-    if (error.code === "SECTION_FULL") return "该教学班已满员";
-    if (error.code === "TIME_CONFLICT") return "当前课程与已选课程时间冲突";
-    if (error.code === "CREDIT_LIMIT_EXCEEDED") return "超过当前学期可选学分上限";
-    if (error.code === "ACTIVE_REGISTRATION_HOLD") return "存在生效中的限制，当前无法注册";
-    if (error.code === "REGISTRATION_WINDOW_CLOSED") return "当前不在选课开放时间内";
-    if (error.code === "PREREQ_NOT_MET") return error.message;
-    if (error.code === "ALREADY_REGISTERED") return "该教学班已存在有效注册记录";
-    return error.message;
-  }
-  return error instanceof Error ? error.message : "注册失败，请稍后重试";
-}
+const ERROR_MESSAGES: Record<string, string> = {
+  SECTION_FULL: "班级已满员",
+  TIME_CONFLICT: "时间与已注册课程冲突",
+  ALREADY_ENROLLED: "已注册该课程",
+  PREREQ_NOT_MET: "先修课程未满足",
+  HOLD_ON_ACCOUNT: "账户存在限制，无法注册",
+  REG_WINDOW_CLOSED: "选课窗口已关闭",
+  CREDIT_LIMIT_EXCEEDED: "超出学分上限",
+};
 
 export default function QuickAddPage() {
-  const toast = useToast();
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [submittingId, setSubmittingId] = useState<string | null>(null);
-  const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
-  const [itemStates, setItemStates] = useState<Record<string, "idle" | "loading" | "success" | "error">>({});
-
-  const totalCredits = useMemo(
-    () => items.reduce((sum, item) => sum + item.section.credits, 0),
-    [items]
-  );
+  const [enrolling, setEnrolling] = useState<Set<string>>(new Set());
+  const [results, setResults] = useState<Map<string, EnrollResult>>(new Map());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   function loadCart() {
     setLoading(true);
-    setError("");
-    void apiFetch<CartItem[]>("/students/cart")
-      .then((data) => setItems(data ?? []))
-      .catch((err) => {
-        setItems([]);
-        setError(err instanceof Error ? err.message : "加载购物车失败");
+    void apiFetch<CartItem[]>("/registration/cart")
+      .then((d) => {
+        const items = d ?? [];
+        setCartItems(items);
+        setSelected(new Set(items.map((i) => i.sectionId)));
       })
+      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => {
-    loadCart();
-  }, []);
+  useEffect(() => { loadCart(); }, []);
 
-  async function handleEnroll(item: CartItem) {
-    setSubmittingId(item.id);
-    setItemErrors((prev) => ({ ...prev, [item.id]: "" }));
-    setItemStates((prev) => ({ ...prev, [item.id]: "loading" }));
+  async function enrollOne(item: CartItem) {
+    setEnrolling((prev) => new Set(prev).add(item.sectionId));
     try {
-      const result = await apiFetch<EnrollResult>("/registration/enroll", {
-        method: "POST",
-        body: JSON.stringify({
-          termId: item.section.term.id,
-          sectionId: item.section.id
-        })
-      });
-
-      await apiFetch(`/registration/cart/${item.id}`, {
-        method: "DELETE"
-      }).catch(() => null);
-
-      setItemStates((prev) => ({ ...prev, [item.id]: "success" }));
-      window.setTimeout(() => {
-        setItems((prev) => prev.filter((row) => row.id !== item.id));
-        setItemStates((prev) => {
-          const next = { ...prev };
-          delete next[item.id];
-          return next;
-        });
-      }, 2000);
-      toast.success(
-        result.status === "PENDING_APPROVAL"
-          ? result.pendingReason === "CREDIT_OVERLOAD"
-            ? "学分已超上限，已提交超学分申请，等待审批"
-            : `已提交 §${item.section.sectionCode}，等待审批`
-          : `已注册 §${item.section.sectionCode}`
-      );
+      await apiFetch("/registration/enroll", { method: "POST", body: JSON.stringify({ sectionId: item.sectionId }) });
+      setResults((prev) => new Map(prev).set(item.sectionId, { sectionId: item.sectionId, status: "success" }));
     } catch (err) {
-      const message = normalizeQuickAddError(err);
-      setItemErrors((prev) => ({ ...prev, [item.id]: message }));
-      setItemStates((prev) => ({ ...prev, [item.id]: "error" }));
-      window.setTimeout(() => {
-        setItemStates((prev) => ({ ...prev, [item.id]: "idle" }));
-      }, 2000);
-      toast.error(message);
+      const errObj = err as Error & { code?: string };
+      const code = errObj.code ?? "UNKNOWN";
+      setResults((prev) => new Map(prev).set(item.sectionId, {
+        sectionId: item.sectionId,
+        status: "error",
+        code,
+        message: ERROR_MESSAGES[code] ?? errObj.message ?? "注册失败",
+      }));
     } finally {
-      setSubmittingId(null);
+      setEnrolling((prev) => { const next = new Set(prev); next.delete(item.sectionId); return next; });
     }
   }
 
+  async function enrollSelected() {
+    const toEnroll = cartItems.filter((i) => selected.has(i.sectionId) && !results.get(i.sectionId)?.status);
+    for (const item of toEnroll) {
+      await enrollOne(item);
+    }
+    loadCart();
+  }
+
+  function toggleSelect(sectionId: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) next.delete(sectionId);
+      else next.add(sectionId);
+      return next;
+    });
+  }
+
+  const successCount = [...results.values()].filter((r) => r.status === "success").length;
+  const errorCount = [...results.values()].filter((r) => r.status === "error").length;
+  const pendingCount = cartItems.filter((i) => !results.has(i.sectionId)).length;
+
+  const enrollingAny = enrolling.size > 0;
+
   return (
-    <div className="campus-page space-y-6">
+    <div className="campus-page">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Registration Tools</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">快速注册</h1>
-        <p className="mt-1 text-sm text-slate-500">从购物车中直接提交课程注册，失败时显示真实原因</p>
+        <p className="campus-eyebrow">选课工具</p>
+        <h1 className="campus-hero-title">快速选课</h1>
+        <p className="campus-hero-subtitle">勾选购物车中的课程，一键批量注册</p>
       </section>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-4">
         <div className="campus-kpi">
-          <p className="campus-kpi-label">待注册课程</p>
-          <p className="campus-kpi-value">{items.length}</p>
+          <p className="campus-kpi-label">购物车课程数</p>
+          <p className="campus-kpi-value">{loading ? "—" : cartItems.length}</p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label">总学分</p>
-          <p className="campus-kpi-value text-indigo-600">{totalCredits}</p>
+          <p className="campus-kpi-label">已勾选</p>
+          <p className="campus-kpi-value text-[hsl(221_83%_43%)]">{selected.size}</p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label">当前状态</p>
-          <p className="campus-kpi-value text-emerald-600">{loading ? "加载中" : "就绪"}</p>
+          <p className="campus-kpi-label">注册成功</p>
+          <p className="campus-kpi-value text-emerald-600">{successCount}</p>
         </div>
-      </div>
-
-      <div className="campus-toolbar justify-between">
-        <div className="text-sm text-slate-500">仅显示已加入购物车但尚未完成注册的课程</div>
-        <button
-          type="button"
-          onClick={loadCart}
-          className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-        >
-          刷新列表
-        </button>
-      </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">注册失败</p>
+          <p className="campus-kpi-value text-red-600">{errorCount}</p>
+        </div>
+      </section>
 
       {error ? (
-        <div className="campus-card border-red-200 bg-red-50 px-6 py-4 text-sm text-red-700">
-          {error}
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : null}
+
+      {successCount > 0 ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          ✓ 已成功注册 <strong>{successCount}</strong> 门课程
         </div>
       ) : null}
 
       {loading ? (
-        <div className="campus-card px-6 py-14 text-center text-sm text-slate-500">⏳ 加载中…</div>
-      ) : items.length === 0 ? (
-        <div className="campus-card px-6 py-14 text-center text-sm text-slate-400">购物车中暂无待注册课程</div>
-      ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {items.map((item) => {
-            const state = itemStates[item.id] ?? "idle";
-            const buttonClass =
-              state === "success"
-                ? "bg-emerald-600 hover:bg-emerald-600"
-                : state === "error"
-                  ? "bg-red-600 hover:bg-red-600"
-                  : "bg-slate-900 hover:bg-slate-700";
-            const content =
-              state === "loading" ? (
-                <>
-                  <LoaderCircle className="size-4 animate-spin" />
-                  提交中…
-                </>
-              ) : state === "success" ? (
-                <>
-                  <Check className="size-4" />
-                  已成功
-                </>
-              ) : state === "error" ? (
-                <>
-                  <X className="size-4" />
-                  失败
-                </>
-              ) : (
-                "立即注册"
-              );
-
-            return (
-              <article key={item.id} className="campus-card p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <p className="font-mono text-xs font-bold text-indigo-700">{item.section.course.code}</p>
-                  <h2 className="text-lg font-semibold text-slate-900">{item.section.course.title}</h2>
-                  <p className="text-sm text-slate-500">§{item.section.sectionCode} · {item.section.term.name}</p>
-                </div>
-                <span className="campus-chip border-slate-200 bg-slate-50 text-slate-700">
-                  {item.section.credits} 学分
-                </span>
-              </div>
-
-              <div className="mt-4 space-y-2 text-sm text-slate-600">
-                <p>教师：{item.section.instructorName || "TBA"}</p>
-                <p>时间：{formatMeetingTimes(item.section.meetingTimes)}</p>
-              </div>
-
-              {itemErrors[item.id] ? (
-                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {itemErrors[item.id]}
-                </div>
-              ) : null}
-
-              <div className="mt-5 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => void handleEnroll(item)}
-                  disabled={submittingId === item.id}
-                  className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${buttonClass}`}
-                >
-                  {content}
-                </button>
-              </div>
-              </article>
-            );
-          })}
+        <div className="campus-card p-10 text-center text-slate-400">加载中…</div>
+      ) : cartItems.length === 0 ? (
+        <div className="campus-card p-12 text-center">
+          <p className="text-4xl mb-3">🛒</p>
+          <p className="text-sm font-semibold text-slate-600">购物车为空</p>
+          <p className="mt-1 text-xs text-slate-400">
+            请先前往<a href="/student/catalog" className="text-[hsl(221_83%_43%)] hover:underline mx-1">课程目录</a>添加课程到购物车
+          </p>
         </div>
+      ) : (
+        <>
+          <div className="campus-toolbar">
+            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={selected.size === cartItems.length && cartItems.length > 0}
+                onChange={(e) => setSelected(e.target.checked ? new Set(cartItems.map((i) => i.sectionId)) : new Set())}
+                className="w-4 h-4"
+              />
+              全选
+            </label>
+            <button
+              type="button"
+              onClick={() => void enrollSelected()}
+              disabled={selected.size === 0 || enrollingAny}
+              className="campus-btn-ghost shrink-0 disabled:opacity-40 font-semibold text-[hsl(221_83%_43%)]"
+            >
+              {enrollingAny ? "注册中…" : `注册 ${selected.size} 门课程`}
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {cartItems.map((item) => {
+              const result = results.get(item.sectionId);
+              const isEnrolling = enrolling.has(item.sectionId);
+              const isSuccess = result?.status === "success";
+              const isError = result?.status === "error";
+              const isChecked = selected.has(item.sectionId);
+
+              return (
+                <div
+                  key={item.id}
+                  className={`campus-card p-5 transition border-2 ${
+                    isSuccess ? "border-emerald-300 bg-emerald-50/30" :
+                    isError ? "border-red-300 bg-red-50/30" :
+                    isChecked ? "border-[hsl(221_83%_43%)]" :
+                    "border-transparent"
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      disabled={isSuccess || isEnrolling}
+                      onChange={() => toggleSelect(item.sectionId)}
+                      className="mt-1 w-4 h-4"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 flex-wrap">
+                        <div>
+                          <p className="font-bold text-slate-900">{item.section.course.code}</p>
+                          <p className="text-sm text-slate-700">{item.section.course.title}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            班级：{item.section.sectionCode}
+                            {item.section.instructorName ? ` · ${item.section.instructorName}` : ""}
+                            {" · "}{item.section.course.credits} 学分
+                          </p>
+                          {item.section.meetingTimes.length > 0 ? (
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {item.section.meetingTimes.map((m) => `${WEEKDAY[m.weekday]} ${fmt(m.startMinutes)}–${fmt(m.endMinutes)}`).join(", ")}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {/* Capacity indicator */}
+                          <div className="text-right">
+                            <p className="text-xs text-slate-500">
+                              {item.section.enrolledCount}/{item.section.capacity} 人
+                            </p>
+                            <div className="h-1.5 w-16 rounded-full bg-slate-100 mt-0.5">
+                              <div
+                                className={`h-1.5 rounded-full ${item.section.enrolledCount >= item.section.capacity ? "bg-red-400" : "bg-emerald-400"}`}
+                                style={{ width: `${Math.min(100, (item.section.enrolledCount / Math.max(1, item.section.capacity)) * 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                          {/* Action / status */}
+                          {isSuccess ? (
+                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">✓ 已注册</span>
+                          ) : isEnrolling ? (
+                            <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">注册中…</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => void enrollOne(item)}
+                              className="rounded-full border border-[hsl(221_83%_43%)] bg-[hsl(221_83%_43%)] px-3 py-1 text-xs font-semibold text-white hover:opacity-80 transition"
+                            >
+                              立即注册
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {isError ? (
+                        <p className="mt-2 text-xs font-medium text-red-600">
+                          ✗ {result!.message}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );

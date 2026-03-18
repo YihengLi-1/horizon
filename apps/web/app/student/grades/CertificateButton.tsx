@@ -14,7 +14,7 @@ type Props = {
 
 export default function CertificateButton({ studentName, completedCourses }: Props) {
   function printCert() {
-    const html = `<!DOCTYPE html><html><head><title>Academic Certificate</title>
+    const html = `<!DOCTYPE html><html><head><title>学业证书</title>
 <style>
   body { font-family: Georgia, serif; max-width: 800px; margin: 40px auto; padding: 40px; }
   .border { border: 8px double #1e293b; padding: 40px; }
@@ -29,10 +29,10 @@ export default function CertificateButton({ studentName, completedCourses }: Pro
 </style></head><body>
 <div class="border">
   <h1>地平线 SIS</h1>
-  <p class="subtitle">Academic Achievement Record</p>
+  <p class="subtitle">学业成绩证明</p>
   <p class="name">${studentName}</p>
   <table>
-    <thead><tr><th>Course Code</th><th>Title</th><th>Credits</th><th>Grade</th></tr></thead>
+    <thead><tr><th>课程代码</th><th>课程名称</th><th>学分</th><th>成绩</th></tr></thead>
     <tbody>${completedCourses
       .map(
         (course) =>
@@ -40,7 +40,7 @@ export default function CertificateButton({ studentName, completedCourses }: Pro
       )
       .join("")}</tbody>
   </table>
-  <p class="footer">Generated ${new Date().toLocaleDateString()} · 地平线 University Student Information System</p>
+  <p class="footer">生成于 ${new Date().toLocaleDateString()} · 地平线大学教务管理系统</p>
 </div></body></html>`;
     const popup = window.open("", "_blank");
     if (!popup) return;
@@ -57,7 +57,7 @@ export default function CertificateButton({ studentName, completedCourses }: Pro
       onClick={printCert}
       className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 shadow-sm hover:bg-emerald-100"
     >
-      🎓 Print Certificate
+      🎓 打印证书
     </button>
   );
 }

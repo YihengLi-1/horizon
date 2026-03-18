@@ -1,12 +1,6 @@
 "use client";
 
-/**
- * Student Academic Standing
- * Shows cumulative GPA, standing classification, and term-by-term history.
- * Student sees their own record; admin URL uses /admin/students/:id/standing.
- */
-
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type TermHistory = {
@@ -18,7 +12,6 @@ type TermHistory = {
 
 type StandingData = {
   userId: string;
-  name: string;
   email: string;
   major: string | null;
   enrollmentStatus: string | null;
@@ -28,170 +21,194 @@ type StandingData = {
   termHistory: TermHistory[];
 };
 
-const STANDING_META: Record<string, { label: string; color: string; bg: string; border: string; desc: string }> = {
-  DEAN_LIST: { label: "院长荣誉榜", color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200", desc: "累计 GPA ≥ 3.5，表现优异" },
-  GOOD_STANDING: { label: "正常学籍", color: "text-indigo-700", bg: "bg-indigo-50", border: "border-indigo-200", desc: "累计 GPA ≥ 2.0，学业正常" },
-  ACADEMIC_PROBATION: { label: "学业警告", color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200", desc: "累计 GPA 1.5–2.0，需提高成绩" },
-  ACADEMIC_SUSPENSION: { label: "学业暂停", color: "text-red-700", bg: "bg-red-50", border: "border-red-200", desc: "累计 GPA < 1.5，需联系顾问" },
-  UNKNOWN: { label: "待定", color: "text-slate-600", bg: "bg-slate-50", border: "border-slate-200", desc: "暂无完整成绩记录" },
+const STANDING_CONFIG = {
+  DEAN_LIST: {
+    label: "院长名单",
+    emoji: "🏆",
+    color: "text-amber-700",
+    border: "border-amber-300",
+    bg: "bg-amber-50",
+    desc: "累计 GPA ≥ 3.5，表现卓越",
+  },
+  GOOD_STANDING: {
+    label: "学业正常",
+    emoji: "✅",
+    color: "text-emerald-700",
+    border: "border-emerald-300",
+    bg: "bg-emerald-50",
+    desc: "累计 GPA ≥ 2.0，学业良好",
+  },
+  ACADEMIC_PROBATION: {
+    label: "学业察看",
+    emoji: "⚠️",
+    color: "text-amber-700",
+    border: "border-amber-300",
+    bg: "bg-amber-50",
+    desc: "累计 GPA 在 1.5–2.0 之间，需改善",
+  },
+  ACADEMIC_SUSPENSION: {
+    label: "学业暂停",
+    emoji: "🚫",
+    color: "text-red-700",
+    border: "border-red-300",
+    bg: "bg-red-50",
+    desc: "累计 GPA < 1.5，请联系学籍办",
+  },
+  UNKNOWN: {
+    label: "暂无数据",
+    emoji: "📚",
+    color: "text-slate-600",
+    border: "border-slate-200",
+    bg: "bg-slate-50",
+    desc: "尚无已评分课程记录",
+  },
 };
 
-export default function StudentStandingPage() {
+function gpaBarWidth(gpa: number | null): number {
+  if (gpa === null) return 0;
+  return Math.min(100, Math.round((gpa / 4.0) * 100));
+}
+
+function gpaBarColor(gpa: number | null): string {
+  if (gpa === null) return "bg-slate-200";
+  if (gpa >= 3.5) return "bg-amber-400";
+  if (gpa >= 3.0) return "bg-emerald-500";
+  if (gpa >= 2.0) return "bg-blue-500";
+  if (gpa >= 1.5) return "bg-amber-500";
+  return "bg-red-500";
+}
+
+export default function StandingPage() {
   const [data, setData] = useState<StandingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // Students see their own via /students/standing (added to student service)
-    // Falls back to /admin/students/me/standing if needed
     void apiFetch<StandingData>("/students/standing")
       .then((d) => setData(d))
-      .catch((e) => setError(e instanceof Error ? e.message : "加载失败"))
+      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setLoading(false));
   }, []);
 
-  const meta = data ? STANDING_META[data.standing] ?? STANDING_META.UNKNOWN : null;
-
-  const chartMeta = useMemo(() => {
-    if (!data?.termHistory.length) return null;
-    const maxGpa = 4.0;
-    return { points: data.termHistory, maxGpa };
-  }, [data]);
+  const cfg = STANDING_CONFIG[data?.standing ?? "UNKNOWN"];
+  const maxTermGpa = data?.termHistory.length
+    ? Math.max(...data.termHistory.map((t) => t.termGpa ?? 0))
+    : 0;
 
   return (
-    <div className="campus-page space-y-6">
+    <div className="campus-page">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Academic Standing</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">学业状态</h1>
-        <p className="mt-1 text-sm text-slate-500">累计 GPA、学籍状态及各学期成绩历史</p>
+        <p className="campus-eyebrow">学籍状态</p>
+        <h1 className="campus-hero-title">学业状态</h1>
+        <p className="campus-hero-subtitle">
+          {loading ? "加载中…" : data?.major ? `${data.major} · ${data.enrollmentStatus ?? ""}` : "当前学业状况概览"}
+        </p>
       </section>
 
-      {error && <div className="campus-card border-red-200 bg-red-50 px-6 py-4 text-sm text-red-700">{error}</div>}
+      <section className="grid gap-3 sm:grid-cols-3">
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">累计 GPA</p>
+          <p className={`campus-kpi-value ${data?.cumulativeGpa !== undefined ? gpaBarColor(data.cumulativeGpa ?? null).replace("bg-", "text-") : ""}`}>
+            {loading ? "—" : data?.cumulativeGpa !== null ? data?.cumulativeGpa?.toFixed(2) : "—"}
+          </p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">已修学分</p>
+          <p className="campus-kpi-value">{loading ? "—" : data?.totalCredits ?? 0}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">修读学期</p>
+          <p className="campus-kpi-value">{loading ? "—" : data?.termHistory.length ?? 0}</p>
+        </div>
+      </section>
 
-      {loading ? (
-        <div className="campus-card px-6 py-14 text-center text-sm text-slate-500">⏳ 加载中…</div>
-      ) : !data ? (
-        <div className="campus-card px-6 py-14 text-center text-sm text-slate-400">暂无数据</div>
-      ) : (
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : loading ? (
+        <div className="campus-card p-10 text-center text-slate-400">加载中…</div>
+      ) : data ? (
         <>
-          {/* Standing banner */}
-          {meta && (
-            <div className={`campus-card border ${meta.border} ${meta.bg} px-6 py-5 flex items-center gap-4`}>
-              <div className="shrink-0 size-12 rounded-full bg-white flex items-center justify-center text-2xl shadow-sm">
-                {data.standing === "DEAN_LIST" ? "🏆" : data.standing === "GOOD_STANDING" ? "✅" : data.standing === "ACADEMIC_PROBATION" ? "⚠️" : data.standing === "ACADEMIC_SUSPENSION" ? "🚨" : "❓"}
-              </div>
-              <div>
-                <p className={`font-bold text-lg ${meta.color}`}>{meta.label}</p>
-                <p className={`text-sm ${meta.color} opacity-80`}>{meta.desc}</p>
-              </div>
+          {/* Standing badge */}
+          <div className={`campus-card flex items-center gap-5 border p-5 ${cfg.border} ${cfg.bg}`}>
+            <span className="text-4xl shrink-0">{cfg.emoji}</span>
+            <div>
+              <p className={`text-lg font-bold ${cfg.color}`}>{cfg.label}</p>
+              <p className="mt-0.5 text-sm text-slate-600">{cfg.desc}</p>
             </div>
-          )}
-
-          {/* KPI cards */}
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {[
-              { label: "累计 GPA", value: data.cumulativeGpa?.toFixed(2) ?? "N/A", color: data.cumulativeGpa && data.cumulativeGpa >= 3.5 ? "text-emerald-600" : data.cumulativeGpa && data.cumulativeGpa >= 2.0 ? "text-indigo-600" : "text-red-600" },
-              { label: "已完成学分", value: data.totalCredits, color: "text-indigo-600" },
-              { label: "学习学期数", value: data.termHistory.length },
-              { label: "专业", value: data.major ?? "未分配", color: "text-slate-700" },
-            ].map(({ label, value, color }) => (
-              <div key={label} className="campus-kpi">
-                <p className="campus-kpi-label">{label}</p>
-                <p className={`campus-kpi-value text-lg ${color ?? ""}`}>{value}</p>
+            {data.cumulativeGpa !== null ? (
+              <div className="ml-auto shrink-0">
+                <p className="text-xs text-slate-500 text-right">累计 GPA</p>
+                <p className={`text-3xl font-bold ${gpaBarColor(data.cumulativeGpa).replace("bg-", "text-")}`}>
+                  {data.cumulativeGpa.toFixed(2)}
+                </p>
+                <div className="mt-1 h-1.5 w-20 rounded-full bg-white/70">
+                  <div
+                    className={`h-1.5 rounded-full ${gpaBarColor(data.cumulativeGpa)}`}
+                    style={{ width: `${gpaBarWidth(data.cumulativeGpa)}%` }}
+                  />
+                </div>
               </div>
-            ))}
+            ) : null}
           </div>
 
-          {/* GPA trend chart */}
-          {chartMeta && chartMeta.points.length > 1 && (
-            <div className="campus-card p-4">
-              <h2 className="text-sm font-bold text-slate-900 mb-4">逐学期 GPA 趋势</h2>
-              <svg viewBox="0 0 640 200" className="w-full">
-                {/* Reference lines */}
-                {[2.0, 3.0, 3.5, 4.0].map((gpa) => {
-                  const y = 180 - (gpa / 4.0) * 155;
-                  return (
-                    <g key={gpa}>
-                      <line x1="40" y1={y} x2="620" y2={y} stroke="#f1f5f9" strokeWidth="1" strokeDasharray={gpa === 2.0 ? "4,3" : "0"} />
-                      <text x="35" y={y + 3} textAnchor="end" fontSize="8" fill="#94a3b8">{gpa.toFixed(1)}</text>
-                    </g>
-                  );
-                })}
-                <line x1="40" y1="180" x2="620" y2="180" stroke="#e2e8f0" strokeWidth="1.5" />
-                <line x1="40" y1="25" x2="40" y2="180" stroke="#e2e8f0" strokeWidth="1.5" />
-
-                {/* GPA line */}
-                <polyline
-                  fill="none" stroke="#4f46e5" strokeWidth="2.5"
-                  points={chartMeta.points
-                    .filter((p) => p.termGpa !== null)
-                    .map((p, i, arr) => {
-                      const x = 40 + (i / Math.max(arr.length - 1, 1)) * 580;
-                      const y = 180 - ((p.termGpa ?? 0) / 4.0) * 155;
-                      return `${x},${y}`;
-                    })
-                    .join(" ")}
-                />
-
-                {/* Points */}
-                {chartMeta.points.map((p, i) => {
-                  const x = 40 + (i / Math.max(chartMeta.points.length - 1, 1)) * 580;
-                  const y = p.termGpa !== null ? 180 - (p.termGpa / 4.0) * 155 : null;
-                  if (y === null) return null;
-                  const color = p.termGpa! >= 3.5 ? "#10b981" : p.termGpa! >= 2.0 ? "#4f46e5" : "#ef4444";
-                  return (
-                    <g key={p.termName}>
-                      <circle cx={x} cy={y} r="4" fill={color} />
-                      <text x={x} y="196" textAnchor="middle" fontSize="8" fill="#94a3b8">
-                        {p.termName.length > 8 ? p.termName.slice(-6) : p.termName}
-                      </text>
-                    </g>
-                  );
-                })}
-              </svg>
-            </div>
-          )}
-
-          {/* Term history table */}
-          {data.termHistory.length > 0 && (
-            <div className="campus-card overflow-hidden">
-              <div className="px-4 pt-4 pb-2">
-                <h2 className="text-sm font-bold text-slate-900">各学期成绩明细</h2>
+          {/* Term history */}
+          {data.termHistory.length > 0 ? (
+            <section className="campus-card overflow-hidden">
+              <div className="border-b border-slate-200 px-5 py-3">
+                <h2 className="text-sm font-semibold text-slate-800">各学期成绩记录</h2>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs">
+                <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
-                      <th className="pb-2 pl-4 text-left font-semibold">学期</th>
-                      <th className="pb-2 pr-3 text-right font-semibold">课程数</th>
-                      <th className="pb-2 pr-3 text-right font-semibold">学分</th>
-                      <th className="pb-2 pr-4 text-right font-semibold">学期 GPA</th>
+                    <tr className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-200">
+                      <th className="px-4 py-3 text-left">学期</th>
+                      <th className="px-4 py-3 text-right">课程数</th>
+                      <th className="px-4 py-3 text-right">学分</th>
+                      <th className="px-4 py-3 text-right">本学期 GPA</th>
+                      <th className="px-4 py-3">GPA 图</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.termHistory.map((t) => (
-                      <tr key={t.termName} className="border-b border-slate-50 hover:bg-slate-50">
-                        <td className="py-2.5 pl-4 pr-3 font-medium text-slate-800">{t.termName}</td>
-                        <td className="py-2.5 pr-3 text-right text-slate-500">{t.courses}</td>
-                        <td className="py-2.5 pr-3 text-right text-indigo-600">{t.credits}</td>
-                        <td className="py-2.5 pr-4 text-right">
-                          {t.termGpa !== null ? (
-                            <span className={t.termGpa >= 3.5 ? "text-emerald-600 font-bold" : t.termGpa >= 2.0 ? "text-indigo-600" : "text-red-600 font-bold"}>
-                              {t.termGpa.toFixed(2)}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
+                    {data.termHistory.map((term, i) => (
+                      <tr key={i} className="border-t border-slate-100 hover:bg-slate-50">
+                        <td className="px-4 py-3 font-semibold text-slate-900">{term.termName}</td>
+                        <td className="px-4 py-3 text-right font-mono text-slate-700">{term.courses}</td>
+                        <td className="px-4 py-3 text-right font-mono text-slate-700">{term.credits}</td>
+                        <td className={`px-4 py-3 text-right font-bold ${gpaBarColor(term.termGpa).replace("bg-", "text-")}`}>
+                          {term.termGpa !== null ? term.termGpa.toFixed(2) : "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-20 rounded-full bg-slate-100">
+                              <div
+                                className={`h-1.5 rounded-full ${gpaBarColor(term.termGpa)}`}
+                                style={{ width: `${term.termGpa !== null ? Math.round((term.termGpa / Math.max(maxTermGpa, 1)) * 100) : 0}%` }}
+                              />
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+            </section>
+          ) : (
+            <div className="campus-card p-10 text-center text-slate-400">
+              尚无已完成学期的成绩记录。
             </div>
           )}
+
+          {/* Standing guide */}
+          <section className="campus-card p-4 text-xs text-slate-500 space-y-1">
+            <p className="font-semibold text-slate-700 text-sm">学业状态标准</p>
+            <p>🏆 院长名单：累计 GPA ≥ 3.5</p>
+            <p>✅ 学业正常：累计 GPA ≥ 2.0</p>
+            <p>⚠️ 学业察看：累计 GPA 在 1.5–2.0 之间</p>
+            <p>🚫 学业暂停：累计 GPA &lt; 1.5，请联系注册处</p>
+          </section>
         </>
-      )}
+      ) : null}
     </div>
   );
 }

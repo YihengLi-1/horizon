@@ -49,7 +49,7 @@ function daysUntilFrom(dateStr: string, nowMs: number): number {
 }
 
 function meetingSummary(mts: MeetingTime[]): string {
-  if (!mts.length) return "No meeting time (async)";
+  if (!mts.length) return "无固定上课时间（异步）";
   return mts.map((mt) => `${WEEKDAY[mt.weekday] ?? mt.weekday} ${fmt(mt.startMinutes)}–${fmt(mt.endMinutes)}`).join(", ");
 }
 
@@ -240,7 +240,7 @@ export default function SchedulePage() {
       const data = await apiFetch<Enrollment[]>(`/registration/schedule?termId=${tid}`);
       setEnrollments(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load schedule");
+      setError(err instanceof Error ? err.message : "课程表加载失败");
     } finally {
       setLoadingSchedule(false);
     }
@@ -258,7 +258,7 @@ export default function SchedulePage() {
         setTermId(validId);
         if (validId) { updateUrlTerm(validId); await loadSchedule(validId); }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load");
+        setError(err instanceof Error ? err.message : "加载失败");
       } finally {
         setLoadingTerms(false);
       }
@@ -301,7 +301,7 @@ export default function SchedulePage() {
           ? "已过退课截止时间，请联系注册处或支持团队处理。"
           : err instanceof Error
             ? err.message
-            : "Drop failed";
+            : "退课失败";
       setDropError((p) => ({ ...p, [enrollmentId]: message }));
     } finally {
       setDropping((p) => ({ ...p, [enrollmentId]: false }));
@@ -330,7 +330,7 @@ export default function SchedulePage() {
       }
       const contentType = response.headers.get("content-type") ?? "";
       if (!contentType.includes("text/calendar")) {
-        throw new Error("Unexpected calendar export response");
+        throw new Error("日历导出响应异常");
       }
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -349,21 +349,21 @@ export default function SchedulePage() {
       <section className="campus-hero no-print">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
-            <p className="campus-eyebrow">Weekly Planning</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">Class Schedule</h1>
+            <p className="campus-eyebrow">每周课程</p>
+            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">课程表</h1>
             <p className="text-sm text-slate-600 md:text-base">
-              Review enrollment statuses and manage drops with a timetable view.
+              查看注册状态，使用时间表视图管理退课。
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-800">Enrolled {statusCounts.ENROLLED}</span>
+              <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-800">已选课 {statusCounts.ENROLLED}</span>
               {statusCounts.PENDING_APPROVAL > 0 ? (
-                <span className="campus-chip border-blue-300 bg-blue-50 text-blue-800">Pending {statusCounts.PENDING_APPROVAL}</span>
+                <span className="campus-chip border-blue-300 bg-blue-50 text-blue-800">待审批 {statusCounts.PENDING_APPROVAL}</span>
               ) : null}
               {statusCounts.WAITLISTED > 0 ? (
-                <span className="campus-chip border-amber-300 bg-amber-50 text-amber-800">Waitlisted {statusCounts.WAITLISTED}</span>
+                <span className="campus-chip border-amber-300 bg-amber-50 text-amber-800">候补中 {statusCounts.WAITLISTED}</span>
               ) : null}
               {visibleCredits > 0 ? (
-                <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{visibleCredits} enrolled credits</span>
+                <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{visibleCredits} 学分已选</span>
               ) : null}
             </div>
           </div>
@@ -376,7 +376,7 @@ export default function SchedulePage() {
                 onChange={(e) => void onTermChange(e.target.value)}
                 disabled={loadingTerms || terms.length === 0}
               >
-                {terms.length === 0 ? <option value="">No active terms</option> : null}
+                {terms.length === 0 ? <option value="">暂无活跃学期</option> : null}
                 {terms.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
@@ -389,12 +389,13 @@ export default function SchedulePage() {
               >
                 iCal 导出
               </button>
-              <Link
-                href={termId ? `/student/schedule-image?termId=${termId}` : "/student/schedule-image"}
-                className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-blue-200 bg-white px-3 text-xs font-semibold text-blue-700 no-underline transition hover:bg-blue-50"
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-blue-200 bg-white px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
               >
-                生成图片
-              </Link>
+                打印课表
+              </button>
               {publicScheduleSharingEnabled ? null : (
                 <span className="campus-chip inline-flex h-9 flex-1 items-center justify-center border-slate-300 bg-slate-100 px-3 text-xs font-semibold text-slate-600">
                   公开课表分享已禁用
@@ -443,26 +444,26 @@ export default function SchedulePage() {
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-emerald-200 bg-emerald-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Enrolled</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">已注册</p>
           <p className="mt-1 text-2xl font-semibold text-emerald-900">{statusCounts.ENROLLED}</p>
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Pending Approval</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">待审批</p>
           <p className="mt-1 text-2xl font-semibold text-blue-900">{statusCounts.PENDING_APPROVAL}</p>
         </div>
         <div className="campus-kpi border-amber-200 bg-amber-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Waitlisted</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">候补中</p>
           <p className="mt-1 text-2xl font-semibold text-amber-900">{statusCounts.WAITLISTED}</p>
         </div>
         <div className="campus-kpi border-slate-200">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Enrolled Credits</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">已注册学分</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{visibleCredits}</p>
         </div>
         {weeklyMeetingHours > 0 ? (
           <div className={`campus-kpi ${weeklyMeetingHours > 20 ? "border-red-200 bg-red-50" : weeklyMeetingHours > 15 ? "border-amber-200 bg-amber-50" : "border-indigo-200 bg-indigo-50"}`}>
-            <p className={`text-xs font-semibold uppercase tracking-wide ${weeklyMeetingHours > 20 ? "text-red-700" : weeklyMeetingHours > 15 ? "text-amber-700" : "text-indigo-700"}`}>Weekly Hours</p>
+            <p className={`text-xs font-semibold uppercase tracking-wide ${weeklyMeetingHours > 20 ? "text-red-700" : weeklyMeetingHours > 15 ? "text-amber-700" : "text-indigo-700"}`}>每周课时</p>
             <p className={`mt-1 text-2xl font-semibold ${weeklyMeetingHours > 20 ? "text-red-900" : weeklyMeetingHours > 15 ? "text-amber-900" : "text-indigo-900"}`}>{weeklyMeetingHours}h</p>
-            <p className={`text-[10px] ${weeklyMeetingHours > 20 ? "text-red-500" : weeklyMeetingHours > 15 ? "text-amber-500" : "text-indigo-400"}`}>in-class per week</p>
+            <p className={`text-[10px] ${weeklyMeetingHours > 20 ? "text-red-500" : weeklyMeetingHours > 15 ? "text-amber-500" : "text-indigo-400"}`}>每周上课时长</p>
           </div>
         ) : null}
       </section>
@@ -479,9 +480,9 @@ export default function SchedulePage() {
             <div className="flex items-start gap-2">
               <span className="text-base">⚠️</span>
               <div>
-                <span className="font-semibold">Drop deadline has passed</span>{" "}
-                (was {new Date(activeTerm.dropDeadline).toLocaleDateString("en-US")}).
-                Enrolled and pending-approval drops now require registrar/support review.
+                <span className="font-semibold">退课截止日期已过</span>{" "}
+                (was {new Date(activeTerm.dropDeadline).toLocaleDateString("zh-CN")}).
+                在读及待审批退课均需联系教务处办理。
               </div>
             </div>
           </div>
@@ -489,14 +490,14 @@ export default function SchedulePage() {
           <div className={`no-print rounded-xl border px-4 py-3 text-sm ${safeDropDaysLeft <= 3 ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
             <div className="flex items-center justify-between gap-4">
               <div>
-                Drop deadline:{" "}
-                <span className="font-semibold">{new Date(activeTerm.dropDeadline).toLocaleDateString("en-US")}</span>
-                {" "}at{" "}
-                <span className="font-semibold">{new Date(activeTerm.dropDeadline).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>.
-                {" "}You can drop courses until then.
+                退课截止日期：{" "}
+                <span className="font-semibold">{new Date(activeTerm.dropDeadline).toLocaleDateString("zh-CN")}</span>
+                {" "}
+                <span className="font-semibold">{new Date(activeTerm.dropDeadline).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}</span>.
+                {" "}截止前均可退课。
               </div>
               <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${safeDropDaysLeft <= 3 ? "border-amber-300 bg-amber-100 text-amber-800" : "border-emerald-300 bg-emerald-100 text-emerald-800"}`}>
-                {safeDropDaysLeft <= 0 ? "Today!" : safeDropDaysLeft === 1 ? "1 day left" : `${safeDropDaysLeft} days left`}
+                {safeDropDaysLeft <= 0 ? "今天！" : safeDropDaysLeft === 1 ? "剩余 1 天" : `剩余 ${safeDropDaysLeft} 天`}
               </span>
             </div>
           </div>
@@ -507,15 +508,15 @@ export default function SchedulePage() {
       {notice ? <div className="no-print rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{notice}</div> : null}
       <section className="campus-card no-print p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-slate-900">Status Filters</h2>
-          <p className="text-xs text-slate-500 sm:hidden">{visibleEnrollments.length} visible</p>
-          <p className="hidden text-xs text-slate-500 sm:block">{visibleEnrollments.length} row(s) visible in list and grid</p>
+          <h2 className="text-sm font-semibold text-slate-900">状态筛选</h2>
+          <p className="text-xs text-slate-500 sm:hidden">{visibleEnrollments.length} 条</p>
+          <p className="hidden text-xs text-slate-500 sm:block">{visibleEnrollments.length} 条显示中</p>
         </div>
         <p className="mt-1 text-[11px] text-slate-500 sm:hidden">
-          Tip: tap a status chip to focus your schedule list.
+          提示：点击状态按钮可筛选课程列表。
         </p>
         <p aria-live="polite" className="sr-only">
-          {visibleEnrollments.length} sections currently visible with the selected status filters.
+          当前筛选条件下共显示 {visibleEnrollments.length} 个教学班。
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
@@ -572,7 +573,7 @@ export default function SchedulePage() {
               onClick={resetStatusFilters}
               className="inline-flex h-8 items-center rounded-full border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Reset filters
+              重置筛选
             </button>
           ) : null}
         </div>
@@ -586,7 +587,7 @@ export default function SchedulePage() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-blue-900">今日课程</p>
                 <span className="rounded-full border border-blue-200 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">
-                  {WEEKDAY[todayWeekday]} today
+                  {WEEKDAY[todayWeekday]} 今天
                 </span>
               </div>
               {todayClasses.length === 0 ? (
@@ -634,7 +635,7 @@ export default function SchedulePage() {
               <div className="space-y-3 p-3 md:hidden">
                 {visibleEnrollments.length === 0 ? (
                   <div className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-400">
-                    {enrollments.length === 0 ? "No courses in this term yet." : "No courses match current status filters."}
+                    {enrollments.length === 0 ? "本学期暂无已注册课程" : "没有课程匹配当前筛选条件"}
                     {hasStatusFiltersApplied ? (
                       <div className="mt-3">
                         <button
@@ -686,7 +687,7 @@ export default function SchedulePage() {
                           disabled={dropping[enrollment.id]}
                           className="inline-flex h-8 items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
                         >
-                          {dropping[enrollment.id] ? "Dropping…" : "Drop"}
+                          {dropping[enrollment.id] ? "退课中…" : "退课"}
                         </button>
                       ) : null}
                     </div>
@@ -700,17 +701,17 @@ export default function SchedulePage() {
                 <table className="campus-table">
             <thead className="sticky top-0 z-10">
               <tr>
-                <th>Course</th>
-                <th>Section</th>
-                <th>Instructor</th>
-                <th>Meeting</th>
-                <th>Status</th>
-                <th>Action</th>
+                <th>课程</th>
+                <th>班级</th>
+                <th>教师</th>
+                <th>上课时间</th>
+                <th>状态</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
               {loadingSchedule ? (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400">Loading schedule…</td></tr>
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400">加载课表中…</td></tr>
               ) : visibleEnrollments.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center">
@@ -718,7 +719,7 @@ export default function SchedulePage() {
                       {enrollments.length === 0 ? (
                         <>
                           <span className="text-3xl">📅</span>
-                          <p className="text-sm font-medium text-slate-700">No courses enrolled this term</p>
+                          <p className="text-sm font-medium text-slate-700">本学期暂无课程</p>
                           <p className="text-xs text-slate-500">Browse the catalog and add sections to your cart to register.</p>
                           <a
                             href={termId ? `/student/catalog?termId=${termId}` : "/student/catalog"}
@@ -730,7 +731,7 @@ export default function SchedulePage() {
                       ) : (
                         <>
                           <span className="text-3xl">🔍</span>
-                          <p className="text-sm font-medium text-slate-700">No courses match current status filters</p>
+                          <p className="text-sm font-medium text-slate-700">没有课程匹配筛选条件</p>
                           <button
                             type="button"
                             onClick={resetStatusFilters}
@@ -783,7 +784,7 @@ export default function SchedulePage() {
                               type="button"
                               disabled
                               className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-slate-100 px-3 text-xs font-medium text-slate-400 cursor-not-allowed"
-                              title="Drop deadline has passed"
+                              title="退课截止日期已过"
                             >
                               Drop unavailable
                             </button>
@@ -796,7 +797,7 @@ export default function SchedulePage() {
                             disabled={dropping[enrollment.id]}
                             className="inline-flex h-8 items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
                           >
-                            {dropping[enrollment.id] ? "Dropping…" : "Drop"}
+                            {dropping[enrollment.id] ? "退课中…" : "退课"}
                           </button>
                         ) : (
                           <span className="text-xs text-slate-400">—</span>
@@ -937,16 +938,16 @@ export default function SchedulePage() {
 
       <section className="print-only hidden">
         <h2 className="mb-3 text-lg font-semibold text-slate-900">
-          Schedule{activeTerm ? ` — ${activeTerm.name}` : ""}
+          课表{activeTerm ? ` — ${activeTerm.name}` : ""}
         </h2>
-        <table aria-label="Printable schedule">
+        <table aria-label="可打印课表">
           <thead>
             <tr>
-              <th>Course</th>
-              <th>Section</th>
-              <th>Instructor</th>
-              <th>Meeting</th>
-              <th>Status</th>
+              <th>课程</th>
+              <th>班级</th>
+              <th>教师</th>
+              <th>上课时间</th>
+              <th>状态</th>
             </tr>
           </thead>
           <tbody>

@@ -53,6 +53,8 @@ export default function AuditLogsPage() {
   const [entityFilter, setEntityFilter] = useState("");
   const [page, setPage] = useState(1);
   const [todayLabel, setTodayLabel] = useState("");
+  const [integrityResult, setIntegrityResult] = useState<{ ok: boolean; checked: number; brokenAtId?: string; reason?: string } | null>(null);
+  const [integrityChecking, setIntegrityChecking] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -61,7 +63,7 @@ export default function AuditLogsPage() {
   }, [search]);
 
   useEffect(() => {
-    setTodayLabel(new Date().toLocaleDateString("en-US"));
+    setTodayLabel(new Date().toLocaleDateString("zh-CN"));
   }, []);
 
   // Press "/" to focus search
@@ -98,7 +100,7 @@ export default function AuditLogsPage() {
       setLogs(data.data);
       setTotal(data.total);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load audit logs");
+      setError(err instanceof Error ? err.message : "加载审计日志失败");
     } finally {
       setLoading(false);
     }
@@ -152,17 +154,17 @@ export default function AuditLogsPage() {
       <section className="campus-hero">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
-            <p className="campus-eyebrow">Operational Visibility</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">Audit Logs</h1>
+            <p className="campus-eyebrow">运营可视化</p>
+            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">审计日志</h1>
             <p className="text-sm text-slate-600 md:text-base">
-              Track user actions and administrative operations across authentication, enrollment, grading, and waitlist workflows.
+              记录用户操作与管理行为，涵盖登录、注册、成绩录入、候补等全流程审计轨迹。
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{total} matched events</span>
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Page {safePage} / {totalPages}</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{total} 条匹配</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">第 {safePage} / {totalPages} 页</span>
               {todayLabel ? (
                 <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">
-                  As of {todayLabel}
+                  截至 {todayLabel}
                 </span>
               ) : null}
             </div>
@@ -182,57 +184,84 @@ export default function AuditLogsPage() {
               onClick={() => void load()}
               className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
             >
-              Refresh
+              刷新
+            </button>
+            <button
+              type="button"
+              disabled={integrityChecking}
+              onClick={async () => {
+                setIntegrityChecking(true);
+                setIntegrityResult(null);
+                try {
+                  const r = await apiFetch<{ ok: boolean; checked: number; brokenAtId?: string; reason?: string }>("/admin/audit-logs/integrity");
+                  setIntegrityResult(r);
+                } catch {
+                  setIntegrityResult({ ok: false, checked: 0, reason: "请求失败" });
+                } finally {
+                  setIntegrityChecking(false);
+                }
+              }}
+              className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:-translate-y-0.5 hover:bg-white disabled:opacity-50"
+            >
+              {integrityChecking ? "验证中…" : "验证完整性"}
             </button>
           </div>
         </div>
       </section>
 
+      {integrityResult ? (
+        <section className={`rounded-xl border px-4 py-3 text-sm ${integrityResult.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800"}`}>
+          {integrityResult.ok
+            ? `✓ 哈希链完整，已验证 ${integrityResult.checked} 条记录。`
+            : `✗ 完整性校验失败：${integrityResult.reason ?? "未知错误"}${integrityResult.brokenAtId ? `（ID: ${integrityResult.brokenAtId}）` : ""}`}
+        </section>
+      ) : null}
+
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-slate-200 bg-white">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Matched Events</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">匹配记录</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{total.toLocaleString()}</p>
         </div>
         <div className="campus-kpi border-slate-200 bg-white">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">This Page</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">本页</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{logs.length}</p>
-          <p className="mt-0.5 text-xs text-slate-500">Page {safePage} of {totalPages}</p>
+          <p className="mt-0.5 text-xs text-slate-500">第 {safePage} / {totalPages} 页</p>
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Unique Actors</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">唯一操作者</p>
           <p className="mt-1 text-2xl font-semibold text-blue-900">{pageStats.uniqueActors}</p>
-          <p className="mt-0.5 text-xs text-blue-600">on this page</p>
+          <p className="mt-0.5 text-xs text-blue-600">本页</p>
         </div>
         <div className="campus-kpi border-violet-200 bg-violet-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Top Action</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">最频繁操作</p>
           <p className="mt-1 truncate text-lg font-semibold text-violet-900">{pageStats.topAction}</p>
-          <p className="mt-0.5 text-xs text-violet-600">most frequent on page</p>
+          <p className="mt-0.5 text-xs text-violet-600">本页最多</p>
         </div>
       </section>
 
       <section className="campus-toolbar">
         <div className="grid gap-3 md:grid-cols-3">
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search</span>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">搜索</span>
             <input
               ref={searchRef}
               className="campus-input"
-              placeholder="Actor, action, entity ID...  [/]"
+              placeholder="操作者、操作类型、实体ID...  [/]"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Action type</span>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">操作类型</span>
             <select className="campus-select" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
-              <option value="">All actions</option>
+              <option value="">全部操作</option>
               {actions.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Entity type</span>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">实体类型</span>
             <select className="campus-select" value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)}>
-              <option value="">All entities</option>
+              <option value="">全部实体</option>
               {entityTypes.map((e) => <option key={e} value={e}>{e}</option>)}
             </select>
           </label>
@@ -248,7 +277,7 @@ export default function AuditLogsPage() {
             }}
             className="mt-2 text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
           >
-            Clear filters
+            清除筛选
           </button>
         ) : null}
       </section>
@@ -259,27 +288,27 @@ export default function AuditLogsPage() {
         <table className="w-full border-collapse text-sm">
           <thead className="bg-slate-50 dark:bg-gray-800">
             <tr className="border-b border-slate-200 text-left">
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:border-gray-700 dark:text-gray-100">Time</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:border-gray-700 dark:text-gray-100">Actor</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:border-gray-700 dark:text-gray-100">Action</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:border-gray-700 dark:text-gray-100">Entity</th>
-              <th className="px-4 py-3 font-semibold text-slate-700 dark:border-gray-700 dark:text-gray-100">Entity ID</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:border-gray-700 dark:text-gray-100">时间</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:border-gray-700 dark:text-gray-100">操作者</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:border-gray-700 dark:text-gray-100">操作</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:border-gray-700 dark:text-gray-100">实体类型</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 dark:border-gray-700 dark:text-gray-100">实体ID</th>
             </tr>
           </thead>
           <tbody>
               {loading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">Loading audit logs...</td>
+                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">加载审计日志中...</td>
               </tr>
             ) : logs.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-4 py-12 text-center">
                   <p className="text-3xl">📋</p>
-                  <p className="mt-2 text-sm font-medium text-slate-600">No audit logs found</p>
+                  <p className="mt-2 text-sm font-medium text-slate-600">暂无审计日志</p>
                   <p className="mt-1 text-xs text-slate-400">
                     {actionFilter || entityFilter || debouncedSearch
-                      ? "Try adjusting your search or filter criteria."
-                      : "Audit events will appear here as users interact with the system."}
+                      ? "请调整搜索词或筛选条件。"
+                      : "用户操作后，审计记录将在此显示。"}
                   </p>
                 </td>
               </tr>
@@ -307,8 +336,8 @@ export default function AuditLogsPage() {
         {!loading && total > 0 && (
           <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3">
             <p className="text-xs text-slate-500">
-              Showing <span className="font-medium text-slate-700">{pageStart}–{pageEnd}</span> of{" "}
-              <span className="font-medium text-slate-700">{total}</span> events
+              共 <span className="font-medium text-slate-700">{total}</span> 条记录，显示第{" "}
+              <span className="font-medium text-slate-700">{pageStart}–{pageEnd}</span> 条
             </p>
             <div className="flex items-center gap-1">
               <button

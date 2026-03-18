@@ -27,7 +27,7 @@ export function RegistrationStepper({
 
   return (
     <nav
-      aria-label="Registration progress"
+      aria-label="注册流程进度"
       className="campus-card p-4 md:p-5"
     >
       <ol className="grid gap-3 sm:grid-cols-3">

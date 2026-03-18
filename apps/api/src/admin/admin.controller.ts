@@ -511,6 +511,12 @@ export class AdminController {
     return ok(await this.adminService.getAtRiskStudents(termId));
   }
 
+  @Get("students/:id")
+  @RequireAdminPermissions("students:read")
+  async getStudentById(@Param("id") id: string) {
+    return ok(await this.adminService.getStudentById(id));
+  }
+
   @Get("instructors/analytics")
   @RequireAdminPermissions("sections:read")
   async getInstructorAnalytics() {

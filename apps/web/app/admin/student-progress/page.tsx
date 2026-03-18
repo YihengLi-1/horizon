@@ -32,6 +32,12 @@ function statusTone(status: StudentProgressRow["enrollmentStatus"]) {
   return "border-emerald-200 bg-emerald-50 text-emerald-700";
 }
 
+function statusLabel(status: StudentProgressRow["enrollmentStatus"]) {
+  if (status === "AtRisk") return "高风险";
+  if (status === "Inactive") return "未活跃";
+  return "正常";
+}
+
 export default function StudentProgressPage() {
   const [terms, setTerms] = useState<Term[]>([]);
   const [termId, setTermId] = useState("");
@@ -113,7 +119,7 @@ export default function StudentProgressPage() {
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Academic Tracking</p>
+        <p className="campus-eyebrow">学业追踪</p>
         <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">学生进度</h1>
         <p className="mt-1 text-sm text-slate-500">按院系和风险状态查看学生累计进度、当前学分与 GPA</p>
       </section>
@@ -128,7 +134,7 @@ export default function StudentProgressPage() {
           <p className="campus-kpi-value text-red-600">{summary.atRisk}</p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label">Active</p>
+          <p className="campus-kpi-label">正常</p>
           <p className="campus-kpi-value text-emerald-600">{summary.active}</p>
         </div>
         <div className="campus-kpi">
@@ -156,9 +162,9 @@ export default function StudentProgressPage() {
         </select>
         <select className="campus-select" value={status} onChange={(event) => setStatus(event.target.value as StatusFilter)}>
           <option value="All">全部状态</option>
-          <option value="Active">Active</option>
-          <option value="AtRisk">AtRisk</option>
-          <option value="Inactive">Inactive</option>
+          <option value="Active">正常</option>
+          <option value="AtRisk">高风险</option>
+          <option value="Inactive">未活跃</option>
         </select>
         <button
           type="button"
@@ -203,7 +209,7 @@ export default function StudentProgressPage() {
                   <td className="px-4 py-3 text-slate-700">{row.creditsEnrolled}</td>
                   <td className="px-4 py-3 font-semibold text-slate-900">{row.gpa.toFixed(2)}</td>
                   <td className="px-4 py-3">
-                    <span className={`campus-chip ${statusTone(row.enrollmentStatus)}`}>{row.enrollmentStatus}</span>
+                    <span className={`campus-chip ${statusTone(row.enrollmentStatus)}`}>{statusLabel(row.enrollmentStatus)}</span>
                   </td>
                 </tr>
               ))}

@@ -176,11 +176,11 @@ function statusBadgeClass(status: string): string {
 }
 
 function issueHint(reasonCode: string): string | null {
-  if (reasonCode === "SECTION_ALREADY_STARTED") return "Section already started. Contact registrar/support for help.";
-  if (reasonCode === "PREREQUISITE_NOT_MET") return "Complete prerequisite course(s) first or request a faculty prerequisite override.";
-  if (reasonCode === "TIME_CONFLICT") return "Remove or swap one of the conflicting sections.";
-  if (reasonCode === "CREDIT_LIMIT_EXCEEDED") return "Reduce planned credits or request an overload approval.";
-  if (reasonCode === "ALREADY_REGISTERED") return "This section is already active in your enrollments.";
+  if (reasonCode === "SECTION_ALREADY_STARTED") return "教学班已开课，请联系教务处获取帮助。";
+  if (reasonCode === "PREREQUISITE_NOT_MET") return "请先修完先修课程，或向教务处申请先修课豁免。";
+  if (reasonCode === "TIME_CONFLICT") return "请移除或更换时间冲突的教学班。";
+  if (reasonCode === "CREDIT_LIMIT_EXCEEDED") return "请减少计划学分，或申请超载豁免。";
+  if (reasonCode === "ALREADY_REGISTERED") return "该教学班已在您的在读课程中。";
   return null;
 }
 
@@ -218,11 +218,11 @@ function getCurrentWorkflowStep(request: AcademicRequest) {
 }
 
 function getRequestWorkflowLabel(request: AcademicRequest): string {
-  if (request.status === "APPROVED") return "Approved";
-  if (request.status === "REJECTED") return "Rejected";
-  if (request.status === "WITHDRAWN") return "Withdrawn";
+  if (request.status === "APPROVED") return "已批准";
+  if (request.status === "REJECTED") return "已拒绝";
+  if (request.status === "WITHDRAWN") return "已撤回";
   const step = getCurrentWorkflowStep(request);
-  return step ? `Awaiting ${step.label}` : "Submitted";
+  return step ? `待${step.label}` : "已提交";
 }
 
 function getRequestWorkflowTone(request: AcademicRequest): string {
@@ -272,7 +272,7 @@ function buildIssueToastMessage(issues: SubmitIssue[], maxCredits?: number | nul
   if (issues.some((issue) => issue.reasonCode === "PREREQUISITE_NOT_MET")) {
     return "先修课未满足，请先完成前置课程";
   }
-  return "Some sections could not be submitted.";
+  return "部分教学班提交失败。";
 }
 
 function Alert({ type, message }: { type: "success" | "error" | "info"; message: string }) {
@@ -590,42 +590,42 @@ export default function StudentCartPage() {
   const hasBlockingIssues = precheckRan && (precheckIssues.length > 0 || Boolean(precheckError));
   const precheckDisabled = !termId || items.length === 0 || prechecking || submitting || !registrationWindow.isOpen;
   const precheckDisabledReason = useMemo(() => {
-    if (!termId) return "Select a term first.";
-    if (!registrationWindow.isOpen) return registrationWindow.message || "Registration window is currently closed.";
-    if (items.length === 0) return "Add at least one section before running precheck.";
-    if (submitting) return "Wait for the current submission to finish.";
+    if (!termId) return "请先选择学期。";
+    if (!registrationWindow.isOpen) return registrationWindow.message || "选课窗口当前已关闭。";
+    if (items.length === 0) return "请先将至少一个教学班加入购物车后再预检。";
+    if (submitting) return "请等待当前提交完成。";
     return "";
   }, [termId, registrationWindow.isOpen, registrationWindow.message, items.length, submitting]);
   const submitDisabled =
     !termId || items.length === 0 || submitting || !registrationWindow.isOpen || hasBlockingIssues;
   const submitDisabledReason = useMemo(() => {
-    if (!termId) return "Select a term first.";
-    if (!registrationWindow.isOpen) return registrationWindow.message || "Registration window is currently closed.";
-    if (items.length === 0) return "Add at least one section before submitting.";
-    if (!precheckRan) return "Run precheck before submitting.";
-    if (hasBlockingIssues) return "Resolve precheck issues or remove invalid rows first.";
+    if (!termId) return "请先选择学期。";
+    if (!registrationWindow.isOpen) return registrationWindow.message || "选课窗口当前已关闭。";
+    if (items.length === 0) return "请先将至少一个教学班加入购物车后再提交。";
+    if (!precheckRan) return "提交前请先运行预检。";
+    if (hasBlockingIssues) return "请先解决预检问题或移除无效课程。";
     return "";
   }, [termId, registrationWindow.isOpen, registrationWindow.message, items.length, precheckRan, hasBlockingIssues]);
 
   const readinessChecks = useMemo(
     () => [
-      { label: "Term selected", ok: Boolean(termId) },
+      { label: "已选择学期", ok: Boolean(termId) },
       {
-        label: "Governance status available",
+        label: "治理状态可用",
         ok: governanceReady,
-        hint: governanceLoading ? "Loading" : governanceError ? "Retry required" : ""
+        hint: governanceLoading ? "加载中" : governanceError ? "请重试" : ""
       },
       {
-        label: "No active registration hold",
+        label: "无有效学籍限制",
         ok: governanceReady ? activeHolds.length === 0 : false,
-        hint: governanceReady ? "" : "Unavailable"
+        hint: governanceReady ? "" : "不可用"
       },
-      { label: "Registration window open", ok: registrationWindow.isOpen },
-      { label: "Cart has items", ok: items.length > 0 },
+      { label: "选课窗口已开放", ok: registrationWindow.isOpen },
+      { label: "购物车不为空", ok: items.length > 0 },
       {
-        label: "Precheck has no blocking issues",
+        label: "预检无阻止性问题",
         ok: precheckRan ? !hasBlockingIssues : false,
-        hint: precheckRan ? "" : "Run precheck"
+        hint: precheckRan ? "" : "请运行预检"
       }
     ],
     [termId, governanceReady, governanceLoading, governanceError, activeHolds.length, registrationWindow.isOpen, items.length, precheckRan, hasBlockingIssues]
@@ -658,7 +658,7 @@ export default function StudentCartPage() {
       const data = await apiFetch<CartItem[]>(`/registration/cart?termId=${selectedTermId}`);
       setItems(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load cart");
+      setError(err instanceof Error ? err.message : "购物车加载失败");
     } finally {
       setLoading(false);
     }
@@ -702,7 +702,7 @@ export default function StudentCartPage() {
     } catch (err) {
       setActiveHolds([]);
       setHoldsLoaded(false);
-      setHoldsError(err instanceof Error ? err.message : "Unable to load registration holds");
+      setHoldsError(err instanceof Error ? err.message : "无法加载学籍限制");
     } finally {
       setHoldsLoading(false);
     }
@@ -725,7 +725,7 @@ export default function StudentCartPage() {
     } catch (err) {
       setAcademicRequests([]);
       setRequestsLoaded(false);
-      setRequestsError(err instanceof Error ? err.message : "Unable to load academic requests");
+      setRequestsError(err instanceof Error ? err.message : "无法加载学术申请");
     } finally {
       setRequestsLoading(false);
     }
@@ -761,7 +761,7 @@ export default function StudentCartPage() {
           ]);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load terms");
+        setError(err instanceof Error ? err.message : "学期加载失败");
       }
     }
 
@@ -791,7 +791,7 @@ export default function StudentCartPage() {
       await apiFetch(`/registration/cart/${cartItemId}`, { method: "DELETE" });
       await loadCart(termId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to remove item");
+      setError(err instanceof Error ? err.message : "移除失败");
     } finally {
       setRemovingItemId("");
     }
@@ -813,8 +813,8 @@ export default function StudentCartPage() {
       toast(`Removed ${invalidCartItemIds.length} invalid item(s).`, "success");
       await loadCart(termId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to remove invalid items");
-      toast("Failed to remove invalid items.", "error");
+      setError(err instanceof Error ? err.message : "移除无效课程失败");
+      toast("移除无效课程失败。", "error");
     } finally {
       setRemovingInvalid(false);
     }
@@ -839,18 +839,18 @@ export default function StudentCartPage() {
       if (err instanceof ApiError && err.code === "SUBMIT_VALIDATION_FAILED" && Array.isArray(err.details)) {
         const issues = err.details as SubmitIssue[];
         setPrecheckIssues(issues);
-        setPrecheckError("Precheck found blocking issues.");
+        setPrecheckError("预检发现阻止性问题。");
         toast(buildIssueToastMessage(issues, activeTerm?.maxCredits ?? null), "error");
       } else if (err instanceof ApiError && err.code === "ACTIVE_REGISTRATION_HOLD" && Array.isArray(err.details)) {
         setActiveHolds(err.details as StudentHold[]);
         setHoldsLoaded(true);
         setHoldsError("");
-        const message = err.message || "Registration is blocked by an active hold.";
+        const message = err.message || "学籍限制已阻止选课操作。";
         setPrecheckError(message);
         toast(message, "error");
         setPrecheckIssues([]);
       } else {
-        const message = err instanceof Error ? err.message : "Precheck failed";
+        const message = err instanceof Error ? err.message : "预检失败";
         setPrecheckError(message);
         toast(message, "error");
         setPrecheckIssues([]);
@@ -893,17 +893,17 @@ export default function StudentCartPage() {
       ) {
         const issues = err.details as SubmitIssue[];
         setSubmitIssues(issues);
-        setError("Some sections could not be submitted. See reasons below.");
+        setError("部分教学班提交失败，请查看下方原因。");
         toast(buildIssueToastMessage(issues, activeTerm?.maxCredits ?? null), "error");
       } else if (err instanceof ApiError && err.code === "ACTIVE_REGISTRATION_HOLD" && Array.isArray(err.details)) {
         setActiveHolds(err.details as StudentHold[]);
         setHoldsLoaded(true);
         setHoldsError("");
-        const message = err.message || "Registration is blocked by an active hold.";
+        const message = err.message || "学籍限制已阻止选课操作。";
         setError(message);
         toast(message, "error");
       } else {
-        const message = err instanceof Error ? err.message : "Submit failed";
+        const message = err instanceof Error ? err.message : "提交失败";
         setError(message);
         toast(message, "error");
       }
@@ -1014,58 +1014,58 @@ export default function StudentCartPage() {
   const nextAction: NextAction = (() => {
     if (terms.length === 0 || !termId) {
       return {
-        title: "Select a term",
-        detail: "Choose an active term first. Cart and submit actions unlock after term selection.",
+        title: "选择学期",
+        detail: "请先选择一个活跃学期，选择后购物车和提交操作将解锁。",
         tone: "slate"
       };
     }
     if (items.length === 0) {
       return {
-        title: "Add courses to cart",
-        detail: "Your cart is empty. Start from catalog and add at least one section.",
+        title: "向购物车添加课程",
+        detail: "购物车为空，请前往课程目录添加教学班。",
         tone: "slate",
-        buttonLabel: "Browse Catalog",
+        buttonLabel: "浏览课程目录",
         buttonTone: "neutral",
         href: catalogHref
       };
     }
     if (governanceLoading) {
       return {
-        title: "Load governance status",
-        detail: "Checking active holds and overload request status before you rely on this cart summary.",
+        title: "加载治理状态",
+        detail: "正在检查学籍限制与超载申请状态，请稍候。",
         tone: "slate"
       };
     }
     if (governanceError) {
       return {
-        title: "Retry governance checks",
-        detail: "Hold or request data could not be loaded. Retry before relying on governance status shown on this page.",
+        title: "重试状态检查",
+        detail: "限制或申请数据加载失败，请重试以确保页面状态准确。",
         tone: "amber",
-        buttonLabel: "Retry Governance Status",
+        buttonLabel: "重新加载状态",
         buttonTone: "neutral",
         onClick: () => void reloadGovernanceState(termId)
       };
     }
     if (activeHolds.length > 0) {
       return {
-        title: "Resolve registration hold",
-        detail: "Registration is blocked until the active hold is cleared by registrar or finance staff.",
+        title: "解除学籍限制",
+        detail: "注册已被锁定，请联系教务处或财务部门解除限制。",
         tone: "red"
       };
     }
     if (!registrationWindow.isOpen) {
       return {
-        title: "Registration window is closed",
-        detail: registrationWindow.message || "Registration actions are currently unavailable.",
+        title: "选课窗口已关闭",
+        detail: registrationWindow.message || "选课功能当前不可用。",
         tone: "amber"
       };
     }
     if (!precheckRan) {
       return {
-        title: "Run precheck first",
-        detail: "Precheck catches prerequisites, time conflicts, and credit limits before submit.",
+        title: "请先运行预检",
+        detail: "预检可在提交前检测先修课、时间冲突和学分限制。",
         tone: "slate",
-        buttonLabel: prechecking ? "Checking" : "Run Precheck",
+        buttonLabel: prechecking ? "检查中" : "运行预检",
         buttonTone: "primary",
         onClick: () => void runPrecheck(),
         disabled: precheckDisabled || prechecking
@@ -1073,7 +1073,7 @@ export default function StudentCartPage() {
     }
     if (pendingOverloadRequest) {
       return {
-        title: "Await advisor decision",
+        title: "等待导师审批",
         detail: "A credit overload request is pending. Registration will remain blocked until it is approved or rejected.",
         tone: "amber"
       };
@@ -1081,29 +1081,29 @@ export default function StudentCartPage() {
     if (hasBlockingIssues) {
       if (canSubmitOverloadRequest && overloadRequestNeeded) {
         return {
-          title: "Request overload approval",
-          detail: "Your cart exceeds the standard credit limit. Submit a credit overload request for advisor review.",
+          title: "申请超载豁免",
+          detail: "购物车学分超出标准上限，请提交超载申请以供导师审核。",
           tone: "amber"
         };
       }
       if (invalidCartItemIds.length > 0) {
         return {
-          title: "Clean invalid rows",
+          title: "清除无效课程",
           detail: `${invalidCartItemIds.length} item(s) currently fail precheck and can be removed in one click.`,
           tone: "red",
-          buttonLabel: removingInvalid ? "Cleaning" : "Remove Invalid Rows",
+          buttonLabel: removingInvalid ? "清除中" : "移除无效课程",
           buttonTone: "danger",
           onClick: () => void removeInvalidItems(),
           disabled: removingInvalid || submitting
         };
       }
       return {
-        title: "Resolve precheck issues",
-        detail: "Review issue cards below, adjust sections, then rerun precheck.",
+        title: "解决预检问题",
+        detail: "请查看下方问题卡，调整教学班后重新运行预检。",
         tone: "red",
         ...(issueAnchorHref
           ? {
-              buttonLabel: "Review Issues",
+              buttonLabel: "查看问题",
               buttonTone: "neutral" as const,
               href: issueAnchorHref
             }
@@ -1111,10 +1111,10 @@ export default function StudentCartPage() {
       };
     }
     return {
-      title: "Ready to submit",
-      detail: "Precheck passed. You can submit this cart now.",
+      title: "可以提交",
+      detail: "预检通过，可以提交购物车了。",
       tone: "emerald",
-      buttonLabel: submitting ? "Submitting" : "Submit",
+      buttonLabel: submitting ? "提交中" : "提交",
       buttonTone: "primary",
       onClick: () => void submit(),
       disabled: submitDisabled || submitting
@@ -1126,8 +1126,8 @@ export default function StudentCartPage() {
       <section className="campus-hero">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
-            <p className="campus-eyebrow">Registration Workflow</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">Registration Cart</h1>
+            <p className="campus-eyebrow">选课流程</p>
+            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">选课购物车</h1>
             <p className="text-sm text-slate-600 md:text-base">
               Review selections for {activeTerm ? activeTerm.name : "the selected term"}, run precheck, and submit safely.
             </p>
@@ -1147,7 +1147,7 @@ export default function StudentCartPage() {
               href={`/student/catalog${termId ? `?termId=${termId}` : ""}`}
               className="inline-flex h-10 w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:bg-slate-50 sm:w-auto"
             >
-              Back to catalog
+              返回课程目录
             </Link>
             <button
               type="button"
@@ -1164,7 +1164,7 @@ export default function StudentCartPage() {
               ) : precheckRan && !hasBlockingIssues && precheckPreview.length > 0 ? (
                 "✓ Precheck passed"
               ) : (
-                "Run Precheck"
+                "运行预检"
               )}
             </button>
             {invalidCartItemIds.length > 0 ? (
@@ -1177,10 +1177,10 @@ export default function StudentCartPage() {
                 {removingInvalid ? (
                   <>
                     <span className="size-4 animate-spin rounded-full border-2 border-red-200 border-t-red-700" />
-                    Cleaning…
+                    清理中…
                   </>
                 ) : (
-                  <>Remove invalid ({invalidCartItemIds.length})</>
+                  <>移除无效项（{invalidCartItemIds.length}）</>
                 )}
               </button>
             ) : null}
@@ -1197,7 +1197,7 @@ export default function StudentCartPage() {
                   Submitting…
                 </>
               ) : (
-                "Submit"
+                "提交"
               )}
             </button>
             {submitDisabledReason ? (
@@ -1217,18 +1217,18 @@ export default function StudentCartPage() {
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-slate-200 bg-white">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Cart Items</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">购物车课程</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{items.length}</p>
         </div>
         <div className={`campus-kpi ${cartMetrics.overLimit ? "border-red-200 bg-red-50" : "border-slate-200 bg-white"}`}>
           <p className={`text-xs font-semibold uppercase tracking-wide ${cartMetrics.overLimit ? "text-red-700" : "text-slate-500"}`}>
-            Planned Credits
+            计划学分
           </p>
           <p className={`mt-1 text-2xl font-semibold ${cartMetrics.overLimit ? "text-red-900" : "text-slate-900"}`}>
             {cartMetrics.totalCredits}{cartMetrics.maxCredits !== null ? ` / ${cartMetrics.maxCredits}` : ""}
           </p>
           {cartMetrics.overLimit ? (
-            <p className="mt-0.5 text-xs font-medium text-red-700">Over credit limit</p>
+            <p className="mt-0.5 text-xs font-medium text-red-700">超出学分上限</p>
           ) : cartMetrics.maxCredits !== null ? (
             <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200">
               <div
@@ -1239,23 +1239,23 @@ export default function StudentCartPage() {
           ) : null}
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Approval Required</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">需审批</p>
           <p className="mt-1 text-2xl font-semibold text-blue-900">{cartMetrics.approvalCount}</p>
           {cartMetrics.approvalCount > 0 ? (
-            <p className="mt-0.5 text-xs text-blue-600">Awaiting admin action</p>
+            <p className="mt-0.5 text-xs text-blue-600">等待管理员操作</p>
           ) : (
-            <p className="mt-0.5 text-xs text-blue-500">No approvals needed</p>
+            <p className="mt-0.5 text-xs text-blue-500">无需审批</p>
           )}
         </div>
         <div className={`campus-kpi ${invalidCartItemIds.length > 0 ? "border-red-200 bg-red-50" : "border-emerald-200 bg-emerald-50"}`}>
           <p className={`text-xs font-semibold uppercase tracking-wide ${invalidCartItemIds.length > 0 ? "text-red-700" : "text-emerald-700"}`}>
-            Issue Rows
+            问题条目
           </p>
           <p className={`mt-1 text-2xl font-semibold ${invalidCartItemIds.length > 0 ? "text-red-900" : "text-emerald-900"}`}>
             {invalidCartItemIds.length}
           </p>
           {invalidCartItemIds.length > 0 ? (
-            <p className="mt-0.5 text-xs font-medium text-red-600">Run precheck to review</p>
+            <p className="mt-0.5 text-xs font-medium text-red-600">运行预检以查看详情</p>
           ) : precheckRan ? (
             <p className="mt-0.5 text-xs font-medium text-emerald-600">All clear ✓</p>
           ) : null}
@@ -1267,7 +1267,7 @@ export default function StudentCartPage() {
           <label className="block">
             <span className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
               <span className="inline-flex size-5 items-center justify-center rounded-full bg-slate-100 text-[10px]">T</span>
-              Term
+              学期
             </span>
             <select
               className="campus-select"
@@ -1275,7 +1275,7 @@ export default function StudentCartPage() {
               onChange={(event) => void onTermChange(event.target.value)}
               disabled={terms.length === 0}
             >
-              {terms.length === 0 ? <option value="">No active terms</option> : null}
+              {terms.length === 0 ? <option value="">暂无活跃学期</option> : null}
               {terms.map((term) => (
                 <option key={term.id} value={term.id}>
                   {term.name}
@@ -1284,29 +1284,29 @@ export default function StudentCartPage() {
             </select>
           </label>
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-            {items.length} item{items.length === 1 ? "" : "s"} in cart
+            购物车共 {items.length} 门课程
           </div>
         </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <section className="campus-card p-4">
-          <h2 className="text-sm font-semibold text-slate-900">Status Guide</h2>
+          <h2 className="text-sm font-semibold text-slate-900">状态说明</h2>
           <div className="mt-2 grid gap-2">
             <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-              <span className="font-semibold">{enrollmentStatusLabel("ENROLLED")}:</span> Seat confirmed after submit.
+              <span className="font-semibold">{enrollmentStatusLabel("ENROLLED")}：</span>提交后席位已确认。
             </p>
             <p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
-              <span className="font-semibold">Pending Approval:</span> Awaiting department/admin action.
+              <span className="font-semibold">待审批：</span>等待院系/管理员操作。
             </p>
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              <span className="font-semibold">Waitlisted:</span> Added to queue when capacity is full.
+              <span className="font-semibold">候补中：</span>名额已满时加入候补队列。
             </p>
           </div>
         </section>
 
         <section className="campus-card p-4">
-          <h2 className="text-sm font-semibold text-slate-900">Submit Readiness</h2>
+          <h2 className="text-sm font-semibold text-slate-900">提交就绪状态</h2>
           <div className="mt-2 grid gap-2">
             {readinessChecks.map((check) => (
               <div
@@ -1322,25 +1322,25 @@ export default function StudentCartPage() {
                   {check.label}
                 </span>
                 <span className={`text-xs font-semibold ${check.ok ? "text-emerald-700" : "text-slate-500"}`}>
-                  {check.ok ? "Ready" : check.hint ?? "Pending"}
+                  {check.ok ? "已就绪" : check.hint ?? "待确认"}
                 </span>
               </div>
             ))}
           </div>
           {!precheckRan && items.length > 0 ? (
             <p className="mt-2 text-xs text-slate-600">
-              Run precheck before submit to catch conflicts and prerequisites first.
+              建议在提交前运行预检，提前发现冲突和先修课问题。
             </p>
           ) : null}
           {hasBlockingIssues ? (
             <p className="mt-2 text-xs font-medium text-red-700">
-              Precheck found blocking issues. Resolve or remove invalid rows before submitting.
+              预检发现阻塞性问题，请解决或移除问题条目后再提交。
             </p>
           ) : null}
         </section>
 
         <section className="campus-card p-4 lg:col-span-2" aria-live="polite">
-          <h2 className="text-sm font-semibold text-slate-900">Next Step</h2>
+          <h2 className="text-sm font-semibold text-slate-900">下一步操作</h2>
           <div
             className={`mt-2 rounded-lg border px-3 py-3 text-sm ${
               nextAction.tone === "emerald"
@@ -1392,9 +1392,9 @@ export default function StudentCartPage() {
         <section className={`campus-card p-4 md:p-5 ${governanceError ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-white"}`}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-slate-900">Governance Status</h2>
+              <h2 className="text-base font-semibold text-slate-900">学籍管控状态</h2>
               <p className="mt-1 text-sm text-slate-600">
-                Hold and overload-request data must load successfully before this page can describe your academic restrictions accurately.
+                冻结记录和超学分申请数据加载成功后，此页面才能准确显示您的学籍限制。
               </p>
             </div>
             <button
@@ -1403,24 +1403,24 @@ export default function StudentCartPage() {
               disabled={governanceLoading}
               className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {governanceLoading ? "Loading…" : "Retry"}
+              {governanceLoading ? "加载中…" : "重试"}
             </button>
           </div>
-          {holdsError ? <p className="mt-3 text-sm text-amber-800">Holds unavailable: {holdsError}</p> : null}
-          {requestsError ? <p className="mt-1 text-sm text-amber-800">Requests unavailable: {requestsError}</p> : null}
+          {holdsError ? <p className="mt-3 text-sm text-amber-800">冻结记录不可用：{holdsError}</p> : null}
+          {requestsError ? <p className="mt-1 text-sm text-amber-800">申请记录不可用：{requestsError}</p> : null}
         </section>
       ) : null}
       {activeHolds.length > 0 ? (
         <section className="campus-card border-red-200 bg-red-50 p-4 md:p-5">
-          <h2 className="text-base font-semibold text-red-900">Active Registration Holds</h2>
-          <p className="mt-1 text-sm text-red-800">Self-service registration is blocked until these holds are resolved.</p>
+          <h2 className="text-base font-semibold text-red-900">注册冻结记录</h2>
+          <p className="mt-1 text-sm text-red-800">以下冻结解除前，自助注册功能将被禁止。</p>
           <div className="mt-3 space-y-2">
             {activeHolds.map((hold) => (
               <div key={hold.id} className="rounded-xl border border-red-200 bg-white p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="campus-chip border-red-200 bg-red-50 text-red-700 text-xs">{hold.type}</span>
                   {hold.expiresAt ? (
-                    <span className="text-xs text-slate-500">Expires {formatDateTime(hold.expiresAt)}</span>
+                    <span className="text-xs text-slate-500">到期 {formatDateTime(hold.expiresAt)}</span>
                   ) : null}
                 </div>
                 <p className="mt-2 text-sm font-medium text-slate-900">{hold.reason}</p>
@@ -1434,24 +1434,24 @@ export default function StudentCartPage() {
         <section className="campus-card p-4 md:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-slate-900">Credit Overload Request</h2>
+              <h2 className="text-base font-semibold text-slate-900">超学分申请</h2>
               <p className="mt-1 text-sm text-slate-600">
-                Current cart: {cartMetrics.totalCredits} credits
-                {cartMetrics.maxCredits !== null ? ` · standard limit ${cartMetrics.maxCredits}` : ""}.
+                当前购物车：{cartMetrics.totalCredits} 学分
+                {cartMetrics.maxCredits !== null ? ` · 标准上限 ${cartMetrics.maxCredits}` : ""}。
               </p>
             </div>
             {pendingOverloadRequest ? (
               <span className={`campus-chip ${getRequestWorkflowTone(pendingOverloadRequest)}`}>{getRequestWorkflowLabel(pendingOverloadRequest)}</span>
             ) : approvedOverloadRequest ? (
               <span className="campus-chip border-emerald-200 bg-emerald-50 text-emerald-700">
-                Approved up to {approvedOverloadRequest.requestedCredits ?? "—"} credits
+                已批准至 {approvedOverloadRequest.requestedCredits ?? "—"} 学分
               </span>
             ) : null}
           </div>
           {pendingOverloadRequest || approvedOverloadRequest ? (
             <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
               <p>
-                Submitted {formatDateTime((pendingOverloadRequest ?? approvedOverloadRequest)!.submittedAt)}
+                提交于 {formatDateTime((pendingOverloadRequest ?? approvedOverloadRequest)!.submittedAt)}
               </p>
               <p className="mt-1">{(pendingOverloadRequest ?? approvedOverloadRequest)!.reason}</p>
               {getWorkflowProgressNote((pendingOverloadRequest ?? approvedOverloadRequest)!) ? (
@@ -1461,7 +1461,7 @@ export default function StudentCartPage() {
               ) : null}
               {(pendingOverloadRequest ?? approvedOverloadRequest)!.decisionNote ? (
                 <p className="mt-2 text-xs text-slate-500">
-                  Decision note: {(pendingOverloadRequest ?? approvedOverloadRequest)!.decisionNote}
+                  审批备注：{(pendingOverloadRequest ?? approvedOverloadRequest)!.decisionNote}
                 </p>
               ) : null}
             </div>
@@ -1470,13 +1470,13 @@ export default function StudentCartPage() {
             <div className="mt-4 space-y-3">
               <label className="block">
                 <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Why do you need an overload?
+                  申请超学分的原因
                 </span>
                 <textarea
                   className="campus-input min-h-28"
                   value={overloadReason}
                   onChange={(event) => setOverloadReason(event.target.value)}
-                  placeholder="Explain the academic reason for exceeding the standard credit limit."
+                  placeholder="请填写超出标准学分上限的学术原因"
                 />
               </label>
               <button
@@ -1485,7 +1485,7 @@ export default function StudentCartPage() {
                 disabled={submittingOverloadRequest || overloadReason.trim().length < 8}
                 className="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {submittingOverloadRequest ? "Submitting…" : `Request approval for ${cartMetrics.totalCredits} credits`}
+                {submittingOverloadRequest ? "提交中…" : `申请 ${cartMetrics.totalCredits} 学分超载豁免`}
               </button>
             </div>
           ) : null}
@@ -1495,26 +1495,26 @@ export default function StudentCartPage() {
         <section className="campus-card p-4 md:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-slate-900">Prerequisite Override Requests</h2>
+              <h2 className="text-base font-semibold text-slate-900">先修课豁免申请</h2>
               <p className="mt-1 text-sm text-slate-600">
-                Section-specific prerequisite override requests move from faculty review to registrar finalization before the override takes effect.
+                先修课豁免申请需经教师审核，再由注册办公室审批后方可生效。
               </p>
             </div>
-            <span className="campus-chip text-xs">{prereqOverrideRequests.length} request(s)</span>
+            <span className="campus-chip text-xs">共 {prereqOverrideRequests.length} 条</span>
           </div>
           <div className="mt-3 space-y-2">
             {prereqOverrideRequests.map((request) => (
               <div key={request.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold text-slate-900">
-                    {request.section?.course.code ?? "Course"} §{request.section?.sectionCode ?? "—"}
+                    {request.section?.course.code ?? "课程"} §{request.section?.sectionCode ?? "—"}
                   </span>
                   <span className={`campus-chip text-xs ${getRequestWorkflowTone(request)}`}>{getRequestWorkflowLabel(request)}</span>
                 </div>
                 <p className="mt-1">{request.reason}</p>
                 <p className="mt-2 text-xs text-slate-500">
-                  Submitted {formatDateTime(request.submittedAt)}
-                  {request.owner?.facultyProfile?.displayName ? ` · Reviewer ${request.owner.facultyProfile.displayName}` : ""}
+                  提交于 {formatDateTime(request.submittedAt)}
+                  {request.owner?.facultyProfile?.displayName ? ` · 审核人 ${request.owner.facultyProfile.displayName}` : ""}
                 </p>
                 {getWorkflowProgressNote(request) ? <p className="mt-2 text-xs text-slate-500">{getWorkflowProgressNote(request)}</p> : null}
                 {request.decisionNote ? <p className="mt-2 text-xs text-slate-500">Decision note: {request.decisionNote}</p> : null}
@@ -1526,7 +1526,7 @@ export default function StudentCartPage() {
       {terms.length === 0 ? (
         <Alert
           type="info"
-          message="No active term is available yet. Registration cart is disabled until a term is published."
+          message="暂无活跃学期，学期发布后选课购物车将自动启用。"
         />
       ) : null}
       {!registrationWindow.isOpen && registrationWindow.message ? <Alert type="info" message={registrationWindow.message} /> : null}
@@ -1561,7 +1561,7 @@ export default function StudentCartPage() {
       ) : null}
       {reasonCount.length > 0 ? (
         <section className="rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm">
-          <h2 className="text-sm font-semibold text-red-900">Issue Breakdown</h2>
+          <h2 className="text-sm font-semibold text-red-900">问题分类统计</h2>
           <div className="mt-2 flex flex-wrap gap-2">
             {reasonCount.map(([reason, count]) => (
               <span
@@ -1576,7 +1576,7 @@ export default function StudentCartPage() {
         </section>
       ) : null}
       {precheckRan && !precheckError && precheckIssues.length === 0 && precheckPreview.length > 0 ? (
-        <Alert type="success" message="Precheck passed. You can submit safely with the statuses below." />
+        <Alert type="success" message="预检通过，可根据下方状态安全提交。" />
       ) : null}
       {!loading && items.length === 0 ? (
         <section className="campus-card">
@@ -1609,7 +1609,7 @@ export default function StudentCartPage() {
                   </p>
                   <p className="text-xs text-slate-500">{enrollment.section.course.title}</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {enrollment.section.instructorName} · {enrollment.section.meetingTimes.map((meeting) => `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][meeting.weekday]} ${fmt(Math.floor(meeting.startMinutes / 60) * 60).slice(0, 5)}-${fmt(Math.floor(meeting.endMinutes / 60) * 60).slice(0, 5)}`).join(" / ")}
+                    {enrollment.section.instructorName} · {enrollment.section.meetingTimes.map((meeting) => `${["周日", "周一", "周二", "周三", "周四", "周五", "周六"][meeting.weekday]} ${fmt(Math.floor(meeting.startMinutes / 60) * 60).slice(0, 5)}-${fmt(Math.floor(meeting.endMinutes / 60) * 60).slice(0, 5)}`).join(" / ")}
                   </p>
                 </div>
                 <button
@@ -1687,7 +1687,7 @@ export default function StudentCartPage() {
                           : "border-slate-200 bg-slate-50 text-slate-700"
                       }`}
                     >
-                      {item.section.requireApproval ? "Approval required" : "No approval needed"}
+                      {item.section.requireApproval ? "需审批" : "无需审批"}
                     </span>
                   </div>
                   {rowIssues.length > 0 ? (
@@ -1705,12 +1705,12 @@ export default function StudentCartPage() {
                   ) : null}
                   {prereqIssue ? (
                     <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Prerequisite Override</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">先修课豁免</p>
                       <p className="mt-1 text-xs text-blue-900">{prereqIssue.message}</p>
                       {prereqRequest && prereqRequestBlocksNewSubmit ? (
                         <div className="mt-2 space-y-1 text-xs text-blue-700">
                           <p>
-                            Current request status: <span className="font-semibold">{getRequestWorkflowLabel(prereqRequest)}</span>
+                            当前申请状态：<span className="font-semibold">{getRequestWorkflowLabel(prereqRequest)}</span>
                           </p>
                           {getWorkflowProgressNote(prereqRequest) ? <p>{getWorkflowProgressNote(prereqRequest)}</p> : null}
                           {prereqRequest.decisionNote ? <p>{prereqRequest.decisionNote}</p> : null}
@@ -1721,7 +1721,7 @@ export default function StudentCartPage() {
                             className="campus-input min-h-24"
                             value={prereqOverrideReason}
                             onChange={(event) => setPrereqOverrideReason(event.target.value)}
-                            placeholder="Explain why you need this prerequisite override."
+                            placeholder="请说明申请先修课豁免的原因"
                           />
                           <div className="flex gap-2">
                             <button
@@ -1730,7 +1730,7 @@ export default function StudentCartPage() {
                               disabled={submittingPrereqOverride || prereqOverrideReason.trim().length < 8}
                               className="inline-flex h-9 items-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              {submittingPrereqOverride ? "Submitting…" : "Submit override request"}
+                              {submittingPrereqOverride ? "提交中…" : "提交豁免申请"}
                             </button>
                             <button
                               type="button"
@@ -1740,7 +1740,7 @@ export default function StudentCartPage() {
                               }}
                               className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
                             >
-                              Cancel
+                              取消
                             </button>
                           </div>
                         </div>
@@ -1753,7 +1753,7 @@ export default function StudentCartPage() {
                           }}
                           className="mt-3 inline-flex h-9 items-center rounded-lg border border-blue-200 bg-white px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
                         >
-                          Request prerequisite override
+                          申请先修课豁免
                         </button>
                       )}
                     </div>
@@ -1770,7 +1770,7 @@ export default function StudentCartPage() {
                         Removing…
                       </>
                     ) : (
-                      "Remove"
+                      "移除"
                     )}
                   </button>
                 </article>
@@ -1863,7 +1863,7 @@ export default function StudentCartPage() {
                               : "border-slate-200 bg-slate-50 text-slate-700"
                           }`}
                         >
-                          {item.section.requireApproval ? "Required" : "Not required"}
+                          {item.section.requireApproval ? "需审批" : "无需"}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -1879,7 +1879,7 @@ export default function StudentCartPage() {
                               Removing…
                             </>
                           ) : (
-                            "Remove"
+                            "移除"
                           )}
                         </button>
                       </td>
@@ -1890,7 +1890,7 @@ export default function StudentCartPage() {
                           <div className="rounded-xl border border-blue-200 bg-white p-3">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                               <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Prerequisite Override</p>
+                                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">先修课豁免</p>
                                 <p className="mt-1 text-sm text-slate-800">{prereqIssue.message}</p>
                               </div>
                               {prereqRequest ? (
@@ -1901,8 +1901,8 @@ export default function StudentCartPage() {
                             </div>
                             {prereqRequest && prereqRequestBlocksNewSubmit ? (
                               <div className="mt-2 text-xs text-slate-500">
-                                Submitted {formatDateTime(prereqRequest.submittedAt)}
-                                {prereqRequest.owner?.facultyProfile?.displayName ? ` · Reviewer ${prereqRequest.owner.facultyProfile.displayName}` : ""}
+                                提交于 {formatDateTime(prereqRequest.submittedAt)}
+                                {prereqRequest.owner?.facultyProfile?.displayName ? ` · 审核人 ${prereqRequest.owner.facultyProfile.displayName}` : ""}
                                 {getWorkflowProgressNote(prereqRequest)
                                   ? ` · ${getWorkflowProgressNote(prereqRequest)}`
                                   : prereqRequest.decisionNote
@@ -1915,7 +1915,7 @@ export default function StudentCartPage() {
                                   className="campus-input min-h-24"
                                   value={prereqOverrideReason}
                                   onChange={(event) => setPrereqOverrideReason(event.target.value)}
-                                  placeholder="Explain why you need this prerequisite override."
+                                  placeholder="请说明申请先修课豁免的原因"
                                 />
                                 <div className="flex gap-2">
                                   <button
@@ -1924,7 +1924,7 @@ export default function StudentCartPage() {
                                     disabled={submittingPrereqOverride || prereqOverrideReason.trim().length < 8}
                                     className="inline-flex h-9 items-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                                   >
-                                    {submittingPrereqOverride ? "Submitting…" : "Submit override request"}
+                                    {submittingPrereqOverride ? "提交中…" : "提交豁免申请"}
                                   </button>
                                   <button
                                     type="button"
@@ -1934,7 +1934,7 @@ export default function StudentCartPage() {
                                     }}
                                     className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
                                   >
-                                    Cancel
+                                    取消
                                   </button>
                                 </div>
                               </div>
@@ -1947,7 +1947,7 @@ export default function StudentCartPage() {
                                 }}
                                 className="mt-3 inline-flex h-9 items-center rounded-lg border border-blue-200 bg-white px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
                               >
-                                Request prerequisite override
+                                申请先修课豁免
                               </button>
                             )}
                           </div>
@@ -1964,8 +1964,8 @@ export default function StudentCartPage() {
 
       {precheckRan && groupedPrecheckIssues.length > 0 ? (
         <section id="precheck-issues" className="campus-card border-amber-200 bg-amber-50 p-4 md:p-5">
-          <h2 className="text-base font-semibold text-amber-900">Precheck Issues</h2>
-          <p className="mt-1 text-sm text-amber-800">Submit is likely to fail until these are resolved.</p>
+          <h2 className="text-base font-semibold text-amber-900">预检问题</h2>
+          <p className="mt-1 text-sm text-amber-800">解决以下问题前，提交可能会失败。</p>
           <div className="mt-3 space-y-3">
             {groupedPrecheckIssues.map((group) => (
               <div key={group.key} className={`rounded-xl border border-amber-200 border-l-4 bg-white p-3 ${group.issues[0] ? issueSeverityStyles(group.issues[0].reasonCode) : ""}`}>
@@ -1981,7 +1981,7 @@ export default function StudentCartPage() {
                         : undefined
                     }
                   >
-                    Jump to cart row
+                    跳转到该行
                   </a>
                 ) : null}
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800">
@@ -2003,10 +2003,10 @@ export default function StudentCartPage() {
       {precheckRan && groupedPreview.length > 0 ? (
         <section className="campus-card p-4 md:p-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-slate-900">Precheck Status Preview</h2>
-            <span className="text-xs text-slate-500">{precheckPreview.length} section(s)</span>
+            <h2 className="text-base font-semibold text-slate-900">预检状态预览</h2>
+            <span className="text-xs text-slate-500">{precheckPreview.length} 个教学班</span>
           </div>
-          <p className="mt-1 text-xs text-slate-500">Predicted outcome if you submit now.</p>
+          <p className="mt-1 text-xs text-slate-500">当前提交后的预计结果。</p>
           <div className="mt-3 space-y-2">
             {groupedPreview.map((group) => (
               <div key={group.status} className={`rounded-xl border p-3 ${statusBadgeClass(group.status).replace("text-", "border-").split(" ")[0]} bg-white`}>
@@ -2014,7 +2014,7 @@ export default function StudentCartPage() {
                   <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadgeClass(group.status)}`}>
                     {enrollmentStatusLabel(group.status)}
                   </span>
-                  <span className="text-xs text-slate-500">{group.items.length} section(s)</span>
+                  <span className="text-xs text-slate-500">{group.items.length} 个教学班</span>
                 </div>
                 <div className="mt-2 grid gap-1">
                   {group.items.map((item) => (
@@ -2057,11 +2057,11 @@ export default function StudentCartPage() {
                 打印
               </button>
               <Link
-                href={termId ? `/student/receipt?termId=${termId}` : "/student/receipt"}
+                href={termId ? `/student/schedule?termId=${termId}` : "/student/schedule"}
                 className="inline-flex h-9 items-center gap-2 rounded-lg border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-700 no-underline transition hover:bg-emerald-50"
               >
                 <Share2 className="size-4" />
-                选课确认单
+                查看课表
               </Link>
             </div>
           </div>
@@ -2078,7 +2078,7 @@ export default function StudentCartPage() {
                   <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadgeClass(group.status)}`}>
                     {enrollmentStatusLabel(group.status)}
                   </span>
-                  <span className="text-xs text-slate-500">{group.items.length} section(s)</span>
+                  <span className="text-xs text-slate-500">{group.items.length} 个教学班</span>
                 </div>
                 <div className="mt-2 grid gap-1">
                   {group.items.map((item) => (
@@ -2109,8 +2109,8 @@ export default function StudentCartPage() {
 
       {groupedIssues.length > 0 ? (
         <section className="campus-card border-red-200 bg-red-50 p-4 md:p-5">
-          <h2 className="text-base font-semibold text-red-800">Submission Failures</h2>
-          <p className="mt-1 text-sm text-red-700">No enrollment was created. Please fix the following issues and resubmit.</p>
+          <h2 className="text-base font-semibold text-red-800">提交失败详情</h2>
+          <p className="mt-1 text-sm text-red-700">未能完成注册，请修正以下问题后重新提交。</p>
           <div className="mt-3 space-y-3">
             {groupedIssues.map((group) => (
               <div key={group.key} className="rounded-xl border border-red-200 bg-white p-3">
@@ -2126,7 +2126,7 @@ export default function StudentCartPage() {
                         : undefined
                     }
                   >
-                    Jump to cart row
+                    跳转到该行
                   </a>
                 ) : null}
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-red-700">
@@ -2189,7 +2189,7 @@ export default function StudentCartPage() {
                         <p className="text-sm font-semibold text-slate-900">§{section.sectionCode}</p>
                         <p className="text-xs text-slate-500">{section.instructorName}</p>
                         <p className="text-xs text-slate-500">
-                          {section.meetingTimes.map((meeting) => `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][meeting.weekday]} ${fmt(meeting.startMinutes)}-${fmt(meeting.endMinutes)}`).join(" / ")}
+                          {section.meetingTimes.map((meeting) => `${["周日", "周一", "周二", "周三", "周四", "周五", "周六"][meeting.weekday]} ${fmt(meeting.startMinutes)}-${fmt(meeting.endMinutes)}`).join(" / ")}
                         </p>
                         <p className="text-xs text-slate-400">
                           {section.capacity === 0 ? "剩余名额：不限" : `剩余名额：${Math.max(0, remaining)}`}

@@ -3,9 +3,6 @@ import Link from "next/link";
 import { GRADE_POINTS } from "@sis/shared/constants";
 import { serverApi } from "@/lib/server-api";
 import CertificateButton from "./CertificateButton";
-import GpaCalculator from "./GpaCalculator";
-import GpaPeerWidget from "./GpaPeerWidget";
-import DropImpactCalc from "./DropImpactCalc";
 import GpaTrendChart from "./GpaTrendChart";
 import StarRating from "./StarRating";
 import TranscriptExportButton from "./TranscriptExportButton";
@@ -65,10 +62,10 @@ function gpaTone(gpa: number): string {
 }
 
 function gpaTier(gpa: number): { label: string; cls: string } {
-  if (gpa >= 3.7) return { label: "Dean's List", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" };
-  if (gpa >= 3.0) return { label: "Good Standing", cls: "border-blue-200 bg-blue-50 text-blue-700" };
-  if (gpa >= 2.0) return { label: "Warning", cls: "border-amber-200 bg-amber-50 text-amber-700" };
-  return { label: "Academic Probation", cls: "border-red-200 bg-red-50 text-red-700" };
+  if (gpa >= 3.7) return { label: "院长名单", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" };
+  if (gpa >= 3.0) return { label: "学业正常", cls: "border-blue-200 bg-blue-50 text-blue-700" };
+  if (gpa >= 2.0) return { label: "学业警告", cls: "border-amber-200 bg-amber-50 text-amber-700" };
+  return { label: "学业察看", cls: "border-red-200 bg-red-50 text-red-700" };
 }
 
 interface Standing {
@@ -81,15 +78,15 @@ interface Standing {
 function getStanding(gpa: number | null): Standing {
   if (gpa === null) {
     return {
-      label: "No GPA",
-      description: "No grades recorded yet.",
+      label: "暂无GPA",
+      description: "暂无成绩记录",
       cls: "border-slate-200 bg-slate-50 text-slate-700",
       icon: "📋"
     };
   }
   if (gpa >= 3.7) {
     return {
-      label: "Dean's List",
+      label: "院长名单",
       description: `GPA ${gpa.toFixed(2)} — Outstanding academic performance.`,
       cls: "border-emerald-200 bg-emerald-50 text-emerald-800",
       icon: "🏆"
@@ -97,7 +94,7 @@ function getStanding(gpa: number | null): Standing {
   }
   if (gpa >= 3.0) {
     return {
-      label: "Good Standing",
+      label: "学业正常",
       description: `GPA ${gpa.toFixed(2)} — Satisfactory academic progress.`,
       cls: "border-blue-200 bg-blue-50 text-blue-800",
       icon: "✅"
@@ -105,15 +102,15 @@ function getStanding(gpa: number | null): Standing {
   }
   if (gpa >= 2.0) {
     return {
-      label: "Warning",
+      label: "学业警告",
       description: `GPA ${gpa.toFixed(2)} — Minimum progression met, but improvement is needed.`,
       cls: "border-amber-200 bg-amber-50 text-amber-800",
       icon: "⚠️"
     };
   }
   return {
-    label: "Academic Probation",
-    description: `GPA ${gpa.toFixed(2)} — Below minimum GPA requirement (2.0). Please contact registrar support for next steps.`,
+    label: "学业察看",
+    description: `GPA ${gpa.toFixed(2)} — GPA 低于最低要求（2.0），请联系注册处获取后续指导。`,
     cls: "border-red-200 bg-red-50 text-red-800",
     icon: "🚨"
   };
@@ -214,24 +211,12 @@ export default async function GradesPage({
       .then((data) => ({ data, error: "" }))
       .catch((error) => ({
         data: [] as TranscriptTerm[],
-        error: error instanceof Error ? error.message : "Failed to load transcript"
+        error: error instanceof Error ? error.message : "成绩单加载失败"
       })),
     serverApi<Term[]>("/academics/terms").catch(() => [] as Term[]),
     getMeServer().catch(() => null)
   ]);
 
-  // Determine active term for drop impact calculator
-  const _activeTerm = termsData.find((t) => {
-    const now = Date.now();
-    return now >= new Date(t.startDate).getTime() && now <= new Date(t.endDate).getTime();
-  }) ?? null;
-  type ActiveEnrollment = { id: string; status: string; section: { credits: number; course: { code: string } } };
-  const activeEnrollments: ActiveEnrollment[] = _activeTerm
-    ? await serverApi<ActiveEnrollment[]>(`/registration/enrollments?termId=${_activeTerm.id}`).catch(() => [])
-    : [];
-  const currentEnrollments = activeEnrollments
-    .filter((e) => e.status === "ENROLLED")
-    .map((e) => ({ code: e.section.course.code, credits: e.section.credits }));
   const transcriptTerms = transcriptResult.data;
 
   const byTerm = new Map<string, GradeItem[]>();
@@ -265,11 +250,29 @@ export default async function GradesPage({
 
   return (
     <div className="campus-page">
+      {/* Tab nav */}
+      <div className="mb-6 flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+        <span className="flex-1 rounded-lg bg-white px-4 py-2 text-center text-sm font-semibold text-slate-900 shadow-sm">
+          成绩
+        </span>
+        <Link
+          href="/student/course-history"
+          className="flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-slate-500 no-underline transition hover:bg-white hover:text-slate-900"
+        >
+          修课历史
+        </Link>
+        <Link
+          href="/student/transcript"
+          className="flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-slate-500 no-underline transition hover:bg-white hover:text-slate-900"
+        >
+          成绩单
+        </Link>
+      </div>
       <section className="campus-hero">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
-            <p className="campus-eyebrow">Academic Record</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">Grades</h1>
+            <p className="campus-eyebrow">学业记录</p>
+            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">我的成绩</h1>
             <p className="text-sm text-slate-600 md:text-base">
               Final grades and GPA trends across completed terms.
             </p>
@@ -285,7 +288,7 @@ export default async function GradesPage({
           <div className="flex flex-wrap gap-2">
             <TranscriptExportButton grades={grades} />
             <CertificateButton
-              studentName={me?.profile?.legalName ?? me?.email ?? "Student"}
+              studentName={me?.profile?.legalName ?? me?.email ?? "学生"}
               completedCourses={grades.map((item) => ({
                 code: item.section.course.code,
                 title: item.section.course.title,
@@ -342,7 +345,7 @@ export default async function GradesPage({
       {overallGradeTotal > 0 ? (
         <section className="campus-card overflow-hidden">
           <div className="border-b border-slate-100 px-4 py-3">
-            <p className="text-sm font-semibold text-slate-700">Grade Distribution</p>
+            <p className="text-sm font-semibold text-slate-700">成绩分布</p>
           </div>
           <div className="space-y-3 px-4 py-4">
             {(["A", "B", "C", "D", "F"] as const).map((grade) => {
@@ -375,15 +378,15 @@ export default async function GradesPage({
       {transcriptTerms.length > 1 ? (
       <section className="campus-card overflow-hidden">
         <div className="border-b border-slate-100 px-4 py-3">
-          <p className="text-sm font-semibold text-slate-700">Semester vs Cumulative GPA</p>
+          <p className="text-sm font-semibold text-slate-700">学期 GPA vs 累计 GPA</p>
         </div>
         <table className="w-full text-sm">
           <thead className="bg-slate-50">
             <tr>
-              <th scope="col" className="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500">Term</th>
-              <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase text-slate-500">Semester GPA</th>
-              <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase text-slate-500">Cumulative GPA</th>
-              <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase text-slate-500">Credits</th>
+              <th scope="col" className="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500">学期</th>
+              <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase text-slate-500">学期 GPA</th>
+              <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase text-slate-500">累计 GPA</th>
+              <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase text-slate-500">学分</th>
             </tr>
           </thead>
           <tbody>
@@ -433,21 +436,21 @@ export default async function GradesPage({
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-slate-200">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Completed Credits</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">已修学分</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{completedCredits}</p>
         </div>
         <div className="campus-kpi border-slate-200">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Graded Classes</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">已评分课程</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{grades.length}</p>
         </div>
         <div className="campus-kpi border-slate-200">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Terms With Grades</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">有成绩学期</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{gradeTerms.length}</p>
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Cumulative GPA</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">累计 GPA</p>
           <p className={`mt-1 text-2xl font-semibold ${cumulative ? gpaTone(cumulative.gpa) : "text-slate-700"}`}>
-            {cumulative ? cumulative.gpa.toFixed(2) : "N/A"}
+            {cumulative ? cumulative.gpa.toFixed(2) : "—"}
           </p>
           {cumulative ? (
             <span className={`mt-1.5 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${gpaTier(cumulative.gpa).cls}`}>
@@ -461,7 +464,7 @@ export default async function GradesPage({
         <section className="campus-card px-6 py-14 text-center">
           <div className="flex flex-col items-center gap-3">
             <span className="text-4xl">🎓</span>
-            <p className="text-sm font-medium text-slate-700">No grades on record yet</p>
+            <p className="text-sm font-medium text-slate-700">暂无成绩记录</p>
             <p className="text-xs text-slate-500">Grades will appear here once instructors submit them for your completed courses.</p>
             <Link
               href="/student/schedule"
@@ -486,9 +489,9 @@ export default async function GradesPage({
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-5 py-3">
               <h2 className="font-heading text-2xl font-semibold text-slate-900">{termName}</h2>
               <div className="flex flex-wrap gap-2">
-                <span className="campus-chip border-slate-300 bg-white text-slate-700">{termCredits} credits</span>
+                <span className="campus-chip border-slate-300 bg-white text-slate-700">{termCredits} 学分</span>
                 <span className={`campus-chip border-slate-300 bg-white ${termGpa ? gpaTone(termGpa.gpa) : "text-slate-600"}`}>
-                  {termGpa ? `Term GPA ${termGpa.gpa.toFixed(2)}` : "Term GPA N/A"}
+                  {termGpa ? `本学期GPA ${termGpa.gpa.toFixed(2)}` : "本学期GPA —"}
                 </span>
               </div>
             </div>
@@ -534,13 +537,13 @@ export default async function GradesPage({
               <table className="w-full border-collapse text-sm">
                 <thead className="sticky top-0 z-10 bg-slate-50">
                   <tr className="border-b border-slate-200 bg-slate-50 text-left">
-                    <SortTh col="code"         label="Course"       sortBy={sortBy} sortDir={sortDir} />
-                    <SortTh col="title"        label="Title"        sortBy={sortBy} sortDir={sortDir} />
-                    <SortTh col="credits"      label="Credits"      sortBy={sortBy} sortDir={sortDir} />
-                    <SortTh col="grade"        label="Grade"        sortBy={sortBy} sortDir={sortDir} />
-                    <SortTh col="points"       label="Points"       sortBy={sortBy} sortDir={sortDir} />
-                    <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Rating</th>
-                    <SortTh col="contribution" label="Contribution" sortBy={sortBy} sortDir={sortDir} right />
+                    <SortTh col="code"         label="课程"   sortBy={sortBy} sortDir={sortDir} />
+                    <SortTh col="title"        label="名称"   sortBy={sortBy} sortDir={sortDir} />
+                    <SortTh col="credits"      label="学分"   sortBy={sortBy} sortDir={sortDir} />
+                    <SortTh col="grade"        label="成绩"   sortBy={sortBy} sortDir={sortDir} />
+                    <SortTh col="points"       label="绩点"   sortBy={sortBy} sortDir={sortDir} />
+                    <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">评价</th>
+                    <SortTh col="contribution" label="GPA贡献" sortBy={sortBy} sortDir={sortDir} right />
                   </tr>
                 </thead>
                 <tbody>
@@ -589,13 +592,6 @@ export default async function GradesPage({
           </section>
         );
       })}
-      <DropImpactCalc
-        currentGpa={cumulative?.gpa ?? null}
-        completedCredits={completedCredits}
-        currentEnrollments={currentEnrollments}
-      />
-      <GpaCalculator />
-      <GpaPeerWidget />
     </div>
   );
 }

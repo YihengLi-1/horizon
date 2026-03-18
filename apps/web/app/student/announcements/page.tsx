@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Megaphone } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 type Announcement = {
@@ -15,15 +16,26 @@ type Announcement = {
 
 const PAGE_SIZE = 10;
 
+const AUDIENCE_LABEL: Record<string, string> = {
+  STUDENT: "学生",
+  ADMIN: "管理员",
+  ALL: "全体",
+  student: "学生",
+  admin: "管理员",
+  all: "全体",
+};
+
 function audienceChip(audience: string): string {
-  if (audience === "admin") return "border-violet-200 bg-violet-50 text-violet-700";
-  if (audience === "student") return "border-blue-200 bg-blue-50 text-blue-700";
+  const key = audience.toLowerCase();
+  if (key === "admin") return "border-violet-200 bg-violet-50 text-violet-700";
+  if (key === "student") return "border-blue-200 bg-blue-50 text-blue-700";
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
 export default function StudentAnnouncementsPage() {
   const [items, setItems] = useState<Announcement[]>([]);
   const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -39,7 +51,10 @@ export default function StudentAnnouncementsPage() {
         );
       })
       .catch((err) => {
-        if (alive) setError(err instanceof Error ? err.message : "Failed to load announcements");
+        if (alive) setError(err instanceof Error ? err.message : "公告加载失败");
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
       });
     return () => {
       alive = false;
@@ -52,55 +67,67 @@ export default function StudentAnnouncementsPage() {
     () => items.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
     [items, safePage]
   );
+  const pinnedCount = items.filter((i) => i.pinned).length;
 
   return (
-    <div className="campus-page space-y-6">
-      <div className="campus-hero">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Announcements</h1>
-        <p className="mt-1 text-sm text-slate-500">All active announcements for students</p>
-      </div>
+    <div className="campus-page">
+      <section className="campus-hero">
+        <p className="campus-eyebrow">校园动态</p>
+        <h1 className="campus-hero-title">系统公告</h1>
+        <p className="campus-hero-subtitle">
+          {loading ? "加载中…" : `共 ${items.length} 条公告${pinnedCount ? `，${pinnedCount} 条已置顶` : ""}`}
+        </p>
+      </section>
 
       {error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       ) : null}
 
-      {visible.length === 0 ? (
-        <div className="campus-card p-12 text-center text-slate-400">📢 No active announcements.</div>
+      {!loading && visible.length === 0 ? (
+        <div className="campus-card p-12 text-center">
+          <Megaphone className="mx-auto mb-3 size-10 text-slate-300" />
+          <p className="text-sm font-semibold text-slate-500">暂无公告</p>
+          <p className="mt-1 text-xs text-slate-400">管理员发布公告后将在此显示。</p>
+        </div>
       ) : (
-        <div className="space-y-3">
+        <section className="space-y-3">
           {visible.map((item) => (
-            <article key={item.id} className="campus-card p-4">
+            <article key={item.id} className="campus-card p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{item.title}</h2>
+                    <h2 className="text-base font-semibold text-slate-900">{item.title}</h2>
                     {item.pinned ? (
-                      <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                        ★ Pinned
-                      </span>
+                      <span className="campus-chip chip-amber text-[11px]">★ 置顶</span>
                     ) : null}
-                    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${audienceChip(item.audience)}`}>
-                      {item.audience}
+                    <span className={`campus-chip text-[11px] ${audienceChip(item.audience)}`}>
+                      {AUDIENCE_LABEL[item.audience] ?? item.audience}
                     </span>
                   </div>
-                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                    {item.body.length > 200 ? `${item.body.slice(0, 200)}…` : item.body}
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {item.body.length > 300 ? `${item.body.slice(0, 300)}…` : item.body}
                   </p>
                 </div>
-                <div className="text-right text-xs text-slate-400">
-                  {item.createdAt ? <p>{new Date(item.createdAt).toLocaleDateString()}</p> : null}
-                  {item.expiresAt ? <p>Expires {new Date(item.expiresAt).toLocaleDateString()}</p> : null}
+                <div className="shrink-0 text-right text-xs text-slate-400">
+                  {item.createdAt ? (
+                    <p>{new Date(item.createdAt).toLocaleDateString("zh-CN")}</p>
+                  ) : null}
+                  {item.expiresAt ? (
+                    <p className="mt-1 text-amber-600">
+                      过期：{new Date(item.expiresAt).toLocaleDateString("zh-CN")}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </article>
           ))}
-        </div>
+        </section>
       )}
 
       {items.length > PAGE_SIZE ? (
         <div className="flex items-center justify-between">
           <p className="text-sm text-slate-500">
-            Page {safePage} / {totalPages}
+            第 {safePage} / {totalPages} 页
           </p>
           <div className="flex gap-2">
             <button
@@ -109,7 +136,7 @@ export default function StudentAnnouncementsPage() {
               disabled={safePage === 1}
               className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
             >
-              Prev
+              上一页
             </button>
             <button
               type="button"
@@ -117,7 +144,7 @@ export default function StudentAnnouncementsPage() {
               disabled={safePage === totalPages}
               className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 disabled:opacity-50"
             >
-              Next
+              下一页
             </button>
           </div>
         </div>

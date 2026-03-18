@@ -65,7 +65,7 @@ function generateCombinations(courseOptions: Section[][]): Section[][] {
   return results;
 }
 
-const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 function fmt(minutes: number) {
   return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 }
@@ -184,7 +184,7 @@ export default function PlannerPage() {
   return (
     <div className="campus-page space-y-5">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Academic Planning</p>
+        <p className="campus-eyebrow">学业规划</p>
         <h1 className="font-heading text-3xl font-bold text-slate-900">选课规划器</h1>
         <p className="mt-1 text-sm text-slate-600">选择最多 5 门课，自动生成所有无时间冲突的选课方案</p>
       </section>
