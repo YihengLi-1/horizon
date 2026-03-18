@@ -630,7 +630,7 @@ export class AdminService {
     if (existingEmail) {
       throw new ConflictException({
         code: "USER_EXISTS",
-        message: "A user with this email already exists"
+        message: "该邮箱已被注册"
       });
     }
 
@@ -650,7 +650,7 @@ export class AdminService {
     if (facultyEmployee || advisorEmployee) {
       throw new ConflictException({
         code: "EMPLOYEE_ID_EXISTS",
-        message: "A staff account with this employee ID already exists"
+        message: "该工号已被使用"
       });
     }
   }
@@ -1785,7 +1785,7 @@ export class AdminService {
         if (enrollment.section.capacity > 0 && enrolledCount >= enrollment.section.capacity) {
           throw new ConflictException({
             code: "SECTION_FULL",
-            message: "Section is full; cannot approve overload request"
+            message: "教学班已满，无法批准超学分申请"
           });
         }
       }
@@ -2002,7 +2002,7 @@ export class AdminService {
     });
 
     if (!enrollment) {
-      throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "Enrollment not found" });
+      throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "注册记录不存在" });
     }
 
     if (enrollment.status === "DROPPED") {
@@ -2138,13 +2138,13 @@ export class AdminService {
       where: { id, deletedAt: null }
     });
     if (!enrollment) {
-      throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "Enrollment not found" });
+      throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "注册记录不存在" });
     }
 
     if (enrollment.status === "COMPLETED" && !this.isSuperAdmin(actorUserId)) {
       throw new ForbiddenException({
         code: "COMPLETED_ENROLLMENT_LOCKED",
-        message: "Completed enrollments are locked and cannot be modified"
+        message: "已完成的注册记录已锁定，不可修改"
       });
     }
 
@@ -2338,13 +2338,13 @@ export class AdminService {
       where: { id: input.enrollmentId, deletedAt: null }
     });
     if (!enrollment) {
-      throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "Enrollment not found" });
+      throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "注册记录不存在" });
     }
 
     if (enrollment.status === "COMPLETED" && !this.isSuperAdmin(actorUserId)) {
       throw new ForbiddenException({
         code: "COMPLETED_ENROLLMENT_LOCKED",
-        message: "Completed enrollments are locked and cannot be modified"
+        message: "已完成的注册记录已锁定，不可修改"
       });
     }
 
@@ -2403,7 +2403,7 @@ export class AdminService {
     });
 
     if (!enrollment) {
-      throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "Enrollment not found" });
+      throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "注册记录不存在" });
     }
 
     return this.updateGrade({ enrollmentId: enrollment.id, finalGrade: grade }, actorUserId);
@@ -2453,7 +2453,7 @@ export class AdminService {
   async updateInviteCode(id: string, input: Partial<CreateInviteCodeInput>, actorUserId: string) {
     const invite = await this.prisma.inviteCode.findUnique({ where: { id } });
     if (!invite) {
-      throw new NotFoundException({ code: "INVITE_NOT_FOUND", message: "Invite code not found" });
+      throw new NotFoundException({ code: "INVITE_NOT_FOUND", message: "邀请码不存在" });
     }
 
     const updated = await this.prisma.inviteCode.update({
@@ -2480,10 +2480,10 @@ export class AdminService {
   async deleteInviteCode(id: string, actorUserId: string) {
     const invite = await this.prisma.inviteCode.findUnique({ where: { id } });
     if (!invite) {
-      throw new NotFoundException({ code: "INVITE_NOT_FOUND", message: "Invite code not found" });
+      throw new NotFoundException({ code: "INVITE_NOT_FOUND", message: "邀请码不存在" });
     }
     if (invite.usedAt || invite.usedCount > 0) {
-      throw new ConflictException({ code: "INVITE_ALREADY_USED", message: "Invite code already used" });
+      throw new ConflictException({ code: "INVITE_ALREADY_USED", message: "邀请码已被使用" });
     }
 
     await this.prisma.inviteCode.delete({ where: { id } });
@@ -2562,7 +2562,7 @@ export class AdminService {
     });
 
     if (!user) {
-      throw new NotFoundException({ code: "USER_NOT_FOUND", message: "User not found" });
+      throw new NotFoundException({ code: "USER_NOT_FOUND", message: "用户不存在" });
     }
 
     return user;
@@ -3168,7 +3168,7 @@ export class AdminService {
 
     const rows = parseCsvRows(input.csv);
     if (rows.length < 2) {
-      throw new BadRequestException({ code: "CSV_INVALID", message: "CSV must include header and rows" });
+      throw new BadRequestException({ code: "CSV_INVALID", message: "CSV 文件必须包含表头和数据行" });
     }
 
     const [header, ...dataRows] = rows;
@@ -3195,7 +3195,7 @@ export class AdminService {
     if (issues.length > 0) {
       throw new BadRequestException({
         code: "CSV_ROW_INVALID",
-        message: "CSV header is missing required columns",
+        message: "CSV 表头缺少必填列",
         details: issues
       });
     }
@@ -3218,9 +3218,9 @@ export class AdminService {
       const rowIssueCountBefore = issues.length;
 
       if (!email) {
-        issues.push({ rowNumber, field: "email", message: "Email is required" });
+        issues.push({ rowNumber, field: "email", message: "邮箱为必填项" });
       } else if (!emailSchema.safeParse(email).success) {
-        issues.push({ rowNumber, field: "email", message: "Invalid email format" });
+        issues.push({ rowNumber, field: "email", message: "邮箱格式无效" });
       }
 
       if (!studentId) {
@@ -3270,7 +3270,7 @@ export class AdminService {
     if (issues.length > 0) {
       throw new BadRequestException({
         code: "CSV_ROW_INVALID",
-        message: "CSV contains invalid rows",
+        message: "CSV 包含无效行，请检查数据",
         details: issues
       });
     }
@@ -3295,7 +3295,7 @@ export class AdminService {
         issues.push({
           rowNumber: row.rowNumber,
           field: "email",
-          message: "Email already exists"
+          message: "邮箱已被注册"
         });
       }
 
@@ -3311,7 +3311,7 @@ export class AdminService {
     if (issues.length > 0) {
       throw new BadRequestException({
         code: "CSV_ROW_INVALID",
-        message: "CSV contains duplicate users",
+        message: "CSV 中存在重复用户",
         details: issues
       });
     }
@@ -3372,7 +3372,7 @@ export class AdminService {
             raceIssues.push({
               rowNumber: row.rowNumber,
               field: "email",
-              message: "Email already exists"
+              message: "邮箱已被注册"
             });
           }
 
@@ -3387,7 +3387,7 @@ export class AdminService {
 
         throw new BadRequestException({
           code: "CSV_ROW_INVALID",
-          message: "CSV contains duplicate users",
+          message: "CSV 中存在重复用户",
           details: raceIssues
         });
       }
@@ -3419,7 +3419,7 @@ export class AdminService {
 
     const rows = parseCsvRows(input.csv);
     if (rows.length < 2) {
-      throw new BadRequestException({ code: "CSV_INVALID", message: "CSV must include header and rows" });
+      throw new BadRequestException({ code: "CSV_INVALID", message: "CSV 文件必须包含表头和数据行" });
     }
 
     const [header, ...dataRows] = rows;
@@ -3446,7 +3446,7 @@ export class AdminService {
     if (issues.length > 0) {
       throw new BadRequestException({
         code: "CSV_ROW_INVALID",
-        message: "CSV header is missing required columns",
+        message: "CSV 表头缺少必填列",
         details: issues
       });
     }
@@ -3505,7 +3505,7 @@ export class AdminService {
     if (issues.length > 0) {
       throw new BadRequestException({
         code: "CSV_ROW_INVALID",
-        message: "CSV contains invalid rows",
+        message: "CSV 包含无效行，请检查数据",
         details: issues
       });
     }
@@ -3522,7 +3522,7 @@ export class AdminService {
         issues.push({
           rowNumber: row.rowNumber,
           field: "code",
-          message: "Course code already exists"
+          message: "课程代码已存在"
         });
       }
     }
@@ -3530,7 +3530,7 @@ export class AdminService {
     if (issues.length > 0) {
       throw new BadRequestException({
         code: "CSV_ROW_INVALID",
-        message: "CSV contains duplicate courses",
+        message: "CSV 中存在重复课程",
         details: issues
       });
     }
@@ -3570,12 +3570,12 @@ export class AdminService {
           .map((row) => ({
             rowNumber: row.rowNumber,
             field: "code",
-            message: "Course code already exists"
+            message: "课程代码已存在"
           }));
 
         throw new BadRequestException({
           code: "CSV_ROW_INVALID",
-          message: "CSV contains duplicate courses",
+          message: "CSV 中存在重复课程",
           details: raceIssues
         });
       }
@@ -3608,7 +3608,7 @@ export class AdminService {
 
     const rows = parseCsvRows(input.csv);
     if (rows.length < 2) {
-      throw new BadRequestException({ code: "CSV_INVALID", message: "CSV must include header and rows" });
+      throw new BadRequestException({ code: "CSV_INVALID", message: "CSV 文件必须包含表头和数据行" });
     }
 
     const [header, ...dataRows] = rows;
@@ -3650,7 +3650,7 @@ export class AdminService {
     if (issues.length > 0) {
       throw new BadRequestException({
         code: "CSV_ROW_INVALID",
-        message: "CSV header is missing required columns",
+        message: "CSV 表头缺少必填列",
         details: issues
       });
     }
@@ -3778,7 +3778,7 @@ export class AdminService {
     if (issues.length > 0) {
       throw new BadRequestException({
         code: "CSV_ROW_INVALID",
-        message: "CSV contains invalid rows",
+        message: "CSV 包含无效行，请检查数据",
         details: issues
       });
     }
@@ -3820,7 +3820,7 @@ export class AdminService {
     if (issues.length > 0) {
       throw new BadRequestException({
         code: "CSV_ROW_INVALID",
-        message: "CSV references missing terms/courses",
+        message: "CSV 中引用了不存在的学期或课程",
         details: issues
       });
     }
@@ -3876,7 +3876,7 @@ export class AdminService {
           if (!termId || !courseId) {
             throw new BadRequestException({
               code: "CSV_ROW_INVALID",
-              message: "CSV references missing terms/courses"
+              message: "CSV 中引用了不存在的学期或课程"
             });
           }
 
@@ -3907,7 +3907,7 @@ export class AdminService {
             {
               rowNumber: 0,
               field: "sectionCode",
-              message: "One or more sections already exist (race detected)"
+              message: "一个或多个教学班已存在（检测到并发冲突）"
             }
           ]
         });
@@ -7209,7 +7209,7 @@ export class AdminService {
     if (uniqueEnrollmentIds.length === 0) {
       throw new BadRequestException({
         code: "BULK_INPUT_INVALID",
-        message: "At least one enrollmentId is required"
+        message: "至少需要一个注册记录ID"
       });
     }
 

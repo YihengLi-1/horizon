@@ -579,7 +579,7 @@ export default function AdminSectionsPage() {
     try {
       setDeletingId(id);
       await apiFetch(`/admin/sections/${id}`, { method: "DELETE" });
-      setCreateSuccess(`Section "${code}" deleted.`);
+      setCreateSuccess(`教学班 "${code}" 已删除。`);
       if (editingId === id) setEditingId(null);
       await loadSections();
     } catch (err) {
@@ -684,7 +684,7 @@ export default function AdminSectionsPage() {
         ...prev,
         [section.id]: {
           type: "success",
-          text: `Exported ${records.length} roster row${records.length === 1 ? "" : "s"} for ${section.course.code} §${section.sectionCode}.`
+          text: `已导出 ${section.course.code} §${section.sectionCode} 名单，共 ${records.length} 行。`
         }
       }));
     } catch (error) {
@@ -723,7 +723,6 @@ export default function AdminSectionsPage() {
         }),
         headers: { "Content-Type": "application/json" }
       });
-      window.alert(`Sent to ${result.sent} student(s).`);
       setNotifyingSectionId(null);
       setNotifyForm({ subject: "", message: "" });
       setMessageBySection((prev) => ({
@@ -732,8 +731,8 @@ export default function AdminSectionsPage() {
           type: result.failed > 0 ? "error" : "success",
           text:
             result.failed > 0
-              ? `Notification sent to ${result.sent} student(s); ${result.failed} failed.`
-              : `Notification sent to ${result.sent} enrolled student(s).`
+              ? `通知已发送给 ${result.sent} 名学生，${result.failed} 人发送失败。`
+              : `通知已成功发送给 ${result.sent} 名已选课学生。`
         }
       }));
     } catch (error) {

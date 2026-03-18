@@ -87,7 +87,7 @@ export default function PinnedAnnouncements({ announcements }: { announcements: 
                   setDismissed((current) => ({ ...current, [announcement.id]: true }));
                 }}
                 className="rounded-md px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-                aria-label={`Dismiss ${announcement.title}`}
+                aria-label={`关闭：${announcement.title}`}
               >
                 ✕
               </button>

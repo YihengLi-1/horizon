@@ -49,7 +49,7 @@ export function buildWorkflowStepSeeds(templates: WorkflowStepTemplate[]) {
 export function assertAcademicRequestOwnership(params: RequestOwnershipParams) {
   const { actorUserId, actorRole, ownerUserId, requiredApproverRole } = params;
   if (requiredApproverRole !== actorRole || ownerUserId !== actorUserId) {
-    throw new ForbiddenException({ code: "REQUEST_FORBIDDEN", message: "You do not own this request" });
+    throw new ForbiddenException({ code: "REQUEST_FORBIDDEN", message: "您无权操作该申请" });
   }
 }
 
@@ -57,7 +57,7 @@ export function assertAcademicRequestOpen(currentStatus: AcademicRequestStatus) 
   if (currentStatus !== "SUBMITTED") {
     throw new BadRequestException({
       code: "REQUEST_ALREADY_DECIDED",
-      message: "Only submitted requests can be decided"
+      message: "仅待审批状态的申请可进行审批操作"
     });
   }
 }
@@ -69,7 +69,7 @@ export function getCurrentAcademicRequestStep(request: {
   if (!request.currentStepOrder) {
     throw new BadRequestException({
       code: "REQUEST_STEP_INVALID",
-      message: "Academic request has no active workflow step"
+      message: "该申请暂无活跃审批步骤"
     });
   }
 
@@ -77,21 +77,21 @@ export function getCurrentAcademicRequestStep(request: {
   if (!step) {
     throw new BadRequestException({
       code: "REQUEST_STEP_INVALID",
-      message: "Academic request workflow state is invalid"
+      message: "申请审批流程状态异常"
     });
   }
 
   if (step.status !== "PENDING") {
     throw new BadRequestException({
       code: "REQUEST_STEP_INVALID",
-      message: "Academic request current step is not pending"
+      message: "当前审批步骤不处于待审批状态"
     });
   }
 
   if (!step.ownerUserId) {
     throw new BadRequestException({
       code: "REQUEST_STEP_UNRESOLVED",
-      message: "Academic request current step has no resolved owner"
+      message: "当前审批步骤未分配审批人"
     });
   }
 

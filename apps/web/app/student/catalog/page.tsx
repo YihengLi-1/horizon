@@ -249,14 +249,14 @@ function RegistrationWindowBanner({
     return (
       <Alert
         type="warning"
-        message={`Registration window is closed (closed ${new Date(term.registrationCloseAt).toLocaleDateString()}). To make changes, contact registrar support.`}
+        message={`选课窗口已关闭（关闭于 ${new Date(term.registrationCloseAt).toLocaleDateString("zh-CN")}）。如需变更，请联系教务处。`}
       />
     );
   }
   return (
     <Alert
       type="success"
-      message={`Registration window is OPEN — closes ${new Date(term.registrationCloseAt).toLocaleDateString()} at ${new Date(term.registrationCloseAt).toLocaleTimeString()}.`}
+      message={`选课窗口开放中 — 截止时间：${new Date(term.registrationCloseAt).toLocaleDateString("zh-CN")} ${new Date(term.registrationCloseAt).toLocaleTimeString("zh-CN")}`}
     />
   );
 }
@@ -630,8 +630,8 @@ export default function StudentCatalogPage() {
 
   const activeFilterLabels = useMemo(() => {
     const labels: string[] = [];
-    if (debouncedSearch.trim()) labels.push(`Search: ${debouncedSearch.trim()}`);
-    if (filterModality !== "ALL") labels.push(`Modality: ${filterModality.replace("_", " ")}`);
+    if (debouncedSearch.trim()) labels.push(`搜索：${debouncedSearch.trim()}`);
+    if (filterModality !== "ALL") labels.push(`授课形式：${filterModality.replace("_", " ")}`);
     if (filterCredits !== "ALL") labels.push(`学分：${filterCredits}`);
     if (filterDept !== "ALL") labels.push(`院系：${filterDept}`);
     if (availableOnly) labels.push("有余位");
@@ -1477,13 +1477,13 @@ export default function StudentCatalogPage() {
                       ) : prereqBlocked ? (
                         <span
                           className="inline-flex h-10 items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-semibold text-red-700"
-                          title={`Missing prerequisite(s): ${missingPrereqs.join(", ")}`}
+                          title={`缺少先修课：${missingPrereqs.join("、")}`}
                         >
-                          Missing prereq
+                          缺少先修课
                         </span>
                       ) : !isRegistrationOpen ? (
                         <span className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-slate-200/70 px-4 text-sm font-semibold text-slate-500">
-                          Registration closed
+                          选课已关闭
                         </span>
                       ) : (
                         <button

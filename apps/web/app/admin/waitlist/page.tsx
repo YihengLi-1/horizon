@@ -89,7 +89,7 @@ export default function WaitlistPage() {
         ...prev,
         [sectionId]: {
           type: "success",
-          text: `Promoted ${response.promotedCount}. Remaining: ${response.remainingWaitlistCount}. Available seats: ${response.availableSeatsBefore}→${response.availableSeatsAfter}.`
+          text: `已晋升 ${response.promotedCount} 人，剩余候补 ${response.remainingWaitlistCount}，余位 ${response.availableSeatsBefore}→${response.availableSeatsAfter}`
         }
       }));
       await load();
@@ -171,7 +171,7 @@ export default function WaitlistPage() {
           ...prev,
           [group.sectionId]: {
             type: "success",
-            text: `Promoted ${response.promotedCount}. Remaining: ${response.remainingWaitlistCount}.`
+            text: `已晋升 ${response.promotedCount} 人，剩余候补 ${response.remainingWaitlistCount}`
           }
         }));
       } catch {
@@ -184,9 +184,9 @@ export default function WaitlistPage() {
     }
 
     if (failures > 0) {
-      setBulkError(`Promoted ${totalPromoted} across ${filteredGroups.length - failures} queue(s). ${failures} failed.`);
+      setBulkError(`已晋升 ${totalPromoted} 人，涉及 ${filteredGroups.length - failures} 个队列，${failures} 个队列失败。`);
     } else {
-      setBulkNotice(`Promoted ${totalPromoted} across ${filteredGroups.length} queue(s).`);
+      setBulkNotice(`已批量晋升 ${totalPromoted} 人，涉及 ${filteredGroups.length} 个队列。`);
     }
     setBulkPromoting(false);
     await load();
@@ -228,10 +228,10 @@ export default function WaitlistPage() {
               <span className="campus-chip border-amber-300 bg-amber-50 text-amber-700">{totalWaitlisted} Waitlisted</span>
               <span className="campus-chip border-blue-300 bg-blue-50 text-blue-700">{grouped.length} Section Queue{grouped.length !== 1 ? "s" : ""}</span>
               {longestQueue >= 5 && (
-                <span className="campus-chip border-red-300 bg-red-50 text-red-700">⚠ Longest: {longestQueue}</span>
+                <span className="campus-chip border-red-300 bg-red-50 text-red-700">⚠ 最长队列：{longestQueue}</span>
               )}
               {filteredGroups.length !== grouped.length ? (
-                <span className="campus-chip border-slate-300 bg-slate-50 text-slate-500">{filteredGroups.length} visible</span>
+                <span className="campus-chip border-slate-300 bg-slate-50 text-slate-500">显示 {filteredGroups.length} 个</span>
               ) : null}
             </div>
           </div>
@@ -244,7 +244,7 @@ export default function WaitlistPage() {
             >
               {bulkPromoting ? (
                 <><span className="size-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700" />晋升全部</>
-              ) : `Promote 1 from Each (${filteredGroups.length})`}
+              ) : `每队晋升 1 人（共 ${filteredGroups.length} 队）`}
             </button>
             <button
               type="button"
