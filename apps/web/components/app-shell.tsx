@@ -59,6 +59,7 @@ const studentItems: NavItem[] = [
   { href: "/student/cart",           label: "购物车",     icon: <ShoppingCart className={iconClass} /> },
   { href: "/student/schedule",       label: "我的课表",   icon: <CalendarDays className={iconClass} /> },
   { href: "/student/waitlist",       label: "候补名单",   icon: <Clock className={iconClass} /> },
+  { href: "/student/watchlist",      label: "订阅课程",   icon: <Bell className={iconClass} /> },
   // 学籍
   { href: "/student/grades",         label: "成绩",       icon: <GraduationCap className={iconClass} /> },
   { href: "/student/transcript",     label: "成绩单",     icon: <ScrollText className={iconClass} /> },
@@ -265,7 +266,7 @@ export function AppShell({
             ? [{ label: "顾问工作台", hrefs: ["/advisor/dashboard", "/advisor/advisees", "/advisor/requests"] }]
         : [
             { label: "概览", hrefs: ["/student/dashboard", "/student/notifications", "/student/announcements"] },
-            { label: "选课", hrefs: ["/student/catalog", "/student/planner", "/student/cart", "/student/schedule", "/student/waitlist"] },
+            { label: "选课", hrefs: ["/student/catalog", "/student/planner", "/student/cart", "/student/schedule", "/student/waitlist", "/student/watchlist"] },
             { label: "学籍", hrefs: ["/student/grades", "/student/transcript", "/student/degree-audit", "/student/graduation-checklist", "/student/standing", "/student/honors", "/student/term-compare", "/student/appeals", "/student/prereq-waivers", "/student/recommendations", "/student/receipt", "/student/course-history", "/student/enrollment-log", "/student/my-ratings"] },
             { label: "工具", hrefs: ["/student/grade-estimator", "/student/what-if", "/student/gpa-goal", "/student/credit-summary", "/student/peer-compare", "/student/my-notes", "/student/study-timer", "/student/conflicts", "/student/enrollment-timeline", "/student/quick-add", "/student/calendar"] },
             { label: "账号", hrefs: ["/student/profile", "/student/advisor"] },
