@@ -212,9 +212,9 @@ export default function AdminBulkOpsPage() {
               onChange={(e) => setStatusStudentIdsText(e.target.value)}
             />
             <select className="campus-select" value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="INACTIVE">INACTIVE</option>
-              <option value="SUSPENDED">SUSPENDED</option>
+              <option value="ACTIVE">在读</option>
+              <option value="INACTIVE">非在读</option>
+              <option value="SUSPENDED">停学</option>
             </select>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
