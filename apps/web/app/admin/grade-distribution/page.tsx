@@ -84,6 +84,29 @@ export default function GradeDistributionPage() {
     [report]
   );
 
+  function exportCsv() {
+    if (!report) return;
+    const rows = [
+      ["成绩", "人数", "百分比"],
+      ...report.gradeBreakdown.map((r) => [
+        r.grade,
+        String(r.count),
+        totalCount > 0 ? `${((r.count / totalCount) * 100).toFixed(1)}%` : "0%"
+      ]),
+      [],
+      ["均值GPA", report.meanGpa.toFixed(2), ""],
+      ["通过率", `${report.passRate.toFixed(1)}%`, ""],
+      ["总人数", String(totalCount), ""]
+    ];
+    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `grade-dist-${report.courseCode}-${report.termName}.csv`.replace(/\s+/g, "-");
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
@@ -109,6 +132,15 @@ export default function GradeDistributionPage() {
             </option>
           ))}
         </select>
+        {report ? (
+          <button
+            type="button"
+            onClick={exportCsv}
+            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            导出 CSV
+          </button>
+        ) : null}
       </div>
 
       {error ? <div className="campus-card border-red-200 bg-red-50 px-6 py-4 text-sm text-red-700">{error}</div> : null}
@@ -156,10 +188,10 @@ export default function GradeDistributionPage() {
                   return (
                     <g key={row.grade} transform={`translate(0 ${y})`}>
                       <text x="0" y="22" fontSize="13" fill="#334155">{row.grade}</text>
-                      <rect x="80" y="4" width="520" height="24" rx="12" fill="#e2e8f0" />
+                      <rect x="80" y="4" width="480" height="24" rx="12" fill="#e2e8f0" />
                       <rect x="80" y="4" width={barWidth} height="24" rx="12" fill="#4f46e5" />
-                      <text x={Math.min(620, 92 + barWidth)} y="22" fontSize="12" fill="#0f172a">
-                        {row.count}
+                      <text x={Math.min(572, 92 + barWidth)} y="22" fontSize="12" fill="#0f172a">
+                        {row.count} ({totalCount > 0 ? ((row.count / totalCount) * 100).toFixed(0) : 0}%)
                       </text>
                     </g>
                   );
