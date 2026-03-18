@@ -285,18 +285,22 @@ export default function LoginPage() {
                     </div>
                   </div>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <button type="button" onClick={fillStudentDemo} className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-[hsl(221_83%_43%)] hover:bg-[hsl(221_80%_97%)] hover:text-[hsl(221_83%_38%)]">
-                      学生账号
-                    </button>
-                    <button type="button" onClick={fillAdminDemo} className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-[hsl(221_83%_43%)] hover:bg-[hsl(221_80%_97%)] hover:text-[hsl(221_83%_38%)]">
-                      管理账号
-                    </button>
-                    <button type="button" onClick={fillFacultyDemo} className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-[hsl(221_83%_43%)] hover:bg-[hsl(221_80%_97%)] hover:text-[hsl(221_83%_38%)]">
-                      教师账号
-                    </button>
-                    <button type="button" onClick={fillAdvisorDemo} className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-[hsl(221_83%_43%)] hover:bg-[hsl(221_80%_97%)] hover:text-[hsl(221_83%_38%)]">
-                      顾问账号
-                    </button>
+                    {([
+                      { label: "学生", email: DEMO_STUDENT_ID, fill: fillStudentDemo },
+                      { label: "管理员", email: DEMO_ADMIN_EMAIL, fill: fillAdminDemo },
+                      { label: "教师", email: DEMO_FACULTY_EMAIL, fill: fillFacultyDemo },
+                      { label: "学业顾问", email: DEMO_ADVISOR_EMAIL, fill: fillAdvisorDemo },
+                    ] as const).map(({ label, email, fill }) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={fill}
+                        className="flex flex-col items-start rounded-xl border border-slate-200 bg-white px-3 py-2 text-left transition hover:border-[hsl(221_83%_43%)] hover:bg-[hsl(221_80%_97%)] hover:text-[hsl(221_83%_38%)]"
+                      >
+                        <span className="text-xs font-semibold text-slate-800">{label}</span>
+                        <span className="mt-0.5 truncate text-[11px] text-slate-400">{email}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
               ) : null}

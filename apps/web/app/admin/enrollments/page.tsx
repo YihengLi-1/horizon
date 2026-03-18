@@ -438,7 +438,7 @@ export default function EnrollmentsPage() {
               onClick={() => void load()}
               className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
             >
-              Refresh
+              刷新
             </button>
           </div>
         </div>

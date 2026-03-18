@@ -1067,7 +1067,7 @@ export default function StudentCatalogPage() {
               checked={filterNoConflict}
               onChange={(event) => setFilterNoConflict(event.target.checked)}
             />
-            Hide sections conflicting with cart
+            隐藏与购物车冲突的教学班
           </label>
         </div>
 
@@ -1111,7 +1111,7 @@ export default function StudentCatalogPage() {
               onClick={clearFilters}
               className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
             >
-              Clear all
+              清除筛选
             </button>
           </div>
         ) : null}
@@ -1128,7 +1128,7 @@ export default function StudentCatalogPage() {
             message={notice}
             action={
               <Link className="font-medium underline underline-offset-2" href={`/student/cart?termId=${termId}`}>
-                Open cart
+                前往购物车
               </Link>
             }
           />

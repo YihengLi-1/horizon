@@ -138,9 +138,13 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   }
 
   if (!res.ok || !body?.success) {
-    const baseMessage = body?.error?.message || `Request failed (${res.status})`;
+    // Session expired: redirect to login (skip for login/auth routes to avoid loops)
+    if (res.status === 401 && typeof window !== "undefined" && !path.startsWith("/auth/")) {
+      window.location.replace("/login");
+    }
+    const baseMessage = body?.error?.message || `请求失败（${res.status}）`;
     const requestId = body?.error?.requestId;
-    const message = requestId ? `${baseMessage} (Request ID: ${requestId})` : baseMessage;
+    const message = requestId ? `${baseMessage}（请求 ID：${requestId}）` : baseMessage;
     throw new ApiError(message, {
       statusCode: body?.error?.statusCode ?? res.status,
       code: body?.error?.code,

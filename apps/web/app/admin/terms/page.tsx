@@ -409,7 +409,7 @@ export default function TermsPage() {
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="text-base font-semibold text-slate-900">新增学期</h2>
             <button type="button" onClick={() => { setShowCreateForm(false); setCreateForm(blankForm); }} className="text-xs font-medium text-slate-500 hover:text-slate-700">
-              Reset
+              重置
             </button>
           </div>
           <TermFormFields form={createForm} setForm={setCreateForm} onSubmit={onCreate} saving={creating} submitLabel="创建学期" />

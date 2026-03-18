@@ -300,13 +300,13 @@ export default async function GradesPage({
               href="/student/schedule"
               className="inline-flex h-10 items-center rounded-lg border border-white/35 bg-white/90 px-4 text-sm font-semibold text-slate-800 no-underline transition hover:bg-white"
             >
-              View schedule
+              查看课表
             </Link>
             <Link
               href="/student/catalog"
               className="inline-flex h-10 items-center rounded-lg border border-white/35 bg-white/90 px-4 text-sm font-semibold text-slate-800 no-underline transition hover:bg-white"
             >
-              Browse catalog
+              浏览课程目录
             </Link>
           </div>
         </div>
