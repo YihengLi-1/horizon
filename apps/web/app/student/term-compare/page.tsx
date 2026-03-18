@@ -73,7 +73,7 @@ export default function TermComparePage() {
         </div>
         <div className="campus-kpi">
           <p className="campus-kpi-label">最佳学期</p>
-          <p className="campus-kpi-value text-sm">{loading ? "—" : bestTerm?.termName ?? "N/A"}</p>
+          <p className="campus-kpi-value text-sm">{loading ? "—" : bestTerm?.termName ?? "—"}</p>
         </div>
       </section>
 

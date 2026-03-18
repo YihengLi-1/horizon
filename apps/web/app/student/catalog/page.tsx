@@ -1361,7 +1361,7 @@ export default function StudentCatalogPage() {
                       </div>
                       <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2">
                         <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">上课地点</dt>
-                        <dd className="mt-1 font-medium text-slate-800">{section.location ?? "TBA"}</dd>
+                        <dd className="mt-1 font-medium text-slate-800">{section.location ?? "待定"}</dd>
                       </div>
                     </dl>
 
@@ -1674,7 +1674,7 @@ export default function StudentCatalogPage() {
                     { label: "学分", fn: (s: Section) => `${s.credits} cr` },
                     { label: "授课方式", fn: (s: Section) => s.modality === "ON_CAMPUS" ? "线下" : s.modality === "ONLINE" ? "线上" : s.modality === "HYBRID" ? "混合" : s.modality },
                     { label: "教师", fn: (s: Section) => s.instructorName },
-                    { label: "地点", fn: (s: Section) => s.location ?? "TBA" },
+                    { label: "地点", fn: (s: Section) => s.location ?? "待定" },
                     { label: "容量", fn: (s: Section) => `${getEnrolledCount(s)}/${s.capacity}` },
                     { label: "上课时间", fn: (s: Section) => s.meetingTimes.map(mt => meetingChip(mt)).join("; ") || "异步" },
                     { label: "平均评分", fn: (s: Section) => averageRating(s)?.toFixed(1) ? `${averageRating(s)?.toFixed(1)} ★` : "—" },

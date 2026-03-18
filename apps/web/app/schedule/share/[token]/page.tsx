@@ -191,7 +191,7 @@ export default async function SharedSchedulePage({
                     gridRowStart: block.rowStart,
                     gridRowEnd: `span ${block.rowSpan}`
                   }}
-                  title={`${block.section.course.title}\n${block.section.instructorName}\n${block.section.location ?? "TBA"}`}
+                  title={`${block.section.course.title}\n${block.section.instructorName}\n${block.section.location ?? "待定"}`}
                 >
                   <p className="font-semibold">{block.section.course.code}</p>
                   <p className="text-[10px] opacity-80">
@@ -219,7 +219,7 @@ export default async function SharedSchedulePage({
                 </span>
               </div>
               <p className="mt-1 text-xs text-slate-500">
-                {section.instructorName || "TBA"} · {section.location || "TBA"}
+                {section.instructorName  || "待定"} · {section.location  || "待定"}
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 {(section.meetingTimes ?? [])
