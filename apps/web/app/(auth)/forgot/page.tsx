@@ -53,8 +53,8 @@ export default function ForgotPage() {
   return (
     <Card className="rounded-3xl border-slate-200/90 bg-white/95 shadow-[0_20px_50px_-32px_rgba(15,23,42,0.75)]">
       <CardHeader className="pb-4">
-        <CardTitle className="font-heading text-2xl text-slate-900">Forgot Password</CardTitle>
-        <CardDescription className="text-slate-600">A reset link will be sent to the email address on file.</CardDescription>
+        <CardTitle className="font-heading text-2xl text-slate-900">忘记密码</CardTitle>
+        <CardDescription className="text-slate-600">重置链接将发送至您账户绑定的邮箱。</CardDescription>
       </CardHeader>
       <CardContent>
         {sent ? (
@@ -63,7 +63,7 @@ export default function ForgotPage() {
               ✉️
             </div>
             <div className="space-y-1">
-              <p className="text-lg font-semibold text-slate-800">Check your inbox</p>
+              <p className="text-lg font-semibold text-slate-800">请查收邮件</p>
               <p className="text-sm text-slate-500">
                 {result?.message ?? "重置密码链接已发送至您的邮箱，15 分钟内有效。"}
               </p>
@@ -73,10 +73,10 @@ export default function ForgotPage() {
               {loading ? (
                 <span className="inline-flex items-center gap-2">
                   <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                  Sending...
+                  发送中…
                 </span>
               ) : cooldown > 0 ? (
-                `Resend in ${cooldown}s`
+                `${cooldown}s 后可重发`
               ) : (
                 "重新发送"
               )}
@@ -88,7 +88,7 @@ export default function ForgotPage() {
         ) : (
           <form className="space-y-3" onSubmit={onSubmit}>
             <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700">Email</label>
+              <label className="text-sm font-medium text-slate-700">邮箱</label>
               <Input
                 className="h-10"
                 type="email"
@@ -103,10 +103,10 @@ export default function ForgotPage() {
               {loading ? (
                 <span className="inline-flex items-center gap-2">
                   <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                  Sending...
+                  发送中…
                 </span>
               ) : cooldown > 0 ? (
-                `Resend in ${cooldown}s`
+                `${cooldown}s 后可重发`
               ) : (
                 "发送重置链接"
               )}
@@ -114,9 +114,9 @@ export default function ForgotPage() {
           </form>
         )}
         <p className="mt-4 text-sm text-slate-600">
-          Remember your password?{" "}
+          已想起密码？{" "}
           <Link className="font-medium text-primary underline underline-offset-2" href="/login">
-            Sign in
+            立即登录
           </Link>
         </p>
       </CardContent>

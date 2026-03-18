@@ -44,7 +44,7 @@ export default function EnrollmentTrendChart() {
   return (
     <div className="campus-card p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase text-slate-400">Enrollment Trend</p>
+        <p className="text-xs font-semibold uppercase text-slate-400">注册人数趋势</p>
         <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
           {[7, 14].map((value) => (
             <button
