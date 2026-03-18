@@ -78,7 +78,7 @@ export default function ResetPage() {
                 tabIndex={-1}
                 onClick={() => setShowPw((v) => !v)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                aria-label={showPw ? "Hide password" : "Show password"}
+                aria-label={showPw ? "隐藏密码" : "显示密码"}
               >
                 {showPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
@@ -109,7 +109,7 @@ export default function ResetPage() {
             {loading ? (
               <span className="inline-flex items-center gap-2">
                 <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                Resetting...
+                重置中…
               </span>
             ) : (
               "重置密码"
@@ -118,7 +118,7 @@ export default function ResetPage() {
         </form>
         {message ? (
           <Link className="mt-4 block text-sm font-medium text-primary underline underline-offset-2" href="/login">
-            Sign in with new password →
+            使用新密码登录 →
           </Link>
         ) : (
           <Link className="mt-4 block text-sm font-medium text-primary underline underline-offset-2" href="/login">
