@@ -203,7 +203,7 @@ export class GovernanceService {
     });
 
     if (!request) {
-      throw new NotFoundException({ code: "REQUEST_NOT_FOUND", message: "Academic request not found" });
+      throw new NotFoundException({ code: "REQUEST_NOT_FOUND", message: "申请记录不存在" });
     }
 
     assertAcademicRequestOpen(request.status);
@@ -272,7 +272,7 @@ export class GovernanceService {
       });
 
       if (!requestForRouting) {
-        throw new NotFoundException({ code: "REQUEST_NOT_FOUND", message: "Academic request not found" });
+        throw new NotFoundException({ code: "REQUEST_NOT_FOUND", message: "申请记录不存在" });
       }
 
       assertAcademicRequestOpen(requestForRouting.status);
@@ -293,14 +293,14 @@ export class GovernanceService {
       if (!nextOwner) {
         throw new BadRequestException({
           code: "REQUEST_REASSIGNMENT_INVALID",
-          message: "Selected reviewer is not eligible for the active workflow step"
+          message: "所选审核人不符合当前审批步骤要求"
         });
       }
 
       if (currentStep.ownerUserId === nextOwner.id) {
         throw new BadRequestException({
           code: "REQUEST_ALREADY_ASSIGNED",
-          message: "This workflow step is already assigned to the selected reviewer"
+          message: "该审批步骤已分配给此审核人"
         });
       }
 
@@ -436,10 +436,10 @@ export class GovernanceService {
 
     const hold = await this.prisma.studentHold.findUnique({ where: { id: holdId } });
     if (!hold) {
-      throw new NotFoundException({ code: "HOLD_NOT_FOUND", message: "Student hold not found" });
+      throw new NotFoundException({ code: "HOLD_NOT_FOUND", message: "学籍限制记录不存在" });
     }
     if (!hold.active) {
-      throw new BadRequestException({ code: "HOLD_ALREADY_RESOLVED", message: "Hold is already resolved" });
+      throw new BadRequestException({ code: "HOLD_ALREADY_RESOLVED", message: "该限制已解除" });
     }
 
     const resolved = await this.prisma.studentHold.update({
@@ -699,7 +699,7 @@ export class GovernanceService {
       select: { id: true }
     });
     if (!student) {
-      throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
+      throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "学生不存在" });
     }
   }
 
@@ -713,7 +713,7 @@ export class GovernanceService {
       select: { id: true }
     });
     if (!actor) {
-      throw new ForbiddenException({ code: "ADMIN_FORBIDDEN", message: "Admin access required" });
+      throw new ForbiddenException({ code: "ADMIN_FORBIDDEN", message: "需要管理员权限" });
     }
   }
 
@@ -792,7 +792,7 @@ export class GovernanceService {
       });
 
       if (!requestForDecision) {
-        throw new NotFoundException({ code: "REQUEST_NOT_FOUND", message: "Academic request not found" });
+        throw new NotFoundException({ code: "REQUEST_NOT_FOUND", message: "申请记录不存在" });
       }
 
       assertAcademicRequestOwnership({
@@ -819,12 +819,12 @@ export class GovernanceService {
       ) {
         throw new BadRequestException({
           code: "REQUEST_STEP_INVALID",
-          message: "Academic request owner does not match the current workflow step"
+          message: "申请归属与当前审批步骤不匹配"
         });
       }
 
       if (actorRole === "ADVISOR" && requestForDecision.student.adviseeAssignments.length === 0) {
-        throw new ForbiddenException({ code: "REQUEST_FORBIDDEN", message: "Student is not assigned to this advisor" });
+        throw new ForbiddenException({ code: "REQUEST_FORBIDDEN", message: "该学生未分配给此顾问" });
       }
 
       await tx.academicRequestStep.update({

@@ -399,7 +399,7 @@ export class RegistrationService {
     if (info.status !== "REGISTRATION_OPEN") {
       throw new BadRequestException({
         code: "REGISTRATION_WINDOW_CLOSED",
-        message: "Registration window is closed",
+        message: "选课窗口已关闭",
         registrationOpenAt: info.openAt.toISOString(),
         registrationCloseAt: info.closeAt.toISOString(),
         priorityLabel: info.priorityLabel,
@@ -970,7 +970,7 @@ export class RegistrationService {
     });
 
     if (!section || section.termId !== input.termId) {
-      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found for term" });
+      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "未找到对应教学班" });
     }
 
     // Carting is intentionally allowed outside the registration window so students can plan ahead.
@@ -986,7 +986,7 @@ export class RegistrationService {
     });
 
     if (existingActive) {
-      throw new BadRequestException({ code: "ALREADY_REGISTERED", message: "Already enrolled/waitlisted for this section" });
+      throw new BadRequestException({ code: "ALREADY_REGISTERED", message: "已选课或已在候补队列中" });
     }
 
     try {
@@ -998,14 +998,14 @@ export class RegistrationService {
         }
       });
     } catch {
-      throw new BadRequestException({ code: "ALREADY_IN_CART", message: "Section already in cart" });
+      throw new BadRequestException({ code: "ALREADY_IN_CART", message: "该教学班已在购物车中" });
     }
   }
 
   async removeCartItem(studentId: string, cartItemId: string) {
     const item = await this.prisma.cartItem.findUnique({ where: { id: cartItemId } });
     if (!item || item.studentId !== studentId) {
-      throw new NotFoundException({ code: "CART_ITEM_NOT_FOUND", message: "Cart item not found" });
+      throw new NotFoundException({ code: "CART_ITEM_NOT_FOUND", message: "购物车条目不存在" });
     }
 
     await this.prisma.cartItem.delete({ where: { id: cartItemId } });
@@ -1017,7 +1017,7 @@ export class RegistrationService {
 
     const term = await this.prisma.term.findUnique({ where: { id: input.termId } });
     if (!term) {
-      throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "Term not found" });
+      throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "学期不存在" });
     }
 
     const now = new Date();
@@ -1051,7 +1051,7 @@ export class RegistrationService {
     });
 
     if (cartItems.length === 0) {
-      throw new BadRequestException({ code: "EMPTY_CART", message: "Cart is empty" });
+      throw new BadRequestException({ code: "EMPTY_CART", message: "购物车为空" });
     }
 
     const sectionIds = Array.from(new Set(cartItems.map((item) => item.sectionId)));
@@ -1126,7 +1126,7 @@ export class RegistrationService {
 
     const term = await this.prisma.term.findUnique({ where: { id: input.termId } });
     if (!term) {
-      throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "Term not found" });
+      throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "学期不存在" });
     }
 
     const now = new Date();
@@ -1160,7 +1160,7 @@ export class RegistrationService {
     });
 
     if (cartItems.length === 0) {
-      throw new BadRequestException({ code: "EMPTY_CART", message: "Cart is empty" });
+      throw new BadRequestException({ code: "EMPTY_CART", message: "购物车为空" });
     }
 
     const sectionIds = Array.from(new Set(cartItems.map((item) => item.sectionId)));
@@ -1215,7 +1215,7 @@ export class RegistrationService {
     if (preValidation.issues.length > 0) {
       throw new BadRequestException({
         code: "SUBMIT_VALIDATION_FAILED",
-        message: "Some cart items failed validation",
+        message: "部分课程预检不通过",
         details: preValidation.issues
       });
     }
@@ -1249,7 +1249,7 @@ export class RegistrationService {
       });
 
       if (txCartItems.length === 0) {
-        throw new BadRequestException({ code: "EMPTY_CART", message: "Cart is empty" });
+        throw new BadRequestException({ code: "EMPTY_CART", message: "购物车为空" });
       }
 
       const txSectionIds = Array.from(new Set(txCartItems.map((item) => item.sectionId)));
@@ -1305,7 +1305,7 @@ export class RegistrationService {
       if (txValidation.issues.length > 0) {
         throw new BadRequestException({
           code: "SUBMIT_VALIDATION_FAILED",
-          message: "Some cart items failed validation",
+          message: "部分课程预检不通过",
           details: txValidation.issues
         });
       }
@@ -1438,7 +1438,7 @@ export class RegistrationService {
       });
 
       if (!current || current.studentId !== studentId) {
-        throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "Enrollment not found" });
+        throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "注册记录不存在" });
       }
 
       await this.lockSectionsForUpdate(tx, [current.sectionId]);
@@ -1454,11 +1454,11 @@ export class RegistrationService {
       });
 
       if (!locked || locked.studentId !== studentId) {
-        throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "Enrollment not found" });
+        throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "注册记录不存在" });
       }
 
       if (locked.status === "DROPPED") {
-        throw new BadRequestException({ code: "ALREADY_DROPPED", message: "Enrollment already dropped" });
+        throw new BadRequestException({ code: "ALREADY_DROPPED", message: "已退课，不可重复操作" });
       }
 
       const previousStatus = locked.status;
@@ -1470,7 +1470,7 @@ export class RegistrationService {
       ) {
         throw new BadRequestException({
           code: "DROP_DEADLINE_PASSED",
-          message: "Contact registrar/support"
+          message: "请联系教务处"
         });
       }
 
@@ -1657,11 +1657,11 @@ export class RegistrationService {
     ]);
 
     if (!actor) {
-      throw new NotFoundException({ code: "USER_NOT_FOUND", message: "User not found" });
+      throw new NotFoundException({ code: "USER_NOT_FOUND", message: "用户不存在" });
     }
 
     if (!section) {
-      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
+      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "教学班不存在" });
     }
 
     const normalizedInstructor = section.instructorName.trim().toLowerCase();
@@ -1700,7 +1700,7 @@ export class RegistrationService {
       .filter((item) => item.enrollmentId && item.grade);
 
     if (normalizedGrades.length === 0) {
-      throw new BadRequestException({ code: "NO_GRADES_SUBMITTED", message: "No grades submitted" });
+      throw new BadRequestException({ code: "NO_GRADES_SUBMITTED", message: "未提交任何成绩" });
     }
 
     const enrollmentMap = new Map(
