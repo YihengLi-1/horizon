@@ -128,7 +128,7 @@ export default function AdvisorNotesClient({ studentId }: { studentId: string })
                       <p className="font-medium text-slate-900">
                         {enrollment.section.course.code} §{enrollment.section.sectionCode}
                       </p>
-                      <span className="campus-chip text-xs">{enrollment.status}</span>
+                      <span className="campus-chip text-xs">{({"ENROLLED":"在读","COMPLETED":"已完成","DROPPED":"已退课","WAITLISTED":"候补","PENDING_APPROVAL":"待审批"} as Record<string,string>)[enrollment.status] ?? enrollment.status}</span>
                     </div>
                     <p className="mt-1 text-slate-600">{enrollment.section.course.title}</p>
                     <p className="mt-1 text-xs text-slate-500">

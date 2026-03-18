@@ -855,7 +855,7 @@ export default function AdminStudentsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="space-y-1">
-                        <span className="block text-xs text-slate-600">{student.studentProfile?.enrollmentStatus || "-"}</span>
+                        <span className="block text-xs text-slate-600">{({"Active":"在读","Inactive":"未在读","Graduated":"已毕业","Withdrawn":"已退学","New":"新生","Leave":"休学"} as Record<string,string>)[student.studentProfile?.enrollmentStatus ?? ""] ?? student.studentProfile?.enrollmentStatus ?? "-"}</span>
                         {student.studentProfile?.academicStatus ? (
                           <span className={`campus-chip text-[11px] ${
                             student.studentProfile.academicStatus === "Probation" ? "chip-amber"
@@ -1097,7 +1097,7 @@ export default function AdminStudentsPage() {
                                     : "chip-purple"
                               }`}
                             >
-                              {enrollment.status}
+                              {({"ENROLLED":"在读","COMPLETED":"已完成","DROPPED":"已退课","WAITLISTED":"候补","PENDING_APPROVAL":"待审批"} as Record<string,string>)[enrollment.status] ?? enrollment.status}
                             </span>
                           </div>
                         ))}

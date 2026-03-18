@@ -714,7 +714,7 @@ export default async function StudentDashboardPage() {
                                 {item.section.course?.code ?? "—"}
                               </span>
                               <span className={enrollmentStatusChip(item.status)}>
-                                {item.status}
+                                {({"ENROLLED":"在读","COMPLETED":"已完成","DROPPED":"已退课","WAITLISTED":"候补","PENDING_APPROVAL":"待审批"} as Record<string,string>)[item.status] ?? item.status}
                               </span>
                             </div>
                           </td>
