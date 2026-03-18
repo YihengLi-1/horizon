@@ -67,7 +67,7 @@ export default async function SectionRosterPage({ params }: { params: Promise<{ 
                   <td className="px-4 py-3 text-slate-600">{row.student?.email ?? "—"}</td>
                   <td className="px-4 py-3 font-mono text-xs text-slate-500">{row.student?.studentId ?? "—"}</td>
                   <td className="px-4 py-3">
-                    <span className="campus-chip text-xs">{row.status}</span>
+                    <span className="campus-chip text-xs">{({"ENROLLED":"在读","COMPLETED":"已完成","DROPPED":"已退课","WAITLISTED":"候补","PENDING_APPROVAL":"待审批"} as Record<string,string>)[row.status] ?? row.status}</span>
                   </td>
                   <td className="px-4 py-3 font-semibold text-slate-700">{row.finalGrade ?? "—"}</td>
                 </tr>

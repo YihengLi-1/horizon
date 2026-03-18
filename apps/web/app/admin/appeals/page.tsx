@@ -149,7 +149,7 @@ export default function AdminAppealsPage() {
                     </span>
                     <span className="text-xs text-slate-500">{a.enrollment.section.term.name}</span>
                     <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${STATUS_CHIP[a.status]}`}>
-                      {a.status}
+                      {({"PENDING":"待审","APPROVED":"已批准","REJECTED":"已拒绝"} as Record<string,string>)[a.status] ?? a.status}
                     </span>
                   </div>
                   <p className="mt-1 font-semibold text-slate-900">{a.enrollment.section.course.title}</p>
