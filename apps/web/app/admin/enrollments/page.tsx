@@ -44,6 +44,16 @@ const STATUS_OPTIONS = ["ENROLLED", "WAITLISTED", "PENDING_APPROVAL", "DROPPED",
 const GRADE_OPTIONS = ["", "A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-", "F"];
 const PAGE_SIZE = 50;
 
+const STATUS_LABELS: Record<string, string> = {
+  ENROLLED: "已选课",
+  WAITLISTED: "候补",
+  PENDING_APPROVAL: "待审批",
+  DROPPED: "已退课",
+  COMPLETED: "已完成",
+  PENDING: "待审批",
+  CART: "购物车",
+};
+
 const STATUS_COLORS: Record<string, string> = {
   ENROLLED: "border-emerald-200 bg-emerald-50 text-emerald-700",
   WAITLISTED: "border-amber-200 bg-amber-50 text-amber-700",
@@ -398,17 +408,17 @@ export default function EnrollmentsPage() {
               <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-700">共 {total} 条</span>
               {(statusCounts.get("ENROLLED") ?? 0) > 0 && (
                 <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-700">
-                  Enrolled {statusCounts.get("ENROLLED")}
+                  已选课 {statusCounts.get("ENROLLED")}
                 </span>
               )}
               {(statusCounts.get("WAITLISTED") ?? 0) > 0 && (
                 <span className="campus-chip border-amber-300 bg-amber-50 text-amber-700">
-                  Waitlisted {statusCounts.get("WAITLISTED")}
+                  候补 {statusCounts.get("WAITLISTED")}
                 </span>
               )}
               {(statusCounts.get("PENDING_APPROVAL") ?? 0) > 0 && (
                 <span className="campus-chip border-blue-300 bg-blue-50 text-blue-700">
-                  Pending approval {statusCounts.get("PENDING_APPROVAL")}
+                  待审批 {statusCounts.get("PENDING_APPROVAL")}
                 </span>
               )}
               <span className="campus-chip border-slate-300 bg-slate-100 text-slate-700">显示 {rows.length} 条</span>
@@ -502,7 +512,7 @@ export default function EnrollmentsPage() {
             >
               <option value="">全部状态</option>
               {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s}>{STATUS_LABELS[s] ?? s}</option>
               ))}
             </select>
           </div>
@@ -513,7 +523,7 @@ export default function EnrollmentsPage() {
               disabled={bulkSaving || pendingVisibleRows.length === 0}
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Select All Pending
+              全选待审
             </button>
             <button
               type="button"
@@ -625,10 +635,10 @@ export default function EnrollmentsPage() {
                     )}
                     <td className="px-4 py-3">
                       <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${STATUS_COLORS[statusState[row.id] ?? row.status] ?? "border-slate-200 bg-slate-100 text-slate-700"}`}>
-                        {statusState[row.id] ?? row.status}
+                        {STATUS_LABELS[statusState[row.id] ?? row.status] ?? (statusState[row.id] ?? row.status)}
                       </span>
                       {(statusState[row.id] ?? row.status) === "WAITLISTED" && row.waitlistPosition !== null && (
-                        <p className="mt-0.5 text-[10px] text-amber-700">#{row.waitlistPosition} in queue</p>
+                        <p className="mt-0.5 text-[10px] text-amber-700">候补第 #{row.waitlistPosition}</p>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -662,7 +672,7 @@ export default function EnrollmentsPage() {
                         >
                           {STATUS_OPTIONS.map((status) => (
                             <option key={status} value={status}>
-                              {status}
+                              {STATUS_LABELS[status] ?? status}
                             </option>
                           ))}
                         </select>
@@ -740,7 +750,7 @@ export default function EnrollmentsPage() {
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${STATUS_COLORS[statusState[row.id] ?? row.status] ?? "border-slate-200 bg-slate-100 text-slate-700"}`}>
-                    {statusState[row.id] ?? row.status}
+                    {STATUS_LABELS[statusState[row.id] ?? row.status] ?? (statusState[row.id] ?? row.status)}
                   </span>
                   {gradeBadgeClass(row.finalGrade) ? (
                     <span className={gradeBadgeClass(row.finalGrade) || ""}>
