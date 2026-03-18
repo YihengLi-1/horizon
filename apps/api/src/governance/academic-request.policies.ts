@@ -51,7 +51,7 @@ const creditOverloadPolicy: AcademicRequestPolicy<SubmitCreditOverloadRequestInp
   type: "CREDIT_OVERLOAD",
   duplicatePendingError: {
     code: "REQUEST_ALREADY_PENDING",
-    message: "An overload request is already pending for this term"
+    message: "该学期已有待审批的超学分申请"
   },
   async buildSubmission({ tx, studentId, input, getEffectiveMaxCredits, buildActiveRequestKey }) {
     const term = await tx.term.findUnique({
@@ -59,14 +59,14 @@ const creditOverloadPolicy: AcademicRequestPolicy<SubmitCreditOverloadRequestInp
       select: { id: true, name: true, maxCredits: true }
     });
     if (!term) {
-      throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "Term not found" });
+      throw new NotFoundException({ code: "TERM_NOT_FOUND", message: "学期不存在" });
     }
 
     const effectiveMaxCredits = await getEffectiveMaxCredits(term.maxCredits);
     if (input.requestedCredits <= effectiveMaxCredits) {
       throw new BadRequestException({
         code: "CREDIT_OVERLOAD_NOT_REQUIRED",
-        message: `Requested credits must exceed the standard limit of ${effectiveMaxCredits}`
+        message: `申请学分数必须超过当前上限 ${effectiveMaxCredits}`
       });
     }
 
@@ -92,7 +92,7 @@ const creditOverloadPolicy: AcademicRequestPolicy<SubmitCreditOverloadRequestInp
     if (!assignment || assignment.advisor.role !== "ADVISOR") {
       throw new BadRequestException({
         code: "NO_ADVISOR_ASSIGNED",
-        message: "No active advisor is assigned to review overload requests"
+        message: "暂无活跃导师可审批超学分申请"
       });
     }
 
@@ -109,7 +109,7 @@ const creditOverloadPolicy: AcademicRequestPolicy<SubmitCreditOverloadRequestInp
     if (existingApproved?.requestedCredits && existingApproved.requestedCredits >= input.requestedCredits) {
       throw new BadRequestException({
         code: "REQUEST_ALREADY_APPROVED",
-        message: `An approved overload request already covers up to ${existingApproved.requestedCredits} credits`
+        message: `已有已批准的超学分申请，上限为 ${existingApproved.requestedCredits} 学分`
       });
     }
 
@@ -148,7 +148,7 @@ const prereqOverridePolicy: AcademicRequestPolicy<SubmitPrereqOverrideRequestInp
   type: "PREREQ_OVERRIDE",
   duplicatePendingError: {
     code: "REQUEST_ALREADY_PENDING",
-    message: "A prerequisite override request is already pending for this section"
+    message: "该教学班已有待审批的先修课豁免申请"
   },
   async buildSubmission({ tx, studentId, input, buildActiveRequestKey }) {
     const section = await tx.section.findUnique({
@@ -169,13 +169,13 @@ const prereqOverridePolicy: AcademicRequestPolicy<SubmitPrereqOverrideRequestInp
     });
 
     if (!section) {
-      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
+      throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "教学班不存在" });
     }
 
     if (section.course.prerequisiteLinks.length === 0) {
       throw new BadRequestException({
         code: "PREREQ_OVERRIDE_NOT_REQUIRED",
-        message: "This section does not require a prerequisite override"
+        message: "该教学班不需要先修课豁免"
       });
     }
 
@@ -204,7 +204,7 @@ const prereqOverridePolicy: AcademicRequestPolicy<SubmitPrereqOverrideRequestInp
     if (missingLinks.length === 0) {
       throw new BadRequestException({
         code: "PREREQ_OVERRIDE_NOT_REQUIRED",
-        message: "Prerequisite requirements are already satisfied"
+        message: "先修课要求已满足，无需申请豁免"
       });
     }
 
@@ -221,7 +221,7 @@ const prereqOverridePolicy: AcademicRequestPolicy<SubmitPrereqOverrideRequestInp
     if (existingApproved) {
       throw new BadRequestException({
         code: "REQUEST_ALREADY_APPROVED",
-        message: "A prerequisite override has already been approved for this section"
+        message: "该教学班的先修课豁免申请已获批准"
       });
     }
 

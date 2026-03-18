@@ -600,14 +600,14 @@ export class AuthService {
       where: { id: userId, deletedAt: null }
     });
     if (!user) {
-      throw new UnauthorizedException({ code: "USER_NOT_FOUND", message: "User not found" });
+      throw new UnauthorizedException({ code: "USER_NOT_FOUND", message: "用户不存在" });
     }
 
     const validPassword = await verifyPasswordHash(user.passwordHash, oldPassword);
     if (!validPassword) {
       throw new UnauthorizedException({
         code: "INVALID_CURRENT_PASSWORD",
-        message: "Current password is incorrect"
+        message: "当前密码不正确"
       });
     }
 
@@ -628,7 +628,7 @@ export class AuthService {
       }
     }
 
-    return { message: "Password updated" };
+    return { message: "密码已更新" };
   }
 
   async checkEmailExists(email: string) {
@@ -665,7 +665,7 @@ export class AuthService {
       include: { studentProfile: true }
     });
     if (!user) {
-      throw new UnauthorizedException({ code: "USER_NOT_FOUND", message: "User not found" });
+      throw new UnauthorizedException({ code: "USER_NOT_FOUND", message: "用户不存在" });
     }
 
     return {

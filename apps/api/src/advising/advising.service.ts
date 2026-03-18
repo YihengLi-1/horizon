@@ -53,12 +53,12 @@ export class AdvisingService {
         select: { id: true }
       });
       if (!student) {
-        throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
+        throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "学生不存在" });
       }
 
       throw new ForbiddenException({
         code: "ADVISEE_FORBIDDEN",
-        message: "You are not assigned to this student"
+        message: "该学生不在您的辅导名单中"
       });
     }
 
@@ -108,7 +108,7 @@ export class AdvisingService {
     ]);
 
     if (!student) {
-      throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "Student not found" });
+      throw new NotFoundException({ code: "STUDENT_NOT_FOUND", message: "学生不存在" });
     }
 
     await this.auditService.log({
@@ -127,7 +127,7 @@ export class AdvisingService {
   async addAdvisorNote(advisorUserId: string, studentId: string, body: string) {
     await this.assertAssignedAdvisee(advisorUserId, studentId);
     if (!body.trim()) {
-      throw new BadRequestException({ code: "ADVISOR_NOTE_EMPTY", message: "Advisor note body is required" });
+      throw new BadRequestException({ code: "ADVISOR_NOTE_EMPTY", message: "导师备注内容不能为空" });
     }
 
     const note = await this.prisma.advisorNote.create({

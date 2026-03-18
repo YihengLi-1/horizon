@@ -40,7 +40,7 @@ export class AcademicsService {
     });
 
     if (!course) {
-      throw new NotFoundException({ code: "COURSE_NOT_FOUND", message: "Course not found" });
+      throw new NotFoundException({ code: "COURSE_NOT_FOUND", message: "课程不存在" });
     }
 
     return course;

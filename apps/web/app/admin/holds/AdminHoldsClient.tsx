@@ -39,6 +39,11 @@ type StudentListResponse = {
 };
 
 const HOLD_TYPES: HoldType[] = ["REGISTRATION", "ACADEMIC", "FINANCIAL"];
+const HOLD_TYPE_LABELS: Record<HoldType, string> = {
+  REGISTRATION: "注册限制",
+  ACADEMIC: "学籍限制",
+  FINANCIAL: "财务限制",
+};
 
 function formatDateTime(value?: string | null) {
   if (!value) return "-";
@@ -155,7 +160,7 @@ export default function AdminHoldsClient() {
           expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null
         })
       });
-      setNotice(`Created ${type} hold for ${selectedStudent.studentProfile?.legalName || selectedStudent.email}.`);
+      setNotice(`已为 ${selectedStudent.studentProfile?.legalName || selectedStudent.email} 创建${HOLD_TYPE_LABELS[type]}。`);
       setReason("");
       setNote("");
       setExpiresAt("");
@@ -199,7 +204,7 @@ export default function AdminHoldsClient() {
             <p className="campus-eyebrow">合规管理</p>
             <h1 className="font-heading text-3xl font-bold text-slate-900">学生保留</h1>
             <p className="mt-2 text-sm text-slate-600">
-              Create and remove registration-blocking holds through the product UI.
+              通过此页面创建或移除阻止学生注册的学籍限制记录。
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -266,7 +271,7 @@ export default function AdminHoldsClient() {
             <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">保留类型</span>
             <select className="campus-select" value={type} onChange={(event) => setType(event.target.value as HoldType)}>
               {HOLD_TYPES.map((item) => (
-                <option key={item} value={item}>{item}</option>
+                <option key={item} value={item}>{HOLD_TYPE_LABELS[item]}</option>
               ))}
             </select>
           </label>
@@ -326,7 +331,7 @@ export default function AdminHoldsClient() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`campus-chip text-xs ${holdTone(hold.type)}`}>{hold.type}</span>
+                      <span className={`campus-chip text-xs ${holdTone(hold.type)}`}>{HOLD_TYPE_LABELS[hold.type] ?? hold.type}</span>
                       <span className={`campus-chip text-xs ${hold.active ? "border-red-200 bg-red-50 text-red-700" : "border-slate-200 bg-slate-100 text-slate-600"}`}>
                         {hold.active ? "生效中" : "已解除"}
                       </span>

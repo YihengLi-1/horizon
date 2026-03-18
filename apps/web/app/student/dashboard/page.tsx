@@ -686,8 +686,8 @@ export default async function StudentDashboardPage() {
             {dropDaysLeft !== null ? (
               <p className={`rounded-xl border px-3 py-2 text-sm font-semibold ${dropDaysLeft < 0 ? "border-red-200 bg-red-50 text-red-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
                 {dropDaysLeft < 0
-                  ? `Drop deadline passed ${Math.abs(dropDaysLeft)} day(s) ago. Contact registrar/support for changes.`
-                  : `${dropDaysLeft} day(s) remaining until drop deadline.`}
+                  ? `退课截止日期已过 ${Math.abs(dropDaysLeft)} 天，如需变更请联系教务处。`
+                  : `距退课截止日期还剩 ${dropDaysLeft} 天。`}
               </p>
             ) : null}
           </CardContent>

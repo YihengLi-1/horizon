@@ -386,7 +386,7 @@ export function AppShell({
       <aside
         role={sidebarOpen ? "dialog" : undefined}
         aria-modal={sidebarOpen ? "true" : undefined}
-        aria-label={`${navMeta.label} navigation`}
+        aria-label={`${navMeta.label}导航`}
         id={sidebarId}
         className={`app-shell-sidebar no-print fixed inset-y-0 left-0 z-50 w-64 border-r border-[hsl(221_20%_91%)] bg-white text-slate-900 shadow-[0_24px_55px_-40px_rgba(15,23,42,0.4)] transition-transform duration-200 ease-out lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"

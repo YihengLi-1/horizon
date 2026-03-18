@@ -56,12 +56,12 @@ export class FacultyService {
         select: { id: true }
       });
       if (!exists) {
-        throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "Section not found" });
+        throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "教学班不存在" });
       }
 
       throw new ForbiddenException({
         code: "FACULTY_SECTION_FORBIDDEN",
-        message: "You do not own this section"
+        message: "您无权操作该教学班"
       });
     }
 
@@ -110,7 +110,7 @@ export class FacultyService {
     if (!VALID_FINAL_GRADES.has(normalizedGrade)) {
       throw new BadRequestException({
         code: "FINAL_GRADE_INVALID",
-        message: "Final grade must be one of A, A-, B+, B, B-, C+, C, C-, D, F, or W"
+        message: "成绩等级无效，请输入 A/A-/B+/B/B-/C+/C/C-/D/F/W 之一"
       });
     }
     const enrollment = await this.prisma.enrollment.findFirst({
@@ -131,13 +131,13 @@ export class FacultyService {
     });
 
     if (!enrollment) {
-      throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "Enrollment not found" });
+      throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "注册记录不存在" });
     }
 
     if (!["ENROLLED", "COMPLETED"].includes(enrollment.status)) {
       throw new ForbiddenException({
         code: "GRADE_STATUS_INVALID",
-        message: "Only enrolled or completed records can be graded"
+        message: "仅已选课或已完成状态的记录可录入成绩"
       });
     }
 

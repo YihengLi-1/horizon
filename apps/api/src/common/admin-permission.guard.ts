@@ -27,7 +27,7 @@ export class AdminPermissionGuard implements CanActivate {
     if (!user?.userId || user.role !== "ADMIN") {
       throw new ForbiddenException({
         code: "ADMIN_PERMISSION_DENIED",
-        message: "Admin permission required"
+        message: "需要管理员权限"
       });
     }
 

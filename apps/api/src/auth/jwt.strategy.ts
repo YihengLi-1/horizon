@@ -26,14 +26,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: { sub: string; role: Role; sid?: string }) {
     if (payload.sid && !isSessionActive(payload.sid)) {
-      throw new UnauthorizedException({ code: "SESSION_REVOKED", message: "Session has been revoked" });
+      throw new UnauthorizedException({ code: "SESSION_REVOKED", message: "会话已失效，请重新登录" });
     }
     const user = await this.prisma.user.findFirst({
       where: { id: payload.sub, deletedAt: null },
       select: { id: true, role: true }
     });
     if (!user) {
-      throw new UnauthorizedException({ code: "USER_NOT_FOUND", message: "User not found" });
+      throw new UnauthorizedException({ code: "USER_NOT_FOUND", message: "用户不存在" });
     }
     return { userId: user.id, role: user.role, sid: payload.sid };
   }

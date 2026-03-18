@@ -342,13 +342,13 @@ export default function StudentCartPage() {
     if (now < openAt) {
       return {
         isOpen: false,
-        message: `Registration opens on ${formatDateTime(activeTerm.registrationOpenAt)}.`
+        message: `选课窗口将于 ${formatDateTime(activeTerm.registrationOpenAt)} 开放。`
       };
     }
     if (now > closeAt) {
       return {
         isOpen: false,
-        message: `Registration closed on ${formatDateTime(activeTerm.registrationCloseAt)}.`
+        message: `选课窗口已于 ${formatDateTime(activeTerm.registrationCloseAt)} 关闭。`
       };
     }
     return { isOpen: true, message: "" };

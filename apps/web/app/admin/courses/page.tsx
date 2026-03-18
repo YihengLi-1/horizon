@@ -171,7 +171,7 @@ export default function CoursesPage() {
       setError("");
       setNotice("");
       await apiFetch(`/admin/courses/${id}`, { method: "DELETE" });
-      setNotice(`Course "${code}" deleted.`);
+      setNotice(`课程「${code}」已删除。`);
       if (editingId === id) setEditingId(null);
       await load();
     } catch (err) {
