@@ -165,7 +165,7 @@ function TermFormFields({
             onClick={onCancel}
             className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
           >
-            Cancel
+            取消
           </button>
         ) : null}
       </div>
@@ -276,7 +276,7 @@ export default function TermsPage() {
   };
 
   const onDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Delete term \"${name}\"?`)) return;
+    if (!window.confirm(`确认删除学期"${name}"？`)) return;
     try {
       setDeletingId(id);
       setError("");

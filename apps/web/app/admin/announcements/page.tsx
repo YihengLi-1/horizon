@@ -190,7 +190,7 @@ export default function AnnouncementsPage() {
               checked={form.pinned}
               onChange={(event) => setForm((prev) => ({ ...prev, pinned: event.target.checked }))}
             />
-            Pin to top
+            置顶
           </label>
           <input
             type="datetime-local"
@@ -235,7 +235,7 @@ export default function AnnouncementsPage() {
 
       <div className="space-y-3">
         {visibleList.length === 0 ? (
-          <div className="campus-card p-8 text-center text-slate-400">📢 No announcements yet</div>
+          <div className="campus-card p-8 text-center text-slate-400">📢 暂无公告</div>
         ) : (
           visibleList.map((announcement) => {
             const expired = isExpired(announcement);
@@ -249,7 +249,7 @@ export default function AnnouncementsPage() {
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       {announcement.pinned ? (
-                        <span className="campus-chip border-amber-200 bg-amber-50 text-xs text-amber-700">📌 Pinned</span>
+                        <span className="campus-chip border-amber-200 bg-amber-50 text-xs text-amber-700">📌 置顶</span>
                       ) : null}
                       <span
                         className={`campus-chip text-xs ${
@@ -296,7 +296,7 @@ export default function AnnouncementsPage() {
                       编辑
                     </button>
                     <button onClick={() => void remove(announcement.id)} className="text-sm text-red-400 hover:text-red-600">
-                      Delete
+                      删除
                     </button>
                   </div>
                 </div>
@@ -332,7 +332,7 @@ export default function AnnouncementsPage() {
                           checked={editForm.pinned}
                           onChange={(event) => setEditForm((prev) => ({ ...prev, pinned: event.target.checked }))}
                         />
-                        Pinned
+                        置顶
                       </label>
                       <input
                         type="datetime-local"
@@ -350,7 +350,7 @@ export default function AnnouncementsPage() {
                         onClick={() => setEditingId(null)}
                         className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
                       >
-                        Cancel
+                        取消
                       </button>
                     </div>
                   </form>
@@ -367,7 +367,7 @@ export default function AnnouncementsPage() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  {previewing.pinned ? <span className="campus-chip border-amber-200 bg-amber-50 text-xs text-amber-700">★ Pinned</span> : null}
+                  {previewing.pinned ? <span className="campus-chip border-amber-200 bg-amber-50 text-xs text-amber-700">★ 置顶</span> : null}
                   <span className="campus-chip border-slate-200 bg-slate-50 text-xs text-slate-600">{audienceLabel(previewing.audience)}</span>
                 </div>
                 <h2 className="mt-3 text-xl font-bold text-slate-900">{previewing.title}</h2>

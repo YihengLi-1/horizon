@@ -282,7 +282,7 @@ export default function SchedulePage() {
 
   const confirmDrop = (enrollment: Enrollment) => {
     const label = `${enrollment.section.course.code} §${enrollment.section.sectionCode}`;
-    if (!window.confirm(`Drop ${label}? This cannot be undone.`)) return;
+    if (!window.confirm(`确认退课"${label}"？此操作不可撤销。`)) return;
     void dropEnrollment(enrollment.id);
   };
 
@@ -471,7 +471,7 @@ export default function SchedulePage() {
       {/* Drop deadline banner */}
       {terms.length === 0 ? (
         <div className="rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-          No active term is available yet. Schedule will appear after a term is published.
+          暂无可用学期，排课信息将在学期发布后显示。
         </div>
       ) : null}
       {activeTerm ? (
