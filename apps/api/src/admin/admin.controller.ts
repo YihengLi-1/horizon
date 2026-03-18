@@ -1075,4 +1075,10 @@ export class AdminController {
   async systemHealth() {
     return ok(await this.adminService.getSystemHealth());
   }
+
+  @Get("schedule-conflicts")
+  @RequireAdminPermissions("sections:read")
+  async scheduleConflicts(@Query("termId") termId?: string) {
+    return ok(await this.adminService.getScheduleConflicts(termId));
+  }
 }

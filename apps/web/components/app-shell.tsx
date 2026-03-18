@@ -153,6 +153,7 @@ const adminItems: NavItem[] = [
   { href: "/admin/prereq-audit",           label: "先修审计",   icon: <ShieldAlert className={iconClass} /> },
   { href: "/admin/offering-history",       label: "开课历史",   icon: <BookCopy className={iconClass} /> },
   { href: "/admin/section-swap",           label: "学生换班",   icon: <Users className={iconClass} /> },
+  { href: "/admin/schedule-conflicts",     label: "排课冲突",   icon: <ShieldAlert className={iconClass} /> },
   { href: "/admin/grade-curve",            label: "成绩曲线",   icon: <BarChart3 className={iconClass} /> },
   { href: "/admin/cohort-analytics",       label: "专业群体",   icon: <BarChart3 className={iconClass} /> },
   { href: "/admin/term-enrollment-forecast", label: "注册预测", icon: <BarChart3 className={iconClass} /> },
@@ -254,7 +255,7 @@ export function AppShell({
             { label: "审批",     hrefs: ["/admin/appeals", "/admin/prereq-waivers", "/admin/pending-overloads"] },
             { label: "管理",     hrefs: ["/admin/announcements-mgmt", "/admin/bulk-ops", "/admin/enrollment-audit", "/admin/grade-distribution", "/admin/audit-logs"] },
             { label: "分析",     hrefs: ["/admin/instructor-performance", "/admin/dept-gpa", "/admin/retention", "/admin/demand-report", "/admin/data-quality", "/admin/notification-log", "/admin/term-comparison", "/admin/course-pairings", "/admin/digest-preview", "/admin/dropout-risk", "/admin/top-performers", "/admin/dept-workload", "/admin/waitlist-analytics", "/admin/graduation", "/admin/registration-heatmap", "/admin/faculty-schedule", "/admin/capacity-plan", "/admin/alerts", "/admin/enrollment-velocity", "/admin/term-capacity", "/admin/late-drops", "/admin/major-trends"] },
-            { label: "工具",     hrefs: ["/admin/closeout", "/admin/prereq-audit", "/admin/offering-history", "/admin/section-swap", "/admin/grade-curve", "/admin/cohort-analytics", "/admin/term-enrollment-forecast", "/admin/prereq-map", "/admin/section-roster", "/admin/status-email", "/admin/cohort-message", "/admin/calendar", "/admin/reports-summary"] },
+            { label: "工具",     hrefs: ["/admin/closeout", "/admin/prereq-audit", "/admin/offering-history", "/admin/section-swap", "/admin/schedule-conflicts", "/admin/grade-curve", "/admin/cohort-analytics", "/admin/term-enrollment-forecast", "/admin/prereq-map", "/admin/section-roster", "/admin/status-email", "/admin/cohort-message", "/admin/calendar", "/admin/reports-summary"] },
             { label: "系统",     hrefs: ["/admin/search", "/admin/invite-codes", "/admin/settings", "/admin/webhooks"] },
           ]
         : area === "faculty"
