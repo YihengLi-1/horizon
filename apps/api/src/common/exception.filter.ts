@@ -48,7 +48,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       error: {
         statusCode: status,
         code: "INTERNAL_ERROR",
-        message: "Internal server error",
+        message: "服务器内部错误",
         requestId
       }
     });
