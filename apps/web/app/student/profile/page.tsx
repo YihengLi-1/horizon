@@ -711,7 +711,7 @@ export default function StudentProfilePage() {
                 placeholder="例如：本学期维持 3.5 GPA"
               />
               <div className="mt-3 flex items-center justify-between gap-3">
-                <p className="text-xs text-slate-500">{goal ? `Current goal: ${goal}` : "No goal saved yet."}</p>
+                <p className="text-xs text-slate-500">{goal ? `当前目标：${goal}` : "尚未设置目标。"}</p>
                 <button
                   type="button"
                   onClick={saveGoal}

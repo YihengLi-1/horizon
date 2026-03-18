@@ -573,7 +573,7 @@ export default function AdminSectionsPage() {
   };
 
   const onDeleteSection = async (id: string, code: string) => {
-    if (!window.confirm(`Delete section "${code}"? This will remove all associated enrollments and cannot be undone.`)) return;
+    if (!window.confirm(`确认删除班级"${code}"？这将同时删除所有关联的选课记录，不可撤销。`)) return;
     setCreateError("");
     setCreateSuccess("");
     try {
@@ -1635,7 +1635,7 @@ export default function AdminSectionsPage() {
                                   onClick={() => setNotifyingSectionId(null)}
                                   className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600"
                                 >
-                                  Cancel
+                                  取消
                                 </button>
                               </div>
                             </div>

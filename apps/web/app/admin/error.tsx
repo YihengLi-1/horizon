@@ -19,7 +19,7 @@ export default function AdminError({
       <div className="w-full max-w-md text-center">
         <p className="text-7xl font-black text-slate-200 dark:text-slate-800">500</p>
         <h1 className="mt-4 text-xl font-bold text-slate-800 dark:text-slate-100">出现错误</h1>
-        <p className="mt-2 text-sm text-slate-500">An unexpected error occurred.</p>
+        <p className="mt-2 text-sm text-slate-500">发生了意外错误，请稍后再试。</p>
         {error.digest ? <p className="mt-1 font-mono text-xs text-slate-400">ID: {error.digest}</p> : null}
         <div className="mt-6 flex justify-center gap-3">
           <button

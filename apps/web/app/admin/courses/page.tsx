@@ -438,9 +438,9 @@ export default function CoursesPage() {
       {editingId ? (
         <section className="campus-card border-blue-200 bg-blue-50/60 p-5 md:p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-blue-900">Editing: {editForm.code}</h2>
+            <h2 className="text-base font-semibold text-blue-900">编辑：{editForm.code}</h2>
             <button type="button" onClick={cancelEdit} className="text-sm font-medium text-blue-700 underline underline-offset-2">
-              Cancel
+              取消
             </button>
           </div>
           <form className="grid gap-3 md:grid-cols-5" onSubmit={onSaveEdit}>

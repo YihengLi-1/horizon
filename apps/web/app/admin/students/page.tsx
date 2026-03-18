@@ -553,7 +553,7 @@ export default function AdminStudentsPage() {
         <summary className="cursor-pointer select-none text-sm font-semibold text-slate-700">🏆 Top 5 by GPA</summary>
         <div className="mt-3 space-y-2">
           {topStudents.length === 0 ? (
-            <p className="text-sm text-slate-400">No GPA data available.</p>
+            <p className="text-sm text-slate-400">暂无 GPA 数据。</p>
           ) : (
             topStudents.map((student, index) => (
               <div key={student.id} className="flex items-center gap-3">
@@ -910,7 +910,7 @@ export default function AdminStudentsPage() {
           {loading ? (
             <div className="campus-card p-4 text-sm text-slate-500">加载学生数据中...</div>
           ) : visibleStudents.length === 0 ? (
-            <div className="campus-card p-4 text-sm text-slate-500">No students found.</div>
+            <div className="campus-card p-4 text-sm text-slate-500">暂无学生数据。</div>
           ) : (
             pagedStudents.map((student) => (
               <div key={student.id} className="campus-card p-4">

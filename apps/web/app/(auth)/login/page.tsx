@@ -159,7 +159,7 @@ export default function LoginPage() {
                 <p className="mt-2 text-sm leading-6 text-slate-600">使用学号或邮箱登录，进入学生、教师、顾问或管理工作台。</p>
               </div>
 
-              <form aria-label="Sign in form" className="space-y-4" onSubmit={onSubmit}>
+              <form aria-label="登录表单" className="space-y-4" onSubmit={onSubmit}>
                 <label className="block">
                   <span className="mb-1.5 block text-sm font-medium text-slate-700">学号或邮箱</span>
                   <input

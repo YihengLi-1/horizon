@@ -228,7 +228,7 @@ export default function AdminHoldsClient() {
           </div>
 
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search student</span>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">搜索学生</span>
             <input
               className="campus-input"
               value={studentQuery}
@@ -240,7 +240,7 @@ export default function AdminHoldsClient() {
           {selectedStudent ? (
             <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
               <p className="font-semibold">{selectedStudent.studentProfile?.legalName || selectedStudent.email}</p>
-              <p className="mt-1 text-xs text-blue-700">{selectedStudent.email} · {selectedStudent.studentId || "No student ID"}</p>
+              <p className="mt-1 text-xs text-blue-700">{selectedStudent.email} · {selectedStudent.studentId || "无学号"}</p>
             </div>
           ) : null}
 
@@ -256,14 +256,14 @@ export default function AdminHoldsClient() {
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-sm text-slate-800 transition hover:bg-slate-50"
                 >
                   <p className="font-semibold">{student.studentProfile?.legalName || student.email}</p>
-                  <p className="mt-1 text-xs text-slate-500">{student.email} · {student.studentId || "No student ID"}</p>
+                  <p className="mt-1 text-xs text-slate-500">{student.email} · {student.studentId || "无学号"}</p>
                 </button>
               ))}
             </div>
           ) : null}
 
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Hold type</span>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">保留类型</span>
             <select className="campus-select" value={type} onChange={(event) => setType(event.target.value as HoldType)}>
               {HOLD_TYPES.map((item) => (
                 <option key={item} value={item}>{item}</option>
@@ -272,17 +272,17 @@ export default function AdminHoldsClient() {
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Reason</span>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">原因</span>
             <input className="campus-input" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="例：教务处审核" />
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Note</span>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">备注</span>
             <textarea className="campus-input min-h-28" value={note} onChange={(event) => setNote(event.target.value)} placeholder="显示在保留详情中的备注" />
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Expiry (optional)</span>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">过期时间（选填）</span>
             <input className="campus-input" type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} />
           </label>
 
@@ -319,7 +319,7 @@ export default function AdminHoldsClient() {
           {loading ? (
             <div className="campus-card p-5 text-sm text-slate-500">加载学籍限制中…</div>
           ) : filteredHolds.length === 0 ? (
-            <div className="campus-card p-5 text-sm text-slate-500">No holds match the current filter.</div>
+            <div className="campus-card p-5 text-sm text-slate-500">暂无符合条件的学籍限制记录。</div>
           ) : (
             filteredHolds.map((hold) => (
               <article key={hold.id} className={`campus-card space-y-3 p-5 ${hold.active ? "border-slate-200 bg-white" : "border-slate-200 bg-slate-50"}`}>
@@ -328,17 +328,17 @@ export default function AdminHoldsClient() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={`campus-chip text-xs ${holdTone(hold.type)}`}>{hold.type}</span>
                       <span className={`campus-chip text-xs ${hold.active ? "border-red-200 bg-red-50 text-red-700" : "border-slate-200 bg-slate-100 text-slate-600"}`}>
-                        {hold.active ? "ACTIVE" : "RESOLVED"}
+                        {hold.active ? "生效中" : "已解除"}
                       </span>
                     </div>
                     <h3 className="mt-2 text-base font-semibold text-slate-900">{hold.student.studentProfile?.legalName || hold.student.email}</h3>
-                    <p className="mt-1 text-sm text-slate-500">{hold.student.email} · {hold.student.studentId || "No student ID"}</p>
+                    <p className="mt-1 text-sm text-slate-500">{hold.student.email} · {hold.student.studentId || "无学号"}</p>
                   </div>
                   <div className="text-right text-xs text-slate-500">
                     <p>创建于 {formatDateTime(hold.createdAt)}</p>
                     <p>{hold.createdBy?.email || "未知操作者"}</p>
-                    {hold.expiresAt ? <p>Expires {formatDateTime(hold.expiresAt)}</p> : null}
-                    {hold.resolvedAt ? <p>Resolved {formatDateTime(hold.resolvedAt)}</p> : null}
+                    {hold.expiresAt ? <p>过期：{formatDateTime(hold.expiresAt)}</p> : null}
+                    {hold.resolvedAt ? <p>解除于 {formatDateTime(hold.resolvedAt)}</p> : null}
                     {hold.resolvedBy?.email ? <p>{hold.resolvedBy.email}</p> : null}
                   </div>
                 </div>
@@ -351,7 +351,7 @@ export default function AdminHoldsClient() {
                 {hold.active ? (
                   <div className="rounded-xl border border-slate-200 bg-white p-3">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Removal note</span>
+                      <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">解除备注</span>
                       <textarea
                         className="campus-input min-h-20"
                         value={resolveNotes[hold.id] ?? ""}
