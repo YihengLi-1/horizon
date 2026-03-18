@@ -648,6 +648,9 @@ check_contains "apps/web/app/student/catalog/page.tsx" "myStatus|myWaitlistPosit
 check_contains "apps/web/app/student/schedule/page.tsx" "showDropped|已退课|droppedAt" "Schedule exposes dropped-record toggle and timestamps"
 check_contains "apps/web/app/admin/reg-windows/page.tsx" "priorityWindows|分年级开放" "Admin reg windows show cohort-specific opening times"
 check_contains "apps/web/components/app-shell.tsx" "/student/prereq-waivers|/admin/prereq-waivers|/admin/pending-overloads" "Session 25 nav links wired"
+check_contains "apps/web/app/admin/schedule-conflicts/page.tsx" "getScheduleConflicts|schedule-conflicts|排课冲突" "Admin schedule conflict detector page exists"
+check_contains "apps/api/src/admin/admin.service.ts" "getScheduleConflicts" "Admin getScheduleConflicts service method"
+check_contains "apps/web/components/app-shell.tsx" "/admin/schedule-conflicts" "Schedule conflicts wired in admin nav"
 
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"

@@ -7393,4 +7393,86 @@ export class AdminService {
       totalEnrollments
     };
   }
+
+  async getScheduleConflicts(termId?: string) {
+    type ConflictRow = {
+      studentId: string;
+      email: string;
+      legalName: string | null;
+      ea: string; eb: string;
+      codeA: string; codeB: string;
+      titleA: string; titleB: string;
+      secA: string; secB: string;
+      weekday: number;
+      startA: number; endA: number;
+      startB: number; endB: number;
+    };
+
+    const rows = await this.prisma.$queryRaw<ConflictRow[]>`
+      SELECT
+        u.id                                         AS "studentId",
+        u.email,
+        sp."legalName",
+        e1.id                                        AS ea,
+        e2.id                                        AS eb,
+        c1.code                                      AS "codeA",
+        c2.code                                      AS "codeB",
+        c1.title                                     AS "titleA",
+        c2.title                                     AS "titleB",
+        s1."sectionCode"                             AS "secA",
+        s2."sectionCode"                             AS "secB",
+        mt1.weekday,
+        mt1."startMinutes"                           AS "startA",
+        mt1."endMinutes"                             AS "endA",
+        mt2."startMinutes"                           AS "startB",
+        mt2."endMinutes"                             AS "endB"
+      FROM "Enrollment" e1
+      JOIN "Enrollment" e2
+        ON  e1."studentId" = e2."studentId"
+        AND e1.id < e2.id
+        AND e1.status = 'ENROLLED'
+        AND e2.status = 'ENROLLED'
+        AND e1."deletedAt" IS NULL
+        AND e2."deletedAt" IS NULL
+      JOIN "Section" s1 ON s1.id = e1."sectionId"
+      JOIN "Section" s2 ON s2.id = e2."sectionId"
+      JOIN "Course"  c1 ON c1.id = s1."courseId"
+      JOIN "Course"  c2 ON c2.id = s2."courseId"
+      JOIN "MeetingTime" mt1 ON mt1."sectionId" = s1.id
+      JOIN "MeetingTime" mt2 ON mt2."sectionId" = s2.id
+        AND mt1.weekday = mt2.weekday
+        AND mt1."startMinutes" < mt2."endMinutes"
+        AND mt2."startMinutes" < mt1."endMinutes"
+      JOIN "User" u ON u.id = e1."studentId"
+      LEFT JOIN "StudentProfile" sp ON sp."userId" = u.id
+      WHERE s1."termId" = s2."termId"
+        AND (${termId ?? null}::text IS NULL OR s1."termId" = ${termId ?? ''})
+      ORDER BY u.email, mt1.weekday, mt1."startMinutes"
+      LIMIT 500
+    `;
+
+    const byStudent = new Map<string, {
+      studentId: string; email: string; legalName: string | null;
+      conflicts: Array<{ codeA: string; codeB: string; titleA: string; titleB: string; secA: string; secB: string; weekday: number; startA: number; endA: number; startB: number; endB: number }>
+    }>();
+
+    for (const r of rows) {
+      if (!byStudent.has(r.studentId)) {
+        byStudent.set(r.studentId, { studentId: r.studentId, email: r.email, legalName: r.legalName, conflicts: [] });
+      }
+      byStudent.get(r.studentId)!.conflicts.push({
+        codeA: r.codeA, codeB: r.codeB,
+        titleA: r.titleA, titleB: r.titleB,
+        secA: r.secA, secB: r.secB,
+        weekday: Number(r.weekday),
+        startA: Number(r.startA), endA: Number(r.endA),
+        startB: Number(r.startB), endB: Number(r.endB),
+      });
+    }
+
+    return {
+      total: byStudent.size,
+      students: [...byStudent.values()],
+    };
+  }
 }
