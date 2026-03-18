@@ -1,211 +1,210 @@
 "use client";
 
-/**
- * Admin Prerequisite Map
- * Shows all courses and their prerequisite relationships as a filterable table.
- * Summary KPIs + adjacency list view — no external graph library needed.
- */
-
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
-type MapNode = {
-  id: string; code: string; title: string; credits: number;
-  prereqCount: number; inDegree: number;
+type PrereqNode = {
+  id: string;
+  code: string;
+  title: string;
+  credits: number;
+  prereqCount: number;
+  inDegree: number;
 };
-type MapEdge = { from: string; to: string; fromCode: string; toCode: string };
-type PrereqMap = {
-  nodes: MapNode[];
-  edges: MapEdge[];
-  summary: { totalCourses: number; coursesWithPrereqs: number; totalPrereqRelations: number };
+
+type PrereqEdge = {
+  from: string;
+  to: string;
+  fromCode: string;
+  toCode: string;
+};
+
+type PrereqMapData = {
+  nodes: PrereqNode[];
+  edges: PrereqEdge[];
+  summary: {
+    totalCourses: number;
+    coursesWithPrereqs: number;
+    totalPrereqRelations: number;
+  };
 };
 
 export default function PrereqMapPage() {
-  const [data, setData] = useState<PrereqMap | null>(null);
+  const [data, setData] = useState<PrereqMapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "has-prereqs" | "no-prereqs" | "is-prereq">("all");
+  const [viewMode, setViewMode] = useState<"table" | "adj">("table");
 
   useEffect(() => {
-    void apiFetch<PrereqMap>("/admin/prereq-map")
-      .then((d) => setData(d))
-      .catch((e) => setError(e instanceof Error ? e.message : "加载失败"))
+    void apiFetch<PrereqMapData>("/admin/prereq-map")
+      .then((d) => setData(d ?? null))
+      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setLoading(false));
   }, []);
 
-  // Build a set of course IDs that are prerequisites for something
-  const isPrereqSet = useMemo(() => {
-    if (!data) return new Set<string>();
-    return new Set(data.edges.map((e) => e.from));
-  }, [data]);
-
-  // Build a map: courseId -> list of prerequisite codes
-  const prereqsOf = useMemo(() => {
-    if (!data) return new Map<string, string[]>();
-    const map = new Map<string, string[]>();
-    for (const e of data.edges) {
-      if (!map.has(e.to)) map.set(e.to, []);
-      map.get(e.to)!.push(e.fromCode);
-    }
-    return map;
-  }, [data]);
-
-  // Build a map: courseId -> list of courses that require it
-  const requiredByMap = useMemo(() => {
-    if (!data) return new Map<string, string[]>();
-    const map = new Map<string, string[]>();
-    for (const e of data.edges) {
-      if (!map.has(e.from)) map.set(e.from, []);
-      map.get(e.from)!.push(e.toCode);
-    }
-    return map;
-  }, [data]);
-
   const filtered = useMemo(() => {
     if (!data) return [];
-    return data.nodes.filter((n) => {
-      const matchSearch = !search ||
-        n.code.toLowerCase().includes(search.toLowerCase()) ||
-        n.title.toLowerCase().includes(search.toLowerCase());
-      const matchFilter =
-        filter === "all" ? true :
-        filter === "has-prereqs" ? n.prereqCount > 0 :
-        filter === "no-prereqs" ? n.prereqCount === 0 :
-        isPrereqSet.has(n.id);
-      return matchSearch && matchFilter;
-    });
-  }, [data, search, filter, isPrereqSet]);
+    const q = search.toLowerCase();
+    return data.nodes.filter(
+      (n) => !q || n.code.toLowerCase().includes(q) || n.title.toLowerCase().includes(q)
+    );
+  }, [data, search]);
+
+  // Build adjacency: for each node, which courses require it as a prereq
+  const requiresMap = useMemo(() => {
+    const m = new Map<string, string[]>();
+    if (!data) return m;
+    for (const edge of data.edges) {
+      if (!m.has(edge.from)) m.set(edge.from, []);
+      m.get(edge.from)!.push(edge.toCode);
+    }
+    return m;
+  }, [data]);
+
+  // For each node, list of its prereq codes
+  const prereqsMap = useMemo(() => {
+    const m = new Map<string, string[]>();
+    if (!data) return m;
+    for (const edge of data.edges) {
+      if (!m.has(edge.to)) m.set(edge.to, []);
+      m.get(edge.to)!.push(edge.fromCode);
+    }
+    return m;
+  }, [data]);
 
   return (
-    <div className="campus-page space-y-6">
+    <div className="campus-page">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Course Structure</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">先修课程关系图</h1>
-        <p className="mt-1 text-sm text-slate-500">查看各课程的先修要求及依赖链</p>
+        <p className="campus-eyebrow">课程管理</p>
+        <h1 className="campus-hero-title">先修课图谱</h1>
+        <p className="campus-hero-subtitle">可视化课程先修依赖关系，查看入度与被依赖情况</p>
       </section>
 
-      {error && <div className="campus-card border-red-200 bg-red-50 px-6 py-4 text-sm text-red-700">{error}</div>}
+      <section className="grid gap-3 sm:grid-cols-3">
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">课程总数</p>
+          <p className="campus-kpi-value">{loading ? "—" : data?.summary.totalCourses}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">有先修要求</p>
+          <p className="campus-kpi-value">{loading ? "—" : data?.summary.coursesWithPrereqs}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">先修关系总数</p>
+          <p className="campus-kpi-value text-blue-600">{loading ? "—" : data?.summary.totalPrereqRelations}</p>
+        </div>
+      </section>
 
-      {loading ? (
-        <div className="campus-card px-6 py-14 text-center text-sm text-slate-500">⏳ 加载中…</div>
-      ) : data ? (
-        <>
-          {/* KPIs */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="campus-kpi">
-              <p className="campus-kpi-label">课程总数</p>
-              <p className="campus-kpi-value">{data.summary.totalCourses}</p>
-            </div>
-            <div className="campus-kpi">
-              <p className="campus-kpi-label">有先修要求</p>
-              <p className="campus-kpi-value text-indigo-600">{data.summary.coursesWithPrereqs}</p>
-            </div>
-            <div className="campus-kpi">
-              <p className="campus-kpi-label">先修关系总数</p>
-              <p className="campus-kpi-value text-emerald-600">{data.summary.totalPrereqRelations}</p>
-            </div>
-          </div>
-
-          {/* Filters */}
-          <div className="campus-toolbar gap-2 flex-wrap">
-            <input
-              className="campus-input flex-1 min-w-48"
-              placeholder="搜索课程代码或名称…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {(["all", "has-prereqs", "no-prereqs", "is-prereq"] as const).map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setFilter(f)}
-                className={`campus-chip ${filter === f ? "bg-indigo-600 text-white border-indigo-600" : "border-slate-200 bg-slate-50 text-slate-600"}`}
-              >
-                {f === "all" ? "全部" : f === "has-prereqs" ? "有先修要求" : f === "no-prereqs" ? "无先修要求" : "被依赖课程"}
-              </button>
-            ))}
-          </div>
-
-          {/* Table */}
-          <div className="campus-card overflow-hidden">
-            <div className="px-4 py-2 border-b border-slate-100 text-xs text-slate-500">
-              共 {filtered.length} 门课程
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-500">
-                    <th className="pb-2 pl-4 text-left font-semibold">课程</th>
-                    <th className="pb-2 pr-3 text-right font-semibold">学分</th>
-                    <th className="pb-2 pr-3 text-left font-semibold">先修课程</th>
-                    <th className="pb-2 pr-4 text-left font-semibold">被以下课程依赖</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((n) => {
-                    const prereqs = prereqsOf.get(n.id) ?? [];
-                    const requiredBy = requiredByMap.get(n.id) ?? [];
-                    return (
-                      <tr key={n.id} className="border-b border-slate-50 hover:bg-slate-50">
-                        <td className="py-2.5 pl-4 pr-3">
-                          <span className="font-mono font-bold text-indigo-700">{n.code}</span>
-                          <span className="text-slate-500 ml-2 hidden sm:inline">
-                            {n.title.length > 35 ? n.title.slice(0, 35) + "…" : n.title}
-                          </span>
-                        </td>
-                        <td className="py-2.5 pr-3 text-right text-slate-600">{n.credits}</td>
-                        <td className="py-2.5 pr-3">
-                          {prereqs.length === 0 ? (
-                            <span className="text-slate-300">—</span>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {prereqs.map((code) => (
-                                <span key={code} className="inline-block rounded bg-indigo-50 px-1.5 py-0.5 font-mono text-indigo-700 text-xs">
-                                  {code}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-2.5 pr-4">
-                          {requiredBy.length === 0 ? (
-                            <span className="text-slate-300">—</span>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {requiredBy.map((code) => (
-                                <span key={code} className="inline-block rounded bg-emerald-50 px-1.5 py-0.5 font-mono text-emerald-700 text-xs">
-                                  {code}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Chain depth legend */}
-          <div className="campus-card p-4 space-y-2">
-            <h2 className="text-sm font-bold text-slate-900">说明</h2>
-            <div className="flex flex-wrap gap-4 text-xs text-slate-500">
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block w-3 h-3 rounded bg-indigo-100" />
-                <span>先修课程（蓝色标签）</span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block w-3 h-3 rounded bg-emerald-100" />
-                <span>依赖该课程的课程（绿色标签）</span>
-              </span>
-              <span>InDegree = 被多少课程作为先修</span>
-            </div>
-          </div>
-        </>
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       ) : null}
+
+      <div className="campus-toolbar">
+        <input
+          className="campus-input max-w-xs"
+          placeholder="搜索课程代码或名称…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <div className="flex rounded-lg border border-slate-200 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            className={`px-3 py-1.5 text-xs font-medium transition ${viewMode === "table" ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+          >
+            依赖表
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("adj")}
+            className={`px-3 py-1.5 text-xs font-medium transition ${viewMode === "adj" ? "bg-blue-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+          >
+            邻接视图
+          </button>
+        </div>
+      </div>
+
+      {viewMode === "table" ? (
+        <section className="campus-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="px-4 py-3 text-left">课程</th>
+                  <th className="px-4 py-3 text-right">学分</th>
+                  <th className="px-4 py-3 text-right">先修数</th>
+                  <th className="px-4 py-3 text-right">被依赖数</th>
+                  <th className="px-4 py-3 text-left">需要先修</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-400">加载中…</td></tr>
+                ) : filtered.length === 0 ? (
+                  <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-400">暂无数据</td></tr>
+                ) : filtered.map((node) => {
+                  const prereqs = prereqsMap.get(node.id) ?? [];
+                  const requiredBy = requiresMap.get(node.id) ?? [];
+                  return (
+                    <tr key={node.id} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="px-4 py-3">
+                        <p className="font-bold text-[hsl(221_83%_43%)]">{node.code}</p>
+                        <p className="text-xs text-slate-500">{node.title}</p>
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-slate-600">{node.credits}</td>
+                      <td className="px-4 py-3 text-right font-mono text-slate-700">
+                        {prereqs.length > 0 ? (
+                          <span className="font-bold text-amber-600">{prereqs.length}</span>
+                        ) : "0"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono">
+                        {requiredBy.length > 0 ? (
+                          <span className="font-bold text-emerald-600">{requiredBy.length}</span>
+                        ) : "0"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {prereqs.length === 0 ? (
+                            <span className="text-xs text-slate-400">无</span>
+                          ) : prereqs.map((code) => (
+                            <span key={code} className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">
+                              {code}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : (
+        <section className="campus-card p-5">
+          <p className="font-semibold text-slate-800 mb-4">邻接关系列表（先修 → 后续）</p>
+          {loading ? (
+            <p className="text-slate-400 text-sm">加载中…</p>
+          ) : (data?.edges ?? []).length === 0 ? (
+            <p className="text-slate-400 text-sm">暂无先修关系</p>
+          ) : (
+            <div className="space-y-1">
+              {(data?.edges ?? []).filter((e) => {
+                const q = search.toLowerCase();
+                return !q || e.fromCode.toLowerCase().includes(q) || e.toCode.toLowerCase().includes(q);
+              }).map((edge, i) => (
+                <div key={i} className="flex items-center gap-3 py-1.5 border-b border-slate-100">
+                  <span className="font-mono text-xs font-bold text-[hsl(221_83%_43%)] w-20">{edge.fromCode}</span>
+                  <span className="text-slate-400 text-xs">→ 是</span>
+                  <span className="font-mono text-xs font-bold text-amber-600 w-20">{edge.toCode}</span>
+                  <span className="text-slate-400 text-xs">的先修课</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }

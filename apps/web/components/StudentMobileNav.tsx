@@ -17,7 +17,7 @@ export default function StudentMobileNav() {
 
   return (
     <nav
-      aria-label="Student mobile navigation"
+      aria-label="学生移动导航"
       className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-slate-200 bg-white md:hidden"
     >
       {LINKS.map(({ href, icon: Icon, label }) => {

@@ -1,241 +1,157 @@
 "use client";
 
-/**
- * Student Peer Comparison Dashboard
- * Lets students see how their GPA, credit load, and completion rate
- * compare to anonymous cohort aggregates (same dept, same graduation year).
- * All data comes from the already-existing /students/gpa-stats endpoint
- * plus /students/me (own profile).
- */
-
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type GpaStats = {
   myGpa: number | null;
-  percentile: number | null;
+  count: number;
   mean: number | null;
   median: number | null;
-  distribution?: { label: string; count: number }[];
+  percentile: number | null;
 };
 
-type Me = {
-  legalName?: string | null;
-  programMajor?: string | null;
-  user?: { email?: string | null } | null;
-  enrollments?: {
-    status: string;
-    finalGrade?: string | null;
-    section: { course: { credits: number } };
-  }[];
-};
-
-function Bar({ label, value, max, color = "bg-indigo-500" }: { label: string; value: number; max: number; color?: string }) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+function GaugeArc({ pct }: { pct: number }) {
+  // Semi-circle gauge, 0–100%
+  const r = 70;
+  const cx = 100;
+  const cy = 100;
+  const startAngle = Math.PI; // 180°
+  const endAngle = 0; // 0°
+  const angle = Math.PI - (pct / 100) * Math.PI;
+  const x = cx + r * Math.cos(angle);
+  const y = cy - r * Math.sin(angle);
+  const trackPath = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
+  const fillPath = pct > 0 ? `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${x} ${y}` : "";
+  const color = pct >= 75 ? "#10b981" : pct >= 50 ? "#3b82f6" : pct >= 25 ? "#f59e0b" : "#ef4444";
   return (
-    <div className="flex items-center gap-2 text-xs">
-      <span className="w-20 shrink-0 text-slate-600 truncate">{label}</span>
-      <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="w-6 text-right tabular-nums text-slate-500">{value}</span>
-    </div>
-  );
-}
-
-function GaugePct({ percentile }: { percentile: number }) {
-  const color = percentile >= 75 ? "text-emerald-600" : percentile >= 50 ? "text-indigo-600" : percentile >= 25 ? "text-amber-600" : "text-red-600";
-  const bg = percentile >= 75 ? "bg-emerald-50 border-emerald-200" : percentile >= 50 ? "bg-indigo-50 border-indigo-200" : percentile >= 25 ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200";
-  return (
-    <div className={`rounded-xl border p-4 text-center ${bg}`}>
-      <p className="text-xs font-semibold text-slate-500 mb-1">GPA 百分位</p>
-      <p className={`text-4xl font-black ${color}`}>{percentile}<span className="text-lg">th</span></p>
-      <p className="text-xs text-slate-500 mt-1">超过了 {percentile}% 的同学</p>
-    </div>
+    <svg viewBox="0 0 200 110" className="w-full max-w-[280px]">
+      <path d={trackPath} fill="none" stroke="#e2e8f0" strokeWidth="16" strokeLinecap="round" />
+      {fillPath ? (
+        <path d={fillPath} fill="none" stroke={color} strokeWidth="16" strokeLinecap="round" />
+      ) : null}
+      <text x={cx} y={cy - 10} textAnchor="middle" className="text-3xl font-black" style={{ fontSize: 28, fontWeight: 800, fill: color }}>
+        {pct}%
+      </text>
+      <text x={cx} y={cy + 12} textAnchor="middle" style={{ fontSize: 11, fill: "#94a3b8" }}>
+        高于该比例同学
+      </text>
+      <text x={cx - r - 4} y={cy + 18} textAnchor="end" style={{ fontSize: 10, fill: "#94a3b8" }}>0%</text>
+      <text x={cx + r + 4} y={cy + 18} textAnchor="start" style={{ fontSize: 10, fill: "#94a3b8" }}>100%</text>
+    </svg>
   );
 }
 
 export default function PeerComparePage() {
   const [stats, setStats] = useState<GpaStats | null>(null);
-  const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    let alive = true;
-    Promise.all([
-      apiFetch<GpaStats>("/students/gpa-stats").catch(() => null),
-      apiFetch<Me>("/students/me").catch(() => null)
-    ]).then(([s, m]) => {
-      if (!alive) return;
-      setStats(s);
-      setMe(m);
-      setLoading(false);
-    });
-    return () => { alive = false; };
+    void apiFetch<GpaStats>("/students/gpa-stats")
+      .then((d) => setStats(d))
+      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
+      .finally(() => setLoading(false));
   }, []);
 
-  const myGpa = stats?.myGpa ?? null;
-  const completedCredits = (me?.enrollments ?? [])
-    .filter((e) => e.status === "COMPLETED")
-    .reduce((s, e) => s + (e.section.course.credits ?? 0), 0);
-  const enrolledCount = (me?.enrollments ?? []).filter((e) => e.status === "ENROLLED").length;
-  const completedCount = (me?.enrollments ?? []).filter((e) => e.status === "COMPLETED").length;
-  const distribution = stats?.distribution ?? [];
-  const maxDistCount = Math.max(...distribution.map((d) => d.count), 1);
-
-  if (loading) {
-    return (
-      <div className="campus-page">
-        <div className="campus-card px-6 py-16 text-center text-sm text-slate-500">⏳ 加载中…</div>
-      </div>
-    );
-  }
+  const diff = stats?.myGpa != null && stats.mean != null ? (stats.myGpa - stats.mean) : null;
+  const diffFromMedian = stats?.myGpa != null && stats.median != null ? (stats.myGpa - stats.median) : null;
 
   return (
-    <div className="campus-page space-y-6">
+    <div className="campus-page">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Analytics</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">同伴对比</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          将你的学业表现与匿名全体学生数据进行横向比较
-        </p>
+        <p className="campus-eyebrow">学业分析</p>
+        <h1 className="campus-hero-title">同伴 GPA 对比</h1>
+        <p className="campus-hero-subtitle">将你的累计 GPA 与同届学生进行横向比较</p>
       </section>
 
-      {/* My quick stats */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-4">
         <div className="campus-kpi">
           <p className="campus-kpi-label">我的 GPA</p>
-          <p className="campus-kpi-value text-indigo-600">{myGpa !== null ? myGpa.toFixed(2) : "N/A"}</p>
+          <p className={`campus-kpi-value ${stats?.myGpa != null && stats.myGpa >= 3.5 ? "text-emerald-600" : "text-slate-800"}`}>
+            {loading ? "—" : stats?.myGpa != null ? stats.myGpa.toFixed(3) : "暂无"}
+          </p>
         </div>
         <div className="campus-kpi">
           <p className="campus-kpi-label">全体均值</p>
-          <p className="campus-kpi-value">{stats?.mean != null ? stats.mean.toFixed(2) : "—"}</p>
+          <p className="campus-kpi-value">{loading ? "—" : stats?.mean?.toFixed(2) ?? "—"}</p>
         </div>
         <div className="campus-kpi">
           <p className="campus-kpi-label">全体中位数</p>
-          <p className="campus-kpi-value">{stats?.median != null ? stats.median.toFixed(2) : "—"}</p>
+          <p className="campus-kpi-value">{loading ? "—" : stats?.median?.toFixed(2) ?? "—"}</p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label">已完成学分</p>
-          <p className="campus-kpi-value text-emerald-600">{completedCredits}</p>
+          <p className="campus-kpi-label">参与比较学生数</p>
+          <p className="campus-kpi-value text-slate-600">{loading ? "—" : stats?.count ?? 0}</p>
         </div>
-      </div>
+      </section>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Percentile gauge */}
-        <div className="space-y-4">
-          {stats && stats.percentile !== null ? (
-            <GaugePct percentile={stats.percentile} />
-          ) : (
-            <div className="campus-card p-4 text-center text-sm text-slate-400">无 GPA 记录</div>
-          )}
-
-          {/* My vs cohort compare */}
-          <div className="campus-card p-4 space-y-3">
-            <h3 className="text-xs font-bold uppercase text-slate-500">GPA 横向比较</h3>
-            {[
-              { label: "我的 GPA", value: myGpa ?? 0, color: "bg-indigo-500" },
-              { label: "全体均值", value: stats?.mean ?? 0, color: "bg-slate-400" },
-              { label: "全体中位", value: stats?.median ?? 0, color: "bg-emerald-400" }
-            ].map(({ label, value, color }) => (
-              <div key={label}>
-                <div className="flex justify-between text-xs mb-0.5">
-                  <span className="text-slate-600">{label}</span>
-                  <span className="font-bold text-slate-800">{value.toFixed(2)}</span>
-                </div>
-                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${color} transition-all`}
-                    style={{ width: `${Math.min(100, (value / 4) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : loading ? (
+        <div className="campus-card p-10 text-center text-slate-400">加载中…</div>
+      ) : !stats?.myGpa ? (
+        <div className="campus-card p-10 text-center">
+          <p className="text-3xl mb-3">📊</p>
+          <p className="text-sm font-semibold text-slate-600">暂无成绩数据</p>
+          <p className="mt-1 text-xs text-slate-400">完成带评分的课程后，此处将显示你的百分位数。</p>
         </div>
-
-        {/* GPA Distribution */}
-        <div className="campus-card p-4 space-y-3">
-          <h3 className="text-xs font-bold uppercase text-slate-500">GPA 全体分布</h3>
-          {distribution.length ? (
-            <div className="space-y-2">
-              {distribution.map((d) => {
-                const isMyBin = myGpa !== null &&
-                  d.label.includes("–") &&
-                  (() => {
-                    const [lo, hi] = d.label.split("–").map(Number);
-                    return myGpa >= lo && myGpa <= hi;
-                  })();
-                return (
-                  <Bar
-                    key={d.label}
-                    label={d.label}
-                    value={d.count}
-                    max={maxDistCount}
-                    color={isMyBin ? "bg-indigo-500" : "bg-slate-300"}
-                  />
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-slate-400">暂无分布数据</p>
-          )}
-          {myGpa !== null && (
-            <p className="text-[10px] text-indigo-600 font-semibold">▍深色柱为你所在区间</p>
-          )}
-        </div>
-
-        {/* My academic snapshot */}
-        <div className="campus-card p-4 space-y-3">
-          <h3 className="text-xs font-bold uppercase text-slate-500">我的学业快照</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-600">姓名</span>
-              <span className="font-semibold text-slate-900 text-right max-w-[150px] truncate">
-                {me?.legalName ?? me?.user?.email ?? "—"}
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-600">专业</span>
-              <span className="font-semibold text-slate-900">{me?.programMajor ?? "—"}</span>
-            </div>
-            <hr className="border-slate-200" />
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-600">已完成课程</span>
-              <span className="font-semibold text-emerald-700">{completedCount} 门</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-600">当前选课</span>
-              <span className="font-semibold text-indigo-700">{enrolledCount} 门</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-600">已完成学分</span>
-              <span className="font-bold text-slate-900">{completedCredits} 学分</span>
-            </div>
-          </div>
-
-          {/* GPA label */}
-          {myGpa !== null && (
-            <div className={`mt-3 rounded-lg p-3 text-center ${
-              myGpa >= 3.5 ? "bg-emerald-50 text-emerald-800" :
-              myGpa >= 3.0 ? "bg-indigo-50 text-indigo-800" :
-              myGpa >= 2.0 ? "bg-amber-50 text-amber-800" :
-              "bg-red-50 text-red-800"
-            }`}>
-              <p className="text-xs font-semibold">
-                {myGpa >= 3.5 ? "🏆 Dean's List 资格" :
-                 myGpa >= 3.0 ? "✅ 良好学业状态" :
-                 myGpa >= 2.0 ? "⚠️ 基本良好" :
-                 "🚨 学业预警"}
+      ) : (
+        <>
+          <section className="grid gap-4 sm:grid-cols-2">
+            {/* Percentile gauge */}
+            <div className="campus-card flex flex-col items-center p-6 gap-4">
+              <p className="font-semibold text-slate-800">成绩百分位</p>
+              <GaugeArc pct={stats.percentile ?? 0} />
+              <p className="text-sm text-slate-600 text-center">
+                你的 GPA <span className="font-bold text-slate-900">{stats.myGpa.toFixed(3)}</span> 高于 <span className="font-bold text-[hsl(221_83%_43%)]">{stats.percentile}%</span> 的同学
               </p>
             </div>
-          )}
-        </div>
-      </div>
 
-      <p className="text-xs text-slate-400 text-center">
-        * 所有对比数据均经过匿名聚合处理，不涉及其他学生个人信息
-      </p>
+            {/* Comparison bars */}
+            <div className="campus-card p-6 space-y-5">
+              <p className="font-semibold text-slate-800">GPA 对比</p>
+              {[
+                { label: "我的 GPA", value: stats.myGpa, color: "bg-[hsl(221_83%_43%)]" },
+                { label: "全体均值", value: stats.mean ?? 0, color: "bg-slate-400" },
+                { label: "全体中位数", value: stats.median ?? 0, color: "bg-slate-300" },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-700">{label}</span>
+                    <span className="font-bold text-slate-900">{value.toFixed(2)}</span>
+                  </div>
+                  <div className="h-3 rounded-full bg-slate-100">
+                    <div className={`h-3 rounded-full ${color}`} style={{ width: `${(value / 4.0) * 100}%` }} />
+                  </div>
+                </div>
+              ))}
+              <div className="border-t border-slate-100 pt-3 space-y-1 text-sm">
+                {diff != null ? (
+                  <p className="text-slate-600">
+                    与均值差：<span className={`font-bold ${diff >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                      {diff >= 0 ? "+" : ""}{diff.toFixed(3)}
+                    </span>
+                  </p>
+                ) : null}
+                {diffFromMedian != null ? (
+                  <p className="text-slate-600">
+                    与中位数差：<span className={`font-bold ${diffFromMedian >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                      {diffFromMedian >= 0 ? "+" : ""}{diffFromMedian.toFixed(3)}
+                    </span>
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </section>
+
+          <div className="campus-card p-4 text-xs text-slate-500 space-y-1">
+            <p className="font-semibold text-slate-700 text-sm">说明</p>
+            <p>百分位数基于所有已完成至少一门带评分课程的学生的累计 GPA 计算。</p>
+            <p>数据每次页面加载时实时计算，不含在读或待评分课程。</p>
+          </div>
+        </>
+      )}
     </div>
   );
 }

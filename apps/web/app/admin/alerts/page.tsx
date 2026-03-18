@@ -1,17 +1,6 @@
 "use client";
 
-/**
- * Admin System Alert Center
- * Aggregates all operational alerts in one place:
- *  - Missing grades (COMPLETED without finalGrade)
- *  - Pending grade appeals
- *  - PENDING_APPROVAL enrollments
- *  - Active student holds
- *  - Near-capacity sections (≥90%)
- *  - Past-term unclosed enrollments
- */
-
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 
@@ -25,192 +14,111 @@ type SystemAlert = {
   count: number;
 };
 
-const SEVERITY_META = {
-  error:   { cls: "border-red-200 bg-red-50",    icon: "🔴", badge: "border-red-200 bg-red-100 text-red-700",    label: "紧急" },
-  warning: { cls: "border-amber-200 bg-amber-50", icon: "🟡", badge: "border-amber-200 bg-amber-100 text-amber-700", label: "警告" },
-  info:    { cls: "border-blue-200 bg-blue-50",   icon: "🔵", badge: "border-blue-200 bg-blue-100 text-blue-700",   label: "提示" }
-} as const;
-
-const TYPE_LABEL: Record<string, string> = {
-  MISSING_GRADE:     "成绩缺失",
-  GRADE_APPEAL:      "成绩申诉",
-  PENDING_ENROLLMENT:"注册审批",
-  ACTIVE_HOLD:       "学生限制",
-  NEAR_CAPACITY:     "容量预警",
-  NOT_CLOSED_OUT:    "未结课"
+const SEVERITY_CONFIG = {
+  error: { bg: "bg-red-50", border: "border-red-200", text: "text-red-800", badge: "bg-red-100 text-red-700", icon: "🔴" },
+  warning: { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-800", badge: "bg-amber-100 text-amber-700", icon: "🟡" },
+  info: { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-800", badge: "bg-blue-100 text-blue-700", icon: "🔵" },
 };
 
-export default function AdminAlertsPage() {
-  const [alerts, setAlerts]     = useState<SystemAlert[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [lastRefresh, setLast]  = useState<Date | null>(null);
-  const [filter, setFilter]     = useState<"all" | "error" | "warning" | "info">("all");
+export default function AlertsPage() {
+  const [alerts, setAlerts] = useState<SystemAlert[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [lastRefresh, setLastRefresh] = useState(new Date());
 
-  const load = useCallback(async () => {
+  function fetchAlerts() {
     setLoading(true);
-    try {
-      const data = await apiFetch<SystemAlert[]>("/admin/alerts");
-      setAlerts(data ?? []);
-      setLast(new Date());
-    } catch {
-      setAlerts([]);
-    } finally {
-      setLoading(false);
-    }
+    void apiFetch<SystemAlert[]>("/admin/alerts")
+      .then((d) => { setAlerts(d ?? []); setLastRefresh(new Date()); })
+      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    fetchAlerts();
+    const interval = setInterval(fetchAlerts, 60_000);
+    return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
-
-  // Auto-refresh every 60 s
-  useEffect(() => {
-    const id = setInterval(() => void load(), 60_000);
-    return () => clearInterval(id);
-  }, [load]);
-
-  const visible = alerts.filter(
-    (a) => filter === "all" || a.severity === filter
-  );
-
-  const errorCount   = alerts.filter((a) => a.severity === "error").length;
-  const warningCount = alerts.filter((a) => a.severity === "warning").length;
-  const infoCount    = alerts.filter((a) => a.severity === "info").length;
+  const errors = alerts.filter((a) => a.severity === "error");
+  const warnings = alerts.filter((a) => a.severity === "warning");
+  const infos = alerts.filter((a) => a.severity === "info");
 
   return (
-    <div className="campus-page space-y-6">
+    <div className="campus-page">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Operations</p>
-        <h1 className="campus-title">
-          系统警报中心
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          实时汇总所有需要处理的运营问题，每 60 秒自动刷新
-        </p>
+        <p className="campus-eyebrow">系统监控</p>
+        <h1 className="campus-hero-title">系统预警中心</h1>
+        <p className="campus-hero-subtitle">实时监控系统状态，自动每 60 秒刷新</p>
       </section>
 
-      {/* KPI row */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-3">
         <div className="campus-kpi">
-          <p className="campus-kpi-label">总警报数</p>
-          <p className={`campus-kpi-value ${alerts.length > 0 ? "text-slate-700" : "text-emerald-600"}`}>
-            {loading ? "…" : alerts.length}
+          <p className="campus-kpi-label">紧急警告</p>
+          <p className={`campus-kpi-value ${errors.length > 0 ? "text-red-600" : "text-emerald-600"}`}>
+            {loading ? "—" : errors.length === 0 ? "✓ 无" : errors.length}
           </p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label">🔴 紧急</p>
-          <p className={`campus-kpi-value ${errorCount > 0 ? "text-red-600" : "text-slate-400"}`}>
-            {loading ? "…" : errorCount}
+          <p className="campus-kpi-label">一般警告</p>
+          <p className={`campus-kpi-value ${warnings.length > 0 ? "text-amber-600" : "text-emerald-600"}`}>
+            {loading ? "—" : warnings.length === 0 ? "✓ 无" : warnings.length}
           </p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label">🟡 警告</p>
-          <p className={`campus-kpi-value ${warningCount > 0 ? "text-amber-600" : "text-slate-400"}`}>
-            {loading ? "…" : warningCount}
-          </p>
+          <p className="campus-kpi-label">提示信息</p>
+          <p className="campus-kpi-value text-slate-600">{loading ? "—" : infos.length}</p>
         </div>
-        <div className="campus-kpi">
-          <p className="campus-kpi-label">🔵 提示</p>
-          <p className={`campus-kpi-value ${infoCount > 0 ? "text-blue-600" : "text-slate-400"}`}>
-            {loading ? "…" : infoCount}
-          </p>
-        </div>
-      </div>
+      </section>
 
-      {/* Filter toolbar */}
-      <div className="campus-toolbar flex-wrap gap-2">
-        {(["all", "error", "warning", "info"] as const).map((f) => (
-          <button
-            key={f}
-            type="button"
-            onClick={() => setFilter(f)}
-            className={`campus-chip px-3 py-1 text-xs transition ${
-              filter === f
-                ? "chip-blue"
-                : "chip-purple hover:bg-slate-50"
-            }`}
-          >
-            {f === "all" ? "全部" : f === "error" ? "🔴 紧急" : f === "warning" ? "🟡 警告" : "🔵 提示"}
-            <span className="ml-1 opacity-70">
-              ({f === "all" ? alerts.length : alerts.filter((a) => a.severity === f).length})
-            </span>
-          </button>
-        ))}
-        <button
-          type="button"
-          onClick={() => void load()}
-          disabled={loading}
-          className="ml-auto rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-        >
-          {loading ? "刷新中…" : "🔄 立即刷新"}
+      <div className="campus-toolbar">
+        <button type="button" onClick={fetchAlerts} className="campus-btn-ghost text-sm">
+          ↻ 立即刷新
         </button>
-        {lastRefresh && (
-          <span className="text-xs text-slate-400 self-center">
-            最后更新：{lastRefresh.toLocaleTimeString()}
-          </span>
-        )}
+        <p className="text-xs text-slate-400">
+          最后刷新：{lastRefresh.toLocaleTimeString("zh-CN")}
+        </p>
       </div>
 
-      {/* Alert list */}
-      {loading ? (
-        <div className="campus-card px-6 py-14 text-center">
-          <p className="text-2xl">⏳</p>
-          <p className="mt-2 text-sm text-slate-600">正在检查系统状态…</p>
-        </div>
-      ) : visible.length === 0 ? (
-        <div className="campus-card px-6 py-16 text-center">
-          <p className="text-4xl">✅</p>
-          <p className="mt-3 text-lg font-semibold text-emerald-700">
-            {filter === "all" ? "系统运行正常，暂无警报！" : "该级别暂无警报"}
-          </p>
-          <p className="mt-1 text-sm text-slate-500">
-            所有关键指标均在正常范围内
-          </p>
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : loading ? (
+        <div className="campus-card p-10 text-center text-slate-400">加载中…</div>
+      ) : alerts.length === 0 ? (
+        <div className="campus-card p-12 text-center">
+          <p className="text-5xl mb-3">✅</p>
+          <p className="text-base font-semibold text-emerald-700">系统运行正常，暂无预警</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {visible.map((alert) => {
-            const meta = SEVERITY_META[alert.severity];
-            return (
-              <div
-                key={alert.id}
-                className={`campus-card flex items-start gap-4 p-4 border ${meta.cls}`}
-              >
-                {/* Icon */}
-                <div className="mt-0.5 text-xl shrink-0">{meta.icon}</div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <h3 className="text-sm font-bold text-slate-900">{alert.title}</h3>
-                    <span className={`campus-chip text-xs ${alert.severity === "error" ? "chip-red" : alert.severity === "warning" ? "chip-amber" : "chip-blue"}`}>
-                      {meta.label}
-                    </span>
-                    <span className="campus-chip chip-purple text-xs">
-                      {TYPE_LABEL[alert.type] ?? alert.type}
-                    </span>
+          {([errors, warnings, infos] as const).map((group) =>
+            group.map((alert) => {
+              const cfg = SEVERITY_CONFIG[alert.severity];
+              return (
+                <div key={alert.id} className={`rounded-xl border p-5 ${cfg.bg} ${cfg.border}`}>
+                  <div className="flex items-start gap-3">
+                    <span className="text-xl">{cfg.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className={`font-semibold ${cfg.text}`}>{alert.title}</p>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${cfg.badge}`}>
+                          {alert.count} 条
+                        </span>
+                      </div>
+                      <p className={`mt-1 text-sm ${cfg.text} opacity-80`}>{alert.description}</p>
+                    </div>
+                    {alert.actionUrl ? (
+                      <Link href={alert.actionUrl} className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold transition hover:opacity-80 ${cfg.badge} ${cfg.border}`}>
+                        处理 →
+                      </Link>
+                    ) : null}
                   </div>
-                  <p className="text-sm text-slate-600">{alert.description}</p>
                 </div>
-
-                {/* Count badge + Action */}
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-2xl font-bold text-slate-700">{alert.count}</span>
-                  <Link
-                    href={alert.actionUrl}
-                    className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700"
-                  >
-                    前往处理 →
-                  </Link>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       )}
-
-      {/* Footer hint */}
-      <p className="text-xs text-slate-400 text-center">
-        警报数据来源：成绩记录、申诉系统、注册管理、学生限制、教学班容量
-      </p>
     </div>
   );
 }

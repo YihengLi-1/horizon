@@ -65,7 +65,7 @@ export default function PendingOverloadsPage() {
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Approval Desk</p>
+        <p className="campus-eyebrow">超载审批</p>
         <h1 className="campus-title">超学分审批</h1>
         <p className="campus-subtitle">学生超出学分上限后，注册会进入待审批状态，由管理员统一处理。</p>
       </section>

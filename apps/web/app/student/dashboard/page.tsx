@@ -300,7 +300,7 @@ export default async function StudentDashboardPage() {
 
   if (!term) {
     actionItems.push({
-      title: "No active term is configured",
+      title: "暂未配置活跃学期",
       description: "当前还没有可用学期，暂时无法进行选课或课表规划。",
       href: "/student/profile",
       cta: "打开资料",
@@ -447,13 +447,13 @@ export default async function StudentDashboardPage() {
           <div className="flex flex-wrap gap-2">
             {term ? <span className="campus-chip chip-blue">{term.name}</span> : null}
             <span className="campus-chip chip-purple">
-              {me?.profile?.programMajor ?? "Undeclared"}
+              {me?.profile?.programMajor ?? "未申报专业"}
             </span>
             {grades.length > 0 && cumulativeGpa !== null ? (
               <span className={`campus-chip ${gpaChipTone(cumulativeGpa)}`}>GPA {cumulativeGpa.toFixed(2)}</span>
             ) : null}
             {waitlistedCount > 0 ? (
-              <span className="campus-chip chip-amber">Waitlisted {waitlistedCount}</span>
+              <span className="campus-chip chip-amber">候补中 {waitlistedCount}</span>
             ) : null}
           </div>
         </div>
@@ -609,7 +609,7 @@ export default async function StudentDashboardPage() {
       <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
         <Card className="campus-card">
           <CardHeader>
-            <CardTitle className="font-heading text-2xl">Current Term</CardTitle>
+            <CardTitle className="font-heading text-2xl">当前学期</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {nextAction ? (
@@ -633,9 +633,9 @@ export default async function StudentDashboardPage() {
             {term ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-slate-900">Credit Utilization</p>
+                  <p className="text-sm font-semibold text-slate-900">学分使用情况</p>
                   <p className="text-sm text-slate-500">
-                    {term.maxCredits > 0 ? `${enrolledCredits}/${term.maxCredits} credits` : "No credit cap configured"}
+                    {term.maxCredits > 0 ? `${enrolledCredits}/${term.maxCredits} 学分` : "未设置学分上限"}
                   </p>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
@@ -650,31 +650,31 @@ export default async function StudentDashboardPage() {
             {term ? (
               <>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Registration Opens</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">注册开始</p>
                   <p className="mt-1 text-slate-800">{fmtDateTime(term.registrationOpenAt)}</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Registration Closes</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">注册截止</p>
                   <p className="mt-1 text-slate-800">{fmtDateTime(term.registrationCloseAt)}</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Drop Deadline</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">退课截止</p>
                   <p className="mt-1 text-slate-800">{fmtDateTime(term.dropDeadline)}</p>
                 </div>
               </>
             ) : (
-              <p className="text-slate-500">No active term available.</p>
+              <p className="text-slate-500">暂无活跃学期。</p>
             )}
 
             {actionItems.length > 0 ? (
               <div className="space-y-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Focus Now</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">待处理事项</p>
                 {actionItems.slice(0, 2).map((item) => (
                   <div key={item.title} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-semibold text-slate-900">{item.title}</p>
                     <span className={chipTone(item.tone)}>
-                      {item.tone === "emerald" ? "Ready" : item.tone === "amber" ? "Attention" : "Info"}
+                      {item.tone === "emerald" ? "已就绪" : item.tone === "amber" ? "需关注" : "提示"}
                     </span>
                   </div>
                     <p className="mt-1 text-sm text-slate-600">{item.description}</p>
@@ -695,13 +695,13 @@ export default async function StudentDashboardPage() {
 
         <Card className="campus-card">
           <CardHeader>
-            <CardTitle className="font-heading text-2xl">Registration Snapshot</CardTitle>
+            <CardTitle className="font-heading text-2xl">注册快照</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {enrolled.length > 0 ? (
               <div>
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                  Enrolled ({enrolledCount})
+                  已注册 ({enrolledCount})
                 </p>
                 <div className="overflow-hidden rounded-xl border border-emerald-200">
                   <table className="w-full border-collapse text-sm">
@@ -722,14 +722,14 @@ export default async function StudentDashboardPage() {
                             {item.section.course?.title ?? item.section.sectionCode ?? "—"}
                           </td>
                           <td className="px-3 py-2 text-right text-slate-500">
-                            {item.section.credits} cr
+                            {item.section.credits} 学分
                           </td>
                         </tr>
                       ))}
                       {enrolled.length > 6 ? (
                         <tr className="bg-white">
                           <td colSpan={3} className="px-3 py-1.5 text-center text-xs text-slate-400">
-                            +{enrolled.length - 6} more — view full schedule
+                            +{enrolled.length - 6} 门 — 查看完整课表
                           </td>
                         </tr>
                       ) : null}
@@ -742,36 +742,36 @@ export default async function StudentDashboardPage() {
             {pendingApproval.length === 0 && waitlisted.length === 0 && enrolled.length === 0 ? (
               <div className="py-8 text-center">
                 <p className="text-2xl">📚</p>
-                <p className="mt-2 text-sm font-medium text-slate-600">No enrollments yet</p>
-                <p className="mt-1 text-xs text-slate-400">Browse the course catalog to get started.</p>
+                <p className="mt-2 text-sm font-medium text-slate-600">暂未注册任何课程</p>
+                <p className="mt-1 text-xs text-slate-400">前往课程目录查看可用课程。</p>
                 <Link
                   href="/student/catalog"
                   className="mt-3 inline-flex h-8 items-center rounded-lg bg-primary px-4 text-xs font-semibold text-white no-underline transition hover:bg-primary/90"
                 >
-                  Browse Catalog →
+                  浏览课程目录 →
                 </Link>
               </div>
             ) : pendingApproval.length > 0 || waitlisted.length > 0 ? (
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Pending Approval</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">待审批</p>
                   <p className="mt-1 text-2xl font-semibold text-violet-900">{pendingApproval.length}</p>
                   <ul className="mt-2 space-y-1 text-sm text-violet-900">
                     {pendingApproval.slice(0, 5).map((item) => (
                       <li key={item.id}>
-                        {(item.section.course?.code ?? "Course")} {(item.section.sectionCode ?? "")}
+                        {(item.section.course?.code ?? "课程")} {(item.section.sectionCode ?? "")}
                       </li>
                     ))}
                   </ul>
                 </div>
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Waitlisted</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">候补中</p>
                   <p className="mt-1 text-2xl font-semibold text-amber-900">{waitlisted.length}</p>
                   <ul className="mt-2 space-y-1 text-sm text-amber-900">
                     {waitlisted.slice(0, 5).map((item) => (
                       <li key={item.id}>
-                        {(item.section.course?.code ?? "Course")} {(item.section.sectionCode ?? "")}
-                        {item.waitlistPosition ? ` · #${item.waitlistPosition} in queue` : ""}
+                        {(item.section.course?.code ?? "课程")} {(item.section.sectionCode ?? "")}
+                        {item.waitlistPosition ? ` · 候补第 ${item.waitlistPosition} 位` : ""}
                       </li>
                     ))}
                   </ul>
@@ -784,25 +784,25 @@ export default async function StudentDashboardPage() {
                 href={term ? `/student/catalog?termId=${term.id}` : "/student/catalog"}
                 className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
               >
-                Browse Catalog
+                浏览课程目录
               </Link>
               <Link
                 href={term ? `/student/cart?termId=${term.id}` : "/student/cart"}
                 className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
               >
-                Open Cart
+                打开购物车
               </Link>
               <Link
                 href={term ? `/student/schedule?termId=${term.id}` : "/student/schedule"}
                 className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
               >
-                View Schedule
+                查看课表
               </Link>
               <Link
                 href="/student/grades"
                 className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
               >
-                View Grades
+                查看成绩
               </Link>
             </div>
           </CardContent>

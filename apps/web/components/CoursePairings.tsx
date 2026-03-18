@@ -24,12 +24,12 @@ export default function CoursePairings({ courseId }: { courseId: string }) {
 
   return (
     <div className="mt-3 border-t border-slate-100 pt-3">
-      <p className="text-xs font-semibold text-slate-500 mb-2">Students also take</p>
+      <p className="text-xs font-semibold text-slate-500 mb-2">同学也选修</p>
       <div className="flex flex-wrap gap-1.5">
         {pairs.map((p) => (
           <span
             key={p.course.id}
-            title={`${p.course.title} (${p.coCount} students co-enrolled)`}
+            title={`${p.course.title} (${p.coCount} 人同时选修)`}
             className="campus-chip bg-indigo-50 text-indigo-700 border-indigo-200 text-xs"
           >
             {p.course.code}

@@ -9,70 +9,131 @@ type Honor = {
   awardedAt: string;
 };
 
-type HonorsResponse = {
+type HonorsData = {
   honors: Honor[];
   summary: string;
 };
 
-function MedalIcon() {
-  return (
-    <svg viewBox="0 0 48 48" className="size-12" fill="none">
-      <path d="M15 4h7l2 10-7 6-6-6 4-10Z" fill="#4f46e5" />
-      <path d="M26 4h7l4 10-6 6-7-6 2-10Z" fill="#7c3aed" />
-      <circle cx="24" cy="28" r="12" fill="#f59e0b" />
-      <path d="m24 20 2.47 5 5.53.8-4 3.9.94 5.5L24 32.6l-4.94 2.6.94-5.5-4-3.9 5.53-.8L24 20Z" fill="white" />
-    </svg>
-  );
+const HONOR_CONFIG: Record<string, { emoji: string; color: string; border: string; bg: string }> = {
+  "荣誉院长名单": {
+    emoji: "🏆",
+    color: "text-amber-700",
+    border: "border-amber-300",
+    bg: "bg-amber-50",
+  },
+  "院长名单": {
+    emoji: "⭐",
+    color: "text-blue-700",
+    border: "border-blue-200",
+    bg: "bg-blue-50",
+  },
+  "学业优秀": {
+    emoji: "🎓",
+    color: "text-emerald-700",
+    border: "border-emerald-200",
+    bg: "bg-emerald-50",
+  },
+  "全勤学者": {
+    emoji: "✅",
+    color: "text-violet-700",
+    border: "border-violet-200",
+    bg: "bg-violet-50",
+  },
+};
+
+function defaultConfig() {
+  return { emoji: "🏅", color: "text-slate-700", border: "border-slate-200", bg: "bg-slate-50" };
 }
 
-export default function StudentHonorsPage() {
-  const [data, setData] = useState<HonorsResponse | null>(null);
+export default function HonorsPage() {
+  const [data, setData] = useState<HonorsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    void apiFetch<HonorsResponse>("/students/honors")
-      .then((payload) => setData(payload))
-      .catch((err) => setError(err instanceof Error ? err.message : "加载荣誉榜失败"))
+    void apiFetch<HonorsData>("/students/honors")
+      .then((d) => setData(d))
+      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setLoading(false));
   }, []);
 
+  const honors = data?.honors ?? [];
+  const termHonors = honors.filter((h) => h.termName !== "累计荣誉");
+  const cumulative = honors.filter((h) => h.termName === "累计荣誉");
+
   return (
-    <div className="campus-page space-y-6">
+    <div className="campus-page">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Academic Recognition</p>
-        <h1 className="campus-title">我的荣誉榜</h1>
-        <p className="campus-subtitle">查看学期荣誉与累计成就，作为本阶段学业表现的正式记录。</p>
+        <p className="campus-eyebrow">学业荣誉</p>
+        <h1 className="campus-hero-title">我的荣誉记录</h1>
+        <p className="campus-hero-subtitle">
+          {loading ? "加载中…" : data?.summary ?? ""}
+        </p>
       </section>
 
-      {error ? <div className="campus-card border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+      <section className="grid gap-3 sm:grid-cols-3">
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">荣誉总数</p>
+          <p className="campus-kpi-value text-amber-600">{loading ? "—" : honors.length}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">学期荣誉</p>
+          <p className="campus-kpi-value">{loading ? "—" : termHonors.length}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">累计荣誉</p>
+          <p className="campus-kpi-value text-emerald-600">{loading ? "—" : cumulative.length}</p>
+        </div>
+      </section>
 
-      {loading ? (
-        <div className="campus-card px-6 py-14 text-center text-sm text-slate-500">加载中…</div>
-      ) : !data || data.honors.length === 0 ? (
-        <div className="campus-card campus-empty">
-          <div className="campus-empty-icon"><MedalIcon /></div>
-          <div className="campus-empty-title">继续努力，荣誉即将到来</div>
-          <div className="campus-empty-desc">保持稳定成绩和完整修课记录，这里会逐步点亮属于你的学术勋章。</div>
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : loading ? (
+        <div className="campus-card p-10 text-center text-slate-400">加载中…</div>
+      ) : honors.length === 0 ? (
+        <div className="campus-card p-12 text-center">
+          <p className="text-4xl mb-3">📚</p>
+          <p className="text-sm font-semibold text-slate-600">尚未获得任何荣誉</p>
+          <p className="mt-1 text-xs text-slate-400">
+            单学期 GPA ≥ 3.5 可获得院长名单；≥ 3.8 可获得荣誉院长名单。
+          </p>
+          <p className="mt-0.5 text-xs text-slate-400">
+            累计修读 60+ 学分且无挂科/退课可获得全勤学者荣誉。
+          </p>
         </div>
       ) : (
-        <>
-          <div className="campus-card px-5 py-4 text-sm text-slate-600">{data.summary}</div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {data.honors.map((honor) => (
-              <div key={`${honor.type}-${honor.termName}`} className="campus-card flex items-start gap-4 p-5">
-                <div className="rounded-2xl bg-[hsl(262_70%_95%)] p-3 text-[hsl(262_55%_35%)]">
-                  <MedalIcon />
+        <section className="space-y-3">
+          {honors.map((honor, i) => {
+            const cfg = HONOR_CONFIG[honor.type] ?? defaultConfig();
+            return (
+              <div
+                key={i}
+                className={`campus-card flex items-center gap-5 border p-5 ${cfg.border} ${cfg.bg}`}
+              >
+                <span className="text-3xl shrink-0">{cfg.emoji}</span>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-base font-bold ${cfg.color}`}>{honor.type}</p>
+                  <p className="mt-0.5 text-sm text-slate-600">{honor.termName}</p>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-lg font-semibold text-slate-900">{honor.type}</p>
-                  <p className="mt-1 text-sm text-slate-500">{honor.termName}</p>
-                  <p className="mt-2 text-xs text-slate-400">{new Date(honor.awardedAt).toLocaleDateString()}</p>
-                </div>
+                {honor.termName !== "累计荣誉" ? (
+                  <p className="shrink-0 text-xs text-slate-400">
+                    {new Date(honor.awardedAt).toLocaleDateString("zh-CN")}
+                  </p>
+                ) : null}
               </div>
-            ))}
-          </div>
-        </>
+            );
+          })}
+        </section>
+      )}
+
+      {!loading && honors.length === 0 ? null : (
+        <div className="campus-card p-4 text-xs text-slate-500 space-y-1">
+          <p className="font-semibold text-slate-700 text-sm">荣誉评定标准</p>
+          <p>🏆 荣誉院长名单：单学期所有已评分课程 GPA ≥ 3.8</p>
+          <p>⭐ 院长名单：单学期所有已评分课程 GPA ≥ 3.5（低于 3.8）</p>
+          <p>🎓 学业优秀：累计完成学分 ≥ 60</p>
+          <p>✅ 全勤学者：无任何退课或不及格记录</p>
+        </div>
       )}
     </div>
   );

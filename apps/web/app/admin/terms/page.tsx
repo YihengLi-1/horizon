@@ -65,10 +65,10 @@ function termStatusBadge(term: Term): { label: string; cls: string } {
   const regOpen = new Date(term.registrationOpenAt).getTime();
   const regClose = new Date(term.registrationCloseAt).getTime();
 
-  if (now > end) return { label: "Past", cls: "border-slate-300 bg-slate-100 text-slate-500" };
-  if (now >= regOpen && now <= regClose) return { label: "Reg. Open", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" };
-  if (now >= start && now <= end) return { label: "Active", cls: "border-blue-200 bg-blue-50 text-blue-700" };
-  return { label: "Upcoming", cls: "border-amber-200 bg-amber-50 text-amber-700" };
+  if (now > end) return { label: "已结束", cls: "border-slate-300 bg-slate-100 text-slate-500" };
+  if (now >= regOpen && now <= regClose) return { label: "注册开放中", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" };
+  if (now >= start && now <= end) return { label: "进行中", cls: "border-blue-200 bg-blue-50 text-blue-700" };
+  return { label: "即将开始", cls: "border-amber-200 bg-amber-50 text-amber-700" };
 }
 
 function termToForm(term: Term): TermForm {
@@ -117,14 +117,14 @@ function TermFormFields({
     <form className="grid gap-3 md:grid-cols-4" onSubmit={onSubmit}>
       <div className="md:col-span-2">
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">学期名称</label>
-        <input className="campus-input" placeholder="Spring 2027" value={form.name} onChange={onInput("name")} required />
+        <input className="campus-input" placeholder="2027年春季" value={form.name} onChange={onInput("name")} required />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Max Credits</label>
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">最大学分</label>
         <input className="campus-input" type="number" min={1} value={form.maxCredits} onChange={onInput("maxCredits")} required />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Timezone</label>
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">时区</label>
         <input className="campus-input" value={form.timezone} onChange={onInput("timezone")} required />
       </div>
       <div>
@@ -195,7 +195,7 @@ export default function TermsPage() {
       const data = await apiFetch<Term[]>("/admin/terms");
       setTerms([...data].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load terms");
+      setError(err instanceof Error ? err.message : "学期加载失败");
     } finally {
       setLoading(false);
     }
@@ -235,11 +235,11 @@ export default function TermsPage() {
       await apiFetch("/admin/terms", { method: "POST", body: JSON.stringify(toPayload(createForm)) });
       setCreateForm(blankForm);
       setShowCreateForm(false);
-      setNotice("Term created successfully.");
+      setNotice("学期创建成功。");
       toast("学期已创建", "success");
       await load();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Create failed";
+      const message = err instanceof Error ? err.message : "创建失败";
       setError(message);
       toast(message, "error");
     } finally {
@@ -263,11 +263,11 @@ export default function TermsPage() {
       setSavingEdit(true);
       await apiFetch(`/admin/terms/${editingId}`, { method: "PATCH", body: JSON.stringify(toPayload(editForm)) });
       setEditingId(null);
-      setNotice("Term updated successfully.");
+      setNotice("学期更新成功。");
       toast("学期已更新", "success");
       await load();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Update failed";
+      const message = err instanceof Error ? err.message : "更新失败";
       setError(message);
       toast(message, "error");
     } finally {
@@ -284,7 +284,7 @@ export default function TermsPage() {
       toast(`已删除学期 ${name}`, "success");
       await load();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Delete failed";
+      const message = err instanceof Error ? err.message : "删除失败";
       setError(message);
       toast(message.includes("active") ? "此学期有学生在读，无法删除" : message, "error");
     } finally {
@@ -302,7 +302,7 @@ export default function TermsPage() {
       await load();
     } catch (err) {
       setTerms(previous);
-      const message = err instanceof Error ? err.message : "Toggle failed";
+      const message = err instanceof Error ? err.message : "切换失败";
       setError(message);
       toast(message, "error");
     } finally {
@@ -328,7 +328,7 @@ export default function TermsPage() {
 
   const exportCsv = () => {
     const rows = [
-      ["Name", "Start Date", "End Date", "Reg Open", "Reg Close", "Drop Deadline", "Max Credits", "Timezone", "Sections", "Enrollments"],
+      ["学期名称", "开始时间", "结束时间", "注册开放", "注册截止", "退课截止", "最大学分", "时区", "教学班数", "报名人数"],
       ...terms.map((term) => [
         term.name,
         new Date(term.startDate).toLocaleDateString(),
@@ -357,8 +357,8 @@ export default function TermsPage() {
       <section className="campus-hero">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
-            <p className="campus-eyebrow">Academic Calendar Control</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">Terms</h1>
+            <p className="campus-eyebrow">教学日历管理</p>
+            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">学期管理</h1>
             <p className="text-sm text-slate-600 md:text-base">Create, copy, and manage registration windows, drop deadlines, and per-term credit caps.</p>
             <div className="flex flex-wrap gap-2 pt-1">
               <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{stats.total} term(s)</span>
@@ -379,7 +379,7 @@ export default function TermsPage() {
               disabled={terms.length === 0}
               className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Export CSV
+              CSV 导出
             </button>
           </div>
         </div>
@@ -387,19 +387,19 @@ export default function TermsPage() {
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-slate-200 bg-white">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Terms</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">学期总数</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{stats.total}</p>
         </div>
         <div className="campus-kpi border-emerald-200 bg-emerald-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Active Terms</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">活跃学期</p>
           <p className="mt-1 text-2xl font-semibold text-emerald-900">{stats.active}</p>
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Total Sections</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">教学班总数</p>
           <p className="mt-1 text-2xl font-semibold text-blue-900">{stats.totalSections}</p>
         </div>
         <div className="campus-kpi border-amber-200 bg-amber-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Total Enrollments</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">报名总数</p>
           <p className="mt-1 text-2xl font-semibold text-amber-900">{stats.totalEnrollments}</p>
         </div>
       </section>
@@ -412,7 +412,7 @@ export default function TermsPage() {
               Reset
             </button>
           </div>
-          <TermFormFields form={createForm} setForm={setCreateForm} onSubmit={onCreate} saving={creating} submitLabel="Create term" />
+          <TermFormFields form={createForm} setForm={setCreateForm} onSubmit={onCreate} saving={creating} submitLabel="创建学期" />
         </section>
       ) : null}
 
@@ -423,9 +423,9 @@ export default function TermsPage() {
         <section className="campus-card border-blue-200 bg-blue-50/60 p-5 md:p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-base font-semibold text-blue-900">编辑学期</h2>
-            <button type="button" onClick={() => setEditingId(null)} className="text-sm font-medium text-blue-700 underline underline-offset-2">Cancel</button>
+            <button type="button" onClick={() => setEditingId(null)} className="text-sm font-medium text-blue-700 underline underline-offset-2">取消</button>
           </div>
-          <TermFormFields form={editForm} setForm={setEditForm} onSubmit={onSaveEdit} saving={savingEdit} submitLabel="Save changes" onCancel={() => setEditingId(null)} />
+          <TermFormFields form={editForm} setForm={setEditForm} onSubmit={onSaveEdit} saving={savingEdit} submitLabel="保存更改" onCancel={() => setEditingId(null)} />
         </section>
       ) : null}
 
@@ -434,19 +434,19 @@ export default function TermsPage() {
           <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-slate-50">
               <tr className="border-b border-slate-200 text-left">
-                <th className="px-4 py-3 font-semibold text-slate-700">Term</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Status</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Sections</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Enrollments</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Registration</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Actions</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">学期</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">状态</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">教学班</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">报名</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">注册</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">操作</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">Loading terms...</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">加载学期数据中...</td></tr>
               ) : terms.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-500">No terms yet.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-500">暂无学期记录。</td></tr>
               ) : (
                 terms.map((term) => {
                   const badge = termStatusBadge(term);
@@ -469,7 +469,7 @@ export default function TermsPage() {
                             onClick={() => void onToggleRegistration(term)}
                             className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-semibold ${term.registrationOpen ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-600"}`}
                           >
-                            {togglingId === term.id ? "Updating..." : term.registrationOpen ? "开放中" : "已关闭"}
+                            {togglingId === term.id ? "更新中…" : term.registrationOpen ? "开放中" : "已关闭"}
                           </button>
                           <span className="text-xs text-slate-500">dropDeadline: {new Date(term.dropDeadline).toLocaleDateString()}</span>
                         </div>

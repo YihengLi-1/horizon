@@ -17,8 +17,8 @@ const headingFont = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "University SIS",
-  description: "Student Information System — academic planning, course registration, and enrollment management",
+  title: "地平线 · 教务管理系统",
+  description: "地平线大学教务管理系统——选课、注册、成绩与学籍管理",
   manifest: "/manifest.json",
   appleWebApp: { capable: true, statusBarStyle: "default", title: "地平线 SIS" }
 };

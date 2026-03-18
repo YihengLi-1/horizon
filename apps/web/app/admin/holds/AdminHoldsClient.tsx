@@ -80,7 +80,7 @@ export default function AdminHoldsClient() {
       const data = await apiFetch<HoldRecord[]>("/admin/holds");
       setHolds(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load holds");
+      setError(err instanceof Error ? err.message : "限制记录加载失败");
     } finally {
       setLoading(false);
     }
@@ -105,7 +105,7 @@ export default function AdminHoldsClient() {
         setStudentOptions(result.data ?? []);
       } catch (err) {
         setStudentOptions([]);
-        setStudentError(err instanceof Error ? err.message : "Unable to search students");
+        setStudentError(err instanceof Error ? err.message : "学生搜索失败");
       } finally {
         setStudentLoading(false);
       }
@@ -137,7 +137,7 @@ export default function AdminHoldsClient() {
   const submitCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedStudent) {
-      setError("Select a student before creating a hold.");
+      setError("请先选择学生后再创建限制。");
       return;
     }
 
@@ -164,7 +164,7 @@ export default function AdminHoldsClient() {
       setStudentOptions([]);
       await loadHolds();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to create hold");
+      setError(err instanceof Error ? err.message : "创建限制失败");
     } finally {
       setCreating(false);
     }
@@ -182,10 +182,10 @@ export default function AdminHoldsClient() {
         })
       });
       setResolveNotes((prev) => ({ ...prev, [holdId]: "" }));
-      setNotice("Hold removed.");
+      setNotice("限制已移除。");
       await loadHolds();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to remove hold");
+      setError(err instanceof Error ? err.message : "移除限制失败");
     } finally {
       setResolvingId("");
     }
@@ -196,8 +196,8 @@ export default function AdminHoldsClient() {
       <section className="campus-hero">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="campus-eyebrow">Governance Operations</p>
-            <h1 className="font-heading text-3xl font-bold text-slate-900">Student Holds</h1>
+            <p className="campus-eyebrow">合规管理</p>
+            <h1 className="font-heading text-3xl font-bold text-slate-900">学生保留</h1>
             <p className="mt-2 text-sm text-slate-600">
               Create and remove registration-blocking holds through the product UI.
             </p>
@@ -233,7 +233,7 @@ export default function AdminHoldsClient() {
               className="campus-input"
               value={studentQuery}
               onChange={(event) => setStudentQuery(event.target.value)}
-              placeholder="Email, student ID, or legal name"
+              placeholder="邮箱、学号或姓名"
             />
           </label>
 
@@ -244,7 +244,7 @@ export default function AdminHoldsClient() {
             </div>
           ) : null}
 
-          {studentLoading ? <p className="text-xs text-slate-500">Searching students…</p> : null}
+          {studentLoading ? <p className="text-xs text-slate-500">搜索学生中…</p> : null}
           {studentError ? <p className="text-xs text-red-700">{studentError}</p> : null}
           {!selectedStudent && studentOptions.length > 0 ? (
             <div className="max-h-56 space-y-2 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-2">
@@ -273,12 +273,12 @@ export default function AdminHoldsClient() {
 
           <label className="block">
             <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Reason</span>
-            <input className="campus-input" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Registrar review required" />
+            <input className="campus-input" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="例：教务处审核" />
           </label>
 
           <label className="block">
             <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Note</span>
-            <textarea className="campus-input min-h-28" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Operational note shown in hold details" />
+            <textarea className="campus-input min-h-28" value={note} onChange={(event) => setNote(event.target.value)} placeholder="显示在保留详情中的备注" />
           </label>
 
           <label className="block">
@@ -291,19 +291,19 @@ export default function AdminHoldsClient() {
             disabled={creating || !selectedStudent || reason.trim().length < 3}
             className="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {creating ? "Creating…" : "Create Hold"}
+            {creating ? "创建中…" : "创建保留"}
           </button>
         </form>
 
         <section className="space-y-4">
           <div className="campus-toolbar">
             <label className="block max-w-md flex-1">
-              <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Filter holds</span>
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">筛选保留记录</span>
               <input
                 className="campus-input"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search by student, type, reason, or note"
+                placeholder="按学生、类型、原因或备注搜索"
               />
             </label>
             <button
@@ -312,12 +312,12 @@ export default function AdminHoldsClient() {
               disabled={loading}
               className="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loading ? "Refreshing…" : "Refresh"}
+              {loading ? "刷新中…" : "刷新"}
             </button>
           </div>
 
           {loading ? (
-            <div className="campus-card p-5 text-sm text-slate-500">Loading holds…</div>
+            <div className="campus-card p-5 text-sm text-slate-500">加载学籍限制中…</div>
           ) : filteredHolds.length === 0 ? (
             <div className="campus-card p-5 text-sm text-slate-500">No holds match the current filter.</div>
           ) : (
@@ -335,8 +335,8 @@ export default function AdminHoldsClient() {
                     <p className="mt-1 text-sm text-slate-500">{hold.student.email} · {hold.student.studentId || "No student ID"}</p>
                   </div>
                   <div className="text-right text-xs text-slate-500">
-                    <p>Created {formatDateTime(hold.createdAt)}</p>
-                    <p>{hold.createdBy?.email || "Unknown actor"}</p>
+                    <p>创建于 {formatDateTime(hold.createdAt)}</p>
+                    <p>{hold.createdBy?.email || "未知操作者"}</p>
                     {hold.expiresAt ? <p>Expires {formatDateTime(hold.expiresAt)}</p> : null}
                     {hold.resolvedAt ? <p>Resolved {formatDateTime(hold.resolvedAt)}</p> : null}
                     {hold.resolvedBy?.email ? <p>{hold.resolvedBy.email}</p> : null}
@@ -356,7 +356,7 @@ export default function AdminHoldsClient() {
                         className="campus-input min-h-20"
                         value={resolveNotes[hold.id] ?? ""}
                         onChange={(event) => setResolveNotes((prev) => ({ ...prev, [hold.id]: event.target.value }))}
-                        placeholder="Optional note explaining why the hold was removed"
+                        placeholder="说明移除原因（选填）"
                       />
                     </label>
                     <button
@@ -365,7 +365,7 @@ export default function AdminHoldsClient() {
                       disabled={resolvingId === hold.id}
                       className="mt-3 inline-flex h-9 items-center rounded-lg border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {resolvingId === hold.id ? "Removing…" : "Remove Hold"}
+                      {resolvingId === hold.id ? "移除中…" : "移除保留"}
                     </button>
                   </div>
                 ) : null}

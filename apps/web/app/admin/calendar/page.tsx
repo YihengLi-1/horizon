@@ -1,346 +1,360 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api";
+import { useEffect, useState, useCallback } from "react";
+import { ApiError, apiFetch } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 
 type Term = { id: string; name: string };
+
 type CalendarEvent = {
   id: string;
   title: string;
-  description: string | null;
+  description?: string | null;
   eventDate: string;
-  endDate: string | null;
+  endDate?: string | null;
   type: string;
-  termId: string | null;
+  termId?: string | null;
   term?: { id: string; name: string } | null;
 };
 
 const EVENT_TYPES = ["INFO", "EXAM", "HOLIDAY", "DEADLINE", "REGISTRATION"] as const;
-type EventType = typeof EVENT_TYPES[number];
 
-const TYPE_META: Record<EventType, { label: string; emoji: string; cls: string }> = {
-  INFO:         { label: "公告",     emoji: "ℹ️",  cls: "border-slate-200 bg-slate-50 text-slate-600" },
-  EXAM:         { label: "考试",     emoji: "📝",  cls: "border-red-200 bg-red-50 text-red-700" },
-  HOLIDAY:      { label: "假期",     emoji: "🏖️",  cls: "border-emerald-200 bg-emerald-50 text-emerald-700" },
-  DEADLINE:     { label: "截止日期", emoji: "⏰",  cls: "border-amber-200 bg-amber-50 text-amber-700" },
-  REGISTRATION: { label: "选课",     emoji: "🗂️",  cls: "border-indigo-200 bg-indigo-50 text-indigo-700" }
+const TYPE_LABEL: Record<string, string> = {
+  INFO: "通知",
+  EXAM: "考试",
+  HOLIDAY: "假期",
+  DEADLINE: "截止日",
+  REGISTRATION: "注册",
 };
 
-function TypeChip({ type }: { type: string }) {
-  const meta = TYPE_META[type as EventType] ?? { label: type, emoji: "📅", cls: "border-slate-200 bg-slate-50 text-slate-600" };
-  return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold ${meta.cls}`}>
-      {meta.emoji} {meta.label}
-    </span>
-  );
+const TYPE_COLOR: Record<string, string> = {
+  INFO: "border-blue-200 bg-blue-50 text-blue-700",
+  EXAM: "border-red-200 bg-red-50 text-red-700",
+  HOLIDAY: "border-green-200 bg-green-50 text-green-700",
+  DEADLINE: "border-amber-200 bg-amber-50 text-amber-700",
+  REGISTRATION: "border-purple-200 bg-purple-50 text-purple-700",
+};
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
-const EMPTY_FORM = { title: "", description: "", eventDate: "", endDate: "", type: "INFO" as EventType, termId: "" };
+const BLANK_FORM = { title: "", description: "", eventDate: "", endDate: "", type: "INFO", termId: "" };
 
-export default function AdminCalendarPage() {
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+export default function CalendarPage() {
   const [terms, setTerms] = useState<Term[]>([]);
+  const [filterTermId, setFilterTermId] = useState("");
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [filterType, setFilterType] = useState<EventType | "all">("all");
-  const [filterTerm, setFilterTerm] = useState("");
+  const [error, setError] = useState("");
 
-  const loadEvents = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [eventsData, termsData] = await Promise.all([
-        apiFetch<CalendarEvent[]>("/academics/calendar-events"),
-        apiFetch<Term[]>("/academics/terms")
-      ]);
-      setEvents(eventsData);
-      setTerms(termsData);
-    } catch { /* ignore */ }
-    finally { setLoading(false); }
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState({ ...BLANK_FORM });
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const toast = useToast();
+
+  useEffect(() => {
+    void apiFetch<Term[]>("/admin/terms")
+      .then((d) => setTerms(d ?? []))
+      .catch(() => {});
   }, []);
 
-  useEffect(() => { void loadEvents(); }, [loadEvents]);
+  const load = useCallback(async (tid: string) => {
+    setLoading(true);
+    setError("");
+    try {
+      const params = new URLSearchParams();
+      if (tid) params.set("termId", tid);
+      const d = await apiFetch<CalendarEvent[]>(`/academics/calendar-events${params.size ? `?${params}` : ""}`);
+      setEvents(d ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "日历加载失败");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.title.trim() || !form.eventDate) return;
-    setSubmitting(true);
+  useEffect(() => {
+    void load(filterTermId);
+  }, [load, filterTermId]);
+
+  const openNew = () => {
+    setEditingId(null);
+    setForm({ ...BLANK_FORM });
+    setShowForm(true);
+  };
+
+  const openEdit = (ev: CalendarEvent) => {
+    setEditingId(ev.id);
+    setForm({
+      title: ev.title,
+      description: ev.description ?? "",
+      eventDate: ev.eventDate.slice(0, 10),
+      endDate: ev.endDate ? ev.endDate.slice(0, 10) : "",
+      type: ev.type,
+      termId: ev.termId ?? "",
+    });
+    setShowForm(true);
+  };
+
+  const cancelForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setForm({ ...BLANK_FORM });
+  };
+
+  const saveForm = async () => {
+    if (!form.title.trim() || !form.eventDate) {
+      toast("请填写标题和日期", "error");
+      return;
+    }
+    setSaving(true);
     try {
       const payload = {
         title: form.title.trim(),
         description: form.description.trim() || undefined,
-        eventDate: form.eventDate,
-        endDate: form.endDate || undefined,
+        eventDate: new Date(form.eventDate).toISOString(),
+        endDate: form.endDate ? new Date(form.endDate).toISOString() : undefined,
         type: form.type,
-        termId: form.termId || undefined
+        termId: form.termId || undefined,
       };
       if (editingId) {
-        await apiFetch(`/admin/calendar-events/${editingId}`, { method: "PATCH", body: JSON.stringify(payload) });
+        await apiFetch(`/admin/calendar-events/${editingId}`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+        toast("日历事件已更新", "success");
       } else {
-        await apiFetch("/admin/calendar-events", { method: "POST", body: JSON.stringify(payload) });
+        await apiFetch("/admin/calendar-events", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        toast("日历事件已创建", "success");
       }
-      setShowForm(false);
-      setEditingId(null);
-      setForm(EMPTY_FORM);
-      await loadEvents();
-    } catch { /* ignore */ }
-    finally { setSubmitting(false); }
-  }
+      cancelForm();
+      await load(filterTermId);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        toast(err.message, "error");
+      } else {
+        toast("保存失败", "error");
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  async function handleDelete(id: string) {
-    if (!confirm("确认删除该日历事件？")) return;
+  const deleteEvent = async (id: string) => {
+    if (!window.confirm("确认删除该日历事件？")) return;
+    setDeletingId(id);
     try {
       await apiFetch(`/admin/calendar-events/${id}`, { method: "DELETE" });
-      setEvents((prev) => prev.filter((e) => e.id !== id));
-    } catch { /* ignore */ }
-  }
-
-  function startEdit(event: CalendarEvent) {
-    setForm({
-      title: event.title,
-      description: event.description ?? "",
-      eventDate: event.eventDate.slice(0, 10),
-      endDate: event.endDate ? event.endDate.slice(0, 10) : "",
-      type: (event.type as EventType) ?? "INFO",
-      termId: event.termId ?? ""
-    });
-    setEditingId(event.id);
-    setShowForm(true);
-  }
-
-  const filtered = events.filter((e) => {
-    if (filterType !== "all" && e.type !== filterType) return false;
-    if (filterTerm && e.termId !== filterTerm) return false;
-    return true;
-  });
-
-  // Group events by month
-  const grouped = filtered.reduce<Record<string, CalendarEvent[]>>((acc, e) => {
-    const key = new Date(e.eventDate).toLocaleDateString("zh-CN", { year: "numeric", month: "long" });
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(e);
-    return acc;
-  }, {});
+      toast("日历事件已删除", "success");
+      await load(filterTermId);
+    } catch (err) {
+      if (err instanceof ApiError) toast(err.message, "error");
+      else toast("删除失败", "error");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Academic Calendar</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">日历事件管理</h1>
-        <p className="mt-1 text-sm text-slate-500">管理学术日历事件，学生日历页面将同步显示</p>
+        <p className="campus-eyebrow">管理员</p>
+        <h1 className="font-heading text-3xl font-bold text-slate-900">学术日历</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          管理考试、假期、注册截止日等重要校历事件。
+        </p>
       </section>
 
-      {/* KPI */}
-      {!loading && (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div className="campus-kpi">
-            <p className="campus-kpi-label">总事件数</p>
-            <p className="campus-kpi-value">{events.length}</p>
-          </div>
-          {EVENT_TYPES.slice(0, 3).map((t) => (
-            <div key={t} className="campus-kpi">
-              <p className="campus-kpi-label">{TYPE_META[t].label}</p>
-              <p className="campus-kpi-value">{events.filter((e) => e.type === t).length}</p>
-            </div>
+      <section className="campus-toolbar flex-wrap gap-3">
+        <select
+          className="campus-select w-48"
+          value={filterTermId}
+          onChange={(e) => setFilterTermId(e.target.value)}
+        >
+          <option value="">全部学期</option>
+          {terms.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
           ))}
-        </div>
-      )}
-
-      {/* Toolbar */}
-      <div className="campus-toolbar flex-wrap gap-3">
-        <div className="flex gap-2">
-          <select
-            className="campus-select"
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value as EventType | "all")}
-          >
-            <option value="all">所有类型</option>
-            {EVENT_TYPES.map((t) => (
-              <option key={t} value={t}>{TYPE_META[t].emoji} {TYPE_META[t].label}</option>
-            ))}
-          </select>
-          <select
-            className="campus-select"
-            value={filterTerm}
-            onChange={(e) => setFilterTerm(e.target.value)}
-          >
-            <option value="">所有学期</option>
-            {terms.map((term) => (
-              <option key={term.id} value={term.id}>{term.name}</option>
-            ))}
-          </select>
-        </div>
+        </select>
         <button
           type="button"
-          onClick={() => { setShowForm((v) => !v); setEditingId(null); setForm(EMPTY_FORM); }}
-          className="ml-auto inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+          onClick={openNew}
+          className="inline-flex h-9 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
         >
-          {showForm ? "✕ 取消" : "+ 新建事件"}
+          ＋ 添加事件
         </button>
-      </div>
+      </section>
 
-      {/* Form */}
-      {showForm && (
-        <section className="campus-card p-5 space-y-4">
-          <h2 className="text-sm font-bold text-slate-900">{editingId ? "编辑事件" : "新建日历事件"}</h2>
-          <form onSubmit={(e) => void handleSubmit(e)} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <label className="block text-xs font-semibold text-slate-600 mb-1">标题 *</label>
-                <input
-                  className="campus-input w-full"
-                  value={form.title}
-                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  placeholder="例如：期末考试周"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">开始日期 *</label>
+      {/* Inline form */}
+      {showForm ? (
+        <section className="campus-card p-5 space-y-4 border-2 border-slate-300 max-w-xl">
+          <h2 className="text-sm font-semibold text-slate-800">
+            {editingId ? "编辑日历事件" : "新建日历事件"}
+          </h2>
+          <div className="space-y-3">
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">标题 *</span>
+              <input
+                type="text"
+                className="campus-input"
+                value={form.title}
+                onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                placeholder="事件标题"
+              />
+            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">开始日期 *</span>
                 <input
                   type="date"
-                  className="campus-input w-full"
+                  className="campus-input"
                   value={form.eventDate}
-                  onChange={(e) => setForm((f) => ({ ...f, eventDate: e.target.value }))}
-                  required
+                  onChange={(e) => setForm((p) => ({ ...p, eventDate: e.target.value }))}
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">结束日期（可选）</label>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">结束日期</span>
                 <input
                   type="date"
-                  className="campus-input w-full"
+                  className="campus-input"
                   value={form.endDate}
-                  onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
+                  onChange={(e) => setForm((p) => ({ ...p, endDate: e.target.value }))}
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">类型</label>
+              </label>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">事件类型</span>
                 <select
-                  className="campus-select w-full"
+                  className="campus-select"
                   value={form.type}
-                  onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as EventType }))}
+                  onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}
                 >
                   {EVENT_TYPES.map((t) => (
-                    <option key={t} value={t}>{TYPE_META[t].emoji} {TYPE_META[t].label}</option>
+                    <option key={t} value={t}>{TYPE_LABEL[t]}</option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">关联学期（可选）</label>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">关联学期</span>
                 <select
-                  className="campus-select w-full"
+                  className="campus-select"
                   value={form.termId}
-                  onChange={(e) => setForm((f) => ({ ...f, termId: e.target.value }))}
+                  onChange={(e) => setForm((p) => ({ ...p, termId: e.target.value }))}
                 >
-                  <option value="">不关联学期</option>
-                  {terms.map((term) => (
-                    <option key={term.id} value={term.id}>{term.name}</option>
+                  <option value="">不关联</option>
+                  {terms.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </select>
-              </div>
-              <div className="col-span-2">
-                <label className="block text-xs font-semibold text-slate-600 mb-1">描述（可选）</label>
-                <textarea
-                  className="campus-input w-full min-h-[60px]"
-                  value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  placeholder="事件详情…"
-                />
-              </div>
+              </label>
             </div>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM); }}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                取消
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {submitting ? "保存中…" : editingId ? "保存更改" : "创建事件"}
-              </button>
-            </div>
-          </form>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">说明</span>
+              <textarea
+                className="campus-input min-h-20"
+                value={form.description}
+                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                placeholder="可选：事件详细说明"
+              />
+            </label>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void saveForm()}
+              disabled={saving}
+              className="inline-flex h-9 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+            >
+              {saving ? "保存中…" : "保存"}
+            </button>
+            <button
+              type="button"
+              onClick={cancelForm}
+              disabled={saving}
+              className="campus-btn-ghost h-9 px-4 text-sm"
+            >
+              取消
+            </button>
+          </div>
         </section>
-      )}
+      ) : null}
 
-      {/* Events list */}
-      {loading ? (
-        <div className="campus-card px-6 py-14 text-center">
-          <p className="text-2xl">⏳</p>
-          <p className="mt-2 text-sm text-slate-600">加载中…</p>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="campus-card px-6 py-14 text-center">
-          <p className="text-3xl">📅</p>
-          <p className="mt-2 text-sm font-medium text-slate-600">暂无日历事件</p>
-          <p className="mt-1 text-xs text-slate-400">点击「新建事件」添加第一个日历事件</p>
-        </div>
-      ) : (
-        <div className="space-y-5">
-          {Object.entries(grouped).map(([month, monthEvents]) => (
-            <section key={month}>
-              <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">{month}</h2>
-              <div className="space-y-2">
-                {monthEvents.map((event) => {
-                  const isPast = new Date(event.eventDate) < new Date();
-                  return (
-                    <article
-                      key={event.id}
-                      className={`campus-card p-4 ${isPast ? "opacity-60" : ""}`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <TypeChip type={event.type} />
-                            {event.term && (
-                              <span className="campus-chip border-slate-100 bg-slate-50 text-slate-500 text-xs">
-                                {event.term.name}
-                              </span>
-                            )}
-                            {isPast && <span className="text-xs text-slate-400">已过期</span>}
-                          </div>
-                          <p className="mt-1 text-sm font-semibold text-slate-900">{event.title}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            {new Date(event.eventDate).toLocaleDateString("zh-CN")}
-                            {event.endDate && ` — ${new Date(event.endDate).toLocaleDateString("zh-CN")}`}
-                          </p>
-                          {event.description && (
-                            <p className="mt-1 text-xs text-slate-400">{event.description}</p>
-                          )}
-                        </div>
-                        <div className="flex gap-1 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => startEdit(event)}
-                            className="rounded px-2 py-1 text-xs text-indigo-600 hover:bg-indigo-50"
-                          >
-                            编辑
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleDelete(event.id)}
-                            className="rounded px-2 py-1 text-xs text-red-500 hover:bg-red-50"
-                          >
-                            删除
-                          </button>
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
+      {error ? (
+        <section className="campus-card p-6 text-sm text-red-600">日历暂时不可用：{error}</section>
+      ) : null}
+
+      {!error && loading ? (
+        <section className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="campus-card p-4 animate-pulse">
+              <div className="h-4 w-1/3 rounded bg-slate-200" />
+              <div className="mt-2 h-3 w-1/2 rounded bg-slate-100" />
+            </div>
           ))}
-        </div>
-      )}
+        </section>
+      ) : null}
+
+      {!error && !loading && events.length === 0 ? (
+        <section className="campus-card p-8 text-center text-sm text-slate-500">
+          暂无日历事件。点击「添加事件」创建第一条。
+        </section>
+      ) : null}
+
+      {!error && !loading && events.length > 0 ? (
+        <section className="space-y-2">
+          {events.map((ev) => (
+            <article
+              key={ev.id}
+              className={`campus-card p-4 flex flex-wrap items-start gap-3 ${editingId === ev.id ? "border-2 border-blue-400" : ""}`}
+            >
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`campus-chip text-[11px] ${TYPE_COLOR[ev.type] ?? "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                    {TYPE_LABEL[ev.type] ?? ev.type}
+                  </span>
+                  {ev.term ? (
+                    <span className="campus-chip text-[11px]">{ev.term.name}</span>
+                  ) : null}
+                </div>
+                <p className="font-semibold text-slate-900">{ev.title}</p>
+                <p className="text-xs text-slate-500">
+                  {fmtDate(ev.eventDate)}
+                  {ev.endDate ? ` — ${fmtDate(ev.endDate)}` : ""}
+                </p>
+                {ev.description ? (
+                  <p className="text-xs text-slate-600 whitespace-pre-wrap">{ev.description}</p>
+                ) : null}
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => openEdit(ev)}
+                  className="campus-chip cursor-pointer text-xs"
+                >
+                  编辑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void deleteEvent(ev.id)}
+                  disabled={deletingId === ev.id}
+                  className="campus-chip cursor-pointer text-xs border-red-200 bg-red-50 text-red-700 disabled:opacity-60"
+                >
+                  {deletingId === ev.id ? "删除中…" : "删除"}
+                </button>
+              </div>
+            </article>
+          ))}
+        </section>
+      ) : null}
     </div>
   );
 }

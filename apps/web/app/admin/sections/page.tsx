@@ -104,7 +104,7 @@ function Alert({ type, message }: { type: "success" | "error" | "info"; message:
   return <div className={`rounded-xl border px-4 py-3 text-sm ${styles}`}>{message}</div>;
 }
 
-const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY_SHORT = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 
 function minutesToTime(minutes: number): string {
   const h = Math.floor(minutes / 60).toString().padStart(2, "0");
@@ -332,7 +332,7 @@ export default function AdminSectionsPage() {
         return next;
       });
     } catch (error) {
-      setPageError(error instanceof Error ? error.message : "Failed to load sections");
+      setPageError(error instanceof Error ? error.message : "加载教学班数据失败");
     } finally {
       setLoading(false);
     }
@@ -374,12 +374,12 @@ export default function AdminSectionsPage() {
           }))
         })
       });
-      setCreateSuccess("Section created successfully.");
+      setCreateSuccess("教学班创建成功。");
       setCreateForm({ termId: "", courseId: "", sectionCode: "", modality: "ON_CAMPUS", capacity: 30, credits: 3, instructorName: "", location: "", requireApproval: false });
       setCreateMeetingTimes([]);
       await loadSections();
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Create failed");
+      setCreateError(err instanceof Error ? err.message : "创建失败");
     } finally {
       setCreating(false);
     }
@@ -434,7 +434,7 @@ export default function AdminSectionsPage() {
         ...prev,
         [sectionId]: {
           type: "error",
-          text: error instanceof Error ? error.message : "Promotion failed"
+          text: error instanceof Error ? error.message : "晋升失败"
         }
       }));
     } finally {
@@ -453,7 +453,7 @@ export default function AdminSectionsPage() {
       .filter((item) => item.count > 0);
 
     if (queue.length === 0) {
-      setBulkMessage({ type: "error", text: "No actionable sections with promotable seats." });
+      setBulkMessage({ type: "error", text: "当前无可晋升余位的班级。" });
       return;
     }
 
@@ -491,7 +491,7 @@ export default function AdminSectionsPage() {
             ...prev,
             [item.section.id]: {
               type: "error",
-              text: error instanceof Error ? error.message : "Promotion failed"
+              text: error instanceof Error ? error.message : "晋升失败"
             }
           }));
         } finally {
@@ -563,10 +563,10 @@ export default function AdminSectionsPage() {
         })
       });
       setEditingId(null);
-      setCreateSuccess("Section updated successfully.");
+      setCreateSuccess("教学班更新成功。");
       await loadSections();
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Update failed");
+      setCreateError(err instanceof Error ? err.message : "更新失败");
     } finally {
       setSavingEdit(false);
     }
@@ -583,7 +583,7 @@ export default function AdminSectionsPage() {
       if (editingId === id) setEditingId(null);
       await loadSections();
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Delete failed");
+      setCreateError(err instanceof Error ? err.message : "删除失败");
     } finally {
       setDeletingId(null);
     }
@@ -597,18 +597,18 @@ export default function AdminSectionsPage() {
         method: "POST",
         body: JSON.stringify({})
       });
-      setCreateSuccess("Section cloned successfully.");
+      setCreateSuccess("教学班复制成功。");
       toast(`已复制 Section，新 ID: ${cloned.id}`, "success");
       await loadSections();
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Clone failed");
-      toast(err instanceof Error ? err.message : "Clone failed", "error");
+      setCreateError(err instanceof Error ? err.message : "复制失败");
+      toast(err instanceof Error ? err.message : "复制失败", "error");
     }
   };
 
   const exportCsv = () => {
     const rows = [
-      ["Term", "Course", "Section", "Modality", "Capacity", "Enrolled", "Waitlisted", "Available", "Instructor", "Location", "Req Approval", "Schedule"],
+      ["学期", "课程", "教学班", "授课方式", "容量", "在读", "候补", "剩余席位", "教师", "地点", "需审批", "上课时间"],
       ...visibleSections.map((s) => [
         s.term.name,
         s.course.code,
@@ -620,7 +620,7 @@ export default function AdminSectionsPage() {
         String(availableSeats(s)),
         s.instructorName,
         s.location ?? "",
-        s.requireApproval ? "Yes" : "No",
+        s.requireApproval ? "是" : "否",
         formatMeetingTimes(s.meetingTimes)
       ])
     ];
@@ -661,7 +661,7 @@ export default function AdminSectionsPage() {
       }
 
       const rows = [
-        ["Student Name", "Student ID", "Email", "Status", "Grade"],
+        ["学生姓名", "学号", "邮箱", "状态", "成绩"],
         ...records.map((entry) => [
           entry.student.studentProfile?.legalName ?? "",
           entry.student.studentId ?? "",
@@ -692,7 +692,7 @@ export default function AdminSectionsPage() {
         ...prev,
         [section.id]: {
           type: "error",
-          text: error instanceof Error ? error.message : "Roster export failed"
+          text: error instanceof Error ? error.message : "名单导出失败"
         }
       }));
     } finally {
@@ -741,7 +741,7 @@ export default function AdminSectionsPage() {
         ...prev,
         [section.id]: {
           type: "error",
-          text: error instanceof Error ? error.message : "Notification failed"
+          text: error instanceof Error ? error.message : "通知发送失败"
         }
       }));
     } finally {
@@ -763,7 +763,7 @@ export default function AdminSectionsPage() {
         ...prev,
         [sectionId]: {
           type: "error",
-          text: error instanceof Error ? error.message : "Capacity update failed"
+          text: error instanceof Error ? error.message : "容量更新失败"
         }
       }));
       setEditingCapacity(null);
@@ -775,8 +775,8 @@ export default function AdminSectionsPage() {
       <section className="campus-hero">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
-            <p className="campus-eyebrow">Enrollment Operations</p>
-            <h1 className="campus-title">Sections Management</h1>
+            <p className="campus-eyebrow">报名管理</p>
+            <h1 className="campus-title">教学班管理</h1>
             <p className="text-sm text-slate-600 md:text-base">
               Monitor seat utilization, track waitlist pressure, and promote students into open ENROLLED seats.
             </p>
@@ -793,7 +793,7 @@ export default function AdminSectionsPage() {
               disabled={visibleSections.length === 0}
               className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Export CSV
+              CSV 导出
             </button>
             <button
               type="button"
@@ -807,12 +807,12 @@ export default function AdminSectionsPage() {
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        <MetricCard label="Visible Sections" value={overview.sections} tone="slate" />
-        <MetricCard label="Enrolled" value={overview.enrolled} tone="emerald" />
-        <MetricCard label="Waitlisted" value={overview.waitlisted} tone="amber" />
-        <MetricCard label="Action Queue" value={actionableSections.length} tone="blue" />
-        <MetricCard label="Total Capacity" value={overview.totalCapacity} tone="slate" />
-        <MetricCard label="Utilization" value={`${overview.utilization}%`} tone="blue" />
+        <MetricCard label="教学班数" value={overview.sections} tone="slate" />
+        <MetricCard label="在读人数" value={overview.enrolled} tone="emerald" />
+        <MetricCard label="候补人数" value={overview.waitlisted} tone="amber" />
+        <MetricCard label="待处理" value={actionableSections.length} tone="blue" />
+        <MetricCard label="总容量" value={overview.totalCapacity} tone="slate" />
+        <MetricCard label="利用率" value={`${overview.utilization}%`} tone="blue" />
       </section>
 
       <section className="campus-toolbar">
@@ -827,7 +827,7 @@ export default function AdminSectionsPage() {
               value={termFilter}
               onChange={(event) => setTermFilter(event.target.value)}
             >
-              <option value="ALL">All terms</option>
+              <option value="ALL">全部学期</option>
               {termOptions.map((termName) => (
                 <option key={termName} value={termName}>
                   {termName}
@@ -839,14 +839,14 @@ export default function AdminSectionsPage() {
           <label className="block">
             <span className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
               <span className="inline-flex size-5 items-center justify-center rounded-full bg-slate-100 text-[10px]">S</span>
-              Search
+              搜索
             </span>
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">⌕</span>
               <input
                 ref={searchRef}
                 className="campus-input pl-8"
-                placeholder="Filter by term, course, section, or instructor  [/]"
+                placeholder="按学期、课程、班级或教师筛选  [/]"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
               />
@@ -864,7 +864,7 @@ export default function AdminSectionsPage() {
                 : "chip-purple hover:bg-slate-50"
             }`}
           >
-            Waitlist Only
+            仅候补
           </button>
           <button
             type="button"
@@ -875,7 +875,7 @@ export default function AdminSectionsPage() {
                 : "chip-purple hover:bg-slate-50"
             }`}
           >
-            Needs Promotion Action
+            待晋升
           </button>
           <button
             type="button"
@@ -886,7 +886,7 @@ export default function AdminSectionsPage() {
                 : "chip-purple hover:bg-slate-50"
             }`}
           >
-            Actionable First
+            优先待处理
           </button>
           {(termFilter !== "ALL" || search.trim() || filterWaitlistOnly || filterActionOnly || !sortActionFirst) ? (
             <button
@@ -900,107 +900,107 @@ export default function AdminSectionsPage() {
               }}
               className="campus-chip chip-purple h-9 px-3 text-xs transition hover:bg-slate-50"
             >
-              Clear Filters
+              清除筛选
             </button>
           ) : null}
         </div>
       </section>
 
       <section className="campus-card p-4 md:p-5">
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">Create New Section</h2>
+        <h2 className="mb-3 text-sm font-semibold text-slate-900">创建教学班</h2>
         <form className="grid gap-2 md:grid-cols-4" onSubmit={onCreateSection}>
           <label className="block">
-            <span className="sr-only">Term</span>
+            <span className="sr-only">学期</span>
             <select
               required
-              aria-label="Term"
+              aria-label="学期"
               value={createForm.termId}
               onChange={(e) => setCreateForm((p) => ({ ...p, termId: e.target.value }))}
               className="campus-select"
             >
-              <option value="">Select Term</option>
+              <option value="">选择学期</option>
               {terms.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </label>
           <label className="block">
-            <span className="sr-only">Course</span>
+            <span className="sr-only">课程</span>
             <select
               required
-              aria-label="Course"
+              aria-label="课程"
               value={createForm.courseId}
               onChange={(e) => setCreateForm((p) => ({ ...p, courseId: e.target.value }))}
               className="campus-select"
             >
-              <option value="">Select Course</option>
+              <option value="">选择课程</option>
               {courses.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.title}</option>)}
             </select>
           </label>
           <label className="block">
-            <span className="sr-only">Section code</span>
+            <span className="sr-only">班级代码</span>
             <input
               required
-              aria-label="Section code"
-              placeholder="Section Code (e.g. A)"
+              aria-label="班级代码"
+              placeholder="班级代码（如 A）"
               value={createForm.sectionCode}
               onChange={(e) => setCreateForm((p) => ({ ...p, sectionCode: e.target.value }))}
               className="campus-input"
             />
           </label>
           <label className="block">
-            <span className="sr-only">Modality</span>
+            <span className="sr-only">授课形式</span>
             <select
-              aria-label="Modality"
+              aria-label="授课形式"
               value={createForm.modality}
               onChange={(e) => setCreateForm((p) => ({ ...p, modality: e.target.value }))}
               className="campus-select"
             >
-              <option value="ON_CAMPUS">On Campus</option>
-              <option value="ONLINE">Online</option>
-              <option value="HYBRID">Hybrid</option>
+              <option value="ON_CAMPUS">线下</option>
+              <option value="ONLINE">线上</option>
+              <option value="HYBRID">混合</option>
             </select>
           </label>
           <label className="block">
-            <span className="sr-only">Capacity</span>
+            <span className="sr-only">容量</span>
             <input
               required
-              aria-label="Capacity"
+              aria-label="容量"
               type="number"
               min={1}
-              placeholder="Capacity"
+              placeholder="容量"
               value={createForm.capacity}
               onChange={(e) => setCreateForm((p) => ({ ...p, capacity: Number(e.target.value) }))}
               className="campus-input"
             />
           </label>
           <label className="block">
-            <span className="sr-only">Credits</span>
+            <span className="sr-only">学分</span>
             <input
               required
-              aria-label="Credits"
+              aria-label="学分"
               type="number"
               min={1}
-              placeholder="Credits"
+              placeholder="学分"
               value={createForm.credits}
               onChange={(e) => setCreateForm((p) => ({ ...p, credits: Number(e.target.value) }))}
               className="campus-input"
             />
           </label>
           <label className="block">
-            <span className="sr-only">Instructor name</span>
+            <span className="sr-only">教师姓名</span>
             <input
               required
-              aria-label="Instructor name"
-              placeholder="Instructor Name"
+              aria-label="教师姓名"
+              placeholder="教师姓名"
               value={createForm.instructorName}
               onChange={(e) => setCreateForm((p) => ({ ...p, instructorName: e.target.value }))}
               className="campus-input"
             />
           </label>
           <label className="block">
-            <span className="sr-only">Location</span>
+            <span className="sr-only">地点</span>
             <input
-              aria-label="Location"
-              placeholder="Location (optional)"
+              aria-label="地点"
+              placeholder="地点（选填）"
               value={createForm.location}
               onChange={(e) => setCreateForm((p) => ({ ...p, location: e.target.value }))}
               className="campus-input"
@@ -1014,12 +1014,12 @@ export default function AdminSectionsPage() {
                 checked={createForm.requireApproval}
                 onChange={(e) => setCreateForm((p) => ({ ...p, requireApproval: e.target.checked }))}
               />
-              Requires instructor approval
+              需教师审批
             </label>
           </div>
           <div className="col-span-full space-y-2">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Meeting Times</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">上课时间</span>
               <button
                 type="button"
                 onClick={() => setCreateMeetingTimes((prev) => [...prev, { weekday: 1, startTime: "09:00", endTime: "10:00" }])}
@@ -1031,37 +1031,37 @@ export default function AdminSectionsPage() {
             {createMeetingTimes.map((mt, idx) => (
               <div key={idx} className="flex flex-wrap items-center gap-2">
                 <select
-                  aria-label={`Weekday for meeting time ${idx + 1}`}
+                  aria-label={`第${idx + 1}条上课时间-星期`}
                   value={mt.weekday}
                   onChange={(e) => setCreateMeetingTimes((prev) => prev.map((item, i) => i === idx ? { ...item, weekday: Number(e.target.value) } : item))}
                   className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 >
-                  <option value={1}>Mon</option>
-                  <option value={2}>Tue</option>
-                  <option value={3}>Wed</option>
-                  <option value={4}>Thu</option>
-                  <option value={5}>Fri</option>
-                  <option value={6}>Sat</option>
-                  <option value={0}>Sun</option>
+                  <option value={1}>周一</option>
+                  <option value={2}>周二</option>
+                  <option value={3}>周三</option>
+                  <option value={4}>周四</option>
+                  <option value={5}>周五</option>
+                  <option value={6}>周六</option>
+                  <option value={0}>周日</option>
                 </select>
                 <input
                   type="time"
-                  aria-label={`Start time for meeting time ${idx + 1}`}
+                  aria-label={`第${idx + 1}条上课时间-开始`}
                   value={mt.startTime}
                   onChange={(e) => setCreateMeetingTimes((prev) => prev.map((item, i) => i === idx ? { ...item, startTime: e.target.value } : item))}
                   className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
-                <span className="text-xs text-slate-400">to</span>
+                <span className="text-xs text-slate-400">至</span>
                 <input
                   type="time"
-                  aria-label={`End time for meeting time ${idx + 1}`}
+                  aria-label={`第${idx + 1}条上课时间-结束`}
                   value={mt.endTime}
                   onChange={(e) => setCreateMeetingTimes((prev) => prev.map((item, i) => i === idx ? { ...item, endTime: e.target.value } : item))}
                   className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
                 <button
                   type="button"
-                  aria-label={`Remove meeting time ${idx + 1}`}
+                  aria-label={`删除第${idx + 1}条上课时间`}
                   onClick={() => setCreateMeetingTimes((prev) => prev.filter((_, i) => i !== idx))}
                   className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-xs text-red-600 transition hover:bg-red-100"
                 >
@@ -1076,8 +1076,8 @@ export default function AdminSectionsPage() {
             className="col-span-full inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 md:col-span-1"
           >
             {creating ? (
-              <><span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />Creating…</>
-            ) : "Create Section"}
+              <><span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />创建中…</>
+            ) : "创建教学班"}
           </button>
         </form>
         {createError ? <Alert type="error" message={createError} /> : null}
@@ -1088,25 +1088,25 @@ export default function AdminSectionsPage() {
         <section className="campus-card border-blue-200 bg-blue-50/60 p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-base font-semibold text-blue-900">
-              Editing: {sections.find((s) => s.id === editingId)?.course.code} §{sections.find((s) => s.id === editingId)?.sectionCode}
+              编辑：{sections.find((s) => s.id === editingId)?.course.code} §{sections.find((s) => s.id === editingId)?.sectionCode}
             </h2>
-            <button type="button" onClick={cancelEdit} className="text-sm font-medium text-blue-700 underline underline-offset-2">Cancel</button>
+            <button type="button" onClick={cancelEdit} className="text-sm font-medium text-blue-700 underline underline-offset-2">取消</button>
           </div>
           <form className="grid gap-3 md:grid-cols-4" onSubmit={(e) => void onSaveEdit(e)}>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Modality</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">授课形式</label>
               <select
                 className="campus-select"
                 value={editForm.modality}
                 onChange={(e) => setEditForm((p) => ({ ...p, modality: e.target.value }))}
               >
-                <option value="ON_CAMPUS">On Campus</option>
-                <option value="ONLINE">Online</option>
-                <option value="HYBRID">Hybrid</option>
+                <option value="ON_CAMPUS">线下</option>
+                <option value="ONLINE">线上</option>
+                <option value="HYBRID">混合</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Capacity</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">容量</label>
               <input
                 type="number"
                 min={1}
@@ -1117,7 +1117,7 @@ export default function AdminSectionsPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Instructor</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">教师</label>
               <input
                 required
                 className="campus-input"
@@ -1126,10 +1126,10 @@ export default function AdminSectionsPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Location</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">地点</label>
               <input
                 className="campus-input"
-                placeholder="Optional"
+                placeholder="选填"
                 value={editForm.location}
                 onChange={(e) => setEditForm((p) => ({ ...p, location: e.target.value }))}
               />
@@ -1142,54 +1142,54 @@ export default function AdminSectionsPage() {
                   checked={editForm.requireApproval}
                   onChange={(e) => setEditForm((p) => ({ ...p, requireApproval: e.target.checked }))}
                 />
-                Requires instructor approval
+                需教师审批
               </label>
             </div>
             <div className="col-span-full space-y-2">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Meeting Times</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">上课时间</span>
                 <button
                   type="button"
                   onClick={() => setEditMeetingTimes((prev) => [...prev, { weekday: 1, startTime: "09:00", endTime: "10:00" }])}
                   className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
                 >
-                  + Add time
+                  + 添加时间
                 </button>
               </div>
               {editMeetingTimes.map((mt, idx) => (
                 <div key={idx} className="flex flex-wrap items-center gap-2">
                   <select
-                    aria-label={`Weekday for edit meeting time ${idx + 1}`}
+                    aria-label={`编辑第${idx + 1}条上课时间-星期`}
                     value={mt.weekday}
                     onChange={(e) => setEditMeetingTimes((prev) => prev.map((item, i) => i === idx ? { ...item, weekday: Number(e.target.value) } : item))}
                     className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/30"
                   >
-                    <option value={1}>Mon</option>
-                    <option value={2}>Tue</option>
-                    <option value={3}>Wed</option>
-                    <option value={4}>Thu</option>
-                    <option value={5}>Fri</option>
-                    <option value={6}>Sat</option>
-                    <option value={0}>Sun</option>
+                    <option value={1}>周一</option>
+                    <option value={2}>周二</option>
+                    <option value={3}>周三</option>
+                    <option value={4}>周四</option>
+                    <option value={5}>周五</option>
+                    <option value={6}>周六</option>
+                    <option value={0}>周日</option>
                   </select>
                   <input
                     type="time"
-                    aria-label={`Start time for edit meeting time ${idx + 1}`}
+                    aria-label={`编辑第${idx + 1}条上课时间-开始`}
                     value={mt.startTime}
                     onChange={(e) => setEditMeetingTimes((prev) => prev.map((item, i) => i === idx ? { ...item, startTime: e.target.value } : item))}
                     className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
-                  <span className="text-xs text-slate-400">to</span>
+                  <span className="text-xs text-slate-400">至</span>
                   <input
                     type="time"
-                    aria-label={`End time for edit meeting time ${idx + 1}`}
+                    aria-label={`编辑第${idx + 1}条上课时间-结束`}
                     value={mt.endTime}
                     onChange={(e) => setEditMeetingTimes((prev) => prev.map((item, i) => i === idx ? { ...item, endTime: e.target.value } : item))}
                     className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
                   <button
                     type="button"
-                    aria-label={`Remove edit meeting time ${idx + 1}`}
+                    aria-label={`删除编辑第${idx + 1}条上课时间`}
                     onClick={() => setEditMeetingTimes((prev) => prev.filter((_, i) => i !== idx))}
                     className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-xs text-red-600 transition hover:bg-red-100"
                   >
@@ -1205,8 +1205,8 @@ export default function AdminSectionsPage() {
                 className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
               >
                 {savingEdit ? (
-                  <><span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />Saving…</>
-                ) : "Save changes"}
+                  <><span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />保存中…</>
+                ) : "保存更改"}
               </button>
             </div>
           </form>
@@ -1220,14 +1220,14 @@ export default function AdminSectionsPage() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-900">
-                Promotion Control
+                晋升管理
               </h2>
               <p className="mt-1 text-sm text-slate-600">
-                Actionable queue where waitlisted students can be moved into ENROLLED seats.
+                候补学生可晋升至已报名席位的操作队列。
               </p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-right">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">Recommended moves</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">建议晋升数</p>
               <p className="text-2xl font-semibold text-slate-900">{recommendedPromotionTotal}</p>
             </div>
           </div>
@@ -1242,16 +1242,16 @@ export default function AdminSectionsPage() {
               {bulkPromoting ? (
                 <>
                   <span className="size-3.5 animate-spin rounded-full border-2 border-slate-200 border-t-slate-700" />
-                  Promoting Queue
+                  晋升中
                 </>
               ) : (
-                "Promote All Actionable"
+                "晋升全部可操作"
               )}
             </button>
             <span className="text-xs text-slate-600">
               {actionableSections.length > 0
-                ? `${actionableSections.length} section(s) ready now`
-                : "No sections currently eligible for promotion."}
+                ? `${actionableSections.length} 个班级可操作`
+                : "当前无可晋升班级。"}
             </span>
           </div>
 
@@ -1277,7 +1277,7 @@ export default function AdminSectionsPage() {
                   {section.term.name} · {section.course.code} §{section.sectionCode}
                 </span>
                 <span className="text-xs text-slate-600">
-                  Promote {promotableCount(section)} · Waitlist {waitlistCount(section)} · Seats {availableSeats(section)}
+                  晋升 {promotableCount(section)} · 候补 {waitlistCount(section)} · 余位 {availableSeats(section)}
                 </span>
                 <div className="flex items-center gap-2">
                   <button
@@ -1286,29 +1286,29 @@ export default function AdminSectionsPage() {
                     disabled={loadingBySection[section.id]}
                     className="inline-flex h-8 items-center rounded-md border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-800 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {loadingBySection[section.id] ? "Working..." : "Promote now"}
+                    {loadingBySection[section.id] ? "处理中..." : "立即晋升"}
                   </button>
                   <a
                     href={`#section-row-${section.id}`}
                     className="inline-flex h-8 items-center rounded-md border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 no-underline transition hover:bg-slate-50"
                   >
-                    Jump
+                    跳转
                   </a>
                 </div>
               </li>
             ))}
             {actionableSections.length === 0 ? (
               <li className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-700">
-                Waitlist queue is currently balanced. Keep monitoring pressure watchlist for upcoming bottlenecks.
+                候补队列当前已均衡，请持续关注容量压力监控以防范潜在瓶颈。
               </li>
             ) : null}
           </ul>
         </div>
 
         <div className="campus-card p-4 md:p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-900">Capacity Pressure Watchlist</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-900">容量压力监控</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Highest pressure sections ranked by <span className="font-medium">waitlist minus open seats</span>.
+            按<span className="font-medium">候补人数减余位数</span>排序的高压教学班。
           </p>
 
           <ul className="mt-4 space-y-2">
@@ -1333,12 +1333,12 @@ export default function AdminSectionsPage() {
                       <p className="text-xs text-slate-600">{section.term.name}</p>
                     </div>
                     <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${pressureTone}`}>
-                      Pressure {pressure >= 0 ? `+${pressure}` : pressure}
+                      压力 {pressure >= 0 ? `+${pressure}` : pressure}
                     </span>
                   </div>
                   <div className="mt-2 flex items-center justify-between text-xs text-slate-600">
-                    <span>Waitlist {waitlisted}</span>
-                    <span>Seats {seats}</span>
+                    <span>候补 {waitlisted}</span>
+                    <span>余位 {seats}</span>
                   </div>
                   <div className="mt-2">
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
@@ -1352,7 +1352,7 @@ export default function AdminSectionsPage() {
                       />
                     </div>
                     <p className="mt-0.5 text-[10px] text-slate-400">
-                      {enrolledCount(section)}/{section.capacity} enrolled
+                      {enrolledCount(section)}/{section.capacity} 已报名
                     </p>
                   </div>
                 </li>
@@ -1360,7 +1360,7 @@ export default function AdminSectionsPage() {
             })}
             {highPressureSections.length === 0 ? (
               <li className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600">
-                No waitlist pressure detected in current filters.
+                当前筛选条件下无候补压力。
               </li>
             ) : null}
           </ul>
@@ -1372,18 +1372,18 @@ export default function AdminSectionsPage() {
           <table className="campus-table text-sm">
             <thead className="sticky top-0 z-10">
               <tr>
-                <th>Term</th>
-                <th>Course</th>
-                <th>Section</th>
-                <th>Schedule</th>
-                <th>Flags</th>
-                <th>Capacity</th>
-                <th>Enrolled</th>
-                <th>Waitlist</th>
-                <th>Available</th>
-                <th>Avg Rating ★</th>
-                <th>Promote</th>
-                <th>Actions</th>
+                <th>学期</th>
+                <th>课程</th>
+                <th>班级</th>
+                <th>时间表</th>
+                <th>标记</th>
+                <th>容量</th>
+                <th>在读</th>
+                <th>候补</th>
+                <th>余位</th>
+                <th>平均评分 ★</th>
+                <th>晋升</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
@@ -1436,16 +1436,16 @@ export default function AdminSectionsPage() {
                                   ? "chip-blue"
                                   : "chip-purple"
                             }`}>
-                              {section.modality === "ON_CAMPUS" ? "On Campus" : section.modality === "ONLINE" ? "Online" : "Hybrid"}
+                              {section.modality === "ON_CAMPUS" ? "线下" : section.modality === "ONLINE" ? "线上" : "混合"}
                             </span>
                             {section.requireApproval ? (
                               <span className="campus-chip chip-blue px-2 py-0.5 text-[11px]">
-                                Approval
+                                需审批
                               </span>
                             ) : null}
                             {waitlisted > 0 && seats > 0 ? (
                               <span className="campus-chip chip-emerald px-2 py-0.5 text-[11px]">
-                                Can promote
+                                可晋升
                               </span>
                             ) : null}
                             {(conflicts.get(section.id)?.length ?? 0) > 0 ? (
@@ -1478,7 +1478,7 @@ export default function AdminSectionsPage() {
                             <span
                               onDoubleClick={() => setEditingCapacity({ id: section.id, val: section.capacity })}
                               className="cursor-pointer text-sm text-slate-700 hover:underline decoration-dotted"
-                              title="Double-click to edit"
+                              title="双击编辑"
                             >
                               {enrolled}/{section.capacity}
                             </span>
@@ -1496,22 +1496,22 @@ export default function AdminSectionsPage() {
                             />
                           </div>
                           <p className="mt-0.5 text-[10px] text-slate-400">
-                            {section.capacity > 0 ? Math.round((enrolled / section.capacity) * 100) : 0}% full
+                            {section.capacity > 0 ? Math.round((enrolled / section.capacity) * 100) : 0}% 已满
                           </p>
                         </td>
                         <td className="px-4 py-3">
                           <span className="campus-chip chip-emerald px-2.5 py-1 text-xs">
-                            ENROLLED {enrolled}
+                            在读 {enrolled}
                           </span>
                         </td>
                         <td className="px-4 py-3">
                           <span className="campus-chip chip-amber px-2.5 py-1 text-xs">
-                            WAITLISTED {waitlisted}
+                            候补 {waitlisted}
                           </span>
                         </td>
                         <td className="px-4 py-3">
                           <span className="campus-chip chip-purple px-2.5 py-1 text-xs">
-                            {seats} seats
+                            {seats} 余位
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-500">
@@ -1537,38 +1537,32 @@ export default function AdminSectionsPage() {
                                 {loadingBySection[section.id] ? (
                                   <>
                                     <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                                    Promoting
+                                    晋升中
                                   </>
                                 ) : (
-                                  "Promote"
+                                  "晋升"
                                 )}
                               </button>
                             </div>
                             <p className="text-[11px] text-slate-500">
-                              Recommended: {promotableCount(section)}
+                              建议晋升：{promotableCount(section)}
                             </p>
                           </div>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
                             <a
-                              href={`/admin/sections/${section.id}/roster`}
-                              className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
-                            >
-                              Roster →
-                            </a>
-                            <a
-                              href={`/admin/section-analytics/${section.id}`}
+                              href={`/admin/sections/${section.id}`}
                               className="rounded border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100"
                             >
-                              Analytics →
+                              分析 →
                             </a>
                             <button
                               type="button"
                               onClick={() => openNotify(section.id)}
                               className="rounded border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-medium text-violet-700 transition hover:bg-violet-100"
                             >
-                              📢 Notify
+                              📢 通知
                             </button>
                             <button
                               type="button"
@@ -1576,14 +1570,14 @@ export default function AdminSectionsPage() {
                               onClick={() => void exportRoster(section)}
                               className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
                             >
-                              {exportingRosterId === section.id ? "Exporting..." : "📋 Roster"}
+                              {exportingRosterId === section.id ? "导出中..." : "📋 名单"}
                             </button>
                             <button
                               type="button"
                               onClick={() => void cloneSection(section.id)}
                               className="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
                             >
-                              📋 Clone
+                              📋 复制
                             </button>
                             <button
                               type="button"
@@ -1597,7 +1591,7 @@ export default function AdminSectionsPage() {
                               onClick={() => editingId === section.id ? cancelEdit() : startEdit(section)}
                               className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
                             >
-                              {editingId === section.id ? "Cancel" : "Edit"}
+                              {editingId === section.id ? "取消" : "编辑"}
                             </button>
                             <button
                               type="button"
@@ -1605,7 +1599,7 @@ export default function AdminSectionsPage() {
                               onClick={() => void onDeleteSection(section.id, `${section.course.code} §${section.sectionCode}`)}
                               className="inline-flex h-8 items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
                             >
-                              {deletingId === section.id ? "…" : "Delete"}
+                              {deletingId === section.id ? "…" : "删除"}
                             </button>
                           </div>
                         </td>
@@ -1615,13 +1609,13 @@ export default function AdminSectionsPage() {
                           <td colSpan={12} className="px-4 pb-4">
                             <div className="mt-2 flex flex-col gap-2 rounded-lg border border-violet-200 bg-violet-50 p-3">
                               <input
-                                placeholder="Subject"
+                                placeholder="主题"
                                 value={notifyForm.subject}
                                 onChange={(event) => setNotifyForm((form) => ({ ...form, subject: event.target.value }))}
                                 className="campus-input text-sm"
                               />
                               <textarea
-                                placeholder="Message"
+                                placeholder="消息内容"
                                 rows={3}
                                 value={notifyForm.message}
                                 onChange={(event) => setNotifyForm((form) => ({ ...form, message: event.target.value }))}
@@ -1634,7 +1628,7 @@ export default function AdminSectionsPage() {
                                   onClick={() => void sendSectionNotification(section)}
                                   className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                                 >
-                                  {notifySending ? "Sending…" : "Send"}
+                                  {notifySending ? "发送中…" : "发送"}
                                 </button>
                                 <button
                                   type="button"
@@ -1679,7 +1673,7 @@ export default function AdminSectionsPage() {
               {!loading && visibleSections.length === 0 ? (
                 <tr>
                   <td colSpan={12} className="px-4 py-10 text-center text-slate-500">
-                    No sections found.
+                    暂无教学班数据。
                   </td>
                 </tr>
               ) : null}
@@ -1691,7 +1685,7 @@ export default function AdminSectionsPage() {
         {visibleSections.length > PAGE_SIZE ? (
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-3 text-sm text-slate-600">
             <p>
-              Showing {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, visibleSections.length)} of {visibleSections.length} sections
+              共 {visibleSections.length} 个班级，显示第 {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, visibleSections.length)} 条
             </p>
             <div className="flex items-center gap-1.5">
               <button
@@ -1700,7 +1694,7 @@ export default function AdminSectionsPage() {
                 disabled={safePage === 1}
                 className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                ← Prev
+                ← 上页
               </button>
               {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
                 let pageNum: number;
@@ -1729,7 +1723,7 @@ export default function AdminSectionsPage() {
                 disabled={safePage === totalPages}
                 className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Next →
+                下页 →
               </button>
             </div>
           </div>

@@ -39,7 +39,7 @@ function detectIssues(enrollments: Enrollment[]): Issue[] {
   const now = new Date();
 
   for (const e of enrollments) {
-    const termName = e.section.term?.name ?? "Unknown term";
+    const termName = e.section.term?.name ?? "未知学期";
     const termEndDate = e.section.term?.endDate ? new Date(e.section.term.endDate) : null;
     const termPast = termEndDate ? termEndDate < now : false;
 
@@ -156,7 +156,7 @@ export default function TranscriptPage() {
     const key = e.section.term?.id ?? "unknown-term";
     if (!termMap.has(key)) {
       termMap.set(key, {
-        termName: e.section.term?.name ?? "Unknown term",
+        termName: e.section.term?.name ?? "未知学期",
         termEndDate: e.section.term?.endDate ?? "1970-01-01T00:00:00.000Z",
         enrollments: []
       });
@@ -178,6 +178,19 @@ export default function TranscriptPage() {
 
   return (
     <div className="campus-page space-y-6">
+      {/* Tab nav */}
+      <div className="no-print flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+        <a href="/student/grades" className="flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-slate-500 no-underline transition hover:bg-white hover:text-slate-900">
+          成绩
+        </a>
+        <a href="/student/course-history" className="flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-slate-500 no-underline transition hover:bg-white hover:text-slate-900">
+          修课历史
+        </a>
+        <span className="flex-1 rounded-lg bg-white px-4 py-2 text-center text-sm font-semibold text-slate-900 shadow-sm">
+          成绩单
+        </span>
+      </div>
+
       <div className="no-print flex justify-end">
         <button
           type="button"
@@ -201,7 +214,7 @@ export default function TranscriptPage() {
       </div>
 
       <section className="campus-hero">
-        <p className="campus-eyebrow">Academic Record</p>
+        <p className="campus-eyebrow">学业记录</p>
         <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">完整修课记录</h1>
         <p className="mt-1 text-sm text-slate-500">所有历史注册记录，包含状态检查和问题标记</p>
       </section>
@@ -244,7 +257,7 @@ export default function TranscriptPage() {
               );
             })}
           </div>
-          <p className="text-xs text-slate-400 mt-1">如有疑问，请联系教务处或 <Link href="/student/contact" className="underline">学术支持</Link></p>
+          <p className="text-xs text-slate-400 mt-1">如有疑问，请联系教务处或查看 <Link href="/student/advisor" className="underline">我的导师</Link></p>
         </section>
       )}
 

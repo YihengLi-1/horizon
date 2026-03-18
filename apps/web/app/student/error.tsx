@@ -26,7 +26,7 @@ export default function StudentError({
             onClick={reset}
             className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900"
           >
-            Try Again
+            重试
           </button>
           <Link
             href="/student/dashboard"

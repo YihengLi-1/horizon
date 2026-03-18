@@ -1,251 +1,240 @@
 "use client";
 
-/**
- * Student Enrollment Timeline
- * Fetches the student's full enrollment history and renders it as an
- * interactive chronological timeline grouped by term.
- */
-
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
-type EnrollmentItem = {
+type MeetingTime = { weekday: number; startMinutes: number; endMinutes: number };
+type ReceiptItem = {
   enrollmentId: string;
-  sectionId: string;
-  sectionCode: string;
   courseCode: string;
-  courseTitle: string;
+  title: string;
   credits: number;
-  status: string;
-  finalGrade: string | null;
-  enrolledAt: string;
+  sectionCode: string;
+  instructorName: string;
+  meetingTimes: MeetingTime[];
 };
 
-type TermGroup = {
-  termId: string;
+type ReceiptData = {
+  term: { id: string; name: string; startDate: string; endDate: string } | null;
+  items: ReceiptItem[];
+  totalCredits: number;
+};
+
+type CourseHistoryItem = {
   termName: string;
-  enrollments: EnrollmentItem[];
-};
-
-type StudentProfileResponse = {
-  enrollments?: Array<{
-    id: string;
-    createdAt?: string;
-    status: string;
+  termId: string;
+  enrollments: Array<{
+    enrollmentId: string;
+    courseCode: string;
+    title: string;
+    credits: number;
     finalGrade: string | null;
-    section: {
-      id?: string;
-      credits: number;
-      sectionCode: string;
-      course: {
-        code: string;
-        title: string;
-      };
-      term?: {
-        id: string;
-        name: string;
-      };
-    };
+    status: string;
+    termName: string;
   }>;
 };
 
-const STATUS_STYLES: Record<string, string> = {
-  ENROLLED: "bg-emerald-100 text-emerald-800",
-  COMPLETED: "bg-indigo-100 text-indigo-800",
-  DROPPED: "bg-red-100 text-red-700",
-  WAITLISTED: "bg-amber-100 text-amber-800",
+const STATUS_LABELS: Record<string, string> = {
+  COMPLETED: "已完成",
+  ENROLLED: "在读",
+  DROPPED: "已退课",
+  WAITLISTED: "候补",
+  PENDING_APPROVAL: "待审批",
 };
 
-const GRADE_GPA: Record<string, number> = {
-  "A+": 4.0, "A": 4.0, "A-": 3.7,
-  "B+": 3.3, "B": 3.0, "B-": 2.7,
-  "C+": 2.3, "C": 2.0, "C-": 1.7,
-  "D+": 1.3, "D": 1.0, "D-": 0.7,
-  "F": 0, "W": 0,
+const GRADE_COLORS: Record<string, string> = {
+  "A+": "text-emerald-700", "A": "text-emerald-700", "A-": "text-emerald-600",
+  "B+": "text-blue-700", "B": "text-blue-600", "B-": "text-blue-500",
+  "C+": "text-amber-700", "C": "text-amber-600", "C-": "text-amber-500",
+  "D+": "text-orange-600", "D": "text-orange-500", "D-": "text-orange-400",
+  "F": "text-red-600", "W": "text-slate-400",
+};
+
+const GRADE_POINTS: Record<string, number> = {
+  "A+": 4.0, "A": 4.0, "A-": 3.7, "B+": 3.3, "B": 3.0, "B-": 2.7,
+  "C+": 2.3, "C": 2.0, "C-": 1.7, "D+": 1.3, "D": 1.0, "D-": 0.7, "F": 0.0,
 };
 
 export default function EnrollmentTimelinePage() {
-  const [groups, setGroups] = useState<TermGroup[]>([]);
+  const [history, setHistory] = useState<CourseHistoryItem[]>([]);
+  const [currentReceipt, setCurrentReceipt] = useState<ReceiptData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState<string>("ALL");
-  const [expandedTerms, setExpandedTerms] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState("all");
 
   useEffect(() => {
-    void apiFetch<StudentProfileResponse>("/students/me")
-      .then((profile) => {
-        const byTerm = new Map<string, TermGroup>();
-
-        for (const enrollment of profile.enrollments ?? []) {
-          const termId = enrollment.section.term?.id ?? "unknown-term";
-          const termName = enrollment.section.term?.name ?? "Unknown term";
-          const bucket = byTerm.get(termId) ?? {
-            termId,
-            termName,
-            enrollments: []
-          };
-
-          bucket.enrollments.push({
-            enrollmentId: enrollment.id,
-            sectionId: enrollment.section.id ?? enrollment.id,
-            sectionCode: enrollment.section.sectionCode,
-            courseCode: enrollment.section.course.code,
-            courseTitle: enrollment.section.course.title,
-            credits: enrollment.section.credits,
-            status: enrollment.status,
-            finalGrade: enrollment.finalGrade,
-            enrolledAt: enrollment.createdAt ?? ""
-          });
-
-          byTerm.set(termId, bucket);
-        }
-
-        const nextGroups = [...byTerm.values()].sort((a, b) => a.termName.localeCompare(b.termName));
-        setGroups(nextGroups);
-        setExpandedTerms(new Set(nextGroups.map((group) => group.termId)));
+    Promise.all([
+      apiFetch<CourseHistoryItem[]>("/students/course-history"),
+      apiFetch<ReceiptData>("/students/enrollment-receipt"),
+    ])
+      .then(([hist, receipt]) => {
+        setHistory(hist ?? []);
+        setCurrentReceipt(receipt ?? null);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "加载失败"))
+      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setLoading(false));
   }, []);
 
-  const stats = useMemo(() => {
-    if (groups.length === 0) return null;
-    const all = groups.flatMap((g) => g.enrollments);
-    const completed = all.filter((e) => e.status === "COMPLETED");
-    const totalCredits = completed.reduce((s, e) => s + e.credits, 0);
-    const gradedItems = completed.filter((e) => e.finalGrade && e.finalGrade !== "W" && GRADE_GPA[e.finalGrade] !== undefined);
-    const gpa = gradedItems.length
-      ? gradedItems.reduce((s, e) => s + GRADE_GPA[e.finalGrade!] * e.credits, 0) /
-        Math.max(1, gradedItems.reduce((s, e) => s + e.credits, 0))
-      : 0;
-    return {
-      terms: groups.length,
-      total: all.length,
-      completed: completed.length,
-      credits: totalCredits,
-      gpa,
-    };
-  }, [groups]);
+  const filteredHistory = useMemo(() => {
+    if (statusFilter === "all") return history;
+    return history.map((t) => ({
+      ...t,
+      enrollments: t.enrollments.filter((e) => e.status === statusFilter),
+    })).filter((t) => t.enrollments.length > 0);
+  }, [history, statusFilter]);
 
-  function toggleTerm(id: string) {
-    setExpandedTerms((prev) => {
+  const totalCredits = useMemo(() => {
+    return history.flatMap((t) => t.enrollments)
+      .filter((e) => e.status === "COMPLETED")
+      .reduce((s, e) => s + e.credits, 0);
+  }, [history]);
+
+  const cumulativeGpa = useMemo(() => {
+    let wp = 0, cr = 0;
+    for (const t of history) {
+      for (const e of t.enrollments) {
+        if (e.status !== "COMPLETED" || !e.finalGrade) continue;
+        const pts = GRADE_POINTS[e.finalGrade];
+        if (pts !== undefined) { wp += pts * e.credits; cr += e.credits; }
+      }
+    }
+    return cr > 0 ? wp / cr : null;
+  }, [history]);
+
+  function toggle(termId: string) {
+    setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(termId)) next.delete(termId);
+      else next.add(termId);
       return next;
     });
   }
 
-  const filteredGroups = groups.map((g) => ({
-    ...g,
-    enrollments: filter === "ALL" ? g.enrollments : g.enrollments.filter((e) => e.status === filter),
-  })).filter((g) => g.enrollments.length > 0);
-
   return (
-    <div className="campus-page space-y-6">
+    <div className="campus-page">
       <section className="campus-hero">
-        <p className="campus-eyebrow">My Timeline</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">选课历程</h1>
-        <p className="mt-1 text-sm text-slate-500">按学期查看所有选课记录与成绩进展</p>
+        <p className="campus-eyebrow">学业记录</p>
+        <h1 className="campus-hero-title">注册时间线</h1>
+        <p className="campus-hero-subtitle">按学期展示完整的课程注册历史与学业轨迹</p>
       </section>
 
-      {error && <div className="campus-card border-red-200 bg-red-50 px-6 py-4 text-sm text-red-700">{error}</div>}
-
-      {/* Stats */}
-      {stats && (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-          {[
-            { label: "学期数", value: stats.terms, color: "text-indigo-600" },
-            { label: "总课程数", value: stats.total },
-            { label: "已完成", value: stats.completed, color: "text-emerald-600" },
-            { label: "已得学分", value: stats.credits, color: "text-emerald-600" },
-            { label: "累计 GPA", value: stats.gpa.toFixed(2), color: stats.gpa >= 3.5 ? "text-emerald-600" : stats.gpa >= 2.0 ? "text-amber-600" : "text-red-600" },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="campus-kpi">
-              <p className="campus-kpi-label">{label}</p>
-              <p className={`campus-kpi-value ${color ?? ""}`}>{value}</p>
-            </div>
-          ))}
+      <section className="grid gap-3 sm:grid-cols-4">
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">历史学期数</p>
+          <p className="campus-kpi-value">{loading ? "—" : history.length}</p>
         </div>
-      )}
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">已完成学分</p>
+          <p className="campus-kpi-value text-emerald-600">{loading ? "—" : totalCredits}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">累计 GPA</p>
+          <p className={`campus-kpi-value ${(cumulativeGpa ?? 0) >= 3.5 ? "text-emerald-600" : (cumulativeGpa ?? 0) >= 2.0 ? "text-slate-800" : "text-red-600"}`}>
+            {loading ? "—" : cumulativeGpa != null ? cumulativeGpa.toFixed(3) : "—"}
+          </p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">当前学期</p>
+          <p className="campus-kpi-value text-slate-600 text-sm">{loading ? "—" : currentReceipt?.term?.name ?? "—"}</p>
+        </div>
+      </section>
 
-      {/* Filter tabs */}
-      <div className="campus-toolbar flex-wrap gap-2">
-        {["ALL", "ENROLLED", "COMPLETED", "DROPPED", "WAITLISTED"].map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setFilter(s)}
-            className={`campus-chip text-xs font-semibold ${filter === s ? "border-indigo-300 bg-indigo-50 text-indigo-800" : "border-slate-200 bg-slate-50 text-slate-600"}`}
-          >
-            {s === "ALL" ? "全部" : s === "ENROLLED" ? "在读" : s === "COMPLETED" ? "完成" : s === "DROPPED" ? "退课" : "候补"}
-          </button>
-        ))}
+      <div className="campus-toolbar">
+        <select className="campus-select w-36" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <option value="all">全部状态</option>
+          <option value="COMPLETED">已完成</option>
+          <option value="ENROLLED">在读</option>
+          <option value="DROPPED">已退课</option>
+          <option value="WAITLISTED">候补</option>
+        </select>
+        <button type="button" onClick={() => setExpanded(new Set(history.map((t) => t.termId)))} className="campus-btn-ghost text-xs">全部展开</button>
+        <button type="button" onClick={() => setExpanded(new Set())} className="campus-btn-ghost text-xs">全部收起</button>
       </div>
 
-      {loading ? (
-        <div className="campus-card px-6 py-14 text-center text-sm text-slate-500">⏳ 加载中…</div>
-      ) : filteredGroups.length === 0 ? (
-        <div className="campus-card px-6 py-14 text-center text-sm text-slate-400">暂无记录</div>
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : loading ? (
+        <div className="campus-card p-10 text-center text-slate-400">加载中…</div>
+      ) : filteredHistory.length === 0 ? (
+        <div className="campus-card p-10 text-center text-slate-400">暂无注册记录</div>
       ) : (
-        <div className="relative space-y-4">
-          {/* Vertical timeline line */}
-          <div className="absolute left-[22px] top-6 bottom-0 w-0.5 bg-slate-200" />
-
-          {filteredGroups.map((group) => {
-            const isOpen = expandedTerms.has(group.termId);
-            const termCompleted = group.enrollments.filter((e) => e.status === "COMPLETED").length;
-            const termCredits = group.enrollments.filter((e) => e.status === "COMPLETED").reduce((s, e) => s + e.credits, 0);
+        <div className="space-y-3">
+          {filteredHistory.map((term) => {
+            const open = expanded.has(term.termId);
+            const completed = term.enrollments.filter((e) => e.status === "COMPLETED");
+            const termCredits = completed.reduce((s, e) => s + e.credits, 0);
+            let termWp = 0, termCr = 0;
+            for (const e of completed) {
+              if (!e.finalGrade) continue;
+              const pts = GRADE_POINTS[e.finalGrade];
+              if (pts !== undefined) { termWp += pts * e.credits; termCr += e.credits; }
+            }
+            const termGpa = termCr > 0 ? termWp / termCr : null;
             return (
-              <div key={group.termId} className="relative pl-12">
-                {/* Timeline dot */}
-                <div className="absolute left-3 top-3.5 size-5 rounded-full bg-indigo-500 flex items-center justify-center shadow">
-                  <div className="size-2 rounded-full bg-white" />
-                </div>
-
-                <div className="campus-card overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => toggleTerm(group.termId)}
-                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50 text-left"
-                  >
-                    <div>
-                      <p className="font-bold text-slate-900 text-sm">{group.termName}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {group.enrollments.length} 门课 · 完成 {termCompleted} 门 · 获得 {termCredits} 学分
-                      </p>
+              <div key={term.termId} className="campus-card overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => toggle(term.termId)}
+                  className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-slate-50 transition"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-slate-900">{term.termName}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{term.enrollments.length} 门课程</p>
+                  </div>
+                  <div className="flex items-center gap-5 shrink-0 text-sm">
+                    <div className="text-right">
+                      <p className="font-bold text-slate-700">{termCredits} 学分</p>
+                      {termGpa != null ? (
+                        <p className={`text-xs font-semibold ${termGpa >= 3.5 ? "text-emerald-600" : termGpa >= 2.0 ? "text-slate-500" : "text-red-500"}`}>
+                          GPA {termGpa.toFixed(2)}
+                        </p>
+                      ) : null}
                     </div>
-                    <span className="text-slate-400 text-sm ml-4">{isOpen ? "▲" : "▼"}</span>
-                  </button>
+                    <span className="text-slate-400">{open ? "▲" : "▼"}</span>
+                  </div>
+                </button>
 
-                  {isOpen && (
-                    <div className="border-t border-slate-100 divide-y divide-slate-50">
-                      {group.enrollments.map((e) => (
-                        <div key={e.enrollmentId} className="flex items-center gap-3 px-4 py-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-mono text-xs font-bold text-indigo-700">{e.courseCode}</span>
-                              <span className="text-xs text-slate-700 truncate">{e.courseTitle}</span>
-                            </div>
-                            <p className="text-[11px] text-slate-400 mt-0.5">
-                              §{e.sectionCode} · {e.credits} 学分
-                              {e.enrolledAt ? ` · ${e.enrolledAt.slice(0, 10)}` : ""}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            {e.finalGrade && (
-                              <span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                                {e.finalGrade}
+                {open ? (
+                  <div className="border-t border-slate-100">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          <th className="px-5 py-2 text-left">课程</th>
+                          <th className="px-5 py-2 text-right">学分</th>
+                          <th className="px-5 py-2 text-center">成绩</th>
+                          <th className="px-5 py-2 text-center">状态</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {term.enrollments.map((e) => (
+                          <tr key={e.enrollmentId} className="border-t border-slate-100 hover:bg-slate-50">
+                            <td className="px-5 py-2.5">
+                              <p className="font-semibold text-slate-800">{e.courseCode}</p>
+                              <p className="text-xs text-slate-500 truncate max-w-[180px]">{e.title}</p>
+                            </td>
+                            <td className="px-5 py-2.5 text-right font-mono text-slate-600">{e.credits}</td>
+                            <td className="px-5 py-2.5 text-center">
+                              {e.finalGrade ? (
+                                <span className={`font-bold ${GRADE_COLORS[e.finalGrade] ?? "text-slate-700"}`}>{e.finalGrade}</span>
+                              ) : <span className="text-slate-300">—</span>}
+                            </td>
+                            <td className="px-5 py-2.5 text-center">
+                              <span className={`text-xs rounded-full px-2 py-0.5 font-medium ${
+                                e.status === "COMPLETED" ? "bg-emerald-100 text-emerald-700" :
+                                e.status === "ENROLLED" ? "bg-blue-100 text-blue-700" :
+                                e.status === "DROPPED" ? "bg-slate-100 text-slate-500" :
+                                "bg-amber-100 text-amber-700"
+                              }`}>
+                                {STATUS_LABELS[e.status] ?? e.status}
                               </span>
-                            )}
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_STYLES[e.status] ?? "bg-slate-100 text-slate-600"}`}>
-                              {e.status === "ENROLLED" ? "在读" : e.status === "COMPLETED" ? "完成" : e.status === "DROPPED" ? "退课" : "候补"}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
               </div>
             );
           })}

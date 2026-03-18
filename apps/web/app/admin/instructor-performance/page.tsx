@@ -1,164 +1,249 @@
 "use client";
 
-/**
- * Admin Instructor Performance Report
- * Shows all instructors with section count, enrollment stats, avg GPA and drop rate.
- */
-
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { API_URL } from "@/lib/config";
 
-type InstructorRow = {
-  instructorName: string; instructorEmail: string;
-  sections: number; totalStudents: number; completedStudents: number;
-  droppedStudents: number; avgGpa: number | null; dropRate: number;
+type Term = { id: string; name: string };
+type PerfRow = {
+  instructorName: string;
+  instructorEmail: string;
+  sections: number;
+  totalStudents: number;
+  completedStudents: number;
+  droppedStudents: number;
+  avgGpa: number | null;
+  dropRate: number;
 };
 
-function downloadCsv(rows: InstructorRow[]) {
-  const header = "Name,Email,Sections,TotalStudents,Completed,Dropped,DropRate%,AvgGPA";
-  const lines = rows.map((r) =>
-    `"${r.instructorName}","${r.instructorEmail}",${r.sections},${r.totalStudents},${r.completedStudents},${r.droppedStudents},${r.dropRate},${r.avgGpa ?? ""}`
-  );
-  const blob = new Blob([[header, ...lines].join("\n")], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = "instructor-performance.csv";
-  a.click(); URL.revokeObjectURL(url);
-}
+type SortKey = "sections" | "totalStudents" | "avgGpa" | "dropRate";
 
 export default function InstructorPerformancePage() {
-  const [data, setData] = useState<InstructorRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [terms, setTerms] = useState<Term[]>([]);
+  const [termId, setTermId] = useState("");
+  const [rows, setRows] = useState<PerfRow[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"sections" | "gpa" | "dropRate">("sections");
+  const [sort, setSort] = useState<SortKey>("totalStudents");
+  const [asc, setAsc] = useState(false);
 
   useEffect(() => {
-    void apiFetch<InstructorRow[]>("/admin/instructor-performance")
-      .then((d) => setData(d ?? []))
-      .catch((e) => setError(e instanceof Error ? e.message : "加载失败"))
-      .finally(() => setLoading(false));
+    void apiFetch<Term[]>("/admin/terms")
+      .then((data) => setTerms(data ?? []))
+      .catch(() => {});
   }, []);
 
-  const filtered = useMemo(() => {
-    return data
-      .filter((r) => !search ||
-        r.instructorName.toLowerCase().includes(search.toLowerCase()) ||
-        r.instructorEmail.toLowerCase().includes(search.toLowerCase())
-      )
-      .sort((a, b) =>
-        sortBy === "gpa" ? (b.avgGpa ?? 0) - (a.avgGpa ?? 0) :
-        sortBy === "dropRate" ? b.dropRate - a.dropRate :
-        b.sections - a.sections
-      );
-  }, [data, search, sortBy]);
+  useEffect(() => {
+    setLoading(true);
+    setError("");
+    const url = termId ? `/admin/instructor-performance?termId=${termId}` : "/admin/instructor-performance";
+    void apiFetch<PerfRow[]>(url)
+      .then((data) => setRows(data ?? []))
+      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
+      .finally(() => setLoading(false));
+  }, [termId]);
 
-  const avgGpa = data.length > 0
-    ? data.filter((r) => r.avgGpa !== null).reduce((s, r) => s + (r.avgGpa ?? 0), 0) / Math.max(1, data.filter((r) => r.avgGpa !== null).length)
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return rows
+      .filter((r) => !q || r.instructorName.toLowerCase().includes(q) || r.instructorEmail.toLowerCase().includes(q))
+      .sort((a, b) => {
+        const av = a[sort] ?? -1;
+        const bv = b[sort] ?? -1;
+        return asc ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+      });
+  }, [rows, search, sort, asc]);
+
+  const totalSections = rows.reduce((s, r) => s + r.sections, 0);
+  const totalStudents = rows.reduce((s, r) => s + r.totalStudents, 0);
+  const avgGpaAll = rows.filter((r) => r.avgGpa !== null).length
+    ? (rows.reduce((s, r) => s + (r.avgGpa ?? 0), 0) / rows.filter((r) => r.avgGpa !== null).length)
     : null;
 
+  function toggleSort(key: SortKey) {
+    if (sort === key) setAsc((v) => !v);
+    else { setSort(key); setAsc(false); }
+  }
+
+  function sortIcon(key: SortKey) {
+    if (sort !== key) return null;
+    return asc ? " ↑" : " ↓";
+  }
+
+  function exportCsv() {
+    const headers = ["教师姓名", "邮箱", "教学班数", "学生总数", "完课数", "退课数", "平均GPA", "退课率%"];
+    const csvRows = [
+      headers.join(","),
+      ...filtered.map((r) =>
+        [
+          `"${r.instructorName}"`,
+          `"${r.instructorEmail}"`,
+          r.sections,
+          r.totalStudents,
+          r.completedStudents,
+          r.droppedStudents,
+          r.avgGpa !== null ? r.avgGpa.toFixed(2) : "—",
+          r.dropRate,
+        ].join(",")
+      ),
+    ];
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(blob),
+      download: `instructor-performance-${new Date().toISOString().slice(0, 10)}.csv`,
+    });
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
   return (
-    <div className="campus-page space-y-6">
+    <div className="campus-page">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Faculty Analytics</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">教师教学效能报告</h1>
-        <p className="mt-1 text-sm text-slate-500">查看各教师的课程量、学生数、平均 GPA 与退课率</p>
+        <p className="campus-eyebrow">教学质量</p>
+        <h1 className="campus-hero-title">教师绩效分析</h1>
+        <p className="campus-hero-subtitle">按教师汇总教学班数量、学生规模、完课率与平均GPA</p>
       </section>
 
-      {error && <div className="campus-card border-red-200 bg-red-50 px-6 py-4 text-sm text-red-700">{error}</div>}
+      {/* KPIs */}
+      <section className="grid gap-3 sm:grid-cols-3">
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">参与教师</p>
+          <p className="campus-kpi-value">{rows.length}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">总教学班数</p>
+          <p className="campus-kpi-value">{totalSections}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">平均 GPA（全体）</p>
+          <p className="campus-kpi-value">{avgGpaAll !== null ? avgGpaAll.toFixed(2) : "—"}</p>
+        </div>
+      </section>
 
-      {loading ? (
-        <div className="campus-card px-6 py-14 text-center text-sm text-slate-500">⏳ 加载中…</div>
-      ) : (
-        <>
-          {/* KPIs */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="campus-kpi">
-              <p className="campus-kpi-label">教师总数</p>
-              <p className="campus-kpi-value">{data.length}</p>
-            </div>
-            <div className="campus-kpi">
-              <p className="campus-kpi-label">总学生人次</p>
-              <p className="campus-kpi-value text-indigo-600">{data.reduce((s, r) => s + r.totalStudents, 0)}</p>
-            </div>
-            <div className="campus-kpi">
-              <p className="campus-kpi-label">平均 GPA</p>
-              <p className="campus-kpi-value text-emerald-600">{avgGpa?.toFixed(2) ?? "—"}</p>
-            </div>
-          </div>
+      {/* Toolbar */}
+      <div className="campus-toolbar">
+        <div className="flex flex-1 flex-wrap items-center gap-3">
+          <input
+            className="campus-input max-w-xs"
+            placeholder="按教师姓名或邮箱筛选…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select
+            className="campus-select w-48"
+            value={termId}
+            onChange={(e) => setTermId(e.target.value)}
+          >
+            <option value="">全部学期</option>
+            {terms.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+        </div>
+        <button
+          type="button"
+          onClick={exportCsv}
+          disabled={!filtered.length}
+          className="campus-btn-ghost shrink-0 disabled:opacity-40"
+        >
+          CSV 导出
+        </button>
+      </div>
 
-          {/* Toolbar */}
-          <div className="campus-toolbar gap-2 flex-wrap">
-            <input
-              className="campus-input flex-1 min-w-48"
-              placeholder="搜索教师姓名或邮箱…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <select
-              className="campus-select"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as "sections" | "gpa" | "dropRate")}
-            >
-              <option value="sections">按课程节数排序</option>
-              <option value="gpa">按平均 GPA 排序</option>
-              <option value="dropRate">按退课率排序</option>
-            </select>
-            <button
-              type="button"
-              onClick={() => downloadCsv(filtered)}
-              className="campus-chip border-indigo-200 bg-indigo-50 text-indigo-700"
-            >
-              导出 CSV
-            </button>
-          </div>
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : null}
 
-          <div className="campus-card overflow-hidden">
-            <div className="px-4 py-2 border-b border-slate-100 text-xs text-slate-500">
-              共 {filtered.length} 位教师
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-500">
-                    <th className="pb-2 pl-4 text-left font-semibold">教师</th>
-                    <th className="pb-2 pr-3 text-right font-semibold">课程节</th>
-                    <th className="pb-2 pr-3 text-right font-semibold">学生人次</th>
-                    <th className="pb-2 pr-3 text-right font-semibold">完成</th>
-                    <th className="pb-2 pr-3 text-right font-semibold">退课率</th>
-                    <th className="pb-2 pr-4 text-right font-semibold">平均 GPA</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((r) => (
-                    <tr key={r.instructorName + r.instructorEmail} className="border-b border-slate-50 hover:bg-slate-50">
-                      <td className="py-2.5 pl-4 pr-3">
-                        <span className="font-medium text-slate-800">{r.instructorName}</span>
-                        <span className="text-slate-400 block text-xs">{r.instructorEmail}</span>
-                      </td>
-                      <td className="py-2.5 pr-3 text-right text-slate-600">{r.sections}</td>
-                      <td className="py-2.5 pr-3 text-right text-indigo-600">{r.totalStudents}</td>
-                      <td className="py-2.5 pr-3 text-right text-emerald-600">{r.completedStudents}</td>
-                      <td className="py-2.5 pr-3 text-right">
-                        <span className={r.dropRate > 20 ? "text-red-600 font-bold" : r.dropRate > 10 ? "text-amber-600" : "text-emerald-600"}>
-                          {r.dropRate}%
+      {/* Table */}
+      <section className="campus-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <th className="px-4 py-3">教师</th>
+                <th
+                  className="cursor-pointer px-4 py-3 hover:text-slate-800"
+                  onClick={() => toggleSort("sections")}
+                >
+                  教学班数{sortIcon("sections")}
+                </th>
+                <th
+                  className="cursor-pointer px-4 py-3 hover:text-slate-800"
+                  onClick={() => toggleSort("totalStudents")}
+                >
+                  学生总数{sortIcon("totalStudents")}
+                </th>
+                <th className="px-4 py-3">完课 / 退课</th>
+                <th
+                  className="cursor-pointer px-4 py-3 hover:text-slate-800"
+                  onClick={() => toggleSort("avgGpa")}
+                >
+                  平均 GPA{sortIcon("avgGpa")}
+                </th>
+                <th
+                  className="cursor-pointer px-4 py-3 hover:text-slate-800"
+                  onClick={() => toggleSort("dropRate")}
+                >
+                  退课率{sortIcon("dropRate")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-slate-400">加载中…</td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-slate-400">暂无数据</td>
+                </tr>
+              ) : (
+                filtered.map((row, idx) => (
+                  <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="px-4 py-3">
+                      <p className="font-semibold text-slate-900">{row.instructorName || "—"}</p>
+                      <p className="text-xs text-slate-500">{row.instructorEmail}</p>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-slate-700">{row.sections}</td>
+                    <td className="px-4 py-3 font-mono text-slate-700">{row.totalStudents}</td>
+                    <td className="px-4 py-3">
+                      <span className="text-emerald-600">{row.completedStudents} 完课</span>
+                      {" · "}
+                      <span className="text-red-500">{row.droppedStudents} 退课</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {row.avgGpa !== null ? (
+                        <span className={`font-semibold ${row.avgGpa >= 3.5 ? "text-emerald-600" : row.avgGpa >= 2.5 ? "text-blue-600" : "text-red-600"}`}>
+                          {row.avgGpa.toFixed(2)}
                         </span>
-                      </td>
-                      <td className="py-2.5 pr-4 text-right">
-                        {r.avgGpa !== null ? (
-                          <span className={r.avgGpa >= 3.5 ? "text-emerald-600 font-bold" : r.avgGpa >= 2.5 ? "text-slate-700" : "text-red-600"}>
-                            {r.avgGpa.toFixed(2)}
-                          </span>
-                        ) : <span className="text-slate-300">—</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
+                      ) : (
+                        <span className="text-slate-300">N/A</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-16 rounded-full bg-slate-100">
+                          <div
+                            className={`h-1.5 rounded-full ${row.dropRate > 20 ? "bg-red-400" : row.dropRate > 10 ? "bg-amber-400" : "bg-emerald-400"}`}
+                            style={{ width: `${Math.min(100, row.dropRate)}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-slate-600">{row.dropRate}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        {!loading && filtered.length > 0 ? (
+          <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-400">
+            共 {filtered.length} 位教师
+          </p>
+        ) : null}
+      </section>
     </div>
   );
 }

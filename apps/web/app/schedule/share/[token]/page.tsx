@@ -27,7 +27,7 @@ type SnapshotResponse = {
   createdAt: string;
 };
 
-const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 const GRID_DAY_INDEXES = [1, 2, 3, 4, 5, 6, 0];
 const GRID_START = 8 * 60;
 const GRID_END = 21 * 60;
@@ -120,7 +120,7 @@ export default async function SharedSchedulePage({
   return (
     <div className="campus-page space-y-5">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Shared Schedule</p>
+        <p className="campus-eyebrow">课表共享</p>
         <h1 className="font-heading text-3xl font-bold text-slate-900 md:text-4xl">课表快照</h1>
         <p className="mt-2 text-sm text-slate-600">
           这是一份只读课表快照，生成于 {new Date(snapshot.createdAt).toLocaleString()}。
@@ -129,17 +129,17 @@ export default async function SharedSchedulePage({
 
       <section className="grid gap-4 md:grid-cols-3">
         <div className="campus-kpi">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sections</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">教学班数</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{sections.length}</p>
         </div>
         <div className="campus-kpi">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Credits</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">总学分</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">
             {sections.reduce((sum, section) => sum + (section.credits ?? 0), 0)}
           </p>
         </div>
         <div className="campus-kpi">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Meeting Blocks</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">上课次数</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">
             {sections.reduce((sum, section) => sum + (section.meetingTimes?.length ?? 0), 0)}
           </p>
@@ -224,7 +224,7 @@ export default async function SharedSchedulePage({
               <p className="mt-1 text-xs text-slate-500">
                 {(section.meetingTimes ?? [])
                   .map((meetingTime) => `${WEEKDAY[meetingTime.weekday]} ${fmt(meetingTime.startMinutes)}-${fmt(meetingTime.endMinutes)}`)
-                  .join(" / ") || "No meeting time"}
+                  .join(" / ") || "无上课时间"}
               </p>
             </div>
           ))}

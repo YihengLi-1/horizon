@@ -46,7 +46,7 @@ export default function AdvisorNotesClient({ studentId }: { studentId: string })
       const data = await apiFetch<AdvisingPayload>(`/advising/advisees/${studentId}`);
       setPayload(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load advisee overview");
+      setError(err instanceof Error ? err.message : "学生概况加载失败");
     } finally {
       setLoading(false);
     }
@@ -72,7 +72,7 @@ export default function AdvisorNotesClient({ studentId }: { studentId: string })
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError(err instanceof Error ? err.message : "Failed to save advisor note");
+        setError(err instanceof Error ? err.message : "备注保存失败");
       }
     } finally {
       setSaving(false);
@@ -82,45 +82,45 @@ export default function AdvisorNotesClient({ studentId }: { studentId: string })
   return (
     <div className="space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Advisor</p>
+        <p className="campus-eyebrow">指导顾问</p>
         <h1 className="font-heading text-3xl font-bold text-slate-900">
-          {payload?.student.studentProfile?.legalName ?? "Advisee Overview"}
+          {payload?.student.studentProfile?.legalName ?? "学生概况"}
         </h1>
         <p className="mt-2 text-sm text-slate-600">
           {payload
-            ? `${payload.student.studentId ?? "No student ID"} · ${payload.student.studentProfile?.programMajor ?? "Undeclared"}`
-            : "Loading advisee details."}
+            ? `${payload.student.studentId ?? "无学号"} · ${payload.student.studentProfile?.programMajor ?? "未申报"}`
+            : "加载学生信息中。"}
         </p>
       </section>
 
-      {loading ? <section className="campus-card p-8 text-center text-sm text-slate-400">Loading advisee…</section> : null}
+      {loading ? <section className="campus-card p-8 text-center text-sm text-slate-400">加载学生信息…</section> : null}
       {!loading && error ? <section className="campus-card p-6 text-sm text-red-600">{error}</section> : null}
 
       {!loading && payload ? (
         <>
           <section className="grid gap-4 md:grid-cols-3">
             <div className="campus-kpi">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Student</p>
+              <p className="campus-kpi-label">学生账号</p>
               <p className="mt-1 font-semibold text-slate-900">{payload.student.email}</p>
             </div>
             <div className="campus-kpi">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Academic Status</p>
-              <p className="mt-1 font-semibold text-slate-900">{payload.student.studentProfile?.academicStatus ?? "Unknown"}</p>
+              <p className="campus-kpi-label">学业状态</p>
+              <p className="mt-1 font-semibold text-slate-900">{payload.student.studentProfile?.academicStatus ?? "未知"}</p>
             </div>
             <div className="campus-kpi">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Active Records</p>
+              <p className="campus-kpi-label">注册记录</p>
               <p className="mt-1 font-semibold text-slate-900">{payload.student.enrollments.length}</p>
             </div>
           </section>
 
           <section className="campus-card p-5 space-y-4">
             <div>
-              <h2 className="text-sm font-semibold text-slate-800">Current Academic Records</h2>
-              <p className="mt-1 text-xs text-slate-500">Current and completed enrollments visible to the assigned advisor.</p>
+              <h2 className="text-sm font-semibold text-slate-800">当前学业记录</h2>
+              <p className="mt-1 text-xs text-slate-500">当前及已完课程注册记录，仅对指定顾问可见。</p>
             </div>
             <div className="space-y-2">
               {payload.student.enrollments.length === 0 ? (
-                <p className="text-sm text-slate-400">No enrollment records available.</p>
+                <p className="text-sm text-slate-400">暂无注册记录。</p>
               ) : (
                 payload.student.enrollments.map((enrollment) => (
                   <div key={enrollment.id} className="rounded-lg border border-slate-200 px-3 py-3 text-sm">
@@ -133,7 +133,7 @@ export default function AdvisorNotesClient({ studentId }: { studentId: string })
                     <p className="mt-1 text-slate-600">{enrollment.section.course.title}</p>
                     <p className="mt-1 text-xs text-slate-500">
                       {enrollment.section.term.name}
-                      {enrollment.finalGrade ? ` · Final grade ${enrollment.finalGrade}` : ""}
+                      {enrollment.finalGrade ? ` · 最终成绩 ${enrollment.finalGrade}` : ""}
                     </p>
                   </div>
                 ))
@@ -143,28 +143,28 @@ export default function AdvisorNotesClient({ studentId }: { studentId: string })
 
           <section className="campus-card p-5 space-y-4">
             <div>
-              <h2 className="text-sm font-semibold text-slate-800">Advisor Notes</h2>
-              <p className="mt-1 text-xs text-slate-500">Private advising notes scoped to your assigned advisee.</p>
+              <h2 className="text-sm font-semibold text-slate-800">顾问备注</h2>
+              <p className="mt-1 text-xs text-slate-500">针对您负责学生的私密指导备注。</p>
             </div>
             <form onSubmit={onSubmit} className="space-y-3">
               <textarea
                 className="campus-input min-h-28"
                 value={body}
                 onChange={(event) => setBody(event.target.value)}
-                placeholder="Record an advising note, follow-up, or academic concern."
+                placeholder="记录指导备注、跟进事项或学业关注点。"
               />
               <button type="submit" disabled={saving || !body.trim()} className="campus-chip cursor-pointer text-xs">
-                {saving ? "Saving…" : "Add advisor note"}
+                {saving ? "保存中…" : "添加顾问备注"}
               </button>
             </form>
             <div className="space-y-3">
               {payload.notes.length === 0 ? (
-                <p className="text-sm text-slate-400">No advisor notes yet.</p>
+                <p className="text-sm text-slate-400">暂无顾问备注。</p>
               ) : (
                 payload.notes.map((note) => (
                   <article key={note.id} className="rounded-lg border border-slate-200 px-3 py-3">
                     <p className="whitespace-pre-wrap text-sm text-slate-700">{note.body}</p>
-                    <p className="mt-2 text-xs text-slate-400">{new Date(note.createdAt).toLocaleString()}</p>
+                    <p className="mt-2 text-xs text-slate-400">{new Date(note.createdAt).toLocaleString("zh-CN")}</p>
                   </article>
                 ))
               )}

@@ -1,15 +1,7 @@
 "use client";
 
-/**
- * Admin Registration Activity Heatmap
- * Shows when (day-of-week × hour) students register for courses.
- * Also shows credit-load distribution among currently enrolled students.
- */
-
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
-
-type Term = { id: string; name: string };
 
 type HeatmapData = {
   grid: number[][];
@@ -19,168 +11,157 @@ type HeatmapData = {
   topSlots: { day: string; hour: number; count: number }[];
 };
 
-type CreditLoad = {
-  totalStudents: number;
-  mean: number;
-  distribution: { label: string; count: number; tag: string }[];
-};
+type Term = { id: string; name: string };
 
 const DAY_LABELS_ZH = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-function cellColor(value: number, max: number) {
-  if (max === 0 || value === 0) return "bg-slate-100 text-transparent";
+function heatColor(value: number, max: number): string {
+  if (max === 0 || value === 0) return "bg-slate-100";
   const ratio = value / max;
-  if (ratio >= 0.8) return "bg-indigo-700 text-white";
-  if (ratio >= 0.6) return "bg-indigo-500 text-white";
-  if (ratio >= 0.4) return "bg-indigo-300 text-indigo-900";
-  if (ratio >= 0.2) return "bg-indigo-200 text-indigo-800";
-  return "bg-indigo-100 text-indigo-700";
+  if (ratio >= 0.8) return "bg-[hsl(221_83%_30%)]";
+  if (ratio >= 0.6) return "bg-[hsl(221_83%_43%)]";
+  if (ratio >= 0.4) return "bg-[hsl(221_70%_58%)]";
+  if (ratio >= 0.2) return "bg-[hsl(221_65%_73%)]";
+  return "bg-[hsl(221_60%_88%)]";
 }
 
-const LOAD_COLORS: Record<string, string> = {
-  underload: "bg-red-400",
-  light: "bg-amber-400",
-  normal: "bg-emerald-500",
-  heavy: "bg-indigo-500",
-  overload: "bg-purple-600"
-};
-
 export default function RegistrationHeatmapPage() {
+  const [data, setData] = useState<HeatmapData | null>(null);
   const [terms, setTerms] = useState<Term[]>([]);
   const [termId, setTermId] = useState("");
-  const [heatmap, setHeatmap] = useState<HeatmapData | null>(null);
-  const [creditLoad, setCreditLoad] = useState<CreditLoad | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [tooltip, setTooltip] = useState<{ day: string; hour: number; count: number } | null>(null);
 
   useEffect(() => {
-    void apiFetch<Term[]>("/academics/terms").then((d) => setTerms(d ?? [])).catch(() => {});
+    void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? [])).catch(() => {});
   }, []);
 
   useEffect(() => {
     setLoading(true);
-    setHeatmap(null);
-    setCreditLoad(null);
+    setError("");
     const params = new URLSearchParams();
     if (termId) params.set("termId", termId);
-    Promise.all([
-      apiFetch<HeatmapData>(`/admin/registration-heatmap?${params}`).catch(() => null),
-      apiFetch<CreditLoad>(`/admin/credit-load?${params}`).catch(() => null)
-    ]).then(([h, c]) => {
-      setHeatmap(h);
-      setCreditLoad(c);
-      setLoading(false);
-    });
+    void apiFetch<HeatmapData>(`/admin/registration-heatmap?${params}`)
+      .then((d) => setData(d ?? null))
+      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
+      .finally(() => setLoading(false));
   }, [termId]);
 
+  const grid = data?.grid ?? [];
+  const maxCount = data?.maxCount ?? 0;
+
   return (
-    <div className="campus-page space-y-6">
+    <div className="campus-page">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Registration Analytics</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">注册活动热力图</h1>
-        <p className="mt-1 text-sm text-slate-500">按星期和小时展示学生选课时段分布及学分负担分析</p>
+        <p className="campus-eyebrow">注册分析</p>
+        <h1 className="campus-hero-title">注册活动热图</h1>
+        <p className="campus-hero-subtitle">按星期与小时展示选课注册集中时段，帮助优化系统资源调度</p>
       </section>
 
-      {/* Term selector */}
-      <div className="campus-card p-4 flex items-center gap-3">
-        <label className="text-sm font-semibold text-slate-700 shrink-0">学期：</label>
-        <select className="campus-select flex-1 max-w-xs" value={termId} onChange={(e) => setTermId(e.target.value)}>
-          <option value="">所有学期</option>
+      <section className="grid gap-3 sm:grid-cols-3">
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">总注册记录</p>
+          <p className="campus-kpi-value">{loading ? "—" : data?.totalRegistrations ?? 0}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">峰值时段注册数</p>
+          <p className="campus-kpi-value text-[hsl(221_83%_43%)]">{loading ? "—" : maxCount}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">最热星期</p>
+          <p className="campus-kpi-value">
+            {loading || !data?.topSlots.length ? "—" : DAY_LABELS_ZH[["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(data.topSlots[0]?.day)] ?? data.topSlots[0]?.day}
+          </p>
+        </div>
+      </section>
+
+      <div className="campus-toolbar">
+        <select className="campus-select w-40" value={termId} onChange={(e) => setTermId(e.target.value)}>
+          <option value="">全部学期</option>
           {terms.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
-        {heatmap && (
-          <span className="text-xs text-slate-500 ml-2 shrink-0">
-            共 {heatmap.totalRegistrations.toLocaleString()} 条记录
-          </span>
-        )}
       </div>
 
-      {loading && (
-        <div className="campus-card px-6 py-12 text-center text-sm text-slate-500">⏳ 加载中…</div>
-      )}
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : null}
 
-      {heatmap && (
-        <div className="campus-card p-4 space-y-4 overflow-x-auto">
-          <h2 className="text-sm font-bold text-slate-900">选课时段热力图（星期 × 小时）</h2>
-          <div className="min-w-[700px]">
-            {/* Hour labels */}
-            <div className="flex ml-12">
-              {Array.from({ length: 24 }, (_, h) => (
-                <div key={h} className="flex-1 text-center text-[9px] text-slate-400 font-mono">
-                  {h === 0 ? "0" : h % 3 === 0 ? `${h}` : ""}
+      {loading ? (
+        <div className="campus-card p-10 text-center text-slate-400">加载中…</div>
+      ) : (
+        <>
+          <section className="campus-card overflow-hidden p-4">
+            <div className="overflow-x-auto">
+              <div className="min-w-[700px]">
+                {/* Hour headers */}
+                <div className="flex gap-0.5 pl-10 mb-0.5">
+                  {HOURS.map((h) => (
+                    <div key={h} className="w-7 flex-shrink-0 text-center text-[9px] text-slate-400">
+                      {h % 3 === 0 ? `${String(h).padStart(2, "0")}` : ""}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            {/* Rows per day */}
-            {heatmap.grid.map((row, dow) => (
-              <div key={dow} className="flex items-center gap-0.5 mt-0.5">
-                <div className="w-12 shrink-0 text-xs text-slate-500 text-right pr-1.5">{DAY_LABELS_ZH[dow]}</div>
-                {row.map((val, hour) => (
-                  <div
-                    key={hour}
-                    title={`${DAY_LABELS_ZH[dow]} ${hour}:00 — ${val} 次`}
-                    className={`flex-1 h-6 rounded-sm text-[8px] flex items-center justify-center cursor-default transition ${cellColor(val, heatmap.maxCount)}`}
-                  >
-                    {val > 0 ? val : ""}
+                {/* Rows */}
+                {DAY_LABELS_ZH.map((dayZh, dow) => (
+                  <div key={dow} className="flex items-center gap-0.5 mb-0.5">
+                    <div className="w-9 shrink-0 text-right text-xs text-slate-500 pr-1">{dayZh}</div>
+                    {HOURS.map((h) => {
+                      const count = grid[dow]?.[h] ?? 0;
+                      return (
+                        <div
+                          key={h}
+                          className={`w-7 h-6 flex-shrink-0 rounded-sm cursor-pointer transition-opacity hover:opacity-80 ${heatColor(count, maxCount)}`}
+                          onMouseEnter={() => setTooltip({ day: dayZh, hour: h, count })}
+                          onMouseLeave={() => setTooltip(null)}
+                          title={`${dayZh} ${String(h).padStart(2, "0")}:00 — ${count} 次注册`}
+                        />
+                      );
+                    })}
                   </div>
                 ))}
               </div>
-            ))}
-          </div>
-
-          {/* Legend */}
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <span>少</span>
-            {["bg-indigo-100", "bg-indigo-200", "bg-indigo-300", "bg-indigo-500", "bg-indigo-700"].map((c, i) => (
-              <div key={i} className={`w-5 h-3 rounded ${c}`} />
-            ))}
-            <span>多</span>
-          </div>
-
-          {/* Top slots */}
-          {heatmap.topSlots.length > 0 && (
-            <div>
-              <h3 className="text-xs font-semibold text-slate-500 mb-2">最活跃时段 TOP 5</h3>
-              <div className="flex flex-wrap gap-2">
-                {heatmap.topSlots.map((s, i) => (
-                  <span key={i} className="campus-chip border-indigo-200 bg-indigo-50 text-indigo-800 font-mono text-xs">
-                    {s.day} {String(s.hour).padStart(2, "0")}:00 — {s.count} 次
-                  </span>
-                ))}
-              </div>
             </div>
-          )}
-        </div>
-      )}
+            {/* Legend */}
+            <div className="flex items-center gap-2 mt-4 pl-10">
+              <span className="text-xs text-slate-400">少</span>
+              {["bg-slate-100", "bg-[hsl(221_60%_88%)]", "bg-[hsl(221_65%_73%)]", "bg-[hsl(221_70%_58%)]", "bg-[hsl(221_83%_43%)]", "bg-[hsl(221_83%_30%)]"].map((cls, i) => (
+                <div key={i} className={`w-5 h-5 rounded-sm ${cls}`} />
+              ))}
+              <span className="text-xs text-slate-400">多</span>
+            </div>
+            {tooltip ? (
+              <p className="mt-2 pl-10 text-xs text-slate-600">
+                {tooltip.day} {String(tooltip.hour).padStart(2, "0")}:00–{String(tooltip.hour + 1).padStart(2, "0")}:00：<span className="font-bold text-slate-900">{tooltip.count}</span> 次注册
+              </p>
+            ) : null}
+          </section>
 
-      {creditLoad && (
-        <div className="campus-card p-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-slate-900">学分负担分布（当前已选课学生）</h2>
-            <span className="text-xs text-slate-500">均值 {creditLoad.mean} 学分 · {creditLoad.totalStudents} 名学生</span>
-          </div>
-          <div className="grid grid-cols-5 gap-2">
-            {creditLoad.distribution.map((d) => {
-              const pct = creditLoad.totalStudents > 0
-                ? Math.round((d.count / creditLoad.totalStudents) * 100) : 0;
-              return (
-                <div key={d.label} className="text-center space-y-1">
-                  <div className={`w-full rounded-t-md ${LOAD_COLORS[d.tag] ?? "bg-slate-400"}`}
-                    style={{ height: `${Math.max(4, pct * 2)}px` }} />
-                  <p className="text-xs font-bold text-slate-700">{d.count}</p>
-                  <p className="text-[10px] text-slate-500">{d.label} 学分</p>
-                  <p className="text-[10px] text-slate-400">{pct}%</p>
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex gap-4 text-xs text-slate-500 flex-wrap">
-            <span><span className="inline-block w-3 h-3 rounded-sm bg-red-400 mr-1" />欠载 (&lt;9)</span>
-            <span><span className="inline-block w-3 h-3 rounded-sm bg-amber-400 mr-1" />轻载 (9-11)</span>
-            <span><span className="inline-block w-3 h-3 rounded-sm bg-emerald-500 mr-1" />正常 (12-15)</span>
-            <span><span className="inline-block w-3 h-3 rounded-sm bg-indigo-500 mr-1" />重载 (16-18)</span>
-            <span><span className="inline-block w-3 h-3 rounded-sm bg-purple-600 mr-1" />超载 (&gt;18)</span>
-          </div>
-        </div>
+          {data?.topSlots.length ? (
+            <section className="campus-card p-5">
+              <p className="font-semibold text-slate-800 mb-3">注册高峰时段 Top 5</p>
+              <div className="space-y-2">
+                {data.topSlots.map((slot, i) => {
+                  const dayZh = DAY_LABELS_ZH[["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(slot.day)] ?? slot.day;
+                  return (
+                    <div key={i} className="flex items-center gap-3 text-sm">
+                      <span className="w-5 font-bold text-slate-500">#{i + 1}</span>
+                      <span className="w-20 text-slate-700">{dayZh} {String(slot.hour).padStart(2, "0")}:00</span>
+                      <div className="flex-1 h-2 rounded-full bg-slate-100">
+                        <div
+                          className="h-2 rounded-full bg-[hsl(221_83%_43%)]"
+                          style={{ width: `${(slot.count / (data.topSlots[0]?.count || 1)) * 100}%` }}
+                        />
+                      </div>
+                      <span className="font-bold text-slate-800 w-12 text-right">{slot.count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+        </>
       )}
     </div>
   );

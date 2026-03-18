@@ -11,7 +11,7 @@ type AuditExportRow = {
 export default function AuditExportButton({ rows }: { rows: AuditExportRow[] }) {
   const exportCsv = () => {
     const csvRows = [
-      ["Timestamp", "Action", "Entity Type", "Entity ID", "User"],
+      ["时间戳", "操作", "实体类型", "实体ID", "用户"],
       ...rows.map((row) => [row.createdAt, row.action, row.entityType, row.entityId ?? "", row.actorLabel])
     ];
     const csv = csvRows
@@ -33,7 +33,7 @@ export default function AuditExportButton({ rows }: { rows: AuditExportRow[] }) 
       disabled={rows.length === 0}
       className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
     >
-      Export CSV
+      CSV 导出
     </button>
   );
 }

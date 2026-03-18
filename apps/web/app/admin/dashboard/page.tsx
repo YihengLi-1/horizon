@@ -165,24 +165,24 @@ function actorRoleBadge(role: string): { label: string; className: string } {
   const normalized = role.toUpperCase();
   if (normalized === "ADMIN") {
     return {
-      label: "Admin",
+      label: "管理员",
       className: "border-violet-200 bg-violet-50 text-violet-700"
     };
   }
   if (normalized === "FACULTY") {
     return {
-      label: "Faculty",
+      label: "教师",
       className: "border-emerald-200 bg-emerald-50 text-emerald-700"
     };
   }
   if (normalized === "ADVISOR") {
     return {
-      label: "Advisor",
+      label: "顾问",
       className: "border-amber-200 bg-amber-50 text-amber-700"
     };
   }
   return {
-    label: "Student",
+    label: "学生",
     className: "border-blue-200 bg-blue-50 text-blue-700"
   };
 }
@@ -212,11 +212,11 @@ export default async function AdminDashboardPage() {
   const barSegments =
     enrollmentGrandTotal > 0
       ? [
-          { label: "Enrolled", count: breakdown.enrolled, cls: "bg-emerald-500" },
-          { label: "Waitlisted", count: breakdown.waitlisted, cls: "bg-amber-400" },
-          { label: "Pending", count: breakdown.pendingApproval, cls: "bg-blue-400" },
-          { label: "Dropped", count: breakdown.dropped, cls: "bg-red-400" },
-          { label: "Completed", count: breakdown.completed, cls: "bg-slate-300" },
+          { label: "在读", count: breakdown.enrolled, cls: "bg-emerald-500" },
+          { label: "候补", count: breakdown.waitlisted, cls: "bg-amber-400" },
+          { label: "待审批", count: breakdown.pendingApproval, cls: "bg-blue-400" },
+          { label: "已退课", count: breakdown.dropped, cls: "bg-red-400" },
+          { label: "已结课", count: breakdown.completed, cls: "bg-slate-300" },
         ]
       : [];
 
@@ -254,8 +254,8 @@ export default async function AdminDashboardPage() {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const dayDiff = Math.floor((todayStart.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
-    if (dayDiff <= 0) return "Today";
-    if (dayDiff === 1) return "Yesterday";
+    if (dayDiff <= 0) return "今天";
+    if (dayDiff === 1) return "昨天";
     return d.toLocaleDateString();
   }
 
@@ -505,6 +505,21 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* Analytics shortcuts */}
+      <div>
+        <h2 className="mb-3 text-sm font-semibold tracking-wide text-slate-500">分析报告</h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <ActionButton href="/admin/instructor-performance" label="教师绩效" desc="教学班、学生规模与退课率" />
+          <ActionButton href="/admin/retention" label="学生留存" desc="各届学生跨期留存热力表" />
+          <ActionButton href="/admin/demand-report" label="需求报告" desc="教学班选课热度与候补压力" />
+          <ActionButton href="/admin/data-quality" label="数据质量" desc="自动扫描常见数据完整性问题" />
+          <ActionButton href="/admin/dept-gpa" label="院系GPA" desc="按院系前缀汇总平均GPA与通过率" />
+          <ActionButton href="/admin/term-comparison" label="学期对比" desc="两学期关键指标并排比较" />
+          <ActionButton href="/admin/course-pairings" label="课程同选" desc="发现学生常见课程搭配规律" />
+          <ActionButton href="/admin/digest-preview" label="运营周报" desc="生成并发送邮件版运营摘要" />
+        </div>
+      </div>
+
       {/* Quick actions + recent activity */}
       <div className="grid gap-6 lg:grid-cols-2">
         <div>
@@ -512,9 +527,9 @@ export default async function AdminDashboardPage() {
           <div className="grid gap-3">
             <ActionButton href="/admin/sections" label="管理教学班" desc="查看、创建和修改课程教学班" />
             <ActionButton href="/admin/waitlist" label="处理候补" desc="将候补学生推进到正式注册" />
-            <ActionButton href="/admin/enrollments" label="录入成绩" desc="为已完成课程录入最终成绩" />
-            <ActionButton href="/admin/import" label="导入数据" desc="批量导入学生、课程或教学班" />
-            <ActionButton href="/admin/invite-codes" label="管理邀请码" desc="生成并维护注册邀请码" />
+            <ActionButton href="/admin/grade-entry" label="录入成绩" desc="为已完成课程录入最终成绩" />
+            <ActionButton href="/admin/bulk-ops" label="批量操作" desc="批量管理学生注册状态与数据" />
+            <ActionButton href="/admin/enrollment-audit" label="注册审计" desc="按学期和状态查看注册明细" />
           </div>
         </div>
 
@@ -523,8 +538,8 @@ export default async function AdminDashboardPage() {
           {recentActivity.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-8 text-center">
               <p className="text-2xl">📋</p>
-              <p className="mt-2 text-sm font-medium text-slate-600">No recent activity</p>
-              <p className="mt-1 text-xs text-slate-400">Activity will appear here as actions are performed</p>
+              <p className="mt-2 text-sm font-medium text-slate-600">暂无操作记录</p>
+              <p className="mt-1 text-xs text-slate-400">有操作发生后将在此显示</p>
             </div>
           ) : (
             <div className="campus-card divide-y divide-slate-100 overflow-hidden">
@@ -548,7 +563,7 @@ export default async function AdminDashboardPage() {
                       <p className="text-xs font-medium text-slate-500">
                         {new Date(log.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </p>
-                      {dateLabel !== "Today" ? (
+                      {dateLabel !== "今天" ? (
                         <p className="text-[10px] text-slate-400">{dateLabel}</p>
                       ) : null}
                     </div>
@@ -558,7 +573,7 @@ export default async function AdminDashboardPage() {
             </div>
           )}
           <Link href="/admin/audit-logs" className="mt-3 block text-sm font-medium text-slate-500 hover:text-slate-700">
-            View all audit logs →
+            查看全部审计日志 →
           </Link>
         </div>
       </div>

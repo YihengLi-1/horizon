@@ -31,7 +31,7 @@ export default function SessionExpiryBanner() {
       aria-live="polite"
       className="fixed left-0 right-0 top-0 z-50 flex items-center justify-between bg-amber-500 px-4 py-2 text-sm font-medium text-white shadow-md"
     >
-      <span>⏱ Your session expires in {minsLeft} minute{minsLeft !== 1 ? "s" : ""}.</span>
+      <span>⏱ 会话将在 {minsLeft} 分钟后过期。</span>
       <div className="ml-4 flex items-center gap-2">
         <button
           type="button"

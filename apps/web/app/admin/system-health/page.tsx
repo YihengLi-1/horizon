@@ -36,7 +36,7 @@ export default function AdminSystemHealthPage() {
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Operations Runtime</p>
+        <p className="campus-eyebrow">系统运行状态</p>
         <h1 className="campus-title">系统健康仪表盘</h1>
         <p className="campus-subtitle">查看当前运行时状态、内存占用，以及本学期注册负载。</p>
       </section>
@@ -66,8 +66,8 @@ export default function AdminSystemHealthPage() {
 
           <section className="campus-card p-5">
             <div className="flex flex-wrap items-center gap-3">
-              <span className={`campus-chip ${memTone}`}>Heap {memPct}%</span>
-              <span className="campus-chip chip-purple">Node {data.nodeVersion}</span>
+              <span className={`campus-chip ${memTone}`}>堆内存 {memPct}%</span>
+              <span className="campus-chip chip-purple">Node.js {data.nodeVersion}</span>
               <span className="campus-chip chip-blue">
                 更新时间 {new Date(data.timestamp).toLocaleString()}
               </span>

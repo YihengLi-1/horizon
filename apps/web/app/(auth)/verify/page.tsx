@@ -10,21 +10,21 @@ export default function VerifyPage() {
     if (typeof window === "undefined") return null;
     return new URLSearchParams(window.location.search).get("token");
   });
-  const [status, setStatus] = useState("Verifying...");
+  const [status, setStatus] = useState("验证中…");
 
   useEffect(() => {
     let mounted = true;
     async function run() {
       if (!token) {
-        setStatus("Missing or invalid token.");
+        setStatus("令牌缺失或无效。");
         return;
       }
       const res = await fetch(`${API_URL}/auth/verify-email?token=${encodeURIComponent(token)}`);
       if (!mounted) return;
       if (res.ok) {
-        setStatus("Email verified. You can now sign in.");
+        setStatus("邮箱验证成功，请登录。");
       } else {
-        setStatus("Verification failed or token expired.");
+        setStatus("验证失败或令牌已过期。");
       }
     }
     run();
@@ -43,7 +43,7 @@ export default function VerifyPage() {
           className={`rounded-xl border px-3 py-2 text-sm ${
             status.includes("verified")
               ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : status.includes("failed") || status.includes("Missing")
+              : status.includes("失败") || status.includes("缺失") || status.includes("过期")
                 ? "border-red-200 bg-red-50 text-red-700"
                 : "border-slate-200 bg-slate-50 text-slate-700"
           }`}
@@ -51,7 +51,7 @@ export default function VerifyPage() {
           {status}
         </div>
         <Link className="mt-4 block text-sm font-medium text-primary underline underline-offset-2" href="/login">
-          Back to login
+          返回登录
         </Link>
       </CardContent>
     </Card>

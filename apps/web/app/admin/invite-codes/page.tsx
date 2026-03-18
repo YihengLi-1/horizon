@@ -1,582 +1,253 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useToast } from "@/components/Toast";
+import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type InviteCode = {
   id: string;
   code: string;
-  usedCount: number;
-  maxUses: number | null;
   expiresAt: string | null;
+  maxUses: number | null;
+  usedCount: number;
+  usedAt: string | null;
   active: boolean;
   createdAt: string;
 };
 
-function isExpired(item: InviteCode): boolean {
-  if (!item.expiresAt) return false;
-  return Date.now() > new Date(item.expiresAt).getTime();
-}
-
-function statusLabel(item: InviteCode): { label: string; cls: string } {
-  if (!item.active) return { label: "DISABLED", cls: "border-slate-300 bg-slate-100 text-slate-600" };
-  if (isExpired(item)) return { label: "EXPIRED", cls: "border-red-200 bg-red-50 text-red-700" };
-  if (item.maxUses !== null && item.usedCount >= item.maxUses) return { label: "EXHAUSTED", cls: "border-orange-200 bg-orange-50 text-orange-700" };
-  return { label: "ACTIVE", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" };
-}
-
-function UsageBar({ used, max }: { used: number; max: number | null }) {
-  if (max === null) {
-    return <span className="text-xs text-slate-500">{used} / ∞</span>;
-  }
-  const pct = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : 0;
-  const barColor = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-500" : "bg-emerald-500";
-  return (
-    <div>
-      <p className="mb-1 text-xs text-slate-700">{used} / {max}</p>
-      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-slate-200">
-        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
-
-function CopyButton({ code }: { code: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // ignore
-    }
-  }, [code]);
-
-  return (
-    <button
-      type="button"
-      onClick={() => void copy()}
-      className="inline-flex h-7 items-center rounded border border-slate-200 bg-slate-50 px-2 text-xs font-medium text-slate-600 transition hover:bg-slate-100"
-    >
-      {copied ? "Copied!" : "📋 Copy"}
-    </button>
-  );
-}
-
-function generateCode(): string {
-  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-  const parts = [4, 4, 4].map(() =>
-    Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join("")
-  );
-  return parts.join("-");
-}
-
 export default function InviteCodesPage() {
   const [codes, setCodes] = useState<InviteCode[]>([]);
-  const [form, setForm] = useState({ code: "", maxUses: 100, expiresAt: "", active: true });
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [filterStatus, setFilterStatus] = useState("ALL");
-  const [search, setSearch] = useState("");
-  const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [bulkCount, setBulkCount] = useState(5);
-  const [bulkMaxUses, setBulkMaxUses] = useState<number | "">(10);
-  const [bulkGenerating, setBulkGenerating] = useState(false);
-  const [lastGenerated, setLastGenerated] = useState<string[]>([]);
+  const [newCode, setNewCode] = useState("");
+  const [newMaxUses, setNewMaxUses] = useState("");
+  const [newExpiry, setNewExpiry] = useState("");
+  const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
-  const toast = useToast();
 
-  // Press "/" to focus search
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
-        e.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
-
-  const load = async () => {
+  async function load() {
+    setLoading(true);
+    setError("");
     try {
-      setLoading(true);
-      setError("");
-      const data = await apiFetch<InviteCode[]>("/admin/invite-codes");
-      setCodes(data);
+      const d = await apiFetch<InviteCode[]>("/admin/invite-codes");
+      setCodes(d ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load invite codes");
+      setError(err instanceof Error ? err.message : "加载失败");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  useEffect(() => {
-    void load();
-  }, []);
+  useEffect(() => { void load(); }, []);
 
-  const onCreate = async (event: FormEvent) => {
-    event.preventDefault();
+  async function create() {
+    if (!newCode.trim()) return;
+    setSaving(true);
     setError("");
-    setNotice("");
     try {
-      setCreating(true);
       await apiFetch("/admin/invite-codes", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          code: form.code,
-          maxUses: Number(form.maxUses),
-          expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : null,
-          active: form.active
-        })
+          code: newCode.trim(),
+          maxUses: newMaxUses ? Number(newMaxUses) : null,
+          expiresAt: newExpiry || null,
+          active: true,
+        }),
       });
-      setForm({ code: "", maxUses: 100, expiresAt: "", active: true });
-      setNotice("Invite code created.");
-      toast("Invite code created.", "success");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Create failed");
-      toast("Failed to create invite code.", "error");
-    } finally {
+      setNewCode("");
+      setNewMaxUses("");
+      setNewExpiry("");
       setCreating(false);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "创建失败");
+    } finally {
+      setSaving(false);
     }
-  };
+  }
 
-  const toggleActive = async (item: InviteCode) => {
+  async function toggleActive(code: InviteCode) {
     try {
-      setTogglingId(item.id);
-      setError("");
-      setNotice("");
-      await apiFetch(`/admin/invite-codes/${item.id}`, {
+      await apiFetch(`/admin/invite-codes/${code.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ active: !item.active })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !code.active }),
       });
-      setNotice(`Invite code ${item.active ? "disabled" : "enabled"}.`);
-      toast(`Invite code ${item.active ? "disabled" : "enabled"}.`, "success");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Update failed");
-      toast("Failed to update invite code.", "error");
-    } finally {
-      setTogglingId(null);
+      setError(err instanceof Error ? err.message : "更新失败");
     }
-  };
+  }
 
-  const stats = useMemo(() => {
-    const active = codes.filter((item) => item.active && !isExpired(item) && (item.maxUses === null || item.usedCount < item.maxUses)).length;
-    const expired = codes.filter(isExpired).length;
-    const totalUsed = codes.reduce((sum, item) => sum + item.usedCount, 0);
-    return { total: codes.length, active, expired, totalUsed };
-  }, [codes]);
-
-  const visibleCodes = useMemo(() => {
-    let filtered = codes;
-    if (filterStatus === "ACTIVE") filtered = filtered.filter((item) => item.active && !isExpired(item) && (item.maxUses === null || item.usedCount < item.maxUses));
-    else if (filterStatus === "DISABLED") filtered = filtered.filter((item) => !item.active);
-    else if (filterStatus === "EXPIRED") filtered = filtered.filter(isExpired);
-    else if (filterStatus === "USED") filtered = filtered.filter((item) => item.usedCount > 0);
-    else if (filterStatus === "UNUSED") filtered = filtered.filter((item) => item.usedCount === 0);
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      filtered = filtered.filter((item) => item.code.toLowerCase().includes(q));
-    }
-    return filtered;
-  }, [codes, filterStatus, search]);
-
-  const unusedCodes = useMemo(() => visibleCodes.filter((item) => item.usedCount === 0), [visibleCodes]);
-
-  const exportCsv = () => {
-    const rows = [
-      ["Code", "Used", "MaxUses", "Expires", "Status"],
-      ...visibleCodes.map((item) => {
-        const { label } = statusLabel(item);
-        return [
-          item.code,
-          String(item.usedCount),
-          item.maxUses !== null ? String(item.maxUses) : "∞",
-          item.expiresAt ? new Date(item.expiresAt).toLocaleDateString() : "No expiry",
-          label
-        ];
-      })
-    ];
-    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `invite-codes-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const generateBulk = async () => {
-    setBulkGenerating(true);
-    setError("");
-    setNotice("");
-    const generated: string[] = [];
+  async function deleteCode(id: string) {
+    setDeletingId(id);
     try {
-      for (let index = 0; index < Math.max(1, Math.min(20, bulkCount)); index += 1) {
-        try {
-          const response = await apiFetch<InviteCode>("/admin/invite-codes", {
-            method: "POST",
-            body: JSON.stringify({
-              maxUses: bulkMaxUses || null,
-              active: true
-            })
-          });
-          if (response?.code) generated.push(response.code);
-        } catch {
-          // Skip individual failures and continue the batch.
-        }
-      }
-      setLastGenerated(generated);
-      setNotice(generated.length > 0 ? `Generated ${generated.length} code(s).` : "No codes were generated.");
-      if (generated.length > 0) {
-        toast(`Generated ${generated.length} code(s).`, "success");
-      } else {
-        toast("No codes were generated.", "info");
-      }
+      await apiFetch(`/admin/invite-codes/${id}`, { method: "DELETE" });
       await load();
-    } finally {
-      setBulkGenerating(false);
-    }
-  };
-
-  const deleteCode = async (item: InviteCode) => {
-    if (item.usedCount > 0) {
-      toast("邀请码已使用，无法撤销。", "error");
-      return;
-    }
-    if (!window.confirm(`确认撤销邀请码 ${item.code}？`)) return;
-
-    try {
-      setDeletingId(item.id);
-      await apiFetch(`/admin/invite-codes/${item.id}`, { method: "DELETE" });
-      toast("邀请码已撤销。", "success");
-      setCodes((prev) => prev.filter((code) => code.id !== item.id));
     } catch (err) {
-      toast(err instanceof Error ? err.message : "撤销失败", "error");
+      setError(err instanceof Error ? err.message : "删除失败");
     } finally {
       setDeletingId(null);
     }
-  };
+  }
 
-  const copyAllUnused = async () => {
-    if (unusedCodes.length === 0) {
-      toast("没有可复制的邀请码。", "info");
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(unusedCodes.map((item) => item.code).join("\n"));
-      toast(`已复制 ${unusedCodes.length} 个邀请码`, "success");
-    } catch {
-      toast("复制失败。", "error");
-    }
-  };
+  const active = codes.filter((c) => c.active);
+  const used = codes.filter((c) => c.usedAt || c.usedCount > 0);
 
   return (
     <div className="campus-page">
       <section className="campus-hero">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-3xl space-y-2">
-            <p className="campus-eyebrow">Access Control</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">Student Invite Codes</h1>
-            <p className="text-sm text-slate-600 md:text-base">
-              Issue student registration invite codes, define usage limits, and control availability.
-            </p>
-            <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Total {stats.total}</span>
-              <span className="campus-chip border-emerald-200 bg-emerald-50 text-emerald-700">Active {stats.active}</span>
-              {stats.expired > 0 ? <span className="campus-chip border-red-200 bg-red-50 text-red-700">Expired {stats.expired}</span> : null}
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">Total uses {stats.totalUsed}</span>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => void copyAllUnused()}
-              disabled={unusedCodes.length === 0}
-              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Copy All Unused
-            </button>
-            <button
-              type="button"
-              onClick={exportCsv}
-              disabled={visibleCodes.length === 0}
-              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:-translate-y-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Export CSV
-            </button>
-            <button
-              type="button"
-              onClick={() => void load()}
-              className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
-            >
-              Refresh
-            </button>
-          </div>
+        <p className="campus-eyebrow">系统管理</p>
+        <h1 className="campus-hero-title">邀请码管理</h1>
+        <p className="campus-hero-subtitle">创建和管理用于注册的邀请码，可设置使用次数与有效期</p>
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-3">
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">邀请码总数</p>
+          <p className="campus-kpi-value">{loading ? "—" : codes.length}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">激活中</p>
+          <p className="campus-kpi-value text-emerald-600">{loading ? "—" : active.length}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">已使用</p>
+          <p className="campus-kpi-value text-slate-500">{loading ? "—" : used.length}</p>
         </div>
       </section>
 
-      <section className="campus-card p-5 md:p-6">
-        <h2 className="mb-3 text-base font-semibold text-slate-900">Create Student Invite Code</h2>
-        <form className="grid gap-3 md:grid-cols-4" onSubmit={onCreate}>
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Code</label>
-            <div className="flex gap-2">
-              <input
-                className="campus-input flex-1"
-                placeholder="INVITE-2027"
-                value={form.code}
-                onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))}
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setForm((p) => ({ ...p, code: generateCode() }))}
-                className="inline-flex h-10 shrink-0 items-center rounded-lg border border-slate-300 bg-slate-50 px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
-              >
-                Generate
-              </button>
-            </div>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Max uses</label>
-            <input
-              className="campus-input"
-              type="number"
-              min={1}
-              value={form.maxUses}
-              onChange={(e) => setForm((p) => ({ ...p, maxUses: Number(e.target.value) }))}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Expires on</label>
-            <input
-              className="campus-input"
-              type="date"
-              value={form.expiresAt}
-              onChange={(e) => setForm((p) => ({ ...p, expiresAt: e.target.value }))}
-            />
-          </div>
-          <div className="md:flex md:items-end">
-            <button
-              type="submit"
-              disabled={creating}
-              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {creating ? (
-                <>
-                  <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                  Creating
-                </>
-              ) : (
-                "Create student invite"
-              )}
-            </button>
-          </div>
-        </form>
-      </section>
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : null}
 
-      <details className="campus-card p-4">
-        <summary className="cursor-pointer select-none text-sm font-semibold text-slate-700">⚡ Bulk Generate Codes</summary>
-        <div className="mt-3 flex flex-wrap items-end gap-3">
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-slate-500">Count (1–20)</label>
-            <input
-              type="number"
-              min={1}
-              max={20}
-              value={bulkCount}
-              onChange={(event) => setBulkCount(Number(event.target.value))}
-              className="campus-input w-20 text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-slate-500">Max Uses (blank=∞)</label>
-            <input
-              type="number"
-              min={1}
-              value={bulkMaxUses}
-              onChange={(event) => setBulkMaxUses(event.target.value === "" ? "" : Number(event.target.value))}
-              className="campus-input w-28 text-sm"
-              placeholder="∞"
-            />
+      <div className="campus-toolbar">
+        <button
+          type="button"
+          onClick={() => setCreating((v) => !v)}
+          className="campus-btn-ghost shrink-0"
+        >
+          {creating ? "取消" : "+ 新建邀请码"}
+        </button>
+      </div>
+
+      {creating ? (
+        <div className="campus-card px-5 py-4 space-y-4">
+          <p className="font-semibold text-slate-800">新建邀请码</p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">邀请码 <span className="text-red-500">*</span></label>
+              <input
+                className="campus-input w-full font-mono"
+                placeholder="例：WELCOME2024"
+                value={newCode}
+                onChange={(e) => setNewCode(e.target.value.toUpperCase())}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">最大使用次数（空=不限）</label>
+              <input
+                type="number"
+                min={1}
+                className="campus-input w-full"
+                placeholder="不限"
+                value={newMaxUses}
+                onChange={(e) => setNewMaxUses(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">过期时间（可选）</label>
+              <input
+                type="date"
+                className="campus-input w-full"
+                value={newExpiry}
+                onChange={(e) => setNewExpiry(e.target.value)}
+              />
+            </div>
           </div>
           <button
-            onClick={() => void generateBulk()}
-            disabled={bulkGenerating}
-            className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            type="button"
+            onClick={create}
+            disabled={saving || !newCode.trim()}
+            className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition"
           >
-            {bulkGenerating ? "Generating…" : "Generate"}
+            {saving ? "创建中…" : "创建"}
           </button>
         </div>
-        <p className="mt-3 text-xs text-slate-500">
-          Registration invites currently create student accounts only. Admin accounts must be assigned separately by an existing administrator.
-        </p>
-        {lastGenerated.length > 0 ? (
-          <div className="mt-3 space-y-1">
-            <p className="text-xs font-medium text-slate-500">Generated codes (click to copy):</p>
-            <div className="flex flex-wrap gap-2">
-              {lastGenerated.map((code) => (
-                <button
-                  key={code}
-                  onClick={() => void navigator.clipboard.writeText(code)}
-                  className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 font-mono text-xs text-emerald-800 hover:bg-emerald-100"
-                >
-                  {code}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-      </details>
-
-      {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
-      {notice ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{notice}</div> : null}
-
-      <section className="campus-toolbar">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">⌕</span>
-            <input
-              ref={searchRef}
-              className="campus-input pl-8"
-              placeholder="Search by code…  [/]"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {(["ALL", "UNUSED", "USED", "ACTIVE", "DISABLED", "EXPIRED"] as const).map((status) => (
-              <button
-                key={status}
-                type="button"
-                onClick={() => setFilterStatus(status)}
-                className={`inline-flex h-9 items-center rounded-full border px-3 text-xs font-medium transition ${
-                  filterStatus === status
-                    ? "border-slate-400 bg-slate-900 text-white"
-                    : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                {status === "ALL" ? `All (${codes.length})` : status}
-              </button>
-            ))}
-          </div>
-          {(search || filterStatus !== "ALL") ? (
-            <button
-              type="button"
-              onClick={() => { setSearch(""); setFilterStatus("ALL"); }}
-              className="text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
-            >
-              Clear filters
-            </button>
-          ) : null}
-        </div>
-        {search && (
-          <p className="mt-2 text-xs text-slate-500">
-            Showing {visibleCodes.length} of {codes.length} codes
-          </p>
-        )}
-      </section>
+      ) : null}
 
       <section className="campus-card overflow-hidden">
-        <div className="max-h-[560px] overflow-auto rounded-3xl">
-          <table className="w-full border-collapse text-sm">
-            <thead className="sticky top-0 z-10 bg-slate-50">
-              <tr className="border-b border-slate-200 text-left">
-                <th className="px-4 py-3 font-semibold text-slate-700">Code</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Usage</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Created</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Expires</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Status</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Action</th>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <th className="px-4 py-3 text-left">邀请码</th>
+                <th className="px-4 py-3 text-right">已用/上限</th>
+                <th className="px-4 py-3 text-left">过期时间</th>
+                <th className="px-4 py-3 text-left">状态</th>
+                <th className="px-4 py-3 text-left">创建时间</th>
+                <th className="px-4 py-3 text-right">操作</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
-                    Loading invite codes...
-                  </td>
-                </tr>
-              ) : visibleCodes.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
-                    {codes.length === 0 ? "No invite codes available." : "No codes match current filter."}
-                  </td>
-                </tr>
-              ) : (
-                visibleCodes.map((item) => {
-                  const { label, cls } = statusLabel(item);
-                  const expired = isExpired(item);
-                  const exhausted = item.maxUses !== null && item.usedCount >= item.maxUses;
-                  const muted = expired || exhausted;
-                  return (
-                    <tr key={item.id} className="border-b border-slate-100 odd:bg-white even:bg-slate-50/40 hover:bg-slate-100/60">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`font-mono font-medium ${muted ? "text-slate-400 line-through" : "text-slate-900"}`}>{item.code}</span>
-                          <CopyButton code={item.code} />
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <UsageBar used={item.usedCount} max={item.maxUses} />
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {new Date(item.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3">
-                        {item.expiresAt ? (
-                          <span className={muted ? "text-slate-400 line-through" : "text-slate-700"}>
-                            {new Date(item.expiresAt).toLocaleDateString()}
-                            {expired ? " (expired)" : ""}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">No expiry</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${cls}`}>
-                          {label}
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-400">加载中…</td></tr>
+              ) : codes.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-400">暂无邀请码</td></tr>
+              ) : codes.map((c) => {
+                const expired = c.expiresAt && new Date(c.expiresAt) < new Date();
+                const exhausted = c.maxUses != null && c.usedCount >= c.maxUses;
+                return (
+                  <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="px-4 py-3 font-mono font-bold text-slate-900 tracking-wider">{c.code}</td>
+                    <td className="px-4 py-3 text-right font-mono text-sm">
+                      <span className={exhausted ? "text-red-600 font-bold" : "text-slate-700"}>
+                        {c.usedCount}
+                      </span>
+                      <span className="text-slate-400">/{c.maxUses ?? "∞"}</span>
+                    </td>
+                    <td className="px-4 py-3 text-xs">
+                      {c.expiresAt ? (
+                        <span className={expired ? "text-red-600 font-semibold" : "text-slate-600"}>
+                          {c.expiresAt.slice(0, 10)}{expired ? " (已过期)" : ""}
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
+                      ) : <span className="text-slate-400">无限期</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-semibold ${
+                        !c.active || expired || exhausted
+                          ? "border-slate-200 bg-slate-50 text-slate-500"
+                          : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      }`}>
+                        {!c.active ? "已停用" : expired ? "已过期" : exhausted ? "已用完" : "有效"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-500">{c.createdAt?.slice(0, 10)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleActive(c)}
+                          className="text-xs text-slate-500 hover:text-slate-800 underline"
+                        >
+                          {c.active ? "停用" : "启用"}
+                        </button>
+                        {!c.usedCount ? (
                           <button
                             type="button"
-                            disabled={togglingId === item.id}
-                            onClick={() => void toggleActive(item)}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={deletingId === c.id}
+                            onClick={() => deleteCode(c.id)}
+                            className="text-xs text-red-500 hover:text-red-700 underline disabled:opacity-50"
                           >
-                            {togglingId === item.id ? (
-                              <><span className="size-3.5 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />Working</>
-                            ) : (
-                              item.active ? "Disable" : "Enable"
-                            )}
+                            {deletingId === c.id ? "删除中…" : "删除"}
                           </button>
-                          {item.usedCount === 0 ? (
-                            <button
-                              type="button"
-                              disabled={deletingId === item.id}
-                              onClick={() => void deleteCode(item)}
-                              className="inline-flex h-8 items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              {deletingId === item.id ? "撤销中…" : "撤销"}
-                            </button>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

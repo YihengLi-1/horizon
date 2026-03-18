@@ -1,6 +1,6 @@
 "use client";
 
-export default function PrintButton({ label = "Print Schedule" }: { label?: string }) {
+export default function PrintButton({ label = "打印课表" }: { label?: string }) {
   return (
     <button
       type="button"

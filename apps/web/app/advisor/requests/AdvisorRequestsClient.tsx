@@ -43,7 +43,7 @@ export default function AdvisorRequestsClient() {
       const data = await apiFetch<AdvisorRequest[]>("/governance/advisor/requests");
       setRequests(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load advisor requests");
+      setError(err instanceof Error ? err.message : "申请加载失败");
       setRequests([]);
     } finally {
       setLoading(false);
@@ -91,14 +91,14 @@ export default function AdvisorRequestsClient() {
   return (
     <div className="space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Academic Governance</p>
-        <h1 className="font-heading text-3xl font-bold text-slate-900">Pending Academic Requests</h1>
+        <p className="campus-eyebrow">学术治理</p>
+        <h1 className="font-heading text-3xl font-bold text-slate-900">待审批学术请求</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Review assigned advisee overload requests. This workflow currently covers credit overload approvals only.
+          审批您名下学生提交的超学分申请
         </p>
       </section>
 
-      {error ? <section className="campus-card p-6 text-sm text-red-600">Advisor requests are unavailable: {error}</section> : null}
+      {error ? <section className="campus-card p-6 text-sm text-red-600">顾问申请暂时不可用：{error}</section> : null}
 
       {!error && loading ? (
         <section className="grid gap-4 md:grid-cols-2">
@@ -113,7 +113,7 @@ export default function AdvisorRequestsClient() {
 
       {!error && !loading && requests.length === 0 ? (
         <section className="campus-card p-8 text-center text-sm text-slate-500">
-          No pending overload requests are assigned to you.
+          暂无待审批的超学分申请
         </section>
       ) : null}
 
@@ -127,22 +127,22 @@ export default function AdvisorRequestsClient() {
                     {request.student.studentProfile?.legalName ?? request.student.email}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {request.student.studentId ?? "No student ID"} · {request.student.studentProfile?.programMajor ?? "Undeclared"}
+                    {request.student.studentId ?? "无学号"} · {request.student.studentProfile?.programMajor ?? "未申报"}
                   </p>
                 </div>
                 <span className="campus-chip border-amber-200 bg-amber-50 text-amber-700 text-xs">
-                  {request.requestedCredits ?? "—"} credits requested
+                  申请 {request.requestedCredits ?? "—"} 学分
                 </span>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-                <p className="font-medium text-slate-900">{request.term?.name ?? "Selected term"}</p>
-                <p className="mt-1">Reason: {request.reason}</p>
-                <p className="mt-2 text-xs text-slate-500">Submitted {new Date(request.submittedAt).toLocaleString()}</p>
+                <p className="font-medium text-slate-900">{request.term?.name ?? "未选学期"}</p>
+                <p className="mt-1">申请原因：{request.reason}</p>
+                <p className="mt-2 text-xs text-slate-500">提交于 {new Date(request.submittedAt).toLocaleString("zh-CN")}</p>
               </div>
 
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Decision Note</span>
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">审批备注</span>
                 <textarea
                   className="campus-input min-h-24"
                   value={decisionNotes[request.id] ?? ""}
@@ -152,7 +152,7 @@ export default function AdvisorRequestsClient() {
                       [request.id]: event.target.value
                     }))
                   }
-                  placeholder="Explain why the request is approved or rejected."
+                  placeholder="说明批准或拒绝的原因。"
                 />
               </label>
 
@@ -163,7 +163,7 @@ export default function AdvisorRequestsClient() {
                   disabled={savingId === request.id}
                   className="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {savingId === request.id ? "Saving…" : "Approve"}
+                  {savingId === request.id ? "保存中…" : "批准"}
                 </button>
                 <button
                   type="button"
@@ -171,7 +171,7 @@ export default function AdvisorRequestsClient() {
                   disabled={savingId === request.id}
                   className="inline-flex h-10 items-center rounded-lg border border-red-200 bg-white px-4 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Reject
+                  拒绝
                 </button>
               </div>
             </article>

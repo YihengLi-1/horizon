@@ -125,7 +125,7 @@ export default function AdminBulkOpsPage() {
         className="campus-hero"
         style={{ background: "linear-gradient(135deg, hsl(38 100% 97%) 0%, white 60%)" }}
       >
-        <p className="campus-eyebrow" style={{ color: "hsl(32 75% 40%)" }}>Registrar Tools</p>
+        <p className="campus-eyebrow" style={{ color: "hsl(32 75% 40%)" }}>教务工具</p>
         <h1 className="campus-title">批量操作中心</h1>
         <p className="campus-subtitle">谨慎操作，此处修改不可撤销。</p>
       </section>
@@ -158,7 +158,7 @@ export default function AdminBulkOpsPage() {
       {tab === "enroll" ? (
         <div className="campus-card space-y-4 p-5">
           <div className="grid gap-4 md:grid-cols-[220px,1fr]">
-            <input className="campus-input" placeholder="Section ID" value={sectionId} onChange={(e) => setSectionId(e.target.value)} />
+            <input className="campus-input" placeholder="班级ID" value={sectionId} onChange={(e) => setSectionId(e.target.value)} />
             <textarea
               className="min-h-[220px] rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-700 outline-none focus:border-[hsl(221_83%_55%)] focus:ring-4 focus:ring-[hsl(221_83%_55%_/_0.15)]"
               placeholder="每行一个 studentId，或用逗号分隔"
@@ -249,7 +249,7 @@ export default function AdminBulkOpsPage() {
           {enrollResult.failed.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="campus-table">
-                <thead><tr><th>Student ID</th><th>Reason</th></tr></thead>
+                <thead><tr><th>学号</th><th>原因</th></tr></thead>
                 <tbody>{enrollResult.failed.map((item) => <tr key={item.studentId}><td>{item.studentId}</td><td>{item.reason}</td></tr>)}</tbody>
               </table>
             </div>
@@ -275,7 +275,7 @@ export default function AdminBulkOpsPage() {
           {dropResult.failed.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="campus-table">
-                <thead><tr><th>Enrollment ID</th><th>Reason</th></tr></thead>
+                <thead><tr><th>报名ID</th><th>原因</th></tr></thead>
                 <tbody>{dropResult.failed.map((item) => <tr key={item.enrollmentId}><td>{item.enrollmentId}</td><td>{item.reason}</td></tr>)}</tbody>
               </table>
             </div>

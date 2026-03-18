@@ -105,7 +105,7 @@ export default function StudentPrereqWaiversPage() {
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Academic Exceptions</p>
+        <p className="campus-eyebrow">先修豁免</p>
         <h1 className="campus-title">先修课豁免</h1>
         <p className="campus-subtitle">提交先修课豁免申请，并追踪审批结果。</p>
       </section>

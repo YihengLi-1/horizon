@@ -1,11 +1,5 @@
 "use client";
 
-/**
- * Student Course History
- * Full history of all enrollments grouped by term, with GPA and status breakdown.
- * Calls GET /students/course-history
- */
-
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
@@ -40,7 +34,7 @@ const GRADE_COLORS: Record<string, string> = {
 };
 
 function downloadCsv(data: HistoryData) {
-  const header = "Term,Course,SectionCode,Credits,Status,Grade,GradePoints,EnrolledAt,Instructor";
+  const header = "学期,课程,班级代码,学分,状态,成绩,绩点,注册时间,教师";
   const lines: string[] = [];
   for (const term of data.terms) {
     for (const e of term.enrollments) {
@@ -66,7 +60,6 @@ export default function CourseHistoryPage() {
     void apiFetch<HistoryData>("/students/course-history")
       .then((d) => {
         setData(d);
-        // Expand all terms by default
         setExpandedTerms(new Set(d.terms.map((t) => t.termId)));
       })
       .catch((e) => setError(e instanceof Error ? e.message : "加载失败"))
@@ -97,8 +90,21 @@ export default function CourseHistoryPage() {
 
   return (
     <div className="campus-page space-y-6">
+      {/* Tab nav */}
+      <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+        <a href="/student/grades" className="flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-slate-500 no-underline transition hover:bg-white hover:text-slate-900">
+          成绩
+        </a>
+        <span className="flex-1 rounded-lg bg-white px-4 py-2 text-center text-sm font-semibold text-slate-900 shadow-sm">
+          修课历史
+        </span>
+        <a href="/student/transcript" className="flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-slate-500 no-underline transition hover:bg-white hover:text-slate-900">
+          成绩单
+        </a>
+      </div>
+
       <section className="campus-hero">
-        <p className="campus-eyebrow">Academic Records</p>
+        <p className="campus-eyebrow">学业记录</p>
         <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">课程修读历史</h1>
         <p className="mt-1 text-sm text-slate-500">按学期查看所有注册记录与成绩</p>
       </section>

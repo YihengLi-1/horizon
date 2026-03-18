@@ -15,7 +15,7 @@ function gradePoints(grade: string | null | undefined): number | null {
 export default function TranscriptExportButton({ grades }: Props) {
   function handleExport() {
     const rows = [
-      ["Term", "Course Code", "Course Title", "Credits", "Grade", "Grade Points", "Contribution"],
+      ["学期", "课程代码", "课程名称", "学分", "成绩", "绩点", "贡献"],
       ...grades.map((g) => {
         const points = gradePoints(g.finalGrade);
         const credits = g.section.credits ?? null;
@@ -49,7 +49,7 @@ export default function TranscriptExportButton({ grades }: Props) {
       onClick={handleExport}
       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
     >
-      ⬇ Export Transcript
+      ⬇ 导出成绩单
     </button>
   );
 }

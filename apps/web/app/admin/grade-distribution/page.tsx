@@ -87,7 +87,7 @@ export default function GradeDistributionPage() {
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Academic Outcomes</p>
+        <p className="campus-eyebrow">学业成果</p>
         <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">成绩分布</h1>
         <p className="mt-1 text-sm text-slate-500">按课程与学期查看成绩分布、均值 GPA 和通过率</p>
       </section>

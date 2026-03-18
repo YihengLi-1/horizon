@@ -1,15 +1,7 @@
 "use client";
 
-/**
- * Admin Top Performers Report
- * Shows students ranked by GPA (for completed courses).
- * Filterable by term. CSV export supported.
- */
-
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
-
-type Term = { id: string; name: string };
 
 type Performer = {
   rank: number;
@@ -21,143 +13,178 @@ type Performer = {
   completedCourses: number;
 };
 
+type Term = { id: string; name: string };
+
+function MedalIcon({ rank }: { rank: number }) {
+  if (rank === 1) return <span className="text-2xl">🥇</span>;
+  if (rank === 2) return <span className="text-2xl">🥈</span>;
+  if (rank === 3) return <span className="text-2xl">🥉</span>;
+  return <span className="w-8 text-center font-mono text-sm font-bold text-slate-500">#{rank}</span>;
+}
+
 export default function TopPerformersPage() {
+  const [rows, setRows] = useState<Performer[]>([]);
   const [terms, setTerms] = useState<Term[]>([]);
   const [termId, setTermId] = useState("");
-  const [limit, setLimit] = useState("20");
-  const [data, setData] = useState<Performer[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [limit, setLimit] = useState(20);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
-    void apiFetch<Term[]>("/academics/terms")
-      .then((d) => setTerms((d ?? []).sort((a, b) => b.name.localeCompare(a.name))))
-      .catch(() => {});
+    void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? [])).catch(() => {});
   }, []);
 
   useEffect(() => {
     setLoading(true);
+    setError("");
     const params = new URLSearchParams();
     if (termId) params.set("termId", termId);
-    params.set("limit", limit);
+    params.set("limit", String(limit));
     void apiFetch<Performer[]>(`/admin/top-performers?${params}`)
-      .then((d) => setData(d ?? []))
-      .catch(() => {})
+      .then((d) => setRows(d ?? []))
+      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setLoading(false));
   }, [termId, limit]);
 
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return rows.filter((r) => !q || r.email.toLowerCase().includes(q) || (r.major ?? "").toLowerCase().includes(q));
+  }, [rows, search]);
+
+  const top3 = filtered.slice(0, 3);
+  const rest = filtered.slice(3);
+
   function exportCsv() {
-    if (!data.length) return;
-    const header = ["Rank", "Email", "Major", "GPA", "Completed Courses", "Total Credits"];
-    const rows = data.map((p) => [p.rank, p.email, p.major, p.gpa.toFixed(2), p.completedCourses, p.totalCredits]);
-    const csv = [header, ...rows].map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = "top-performers.csv"; a.click();
-    URL.revokeObjectURL(url);
+    const headers = ["排名", "邮箱", "专业", "完成学分", "GPA", "完成课程数"];
+    const csvRows = [
+      headers.join(","),
+      ...filtered.map((r) => [r.rank, `"${r.email}"`, `"${r.major}"`, r.totalCredits, r.gpa.toFixed(2), r.completedCourses].join(","))
+    ];
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(blob),
+      download: `top-performers-${new Date().toISOString().slice(0, 10)}.csv`,
+    });
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
-  const maxGpa = Math.max(1, ...data.map((p) => p.gpa));
-
   return (
-    <div className="campus-page space-y-6">
+    <div className="campus-page">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Academic Excellence</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">优秀学生排行</h1>
-        <p className="mt-1 text-sm text-slate-500">按 GPA 排名的高绩效学生名单，支持按学期筛选</p>
+        <p className="campus-eyebrow">学生表彰</p>
+        <h1 className="campus-hero-title">优秀学生榜单</h1>
+        <p className="campus-hero-subtitle">按 GPA 与完成学分综合排名的学生排行榜</p>
       </section>
 
-      <div className="campus-toolbar flex-wrap gap-2">
-        <select className="campus-select" value={termId} onChange={(e) => setTermId(e.target.value)}>
-          <option value="">所有学期</option>
+      <section className="grid gap-3 sm:grid-cols-3">
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">上榜学生数</p>
+          <p className="campus-kpi-value text-amber-600">{loading ? "—" : rows.length}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">最高 GPA</p>
+          <p className="campus-kpi-value text-emerald-600">{loading || !rows[0] ? "—" : rows[0].gpa.toFixed(2)}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">平均 GPA</p>
+          <p className="campus-kpi-value">
+            {loading || !rows.length ? "—" : (rows.reduce((s, r) => s + r.gpa, 0) / rows.length).toFixed(2)}
+          </p>
+        </div>
+      </section>
+
+      {/* Podium top-3 */}
+      {!loading && top3.length >= 3 ? (
+        <section className="grid gap-4 sm:grid-cols-3">
+          {[top3[1], top3[0], top3[2]].map((p, i) => {
+            if (!p) return null;
+            const heights = ["h-28", "h-36", "h-24"];
+            const bgColors = ["bg-slate-100 border-slate-300", "bg-amber-50 border-amber-300", "bg-orange-50 border-orange-200"];
+            return (
+              <div key={p.studentId} className={`campus-card flex flex-col items-center gap-2 border p-5 ${bgColors[i]}`}>
+                <MedalIcon rank={p.rank} />
+                <div className={`w-full rounded-md bg-slate-200 flex items-end justify-center ${heights[i]}`}>
+                  <span className="mb-2 text-3xl font-black text-slate-600">{p.gpa.toFixed(2)}</span>
+                </div>
+                <p className="text-center text-sm font-semibold text-slate-800 truncate w-full">{p.email}</p>
+                <p className="text-xs text-slate-500">{p.major}</p>
+                <p className="text-xs text-slate-400">{p.totalCredits} 学分 · {p.completedCourses} 门课</p>
+              </div>
+            );
+          })}
+        </section>
+      ) : null}
+
+      <div className="campus-toolbar">
+        <select className="campus-select w-40" value={termId} onChange={(e) => setTermId(e.target.value)}>
+          <option value="">全部学期</option>
           {terms.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
-        <select className="campus-select w-24" value={limit} onChange={(e) => setLimit(e.target.value)}>
-          <option value="10">Top 10</option>
-          <option value="20">Top 20</option>
-          <option value="50">Top 50</option>
-          <option value="100">Top 100</option>
+        <select className="campus-select w-28" value={limit} onChange={(e) => setLimit(Number(e.target.value))}>
+          <option value={10}>前 10 名</option>
+          <option value={20}>前 20 名</option>
+          <option value={50}>前 50 名</option>
         </select>
-        <button
-          type="button"
-          onClick={exportCsv}
-          disabled={!data.length}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-        >
+        <input
+          className="campus-input max-w-xs"
+          placeholder="搜索邮箱或专业…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <button type="button" onClick={exportCsv} disabled={!filtered.length} className="campus-btn-ghost shrink-0 disabled:opacity-40">
           CSV 导出
         </button>
       </div>
 
-      {/* Top 3 podium */}
-      {!loading && data.length >= 3 && (
-        <div className="grid grid-cols-3 gap-3">
-          {[data[1], data[0], data[2]].map((p, i) => {
-            if (!p) return null;
-            const podiumColors = ["bg-slate-100", "bg-amber-50 border-amber-300", "bg-orange-50 border-orange-200"];
-            const medals = ["🥈", "🥇", "🥉"];
-            return (
-              <div key={p.studentId} className={`campus-card p-4 text-center border ${podiumColors[i]} ${i === 1 ? "ring-2 ring-amber-400" : ""}`}>
-                <div className="text-2xl mb-1">{medals[i]}</div>
-                <p className="text-xs font-bold text-slate-700 truncate">{p.email.split("@")[0]}</p>
-                <p className="text-xs text-slate-400 truncate">{p.major}</p>
-                <p className="text-xl font-bold text-indigo-700 mt-1">{p.gpa.toFixed(2)}</p>
-                <p className="text-[10px] text-slate-400">GPA · #{p.rank}</p>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : null}
 
-      {loading ? (
-        <div className="campus-card px-6 py-14 text-center text-sm text-slate-500">⏳ 加载中…</div>
-      ) : data.length === 0 ? (
-        <div className="campus-card px-6 py-14 text-center text-sm text-slate-400">暂无数据</div>
-      ) : (
-        <div className="campus-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 text-slate-500">
-                  <th className="pb-2 pl-4 text-left font-semibold w-10">#</th>
-                  <th className="pb-2 pr-3 text-left font-semibold">学生</th>
-                  <th className="pb-2 pr-3 text-left font-semibold">专业</th>
-                  <th className="pb-2 pr-3 text-right font-semibold">GPA</th>
-                  <th className="pb-2 pr-3 text-right font-semibold">完成课程</th>
-                  <th className="pb-2 pr-4 text-right font-semibold">总学分</th>
-                  <th className="pb-2 pr-4 font-semibold">GPA 条</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((p) => (
-                  <tr key={p.studentId} className="border-b border-slate-50 hover:bg-slate-50">
-                    <td className="py-2.5 pl-4 pr-2">
-                      <span className={`font-bold text-xs ${p.rank <= 3 ? "text-amber-600" : "text-slate-500"}`}>
-                        {p.rank <= 3 ? ["🥇","🥈","🥉"][p.rank - 1] : `#${p.rank}`}
+      <section className="campus-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <th className="px-4 py-3 text-left">排名</th>
+                <th className="px-4 py-3 text-left">邮箱</th>
+                <th className="px-4 py-3 text-left">专业</th>
+                <th className="px-4 py-3 text-right">完成学分</th>
+                <th className="px-4 py-3 text-right">完成课程</th>
+                <th className="px-4 py-3 text-right">GPA</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-400">加载中…</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-400">暂无数据</td></tr>
+              ) : (
+                filtered.map((row) => (
+                  <tr key={row.studentId} className={`border-b border-slate-100 hover:bg-slate-50 ${row.rank <= 3 ? "bg-amber-50/40" : ""}`}>
+                    <td className="px-4 py-3"><MedalIcon rank={row.rank} /></td>
+                    <td className="px-4 py-3 text-slate-800 font-mono text-xs">{row.email}</td>
+                    <td className="px-4 py-3 text-slate-600">{row.major || "—"}</td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-700">{row.totalCredits}</td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-700">{row.completedCourses}</td>
+                    <td className="px-4 py-3 text-right">
+                      <span className={`font-bold text-lg ${row.gpa >= 3.8 ? "text-amber-600" : row.gpa >= 3.5 ? "text-emerald-600" : "text-slate-700"}`}>
+                        {row.gpa.toFixed(2)}
                       </span>
-                    </td>
-                    <td className="py-2.5 pr-3 text-slate-700 truncate max-w-[180px]">{p.email}</td>
-                    <td className="py-2.5 pr-3 text-slate-500 truncate max-w-[140px]">{p.major}</td>
-                    <td className="py-2.5 pr-3 text-right">
-                      <span className={`font-bold ${p.gpa >= 3.7 ? "text-emerald-600" : p.gpa >= 3.0 ? "text-indigo-600" : "text-amber-600"}`}>
-                        {p.gpa.toFixed(2)}
-                      </span>
-                    </td>
-                    <td className="py-2.5 pr-3 text-right text-slate-600">{p.completedCourses}</td>
-                    <td className="py-2.5 pr-4 text-right text-slate-600">{p.totalCredits}</td>
-                    <td className="py-2.5 pr-4" style={{ minWidth: 80 }}>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-indigo-500 rounded-full"
-                          style={{ width: `${(p.gpa / maxGpa) * 100}%` }}
-                        />
-                      </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+        {!loading && filtered.length > 0 ? (
+          <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-400">
+            共 {filtered.length} 名学生 · 按 GPA 降序排列，同 GPA 时按完成学分排序
+          </p>
+        ) : null}
+      </section>
     </div>
   );
 }

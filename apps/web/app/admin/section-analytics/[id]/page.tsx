@@ -67,7 +67,7 @@ export default function SectionAnalyticsPage() {
   return (
     <div className="campus-page" style={{ display: "grid", gap: "1.5rem" }}>
       <section className="campus-hero">
-        <p className="campus-eyebrow">Section Analytics</p>
+        <p className="campus-eyebrow">班级分析</p>
         <h1 style={{ margin: 0 }}>
           {data ? `${data.courseCode} · §${data.sectionCode}` : "教学班分析"}
         </h1>

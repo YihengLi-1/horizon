@@ -11,7 +11,7 @@ type GradeRow = {
 
 export function GradesCsvButton({ rows, gpa }: { rows: GradeRow[]; gpa: string }) {
   const handleExport = () => {
-    const headers = ["Term", "Course Code", "Course Title", "Credits", "Grade", "Grade Points"];
+    const headers = ["学期", "课程代码", "课程名称", "学分", "成绩", "绩点"];
     const csvRows = [
       headers.join(","),
       ...rows.map((r) =>
@@ -25,7 +25,7 @@ export function GradesCsvButton({ rows, gpa }: { rows: GradeRow[]; gpa: string }
         ].join(",")
       ),
       "",
-      `"Cumulative GPA",${gpa}`
+      `"累计GPA",${gpa}`
     ];
     const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -43,7 +43,7 @@ export function GradesCsvButton({ rows, gpa }: { rows: GradeRow[]; gpa: string }
       disabled={rows.length === 0}
       className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-white/35 bg-white/90 px-4 text-sm font-semibold text-slate-800 transition hover:bg-white disabled:opacity-50"
     >
-      ↓ Export Transcript
+      ↓ 导出成绩单
     </button>
   );
 }

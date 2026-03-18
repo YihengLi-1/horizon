@@ -21,7 +21,7 @@ type WaitlistEntry = {
   };
 };
 
-const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 function fmt(min: number) {
   return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
 }
@@ -88,7 +88,7 @@ export default function WaitlistPage() {
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Registration</p>
+        <p className="campus-eyebrow">候补管理</p>
         <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">候补名单</h1>
         <p className="mt-1 text-sm text-slate-500">
           实时查看您在各教学班的候补排名（每 60 秒自动刷新）

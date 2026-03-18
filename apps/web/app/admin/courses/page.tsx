@@ -77,7 +77,7 @@ export default function CoursesPage() {
       const data = await apiFetch<Course[]>("/admin/courses");
       setCourses(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load courses");
+      setError(err instanceof Error ? err.message : "课程加载失败");
     } finally {
       setLoading(false);
     }
@@ -110,10 +110,10 @@ export default function CoursesPage() {
         })
       });
       setForm({ code: "", title: "", credits: 3, weeklyHours: "", description: "", prerequisiteCourseIds: [] });
-      setNotice("Course created successfully.");
+      setNotice("课程创建成功。");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Create failed");
+      setError(err instanceof Error ? err.message : "创建失败");
     } finally {
       setCreating(false);
     }
@@ -156,17 +156,17 @@ export default function CoursesPage() {
         })
       });
       setEditingId(null);
-      setNotice("Course updated successfully.");
+      setNotice("课程更新成功。");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Update failed");
+      setError(err instanceof Error ? err.message : "更新失败");
     } finally {
       setSavingEdit(false);
     }
   };
 
   const onDelete = async (id: string, code: string) => {
-    if (!confirm(`Delete course "${code}"? This cannot be undone.`)) return;
+    if (!confirm(`确认删除课程 "${code}"？此操作无法撤销。`)) return;
     try {
       setError("");
       setNotice("");
@@ -175,7 +175,7 @@ export default function CoursesPage() {
       if (editingId === id) setEditingId(null);
       await load();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Delete failed";
+      const message = err instanceof Error ? err.message : "删除失败";
       setError(message);
     }
   };
@@ -237,7 +237,7 @@ export default function CoursesPage() {
 
   const exportCsv = () => {
     const rows = [
-      ["Code", "Title", "Credits", "Description", "Prerequisites"],
+      ["课程代码", "名称", "学分", "课程简介", "先修课"],
       ...visibleCourses.map((c) => [
         c.code,
         c.title,
@@ -264,19 +264,19 @@ export default function CoursesPage() {
       <section className="campus-hero">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
-            <p className="campus-eyebrow">Catalog Management</p>
-            <h1 className="campus-title">Courses</h1>
+            <p className="campus-eyebrow">课程目录管理</p>
+            <h1 className="campus-title">课程管理</h1>
             <p className="text-sm text-slate-600 md:text-base">
-              Maintain course definitions, credit values, and prerequisite mappings for registration validation.
+              维护课程定义、学分值及先修课关联，用于注册校验。
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip chip-emerald">{stats.total} Courses</span>
-              <span className="campus-chip chip-purple">Avg {stats.avg} cr</span>
+              <span className="campus-chip chip-emerald">{stats.total} 门课程</span>
+              <span className="campus-chip chip-purple">均 {stats.avg} 学分</span>
               {stats.withPrereq > 0 && (
-                <span className="campus-chip chip-blue">{stats.withPrereq} with Prerequisites</span>
+                <span className="campus-chip chip-blue">{stats.withPrereq} 门有先修要求</span>
               )}
               {visibleCourses.length !== courses.length && (
-                <span className="campus-chip chip-amber">{visibleCourses.length} visible</span>
+                <span className="campus-chip chip-amber">{visibleCourses.length} 门可见</span>
               )}
             </div>
           </div>
@@ -287,14 +287,14 @@ export default function CoursesPage() {
               disabled={visibleCourses.length === 0}
               className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:-translate-y-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Export CSV
+              CSV 导出
             </button>
             <button
               type="button"
               onClick={() => void load()}
               className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
             >
-              Refresh
+              刷新
             </button>
           </div>
         </div>
@@ -302,22 +302,22 @@ export default function CoursesPage() {
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi">
-          <p className="campus-kpi-label">Total Courses</p>
+          <p className="campus-kpi-label">课程总数</p>
           <p className="campus-kpi-value">{stats.total}</p>
-          <p className="text-[11px] text-slate-400">Avg {stats.avg} credits</p>
+          <p className="text-[11px] text-slate-400">均 {stats.avg} 学分</p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label text-emerald-700">No Prerequisites</p>
+          <p className="campus-kpi-label text-emerald-700">无先修要求</p>
           <p className="campus-kpi-value text-emerald-700">{stats.noPrereq}</p>
-          <p className="text-[11px] text-emerald-500">Open enrollment</p>
+          <p className="text-[11px] text-emerald-500">开放注册</p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label text-blue-700">Has Prerequisites</p>
+          <p className="campus-kpi-label text-blue-700">有先修要求</p>
           <p className="campus-kpi-value text-blue-700">{stats.withPrereq}</p>
-          <p className="text-[11px] text-blue-500">Gated enrollment</p>
+          <p className="text-[11px] text-blue-500">有资格限制</p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label">Credit Distribution</p>
+          <p className="campus-kpi-label">学分分布</p>
           <div className="mt-1 flex flex-wrap gap-1.5">
             {stats.byCredits.map(({ cr, count }) => (
               <span key={cr} className="campus-chip chip-purple gap-1 rounded-lg px-2 py-0.5">
@@ -343,7 +343,7 @@ export default function CoursesPage() {
         {showCreateForm ? (
         <form className="grid gap-3 md:grid-cols-5" onSubmit={onCreate}>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Code</label>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">课程代码</label>
             <input
               className="campus-input"
               placeholder="CS301"
@@ -353,17 +353,17 @@ export default function CoursesPage() {
             />
           </div>
           <div className="md:col-span-2">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Title</label>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">课程名称</label>
             <input
               className="campus-input"
-              placeholder="Algorithms"
+              placeholder="如：算法设计"
               value={form.title}
               onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
               required
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Credits</label>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">学分</label>
             <input
               className="campus-input"
               type="number"
@@ -374,13 +374,13 @@ export default function CoursesPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Weekly Hours</label>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">每周课时</label>
             <input
               className="campus-input"
               type="number"
               min={0.5}
               step={0.5}
-              placeholder="e.g. 8"
+              placeholder="如：8"
               value={form.weeklyHours}
               onChange={(e) => setForm((p) => ({ ...p, weeklyHours: e.target.value === "" ? "" : Number(e.target.value) }))}
             />
@@ -394,25 +394,25 @@ export default function CoursesPage() {
               {creating ? (
                 <>
                   <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                  Creating
+                  创建中
                 </>
               ) : (
-                "Create course"
+                "创建课程"
               )}
             </button>
           </div>
 
           <div className="md:col-span-3">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Description</label>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">课程简介</label>
             <input
               className="campus-input"
-              placeholder="Optional short catalog description"
+              placeholder="课程简介（选填）"
               value={form.description}
               onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
             />
           </div>
           <div className="md:col-span-2">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Prerequisites</label>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">先修课程</label>
             <select
               multiple
               className="campus-input min-h-[80px]"
@@ -445,7 +445,7 @@ export default function CoursesPage() {
           </div>
           <form className="grid gap-3 md:grid-cols-5" onSubmit={onSaveEdit}>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Code</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">课程代码</label>
               <input
                 className="campus-input"
                 value={editForm.code}
@@ -454,7 +454,7 @@ export default function CoursesPage() {
               />
             </div>
             <div className="md:col-span-2">
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Title</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">课程名称</label>
               <input
                 className="campus-input"
                 value={editForm.title}
@@ -463,7 +463,7 @@ export default function CoursesPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Credits</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">学分</label>
               <input
                 className="campus-input"
                 type="number"
@@ -474,13 +474,13 @@ export default function CoursesPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Weekly Hours</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">每周课时</label>
               <input
                 className="campus-input"
                 type="number"
                 min={0.5}
                 step={0.5}
-                placeholder="e.g. 8"
+                placeholder="如：8"
                 value={editForm.weeklyHours}
                 onChange={(e) => setEditForm((p) => ({ ...p, weeklyHours: e.target.value === "" ? "" : Number(e.target.value) }))}
               />
@@ -497,21 +497,21 @@ export default function CoursesPage() {
                     Saving
                   </>
                 ) : (
-                  "Save changes"
+                  "保存更改"
                 )}
               </button>
             </div>
             <div className="md:col-span-3">
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Description</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">课程简介</label>
               <input
                 className="campus-input"
-                placeholder="Optional short catalog description"
+                placeholder="课程简介（选填）"
                 value={editForm.description}
                 onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
               />
             </div>
             <div className="md:col-span-2">
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Prerequisites</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">先修课程</label>
               <select
                 multiple
                 className="campus-input min-h-[80px]"
@@ -537,11 +537,11 @@ export default function CoursesPage() {
       <section className="campus-toolbar">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="block sm:col-span-2">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search</span>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">搜索</span>
             <input
               ref={searchRef}
               className="campus-input"
-              placeholder="Code, title, description…  [/]"
+              placeholder="课程代码、名称、描述…  [/]"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -549,35 +549,35 @@ export default function CoursesPage() {
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Dept</span>
             <select className="campus-select" value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
-              <option value="ALL">All depts</option>
+              <option value="ALL">全部院系</option>
               {deptOptions.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
             </select>
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Credits</span>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">学分</span>
             <select className="campus-select" value={filterCredits} onChange={(e) => setFilterCredits(e.target.value)}>
-              <option value="ALL">All credits</option>
+              <option value="ALL">全部学分</option>
               {creditOptions.map((cr) => <option key={cr} value={cr}>{cr} cr</option>)}
             </select>
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Prerequisites</span>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">先修课程</span>
             <select className="campus-select" value={filterPrereq} onChange={(e) => setFilterPrereq(e.target.value)}>
-              <option value="ALL">All courses</option>
-              <option value="WITHOUT">No prerequisites</option>
-              <option value="WITH">Has prerequisites</option>
+              <option value="ALL">全部课程</option>
+              <option value="WITHOUT">无先修课</option>
+              <option value="WITH">有先修课</option>
             </select>
           </label>
         </div>
         {(search || filterDept !== "ALL" || filterCredits !== "ALL" || filterPrereq !== "ALL") ? (
           <div className="mt-2 flex items-center gap-2">
-            <p className="text-xs text-slate-500">{visibleCourses.length} of {courses.length} shown</p>
+            <p className="text-xs text-slate-500">已筛选 {visibleCourses.length} / {courses.length} 门课程</p>
             <button
               type="button"
               onClick={() => { setSearch(""); setDebouncedSearch(""); setFilterDept("ALL"); setFilterCredits("ALL"); setFilterPrereq("ALL"); }}
               className="text-xs font-medium text-slate-500 underline underline-offset-2 hover:text-slate-700"
             >
-              Clear filters
+              清除筛选
             </button>
           </div>
         ) : null}
@@ -598,21 +598,21 @@ export default function CoursesPage() {
                       onClick={() => toggleSort(col)}
                       className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wide transition-colors ${sortCol === col ? "text-slate-900" : "text-slate-400 hover:text-slate-700"}`}
                     >
-                      {{ code: "Code", title: "Title", credits: "Credits", prereqs: "Prerequisites" }[col]}
+                      {{ code: "课程代码", title: "名称", credits: "学分", prereqs: "先修课" }[col]}
                       <span className="text-[9px] leading-none">
                         {sortCol === col ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
                       </span>
                     </button>
                   </th>
                 ))}
-                <th>Actions</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
-                    Loading courses...
+                    加载课程中...
                   </td>
                 </tr>
               ) : visibleCourses.length === 0 ? (
@@ -620,10 +620,10 @@ export default function CoursesPage() {
                   <td colSpan={5} className="px-4 py-12 text-center">
                     <p className="text-3xl">📚</p>
                     <p className="mt-2 text-sm font-medium text-slate-600">
-                      {courses.length === 0 ? "No courses yet" : "No courses match your filters"}
+                      {courses.length === 0 ? "暂无课程" : "没有匹配的课程"}
                     </p>
                     <p className="mt-1 text-xs text-slate-400">
-                      {courses.length === 0 ? "Use the form above to create the first course." : "Try clearing your search or filter."}
+                      {courses.length === 0 ? "使用上方表单创建第一门课程。" : "请清除搜索词或筛选条件。"}
                     </p>
                   </td>
                 </tr>
@@ -639,7 +639,7 @@ export default function CoursesPage() {
                     <td
                       className="px-4 py-3 text-slate-700"
                       onDoubleClick={() => startEdit(course)}
-                      title="Double-click to edit title"
+                      title="双击编辑名称"
                     >
                       <p className="font-medium">{course.title}</p>
                       <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">
@@ -658,7 +658,7 @@ export default function CoursesPage() {
                     <td
                       className="px-4 py-3"
                       onDoubleClick={() => startEdit(course)}
-                      title="Double-click to edit credits"
+                      title="双击编辑学分"
                     >
                       <span className={`campus-chip items-center px-2 py-0.5 text-xs ${
                         course.credits >= 4
@@ -667,7 +667,7 @@ export default function CoursesPage() {
                           ? "chip-blue"
                           : "chip-amber"
                       }`}>
-                        {course.credits} cr
+                        {course.credits} 学分
                       </span>
                       {course.weeklyHours ? (
                         <span className="ml-1 text-xs text-slate-400">{course.weeklyHours}h/wk</span>
@@ -679,7 +679,7 @@ export default function CoursesPage() {
                           .map((item) => item.prerequisiteCourse?.code)
                           .filter((code): code is string => Boolean(code));
                         if (prereqCodes.length === 0) {
-                          return <span className="text-slate-300">No prereqs</span>;
+                          return <span className="text-slate-300">无先修课</span>;
                         }
                         return (
                           <div className="space-y-1">
@@ -697,7 +697,7 @@ export default function CoursesPage() {
                                 onClick={() => setGraphCourseId(graphCourseId === course.id ? null : course.id)}
                                 className="ml-1 rounded border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 hover:bg-indigo-100"
                               >
-                                {graphCourseId === course.id ? "Hide Graph" : "Graph"}
+                                {graphCourseId === course.id ? "隐藏图谱" : "关系图"}
                               </button>
                             </div>
                             {graphCourseId === course.id && (
@@ -714,7 +714,7 @@ export default function CoursesPage() {
                           onClick={() => editingId === course.id ? cancelEdit() : startEdit(course)}
                           className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
                         >
-                          {editingId === course.id ? "Cancel" : "Edit"}
+                          {editingId === course.id ? "取消" : "编辑"}
                         </button>
                         <a
                           href={`/admin/sections?search=${encodeURIComponent(course.code)}`}
@@ -727,7 +727,7 @@ export default function CoursesPage() {
                           onClick={() => onDelete(course.id, course.code)}
                           className="inline-flex h-8 items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-700 transition hover:bg-red-50"
                         >
-                          Delete
+                          删除
                         </button>
                       </div>
                     </td>
@@ -742,7 +742,7 @@ export default function CoursesPage() {
         {visibleCourses.length > PAGE_SIZE ? (
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-3 text-sm text-slate-600">
             <p>
-              Showing {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, visibleCourses.length)} of {visibleCourses.length} courses
+              显示 {((safePage - 1) * PAGE_SIZE) + 1}–{Math.min(safePage * PAGE_SIZE, visibleCourses.length)} / 共 {visibleCourses.length} 门
             </p>
             <div className="flex items-center gap-1.5">
               <button
@@ -751,7 +751,7 @@ export default function CoursesPage() {
                 disabled={safePage === 1}
                 className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                ← Prev
+                ← 上一页
               </button>
               {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
                 let pageNum: number;
@@ -780,7 +780,7 @@ export default function CoursesPage() {
                 disabled={safePage === totalPages}
                 className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Next →
+                下一页 →
               </button>
             </div>
           </div>

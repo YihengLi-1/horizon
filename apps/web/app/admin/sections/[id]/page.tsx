@@ -46,7 +46,7 @@ export default function SectionAnalyticsPage() {
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Section Analytics</p>
+        <p className="campus-eyebrow">班级分析</p>
         <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">
           {data ? `${data.courseCode} · §${data.sectionCode}` : "教学班分析"}
         </h1>

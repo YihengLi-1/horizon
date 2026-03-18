@@ -39,7 +39,7 @@ export default function ForgotPage() {
       setSent(true);
       setCooldown(60);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed");
+      setError(err instanceof Error ? err.message : "发送失败");
     } finally {
       setLoading(false);
     }
@@ -65,7 +65,7 @@ export default function ForgotPage() {
             <div className="space-y-1">
               <p className="text-lg font-semibold text-slate-800">Check your inbox</p>
               <p className="text-sm text-slate-500">
-                {result?.message ?? "We've sent a password reset link to your email."} It expires in 15 minutes.
+                {result?.message ?? "重置密码链接已发送至您的邮箱，15 分钟内有效。"}
               </p>
             </div>
             {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div> : null}
@@ -78,11 +78,11 @@ export default function ForgotPage() {
               ) : cooldown > 0 ? (
                 `Resend in ${cooldown}s`
               ) : (
-                "Send Again"
+                "重新发送"
               )}
             </Button>
             <a href="/login" className="inline-block text-sm font-medium text-blue-600 hover:underline">
-              ← Back to login
+              ← 返回登录
             </a>
           </div>
         ) : (
@@ -108,7 +108,7 @@ export default function ForgotPage() {
               ) : cooldown > 0 ? (
                 `Resend in ${cooldown}s`
               ) : (
-                "Send reset link"
+                "发送重置链接"
               )}
             </Button>
           </form>

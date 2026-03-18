@@ -17,10 +17,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               </p>
             </div>
             <div className="space-y-2 text-xs text-slate-200/90">
-              <p>Portal capabilities</p>
+              <p>系统功能</p>
               <ul className="space-y-1.5 text-sm">
-                <li>Course catalog with prerequisite and capacity cues</li>
-                <li>Cart precheck before submit and actionable error guidance</li>
+                <li>课程目录，含先修课与容量提示</li>
+                <li>提交前购物车预检，提供可操作的错误引导</li>
                 <li>Admin waitlist promotion and strict CSV import control</li>
               </ul>
             </div>

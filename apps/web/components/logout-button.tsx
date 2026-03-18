@@ -41,7 +41,7 @@ export function LogoutButton({
     >
       {loading ? <span className="size-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" /> : null}
       {!loading ? <LogOut className="size-4" /> : null}
-      {iconOnly ? null : loading ? "Logging out..." : "Logout"}
+      {iconOnly ? null : loading ? "退出中…" : "退出登录"}
     </button>
   );
 }

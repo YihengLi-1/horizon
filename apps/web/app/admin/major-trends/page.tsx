@@ -1,206 +1,159 @@
 "use client";
 
-/**
- * Admin Enrollment Trends by Major
- * Shows per-major enrollment counts across terms with drop rate analysis.
- */
-
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
-type TermStat = { termName: string; enrolled: number; completed: number; dropped: number; total: number };
-type MajorData = {
-  major: string; terms: TermStat[];
-  totalEnrollments: number; dropRate: number;
+type MajorTrend = {
+  major: string;
+  totalEnrollments: number;
+  dropRate: number;
+  terms: { termName: string; enrolled: number; completed: number; dropped: number; total: number }[];
 };
-type TrendsData = { majors: MajorData[]; termNames: string[]; totalRows: number };
 
-function sparkbar(terms: TermStat[]) {
-  const maxTotal = Math.max(1, ...terms.map((t) => t.total));
-  return (
-    <div className="flex items-end gap-0.5 h-8">
-      {terms.map((t, i) => (
-        <div
-          key={i}
-          title={`${t.termName}: ${t.total}`}
-          className="flex-1 bg-indigo-400 rounded-t hover:opacity-70 transition"
-          style={{ height: `${(t.total / maxTotal) * 100}%`, minHeight: "2px" }}
-        />
-      ))}
-    </div>
-  );
-}
+type TrendsData = { majors: MajorTrend[]; termNames: string[]; totalRows: number };
+type Term = { id: string; name: string };
 
 export default function MajorTrendsPage() {
   const [data, setData] = useState<TrendsData | null>(null);
+  const [terms, setTerms] = useState<Term[]>([]);
+  const [termId, setTermId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"total" | "dropRate">("total");
-  const [selected, setSelected] = useState<MajorData | null>(null);
 
   useEffect(() => {
-    void apiFetch<TrendsData>("/admin/major-trends")
-      .then((d) => setData(d))
-      .catch((e) => setError(e instanceof Error ? e.message : "加载失败"))
-      .finally(() => setLoading(false));
+    void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? [])).catch(() => {});
   }, []);
 
-  const filtered = useMemo(() => {
-    if (!data) return [];
-    return data.majors
-      .filter((m) => !search || m.major.toLowerCase().includes(search.toLowerCase()))
-      .sort((a, b) => sortBy === "total" ? b.totalEnrollments - a.totalEnrollments : b.dropRate - a.dropRate);
-  }, [data, search, sortBy]);
+  useEffect(() => {
+    setLoading(true);
+    setError("");
+    const params = new URLSearchParams();
+    if (termId) params.set("termId", termId);
+    void apiFetch<TrendsData>(`/admin/major-trends?${params}`)
+      .then((d) => { setData(d ?? null); setSelected(null); })
+      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
+      .finally(() => setLoading(false));
+  }, [termId]);
 
-  const viewMajor = selected;
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return (data?.majors ?? []).filter((m) => !q || m.major.toLowerCase().includes(q));
+  }, [data, search]);
+
+  const maxTotal = Math.max(1, ...(data?.majors ?? []).map((m) => m.totalEnrollments));
+  const detail = data?.majors.find((m) => m.major === selected);
 
   return (
-    <div className="campus-page space-y-6">
+    <div className="campus-page">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Enrollment Analytics</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">各专业注册趋势</h1>
-        <p className="mt-1 text-sm text-slate-500">按专业查看历史学期注册量与退课率</p>
+        <p className="campus-eyebrow">招生分析</p>
+        <h1 className="campus-hero-title">专业注册趋势</h1>
+        <p className="campus-hero-subtitle">按专业汇总各学期注册量、完成率与退课率</p>
       </section>
 
-      {error && <div className="campus-card border-red-200 bg-red-50 px-6 py-4 text-sm text-red-700">{error}</div>}
+      <section className="grid gap-3 sm:grid-cols-3">
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">专业数</p>
+          <p className="campus-kpi-value">{loading ? "—" : data?.majors.length ?? 0}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">总注册次数</p>
+          <p className="campus-kpi-value">{loading ? "—" : data?.totalRows ?? 0}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">平均退课率</p>
+          <p className="campus-kpi-value text-amber-600">
+            {loading || !data?.majors.length ? "—" :
+              `${Math.round(data.majors.reduce((s, m) => s + m.dropRate, 0) / data.majors.length * 100)}%`}
+          </p>
+        </div>
+      </section>
 
-      <div className="campus-toolbar gap-2 flex-wrap">
-        <input
-          className="campus-input flex-1 min-w-48"
-          placeholder="搜索专业…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <select
-          className="campus-select"
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as "total" | "dropRate")}
-        >
-          <option value="total">按总注册量排序</option>
-          <option value="dropRate">按退课率排序</option>
+      <div className="campus-toolbar">
+        <select className="campus-select w-40" value={termId} onChange={(e) => setTermId(e.target.value)}>
+          <option value="">全部学期</option>
+          {terms.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
-        {selected && (
-          <button
-            type="button"
-            onClick={() => setSelected(null)}
-            className="campus-chip border-slate-200 bg-slate-50 text-slate-600"
-          >
-            ← 返回
-          </button>
-        )}
+        <input className="campus-input max-w-xs" placeholder="搜索专业…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        {selected ? (
+          <button type="button" onClick={() => setSelected(null)} className="campus-btn-ghost text-xs">← 返回列表</button>
+        ) : null}
       </div>
 
+      {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+
       {loading ? (
-        <div className="campus-card px-6 py-14 text-center text-sm text-slate-500">⏳ 加载中…</div>
-      ) : viewMajor ? (
-        /* Detail view */
-        <div className="space-y-4">
-          <div className="campus-card p-4">
-            <p className="font-bold text-lg text-indigo-700">{viewMajor.major}</p>
-            <div className="flex gap-6 mt-2 text-sm">
-              <span className="text-slate-500">总注册: <strong className="text-slate-800">{viewMajor.totalEnrollments}</strong></span>
-              <span className="text-slate-500">退课率: <strong className={viewMajor.dropRate > 0.2 ? "text-red-600" : "text-slate-800"}>{(viewMajor.dropRate * 100).toFixed(1)}%</strong></span>
-            </div>
-          </div>
-
-          {/* Bar chart per term */}
-          <div className="campus-card p-4">
-            <h2 className="text-sm font-bold text-slate-900 mb-4">各学期注册量</h2>
-            {viewMajor.terms.length === 0 ? (
-              <p className="text-sm text-slate-400">暂无数据</p>
-            ) : (
-              <div className="flex items-end gap-3 h-32 overflow-x-auto">
-                {viewMajor.terms.map((t, i) => {
-                  const maxT = Math.max(1, ...viewMajor.terms.map((x) => x.total));
-                  return (
-                    <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-[40px]">
-                      <span className="text-xs text-slate-500 font-bold">{t.total}</span>
-                      <div className="flex items-end gap-0.5 h-20 w-full">
-                        <div className="bg-indigo-500 rounded-t flex-1" style={{ height: `${(t.enrolled / maxT) * 100}%`, minHeight: t.enrolled > 0 ? "2px" : "0" }} title={`在读: ${t.enrolled}`} />
-                        <div className="bg-emerald-400 rounded-t flex-1" style={{ height: `${(t.completed / maxT) * 100}%`, minHeight: t.completed > 0 ? "2px" : "0" }} title={`完成: ${t.completed}`} />
-                        <div className="bg-amber-400 rounded-t flex-1" style={{ height: `${(t.dropped / maxT) * 100}%`, minHeight: t.dropped > 0 ? "2px" : "0" }} title={`退课: ${t.dropped}`} />
+        <div className="campus-card p-10 text-center text-slate-400">加载中…</div>
+      ) : !selected ? (
+        <section className="campus-card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <th className="px-4 py-3 text-left">专业</th>
+                <th className="px-4 py-3 text-left">注册总量</th>
+                <th className="px-4 py-3 text-right">退课率</th>
+                <th className="px-4 py-3 text-right">覆盖学期</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr><td colSpan={4} className="px-4 py-10 text-center text-slate-400">暂无数据</td></tr>
+              ) : filtered.map((m) => (
+                <tr
+                  key={m.major}
+                  className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
+                  onClick={() => setSelected(m.major)}
+                >
+                  <td className="px-4 py-3 font-semibold text-[hsl(221_83%_43%)] hover:underline">{m.major}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-24 rounded-full bg-slate-100">
+                        <div className="h-2 rounded-full bg-[hsl(221_83%_43%)]" style={{ width: `${(m.totalEnrollments / maxTotal) * 100}%` }} />
                       </div>
-                      <span className="text-xs text-slate-400 text-center leading-tight">{t.termName.slice(-6)}</span>
+                      <span className="font-bold text-slate-800">{m.totalEnrollments}</span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-            <div className="flex gap-4 mt-2 text-xs text-slate-500">
-              {[["bg-indigo-500", "在读"], ["bg-emerald-400", "完成"], ["bg-amber-400", "退课"]].map(([bg, lbl]) => (
-                <span key={lbl} className="flex items-center gap-1"><span className={`w-3 h-3 rounded ${bg}`} />{lbl}</span>
-              ))}
-            </div>
-          </div>
-
-          <div className="campus-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-500">
-                    <th className="pb-2 pl-4 text-left font-semibold">学期</th>
-                    <th className="pb-2 pr-3 text-right font-semibold">在读</th>
-                    <th className="pb-2 pr-3 text-right font-semibold">完成</th>
-                    <th className="pb-2 pr-3 text-right font-semibold">退课</th>
-                    <th className="pb-2 pr-4 text-right font-semibold">合计</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {viewMajor.terms.map((t, i) => (
-                    <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
-                      <td className="py-2.5 pl-4 pr-3 font-medium text-slate-800">{t.termName}</td>
-                      <td className="py-2.5 pr-3 text-right text-indigo-600">{t.enrolled}</td>
-                      <td className="py-2.5 pr-3 text-right text-emerald-600">{t.completed}</td>
-                      <td className="py-2.5 pr-3 text-right text-amber-600">{t.dropped}</td>
-                      <td className="py-2.5 pr-4 text-right font-bold text-slate-700">{t.total}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* List view */
-        <div className="campus-card overflow-hidden">
-          <div className="px-4 py-2 border-b border-slate-100 text-xs text-slate-500">
-            共 {filtered.length} 个专业
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 text-slate-500">
-                  <th className="pb-2 pl-4 text-left font-semibold">专业</th>
-                  <th className="pb-2 pr-3 text-right font-semibold">学期数</th>
-                  <th className="pb-2 pr-3 text-right font-semibold">总注册</th>
-                  <th className="pb-2 pr-3 text-right font-semibold">退课率</th>
-                  <th className="pb-2 pr-4 font-semibold" style={{ minWidth: 80 }}>趋势</th>
+                  </td>
+                  <td className={`px-4 py-3 text-right font-bold ${m.dropRate >= 0.3 ? "text-red-600" : m.dropRate >= 0.15 ? "text-amber-600" : "text-emerald-600"}`}>
+                    {Math.round(m.dropRate * 100)}%
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-slate-600">{m.terms.length}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {filtered.map((m) => (
-                  <tr
-                    key={m.major}
-                    className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer"
-                    onClick={() => setSelected(m)}
-                  >
-                    <td className="py-2.5 pl-4 pr-3 font-medium text-slate-800">{m.major}</td>
-                    <td className="py-2.5 pr-3 text-right text-slate-500">{m.terms.length}</td>
-                    <td className="py-2.5 pr-3 text-right font-bold text-slate-700">{m.totalEnrollments}</td>
-                    <td className="py-2.5 pr-3 text-right">
-                      <span className={m.dropRate > 0.2 ? "text-red-600 font-bold" : m.dropRate > 0.1 ? "text-amber-600" : "text-emerald-600"}>
-                        {(m.dropRate * 100).toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="py-2.5 pr-4">{sparkbar(m.terms)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : detail ? (
+        <section className="campus-card overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100">
+            <p className="font-bold text-slate-900 text-lg">{detail.major}</p>
+            <p className="text-xs text-slate-400 mt-0.5">按学期注册明细</p>
           </div>
-        </div>
-      )}
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <th className="px-5 py-2 text-left">学期</th>
+                <th className="px-5 py-2 text-right">总注册</th>
+                <th className="px-5 py-2 text-right">在读</th>
+                <th className="px-5 py-2 text-right">已完成</th>
+                <th className="px-5 py-2 text-right">已退课</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detail.terms.map((t) => (
+                <tr key={t.termName} className="border-t border-slate-100 hover:bg-slate-50">
+                  <td className="px-5 py-2.5 font-semibold text-slate-800">{t.termName}</td>
+                  <td className="px-5 py-2.5 text-right font-mono font-bold text-slate-800">{t.total}</td>
+                  <td className="px-5 py-2.5 text-right font-mono text-blue-600">{t.enrolled}</td>
+                  <td className="px-5 py-2.5 text-right font-mono text-emerald-600">{t.completed}</td>
+                  <td className={`px-5 py-2.5 text-right font-mono ${t.dropped > 0 ? "text-red-500" : "text-slate-300"}`}>{t.dropped}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
     </div>
   );
 }

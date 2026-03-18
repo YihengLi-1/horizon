@@ -1,13 +1,8 @@
 "use client";
 
-/**
- * Student Course Recommendations
- * Shows courses popular among peers in the same major that the student hasn't taken.
- */
-
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { apiFetch } from "@/lib/api";
+import Link from "next/link";
 
 type Recommendation = {
   courseId: string;
@@ -20,86 +15,92 @@ type Recommendation = {
 };
 
 export default function RecommendationsPage() {
-  const [data, setData] = useState<Recommendation[]>([]);
+  const [items, setItems] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     void apiFetch<Recommendation[]>("/students/recommendations")
-      .then((d) => setData(d ?? []))
-      .catch((e) => setError(e instanceof Error ? e.message : "加载失败"))
+      .then((d) => setItems(d ?? []))
+      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setLoading(false));
   }, []);
 
-  const maxScore = Math.max(1, ...data.map((r) => r.popularityScore));
+  const maxScore = items.length ? Math.max(...items.map((i) => i.popularityScore)) : 1;
 
   return (
-    <div className="campus-page space-y-6">
+    <div className="campus-page">
       <section className="campus-hero">
-        <p className="campus-eyebrow">Personalized</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">课程推荐</h1>
-        <p className="mt-1 text-sm text-slate-500">基于同专业学生选课数据，为您推荐尚未选修的热门课程</p>
+        <p className="campus-eyebrow">智能推荐</p>
+        <h1 className="campus-hero-title">课程推荐</h1>
+        <p className="campus-hero-subtitle">基于同专业同学的选课数据，为你推荐可能感兴趣的课程</p>
       </section>
 
-      {error && <div className="campus-card border-red-200 bg-red-50 px-6 py-4 text-sm text-red-700">{error}</div>}
+      <section className="grid gap-3 sm:grid-cols-3">
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">推荐课程数</p>
+          <p className="campus-kpi-value">{loading ? "—" : items.length}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">最高热度</p>
+          <p className="campus-kpi-value text-indigo-600">{loading ? "—" : maxScore}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">推荐来源</p>
+          <p className="campus-kpi-value text-sm">同专业同学</p>
+        </div>
+      </section>
 
-      {loading ? (
-        <div className="campus-card px-6 py-14 text-center text-sm text-slate-500">⏳ 加载中…</div>
-      ) : data.length === 0 ? (
-        <div className="campus-card px-6 py-14 text-center text-sm text-slate-400">
-          <p className="text-lg mb-2">暂无推荐</p>
-          <p className="text-xs text-slate-300">您已选修了同专业学生的所有热门课程，或系统数据不足</p>
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : loading ? (
+        <div className="campus-card p-10 text-center text-slate-400">加载中…</div>
+      ) : items.length === 0 ? (
+        <div className="campus-card p-10 text-center">
+          <p className="text-3xl mb-3">🔍</p>
+          <p className="text-sm font-semibold text-slate-600">暂无推荐课程</p>
+          <p className="mt-1 text-xs text-slate-400">完成更多课程学习后，推荐系统将逐步完善。</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {data.map((rec, i) => (
-            <div key={rec.courseId} className="campus-card p-4 flex items-center gap-4 hover:shadow-md transition-shadow">
-              {/* Rank badge */}
-              <div className="shrink-0 size-10 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-700 text-sm">
-                #{i + 1}
-              </div>
-
-              {/* Course info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono font-bold text-indigo-700 text-sm">{rec.courseCode}</span>
-                  <span className="text-slate-800 font-medium text-sm truncate">{rec.courseTitle}</span>
-                </div>
-                <div className="flex items-center gap-3 mt-1 flex-wrap">
-                  <span className="text-xs text-slate-500">{rec.credits} 学分</span>
-                  <span className="text-xs text-slate-400">{rec.termName}</span>
-                  <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{rec.reason}</span>
-                </div>
-
-                {/* Popularity bar */}
-                <div className="mt-2 flex items-center gap-2">
-                  <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-indigo-400 rounded-full"
-                      style={{ width: `${(rec.popularityScore / maxScore) * 100}%` }}
-                    />
+        <section className="space-y-3">
+          {items.map((item, i) => {
+            const barPct = Math.round((item.popularityScore / maxScore) * 100);
+            return (
+              <div key={item.courseId + i} className="campus-card p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-sm font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                        {item.courseCode}
+                      </span>
+                      <span className="text-sm font-semibold text-slate-900">{item.courseTitle}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">{item.reason}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="h-1 w-24 rounded-full bg-slate-100">
+                        <div className="h-1 rounded-full bg-indigo-400" style={{ width: `${barPct}%` }} />
+                      </div>
+                      <span className="text-[11px] text-slate-500">热度 {item.popularityScore}</span>
+                    </div>
                   </div>
-                  <span className="text-[10px] text-slate-400 shrink-0">{rec.popularityScore} 人选修</span>
+                  <div className="shrink-0 text-right">
+                    <p className="text-xs text-slate-400">{item.termName}</p>
+                    <p className="mt-0.5 text-sm font-semibold text-slate-700">{item.credits} 学分</p>
+                  </div>
                 </div>
               </div>
-
-              {/* Add to cart link */}
-              <Link
-                href="/student/catalog"
-                className="shrink-0 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition"
-              >
-                去选课 →
-              </Link>
-            </div>
-          ))}
-        </div>
+            );
+          })}
+        </section>
       )}
 
-      <div className="campus-card p-4 text-xs text-slate-500 space-y-1">
-        <p className="font-semibold text-slate-700">推荐说明</p>
-        <p>• 推荐基于与您同专业的学生历史选课数据</p>
-        <p>• 已排除您已选修或已完成的课程</p>
-        <p>• 数据随学期更新，建议结合课程目录和顾问建议做决定</p>
+      <div className="flex justify-center">
+        <Link
+          href="/student/catalog"
+          className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
+        >
+          前往课程目录选课 →
+        </Link>
       </div>
     </div>
   );

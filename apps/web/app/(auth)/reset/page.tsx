@@ -16,11 +16,11 @@ function passwordStrength(pw: string): { score: number; label: string; color: st
   if (/[A-Z]/.test(pw)) score++;
   if (/[0-9]/.test(pw)) score++;
   if (/[^A-Za-z0-9]/.test(pw)) score++;
-  if (score <= 1) return { score, label: "Weak", color: "text-red-600", bg: "bg-red-500" };
-  if (score <= 2) return { score, label: "Fair", color: "text-amber-600", bg: "bg-amber-500" };
-  if (score <= 3) return { score, label: "Good", color: "text-yellow-600", bg: "bg-yellow-400" };
-  if (score <= 4) return { score, label: "Strong", color: "text-emerald-600", bg: "bg-emerald-500" };
-  return { score, label: "Very Strong", color: "text-emerald-700", bg: "bg-emerald-600" };
+  if (score <= 1) return { score, label: "弱", color: "text-red-600", bg: "bg-red-500" };
+  if (score <= 2) return { score, label: "一般", color: "text-amber-600", bg: "bg-amber-500" };
+  if (score <= 3) return { score, label: "良好", color: "text-yellow-600", bg: "bg-yellow-400" };
+  if (score <= 4) return { score, label: "强", color: "text-emerald-600", bg: "bg-emerald-500" };
+  return { score, label: "非常强", color: "text-emerald-700", bg: "bg-emerald-600" };
 }
 
 export default function ResetPage() {
@@ -48,7 +48,7 @@ export default function ResetPage() {
       });
       setMessage(data.message);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Reset failed");
+      setError(err instanceof Error ? err.message : "重置失败");
     } finally {
       setLoading(false);
     }
@@ -112,7 +112,7 @@ export default function ResetPage() {
                 Resetting...
               </span>
             ) : (
-              "Reset password"
+              "重置密码"
             )}
           </Button>
         </form>
@@ -122,7 +122,7 @@ export default function ResetPage() {
           </Link>
         ) : (
           <Link className="mt-4 block text-sm font-medium text-primary underline underline-offset-2" href="/login">
-            Back to login
+            返回登录
           </Link>
         )}
       </CardContent>
