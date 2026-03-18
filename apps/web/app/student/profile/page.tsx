@@ -284,7 +284,7 @@ function ChangePasswordCard() {
           className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-slate-800 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-60"
         >
           {saving ? (
-            <><span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />Saving</>
+            <><span className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />保存中…</>
           ) : "更新密码"}
         </button>
       </form>
@@ -702,7 +702,7 @@ export default function StudentProfilePage() {
 
             <section className="campus-card p-4">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">学习目标</h3>
-              <p className="mt-1 text-xs text-slate-500">Set a personal academic goal for this term and keep it visible.</p>
+              <p className="mt-1 text-xs text-slate-500">设置本学期的学业目标，随时可见。</p>
               <textarea
                 value={goalDraft}
                 onChange={(event) => setGoalDraft(event.target.value)}
@@ -724,7 +724,7 @@ export default function StudentProfilePage() {
 
             <section className="campus-card p-4">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">学期总结</h3>
-              <p className="mt-1 text-xs text-slate-500">Notes saved locally for the current term.</p>
+              <p className="mt-1 text-xs text-slate-500">本学期笔记，仅保存在本地浏览器中。</p>
               <textarea
                 value={semesterNotes}
                 onChange={(event) => saveSemesterNotes(event.target.value.slice(0, 500))}

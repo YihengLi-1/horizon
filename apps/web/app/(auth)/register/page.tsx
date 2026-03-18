@@ -91,7 +91,7 @@ export default function RegisterPage() {
   return (
     <Card className="rounded-3xl border-slate-200/90 bg-white/95 shadow-[0_20px_50px_-32px_rgba(15,23,42,0.75)]">
       <CardHeader className="pb-4">
-        <CardTitle className="font-heading text-2xl text-slate-900">Create Student Account</CardTitle>
+        <CardTitle className="font-heading text-2xl text-slate-900">创建学生账号</CardTitle>
         <CardDescription className="text-slate-600">邀请码 and email verification are required.</CardDescription>
       </CardHeader>
       <CardContent>
