@@ -1266,7 +1266,7 @@ export default function StudentCartPage() {
         <div className="grid gap-3 md:grid-cols-[260px_minmax(0,1fr)] md:items-end">
           <label className="block">
             <span className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <span className="inline-flex size-5 items-center justify-center rounded-full bg-slate-100 text-[10px]">T</span>
+              <span className="inline-flex size-5 items-center justify-center rounded-full bg-slate-100 text-[10px]">期</span>
               学期
             </span>
             <select

@@ -480,8 +480,8 @@ export default function SchedulePage() {
             <div className="flex items-start gap-2">
               <span className="text-base">⚠️</span>
               <div>
-                <span className="font-semibold">退课截止日期已过</span>{" "}
-                (was {new Date(activeTerm.dropDeadline).toLocaleDateString("zh-CN")}).
+                <span className="font-semibold">退课截止日期已过</span>
+                （{new Date(activeTerm.dropDeadline).toLocaleDateString("zh-CN")}）。
                 在读及待审批退课均需联系教务处办理。
               </div>
             </div>
@@ -887,7 +887,7 @@ export default function SchedulePage() {
                   <button
                     type="button"
                     key={key}
-                    title={`${enrollment.section.course.title}\n${enrollment.section.instructorName}\n${enrollment.section.location ?? "TBA"}`}
+                    title={`${enrollment.section.course.title}\n${enrollment.section.instructorName}\n${enrollment.section.location ?? "待定"}`}
                     onClick={() => setSelectedEnrollmentId(enrollment.id)}
                     className="z-10 mx-1 my-0.5 overflow-hidden rounded-md px-2 py-1 text-left text-white shadow-md transition hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
                     style={{

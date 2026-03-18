@@ -102,7 +102,7 @@ export default function DemandReportPage() {
           r.waitlisted,
           r.watching,
           r.demand,
-          r.utilizationPct ?? "N/A",
+          r.utilizationPct ?? "—",
         ].join(",")
       ),
     ];

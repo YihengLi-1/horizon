@@ -72,7 +72,7 @@ export default function DeptGpaPage() {
     const csvRows = [
       headers.join(","),
       ...filtered.map((r) =>
-        [`"${r.dept}"`, r.latestGpa?.toFixed(2) ?? "N/A", r.avgPassRate.toFixed(1), r.terms.length].join(",")
+        [`"${r.dept}"`, r.latestGpa?.toFixed(2) ?? "—", r.avgPassRate.toFixed(1), r.terms.length].join(",")
       ),
     ];
     const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
@@ -104,7 +104,7 @@ export default function DeptGpaPage() {
         <div className="campus-kpi">
           <p className="campus-kpi-label">最高 GPA 院系</p>
           <p className="campus-kpi-value text-sm">
-            {rows.sort((a, b) => (b.latestGpa ?? 0) - (a.latestGpa ?? 0))[0]?.dept ?? "N/A"}
+            {rows.sort((a, b) => (b.latestGpa ?? 0) - (a.latestGpa ?? 0))[0]?.dept ?? "—"}
           </p>
         </div>
       </section>
@@ -170,7 +170,7 @@ export default function DeptGpaPage() {
                     <div className="text-right">
                       <p className="text-xs text-slate-400">最新 GPA</p>
                       <p className={`text-base font-bold ${gpaColor(row.latestGpa)}`}>
-                        {row.latestGpa?.toFixed(2) ?? "N/A"}
+                        {row.latestGpa?.toFixed(2) ?? "—"}
                       </p>
                     </div>
                     <div className="text-right">
@@ -198,7 +198,7 @@ export default function DeptGpaPage() {
                             <td className="px-5 py-2 font-medium text-slate-800">{t.termName}</td>
                             <td className="px-5 py-2 text-right font-mono text-slate-700">{t.students}</td>
                             <td className={`px-5 py-2 text-right font-bold ${gpaColor(t.avgGpa)}`}>
-                              {t.avgGpa?.toFixed(2) ?? "N/A"}
+                              {t.avgGpa?.toFixed(2) ?? "—"}
                             </td>
                             <td className="px-5 py-2 text-right text-slate-700">
                               {t.passRate !== null ? `${t.passRate.toFixed(0)}%` : "—"}
