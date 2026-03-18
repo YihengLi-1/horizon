@@ -405,13 +405,13 @@ export default function SchedulePage() {
                 href={termId ? `/student/catalog?termId=${termId}` : "/student/catalog"}
                 className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 no-underline transition hover:bg-white"
               >
-                Browse catalog
+                浏览课程目录
               </Link>
               <Link
                 href={termId ? `/student/cart?termId=${termId}` : "/student/cart"}
                 className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 no-underline transition hover:bg-white"
               >
-                Open cart
+                打开购物车
               </Link>
             </div>
             <div className="flex items-center justify-end gap-2">
@@ -643,7 +643,7 @@ export default function SchedulePage() {
                           onClick={resetStatusFilters}
                           className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
                         >
-                          Show all statuses
+                          显示全部状态
                         </button>
                       </div>
                     ) : null}
@@ -737,7 +737,7 @@ export default function SchedulePage() {
                             onClick={resetStatusFilters}
                             className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
                           >
-                            Show all statuses
+                            显示全部状态
                           </button>
                         </>
                       )}
@@ -786,7 +786,7 @@ export default function SchedulePage() {
                               className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-slate-100 px-3 text-xs font-medium text-slate-400 cursor-not-allowed"
                               title="退课截止日期已过"
                             >
-                              Drop unavailable
+                              无法退课
                             </button>
                             <p className="text-[11px] text-amber-700">请联系注册处</p>
                           </div>

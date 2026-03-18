@@ -799,7 +799,7 @@ export default function AdminSectionsPage() {
               onClick={() => void loadSections()}
               className="inline-flex h-10 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:bg-slate-50"
             >
-              Refresh
+              刷新
             </button>
           </div>
         </div>
@@ -819,7 +819,7 @@ export default function AdminSectionsPage() {
           <label className="block">
             <span className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
               <span className="inline-flex size-5 items-center justify-center rounded-full bg-slate-100 text-[10px]">T</span>
-              Term
+              学期
             </span>
             <select
               className="campus-select"

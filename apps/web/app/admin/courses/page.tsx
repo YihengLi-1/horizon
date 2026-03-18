@@ -494,7 +494,7 @@ export default function CoursesPage() {
                 {savingEdit ? (
                   <>
                     <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                    Saving
+                    保存中…
                   </>
                 ) : (
                   "保存更改"

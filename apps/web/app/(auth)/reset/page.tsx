@@ -54,6 +54,24 @@ export default function ResetPage() {
     }
   };
 
+  if (!token) {
+    return (
+      <Card className="rounded-3xl border-slate-200/90 bg-white/95 shadow-[0_20px_50px_-32px_rgba(15,23,42,0.75)]">
+        <CardHeader className="pb-4">
+          <CardTitle className="font-heading text-2xl text-slate-900">重置密码</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            链接无效或已过期，请重新申请密码重置。
+          </div>
+          <Link className="mt-4 block text-sm font-medium text-primary underline underline-offset-2" href="/forgot">
+            重新申请重置链接
+          </Link>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="rounded-3xl border-slate-200/90 bg-white/95 shadow-[0_20px_50px_-32px_rgba(15,23,42,0.75)]">
       <CardHeader className="pb-4">

@@ -136,7 +136,7 @@ async function bootstrap() {
   const csrfCookieName = resolveTokenName("CSRF_COOKIE_NAME", "sis-csrf", "cookie");
   const csrfHeaderName = resolveTokenName("CSRF_HEADER_NAME", "x-csrf-token", "header");
   const csrfExemptPaths = new Set(
-    (process.env.CSRF_EXEMPT_PATHS || "/auth/login,/auth/register,/auth/forgot-password,/auth/reset-password")
+    (process.env.CSRF_EXEMPT_PATHS || "/auth/login,/auth/register,/auth/forgot-password,/auth/reset-password,/auth/resend-verification")
       .split(",")
       .map((path) => path.trim())
       .filter(Boolean)

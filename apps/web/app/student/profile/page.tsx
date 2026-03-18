@@ -717,7 +717,7 @@ export default function StudentProfilePage() {
                   onClick={saveGoal}
                   className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
-                  Save Goal
+                  保存目标
                 </button>
               </div>
             </section>
