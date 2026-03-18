@@ -578,6 +578,21 @@ async function seedSupportData() {
   });
 }
 
+async function seedInviteCodes() {
+  // Seed a demo open invite code so students can self-register without needing a pre-issued code.
+  await prisma.inviteCode.upsert({
+    where: { code: "OPEN-2026" },
+    update: {},
+    create: {
+      code: "OPEN-2026",
+      maxUses: 1000,
+      usedCount: 0,
+      active: true,
+      expiresAt: new Date("2027-12-31T23:59:59Z"),
+    },
+  });
+}
+
 async function main() {
   await resetDatabase();
   await seedUsers();
@@ -587,6 +602,7 @@ async function main() {
   await seedAnnouncements();
   await seedEnrollments();
   await seedAdvisorAssignments();
+  await seedInviteCodes();
   await seedSupportData();
 
   const [
@@ -617,7 +633,8 @@ async function main() {
     student2: "student2@univ.edu / Student1234!",
     student3: "student3@univ.edu / Student1234!",
     student4: "student4@univ.edu / Student1234!",
-    student5: "student5@univ.edu / Student1234!"
+    student5: "student5@univ.edu / Student1234!",
+    inviteCode: "OPEN-2026 (use at /register to create new student accounts)"
   });
   console.log(`Terms: ${termCount}, Courses: ${courseCount}, Sections: ${currentSectionCount}, Users: ${demoUserCount}, Enrollments: ${enrollmentCount}`);
   console.log(`Seed extras: TotalSections=${totalSectionCount}, TotalUsers=${totalUserCount}, Announcements=${announcementCount}, CapacityFillers=${fillerStudents.length}`);

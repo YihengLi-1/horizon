@@ -66,6 +66,8 @@ docker compose exec api pnpm --filter @sis/api exec prisma db seed
 | 教师 | faculty1@univ.edu | Faculty1234! |
 | 顾问 | advisor1@univ.edu | Advisor1234! |
 
+> 演示邀请码：`OPEN-2026`（可在 `/register` 页面注册新学生账号，限 1000 次使用，有效期至 2027 年底）
+
 ## 核心功能
 - 学生选课：课程目录 → 购物车 → 预检 → 提交
 - 候补队列：满班自动排队，有人退课后自动晋升并通知
