@@ -369,7 +369,7 @@ export default function SchedulePage() {
           </div>
           <div className="w-full max-w-sm space-y-2">
             <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Term</label>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">学期</label>
               <select
                 className="campus-select bg-white/95"
                 value={termId}
@@ -679,7 +679,7 @@ export default function SchedulePage() {
                       {enrollment.status === "DROPPED" ? (
                         <span className="text-[11px] text-slate-500">已退课</span>
                       ) : dropDeadlinePassed && (enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL") ? (
-                        <span className="text-[11px] text-amber-700">Drop unavailable after deadline</span>
+                        <span className="text-[11px] text-amber-700">已过退课截止日期</span>
                       ) : enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL" || enrollment.status === "WAITLISTED" ? (
                         <button
                           type="button"
@@ -720,7 +720,7 @@ export default function SchedulePage() {
                         <>
                           <span className="text-3xl">📅</span>
                           <p className="text-sm font-medium text-slate-700">本学期暂无课程</p>
-                          <p className="text-xs text-slate-500">Browse the catalog and add sections to your cart to register.</p>
+                          <p className="text-xs text-slate-500">在课程目录中添加课程到购物车后，这里将显示课表。</p>
                           <a
                             href={termId ? `/student/catalog?termId=${termId}` : "/student/catalog"}
                             className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 no-underline transition hover:bg-slate-50"
@@ -788,7 +788,7 @@ export default function SchedulePage() {
                             >
                               Drop unavailable
                             </button>
-                            <p className="text-[11px] text-amber-700">Contact registrar/support</p>
+                            <p className="text-[11px] text-amber-700">请联系注册处</p>
                           </div>
                         ) : enrollment.status === "ENROLLED" || enrollment.status === "PENDING_APPROVAL" || enrollment.status === "WAITLISTED" ? (
                           <button

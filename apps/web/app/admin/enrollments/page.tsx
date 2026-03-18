@@ -286,7 +286,7 @@ export default function EnrollmentsPage() {
         method: "POST",
         body: JSON.stringify({ ids: selectedPendingIds })
       });
-      setNotice(`Approved ${result.approved} pending enrollment(s).`);
+      setNotice(`已批准 ${result.approved} 条待审注册。`);
       await load();
       clearSelection();
     } catch (err) {
@@ -365,10 +365,10 @@ export default function EnrollmentsPage() {
     setBulkSaving(false);
 
     if (failed.length > 0) {
-      setNotice(`Bulk update complete: ${success} succeeded, ${failed.length} failed.`);
+      setNotice(`批量操作完成：${success} 条成功，${failed.length} 条失败。`);
       return;
     }
-    setNotice(`Bulk update complete: ${success} enrollment(s) moved to ${nextStatus}.`);
+    setNotice(`批量操作完成：${success} 条注册已更新为 ${nextStatus}。`);
   };
 
   // Keep page in range after totals change
@@ -522,7 +522,7 @@ export default function EnrollmentsPage() {
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-300 bg-blue-50 px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {bulkSaving ? <span className="size-3.5 animate-spin rounded-full border-2 border-blue-300 border-t-blue-700" /> : null}
-              Approve Selected
+              批量审批
             </button>
             <button
               type="button"
@@ -531,7 +531,7 @@ export default function EnrollmentsPage() {
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-red-300 bg-red-50 px-3 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {bulkSaving ? <span className="size-3.5 animate-spin rounded-full border-2 border-red-300 border-t-red-700" /> : null}
-              Batch Drop
+              批量退课
             </button>
             <button
               type="button"
@@ -539,12 +539,12 @@ export default function EnrollmentsPage() {
               disabled={selectedPendingIds.length === 0}
               className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Clear
+              清除选择
             </button>
           </div>
         </div>
         <p className="mt-2 text-xs text-slate-500">
-          Showing {rows.length} of {total} · Pending selected: {selectedPendingIds.length}
+          共 {total} 条，当前显示 {rows.length} 条 · 已选待审：{selectedPendingIds.length}
         </p>
       </section>
 

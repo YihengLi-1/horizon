@@ -7,7 +7,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="absolute inset-0 opacity-35 [background-image:linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(0deg,rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:28px_28px]" />
           <div className="relative z-10 flex h-full flex-col justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-100/90">University SIS</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-100/90">地平线学籍管理系统</p>
               <h1 className="mt-3 max-w-md font-heading text-4xl font-bold leading-tight text-white">
                 Student Information & Registration Portal
               </h1>
@@ -21,7 +21,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               <ul className="space-y-1.5 text-sm">
                 <li>课程目录，含先修课与容量提示</li>
                 <li>提交前购物车预检，提供可操作的错误引导</li>
-                <li>Admin waitlist promotion and strict CSV import control</li>
+                <li>管理员候补晋升与 CSV 导入管控</li>
               </ul>
             </div>
           </div>

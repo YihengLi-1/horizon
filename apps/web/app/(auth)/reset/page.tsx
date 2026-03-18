@@ -57,12 +57,12 @@ export default function ResetPage() {
   return (
     <Card className="rounded-3xl border-slate-200/90 bg-white/95 shadow-[0_20px_50px_-32px_rgba(15,23,42,0.75)]">
       <CardHeader className="pb-4">
-        <CardTitle className="font-heading text-2xl text-slate-900">Reset Password</CardTitle>
+        <CardTitle className="font-heading text-2xl text-slate-900">重置密码</CardTitle>
       </CardHeader>
       <CardContent>
         <form className="space-y-3" onSubmit={onSubmit}>
           <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700">New password</label>
+            <label className="text-sm font-medium text-slate-700">新密码</label>
             <div className="relative">
               <Input
                 className="h-10 pr-10"

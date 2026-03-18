@@ -878,7 +878,7 @@ export default function StudentCatalogPage() {
             >
               View cart {cartItems.length > 0 ? `(${cartItems.length})` : ""}
             </Link>
-            <p className="text-xs text-slate-500">Run cart precheck before final submit.</p>
+            <p className="text-xs text-slate-500">提交前请先运行预检。</p>
           </div>
         </div>
       </section>
@@ -889,7 +889,7 @@ export default function StudentCatalogPage() {
       <section className="campus-toolbar">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Term</span>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">学期</span>
             <select
               className="campus-select"
               value={termId}
@@ -914,7 +914,7 @@ export default function StudentCatalogPage() {
             </select>
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search</span>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">搜索</span>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
               <input
@@ -1356,11 +1356,11 @@ export default function StudentCatalogPage() {
 
                     <dl className="grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
                       <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2">
-                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Instructor</dt>
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">教师</dt>
                         <dd className="mt-1 font-medium text-slate-800">{section.instructorName}</dd>
                       </div>
                       <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2">
-                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Location</dt>
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">上课地点</dt>
                         <dd className="mt-1 font-medium text-slate-800">{section.location ?? "TBA"}</dd>
                       </div>
                     </dl>
@@ -1380,7 +1380,7 @@ export default function StudentCatalogPage() {
 
                     {prereqs.length > 0 ? (
                       <div className="space-y-1">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Prerequisites</p>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">先修课要求</p>
                         <div className="flex flex-wrap items-center gap-1.5">
                           {prereqs.map((prereqCode, index) => (
                             <span
@@ -1512,7 +1512,7 @@ export default function StudentCatalogPage() {
                         </button>
                       )}
                       {cartConflict && !inCart && !alreadyEnrolledHere ? (
-                        <p className="text-sm text-amber-700">Conflict will be rechecked at submit.</p>
+                        <p className="text-sm text-amber-700">时间冲突将在提交时重新检测。</p>
                       ) : null}
                       {isFull && !inCart && !alreadyEnrolledHere && !alreadyCompleted && isRegistrationOpen ? (
                         <p className="text-sm text-slate-500">满班课程会先加入购物车，提交后按候补顺序处理。</p>

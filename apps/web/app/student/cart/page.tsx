@@ -1538,7 +1538,7 @@ export default function StudentCartPage() {
           role="alert"
           className="rounded-2xl border border-red-300 bg-red-50 p-4 shadow-sm outline-none"
         >
-          <h2 className="text-sm font-semibold text-red-900">There are issues with your cart</h2>
+          <h2 className="text-sm font-semibold text-red-900">购物车存在以下问题</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-red-800">
             {summaryIssues.map((item) => (
               <li key={item.key}>
@@ -1782,11 +1782,11 @@ export default function StudentCartPage() {
           <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-slate-50">
               <tr className="border-b border-slate-200 text-left">
-                <th className="px-4 py-3 font-semibold text-slate-700">Course</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Section</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Credits</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Approval</th>
-                <th className="px-4 py-3 font-semibold text-slate-700">Action</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">课程</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">教学班</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">学分</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">审批</th>
+                <th className="px-4 py-3 font-semibold text-slate-700">操作</th>
               </tr>
             </thead>
             <tbody>

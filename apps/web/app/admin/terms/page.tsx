@@ -359,7 +359,7 @@ export default function TermsPage() {
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">教学日历管理</p>
             <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">学期管理</h1>
-            <p className="text-sm text-slate-600 md:text-base">Create, copy, and manage registration windows, drop deadlines, and per-term credit caps.</p>
+            <p className="text-sm text-slate-600 md:text-base">创建并管理选课窗口、退课截止日期和每学期最大学分上限。</p>
             <div className="flex flex-wrap gap-2 pt-1">
               <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{stats.total} term(s)</span>
               <span className="campus-chip border-emerald-200 bg-emerald-50 text-emerald-700">{stats.active} active</span>

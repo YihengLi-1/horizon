@@ -36,7 +36,7 @@ export default function VerifyPage() {
   return (
     <Card className="rounded-3xl border-slate-200/90 bg-white/95 shadow-[0_20px_50px_-32px_rgba(15,23,42,0.75)]">
       <CardHeader className="pb-4">
-        <CardTitle className="font-heading text-2xl text-slate-900">Email Verification</CardTitle>
+        <CardTitle className="font-heading text-2xl text-slate-900">邮箱验证</CardTitle>
       </CardHeader>
       <CardContent>
         <div

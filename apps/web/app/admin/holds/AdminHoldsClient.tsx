@@ -204,11 +204,11 @@ export default function AdminHoldsClient() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="campus-kpi border-slate-200 bg-white">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Holds</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">学籍限制总数</p>
               <p className="mt-1 text-2xl font-semibold text-slate-900">{holds.length}</p>
             </div>
             <div className="campus-kpi border-red-200 bg-red-50">
-              <p className="text-xs font-semibold uppercase tracking-wide text-red-700">Active Holds</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-red-700">生效中</p>
               <p className="mt-1 text-2xl font-semibold text-red-900">{activeCount}</p>
             </div>
           </div>
@@ -223,8 +223,8 @@ export default function AdminHoldsClient() {
       <section className="grid gap-5 xl:grid-cols-[380px_minmax(0,1fr)]">
         <form className="campus-card space-y-4 p-5" onSubmit={submitCreate}>
           <div>
-            <h2 className="text-base font-semibold text-slate-900">Create Hold</h2>
-            <p className="mt-1 text-sm text-slate-600">Search a student, choose the hold type, and record the reason clearly.</p>
+            <h2 className="text-base font-semibold text-slate-900">创建限制</h2>
+            <p className="mt-1 text-sm text-slate-600">搜索学生，选择类型，并清楚记录原因。</p>
           </div>
 
           <label className="block">

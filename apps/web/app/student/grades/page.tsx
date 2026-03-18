@@ -465,7 +465,7 @@ export default async function GradesPage({
           <div className="flex flex-col items-center gap-3">
             <span className="text-4xl">🎓</span>
             <p className="text-sm font-medium text-slate-700">暂无成绩记录</p>
-            <p className="text-xs text-slate-500">Grades will appear here once instructors submit them for your completed courses.</p>
+            <p className="text-xs text-slate-500">成绩将在教师提交后显示。</p>
             <Link
               href="/student/schedule"
               className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 no-underline transition hover:bg-slate-50"

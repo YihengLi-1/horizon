@@ -429,7 +429,7 @@ export default function CoursesPage() {
                   <option key={c.id} value={c.id}>{c.code} — {c.title}</option>
                 ))}
             </select>
-            <p className="mt-1 text-[11px] text-slate-400">Hold Cmd/Ctrl to select multiple</p>
+            <p className="mt-1 text-[11px] text-slate-400">按住 Cmd/Ctrl 可多选</p>
           </div>
         </form>
         ) : null}
@@ -528,7 +528,7 @@ export default function CoursesPage() {
                     <option key={c.id} value={c.id}>{c.code} — {c.title}</option>
                   ))}
               </select>
-              <p className="mt-1 text-[11px] text-slate-400">Hold Cmd/Ctrl to select multiple</p>
+              <p className="mt-1 text-[11px] text-slate-400">按住 Cmd/Ctrl 可多选</p>
             </div>
           </form>
         </section>
@@ -547,7 +547,7 @@ export default function CoursesPage() {
             />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Dept</span>
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">院系</span>
             <select className="campus-select" value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
               <option value="ALL">全部院系</option>
               {deptOptions.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
