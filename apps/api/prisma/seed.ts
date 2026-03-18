@@ -38,6 +38,7 @@ type SectionSeed = {
   capacity: number;
   modality: Modality;
   instructorName: string;
+  instructorUserId?: string;
   location: string;
   startDate: string;
   pattern: keyof typeof MEETING_PATTERNS;
@@ -176,12 +177,12 @@ const MEETING_PATTERNS = {
 } as const;
 
 const currentSections: SectionSeed[] = [
-  { id: "sec-f25-cs101-a", termId: IDS.fall2025, courseSeedId: "course-cs101", sectionCode: "CS101-A", capacity: 30, modality: Modality.ON_CAMPUS, instructorName: "张伟明", location: "信息楼101", startDate: "2026-02-23T00:00:00.000Z", pattern: "mwf0800" },
+  { id: "sec-f25-cs101-a", termId: IDS.fall2025, courseSeedId: "course-cs101", sectionCode: "CS101-A", capacity: 30, modality: Modality.ON_CAMPUS, instructorName: "陈建国", instructorUserId: "seed-faculty-1", location: "信息楼101", startDate: "2026-02-23T00:00:00.000Z", pattern: "mwf0800" },
   { id: "sec-f25-cs101-b", termId: IDS.fall2025, courseSeedId: "course-cs101", sectionCode: "CS101-B", capacity: 36, modality: Modality.ON_CAMPUS, instructorName: "李晓华", location: "信息楼103", startDate: "2026-02-23T00:00:00.000Z", pattern: "tr1000" },
   { id: "sec-f25-cs201-a", termId: IDS.fall2025, courseSeedId: "course-cs201", sectionCode: "CS201-A", capacity: 32, modality: Modality.ON_CAMPUS, instructorName: "王建国", location: "信息楼205", startDate: "2026-02-23T00:00:00.000Z", pattern: "mw1300" },
   { id: "sec-f25-cs201-b", termId: IDS.fall2025, courseSeedId: "course-cs201", sectionCode: "CS201-B", capacity: 35, modality: Modality.HYBRID, instructorName: "陈雅琴", location: "信息楼207", startDate: "2026-02-23T00:00:00.000Z", pattern: "tr1400" },
   { id: "sec-f25-cs301-a", termId: IDS.fall2025, courseSeedId: "course-cs301", sectionCode: "CS301-A", capacity: 30, modality: Modality.ON_CAMPUS, instructorName: "刘明远", location: "信息楼301", startDate: "2026-02-23T00:00:00.000Z", pattern: "mwf1100" },
-  { id: "sec-f25-cs401-a", termId: IDS.fall2025, courseSeedId: "course-cs401", sectionCode: "CS401-A", capacity: 32, modality: Modality.HYBRID, instructorName: "张伟明", location: "信息楼401", startDate: "2026-02-23T00:00:00.000Z", pattern: "mw1500" },
+  { id: "sec-f25-cs401-a", termId: IDS.fall2025, courseSeedId: "course-cs401", sectionCode: "CS401-A", capacity: 32, modality: Modality.HYBRID, instructorName: "陈建国", instructorUserId: "seed-faculty-1", location: "信息楼401", startDate: "2026-02-23T00:00:00.000Z", pattern: "mw1500" },
   { id: "sec-f25-cs450-a", termId: IDS.fall2025, courseSeedId: "course-cs450", sectionCode: "CS450-A", capacity: 40, modality: Modality.ON_CAMPUS, instructorName: "李晓华", location: "信息楼305", startDate: "2026-02-23T00:00:00.000Z", pattern: "tr0830" },
   { id: "sec-f25-math101-a", termId: IDS.fall2025, courseSeedId: "course-math101", sectionCode: "MATH101-A", capacity: 48, modality: Modality.ON_CAMPUS, instructorName: "陈雅琴", location: "理学楼120", startDate: "2026-02-23T00:00:00.000Z", pattern: "mwf0800" },
   { id: "sec-f25-math101-b", termId: IDS.fall2025, courseSeedId: "course-math101", sectionCode: "MATH101-B", capacity: 42, modality: Modality.ON_CAMPUS, instructorName: "刘明远", location: "理学楼122", startDate: "2026-02-23T00:00:00.000Z", pattern: "tr1000" },
@@ -401,6 +402,7 @@ async function seedSections() {
         capacity: section.capacity,
         credits: course.credits,
         instructorName: section.instructorName,
+        instructorUserId: section.instructorUserId ?? null,
         location: section.location,
         startDate: new Date(section.startDate),
         meetingTimes: {
@@ -527,6 +529,17 @@ async function seedEnrollments() {
   });
 }
 
+async function seedAdvisorAssignments() {
+  // Assign advisor1 to the first 3 demo students so advisor dashboard shows real data
+  await prisma.advisorAssignment.createMany({
+    data: [
+      { studentId: "seed-student-1", advisorId: "seed-advisor-1", assignedByUserId: IDS.admin, active: true },
+      { studentId: "seed-student-2", advisorId: "seed-advisor-1", assignedByUserId: IDS.admin, active: true },
+      { studentId: "seed-student-3", advisorId: "seed-advisor-1", assignedByUserId: IDS.admin, active: true },
+    ]
+  });
+}
+
 async function seedSupportData() {
   await prisma.systemSetting.createMany({
     data: [
@@ -573,6 +586,7 @@ async function main() {
   await seedSections();
   await seedAnnouncements();
   await seedEnrollments();
+  await seedAdvisorAssignments();
   await seedSupportData();
 
   const [
