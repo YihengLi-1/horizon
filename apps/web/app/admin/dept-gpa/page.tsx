@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type DeptTerm = {
@@ -35,6 +35,7 @@ export default function DeptGpaPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? [])).catch(() => {});
@@ -49,6 +50,17 @@ export default function DeptGpaPage() {
       .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setLoading(false));
   }, [termId]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.toUpperCase();
@@ -112,8 +124,9 @@ export default function DeptGpaPage() {
       <div className="campus-toolbar">
         <div className="flex flex-1 flex-wrap items-center gap-3">
           <input
+            ref={searchRef}
             className="campus-input max-w-xs"
-            placeholder="按院系代码搜索…"
+            placeholder="按院系代码搜索… (/)"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />

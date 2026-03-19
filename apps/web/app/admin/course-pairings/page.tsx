@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type CoursePairing = {
@@ -22,12 +22,24 @@ export default function CoursePairingsPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void apiFetch<CoursePairing[]>("/admin/course-pairings")
       .then((d) => setData(d ?? []))
       .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
 
   const filtered = useMemo(() => {
@@ -82,8 +94,9 @@ export default function CoursePairingsPage() {
 
       <div className="campus-toolbar">
         <input
+          ref={searchRef}
           className="campus-input max-w-sm"
-          placeholder="按课程代码或名称搜索…"
+          placeholder="按课程代码或名称搜索… (/)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

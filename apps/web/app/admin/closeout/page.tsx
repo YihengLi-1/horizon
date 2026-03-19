@@ -32,7 +32,7 @@ const ACTION_CONFIG: Record<Action, { label: string; description: string; warnin
   },
   pending_to_dropped: {
     label: "待审批 → 已退课",
-    description: "将所有 PENDING_APPROVAL 状态转为 DROPPED",
+    description: "将所有待审批状态转为已退课",
     warning: "所有待审批申请将被拒绝",
     color: "text-red-700",
   },

@@ -11,9 +11,7 @@ export default function ScheduleError({
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">课程表</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">
-          出现错误
-        </h1>
+        <h1 className="campus-title">出现错误</h1>
         <p className="mt-2 text-sm text-slate-600">{error.message}</p>
       </section>
       <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">

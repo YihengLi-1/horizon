@@ -89,11 +89,11 @@ export default function WatchlistPage() {
 
   return (
     <div className="campus-page space-y-6">
-      <div className="campus-hero">
+      <section className="campus-hero">
         <p className="campus-eyebrow">选课工具</p>
         <h1 className="campus-title">课程订阅</h1>
         <p className="campus-subtitle">当订阅的班级出现空位时系统会通知您</p>
-      </div>
+      </section>
 
       {!loading && watches.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-3">

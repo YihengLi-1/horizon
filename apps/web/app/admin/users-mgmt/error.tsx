@@ -1,10 +1,27 @@
 "use client";
-export default function Error({ reset }: { error: Error; reset: () => void }) {
+
+export default function UsersMgmtError({
+  error,
+  reset,
+}: {
+  error: Error;
+  reset: () => void;
+}) {
   return (
-    <div className="campus-page flex flex-col items-center justify-center gap-4 py-24 text-center">
-      <p className="text-lg font-semibold text-slate-700">出错了</p>
-      <p className="text-sm text-slate-500">发生了意外错误，请稍后再试。</p>
-      <button onClick={reset} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+    <div className="campus-page space-y-4">
+      <section className="campus-hero">
+        <p className="campus-eyebrow">用户管理</p>
+        <h1 className="campus-title">出现错误</h1>
+      </section>
+      <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+        <p className="font-semibold">用户账号管理加载失败。</p>
+        <p className="mt-1 text-red-600">{error.message}</p>
+      </div>
+      <button
+        type="button"
+        onClick={reset}
+        className="inline-flex h-10 items-center rounded-xl bg-primary px-5 text-sm font-semibold text-white transition hover:bg-primary/90"
+      >
         重试
       </button>
     </div>

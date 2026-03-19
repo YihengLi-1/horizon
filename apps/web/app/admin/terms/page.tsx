@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { apiFetch } from "@/lib/api";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type Term = {
   id: string;
@@ -187,6 +188,7 @@ export default function TermsPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   const load = async () => {
     try {
@@ -275,21 +277,27 @@ export default function TermsPage() {
     }
   };
 
-  const onDelete = async (id: string, name: string) => {
-    if (!window.confirm(`确认删除学期"${name}"？`)) return;
-    try {
-      setDeletingId(id);
-      setError("");
-      await apiFetch(`/admin/terms/${id}`, { method: "DELETE" });
-      toast(`已删除学期 ${name}`, "success");
-      await load();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "删除失败";
-      setError(message);
-      toast(message.includes("active") ? "此学期有学生在读，无法删除" : message, "error");
-    } finally {
-      setDeletingId(null);
-    }
+  const onDelete = (id: string, name: string) => {
+    setConfirmState({
+      title: "删除学期",
+      message: `确认删除学期"${name}"？此操作不可撤销。`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          setDeletingId(id);
+          setError("");
+          await apiFetch(`/admin/terms/${id}`, { method: "DELETE" });
+          toast(`已删除学期 ${name}`, "success");
+          await load();
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "删除失败";
+          setError(message);
+          toast(message.includes("active") ? "此学期有学生在读，无法删除" : message, "error");
+        } finally {
+          setDeletingId(null);
+        }
+      },
+    });
   };
 
   const onToggleRegistration = async (term: Term) => {
@@ -358,11 +366,11 @@ export default function TermsPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">教学日历管理</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">学期管理</h1>
-            <p className="text-sm text-slate-600 md:text-base">创建并管理选课窗口、退课截止日期和每学期最大学分上限。</p>
+            <h1 className="campus-title">学期管理</h1>
+            <p className="campus-subtitle">创建并管理选课窗口、退课截止日期和每学期最大学分上限。</p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{stats.total} term(s)</span>
-              <span className="campus-chip border-emerald-200 bg-emerald-50 text-emerald-700">{stats.active} active</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{stats.total} 个学期</span>
+              <span className="campus-chip border-emerald-200 bg-emerald-50 text-emerald-700">{stats.active} 个进行中</span>
             </div>
           </div>
           <div className="flex gap-2">
@@ -388,19 +396,19 @@ export default function TermsPage() {
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-slate-200 bg-white">
           <p className="text-xs font-semibold text-slate-500">学期总数</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{stats.total}</p>
+          <p className="campus-kpi-value">{stats.total}</p>
         </div>
         <div className="campus-kpi border-emerald-200 bg-emerald-50/70">
           <p className="text-xs font-semibold text-emerald-700">活跃学期</p>
-          <p className="mt-1 text-2xl font-semibold text-emerald-900">{stats.active}</p>
+          <p className="campus-kpi-value text-emerald-900">{stats.active}</p>
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50/70">
           <p className="text-xs font-semibold text-blue-700">教学班总数</p>
-          <p className="mt-1 text-2xl font-semibold text-blue-900">{stats.totalSections}</p>
+          <p className="campus-kpi-value text-blue-900">{stats.totalSections}</p>
         </div>
         <div className="campus-kpi border-amber-200 bg-amber-50/70">
           <p className="text-xs font-semibold text-amber-700">报名总数</p>
-          <p className="mt-1 text-2xl font-semibold text-amber-900">{stats.totalEnrollments}</p>
+          <p className="campus-kpi-value text-amber-900">{stats.totalEnrollments}</p>
         </div>
       </section>
 
@@ -489,6 +497,13 @@ export default function TermsPage() {
           </table>
         </div>
       </section>
+      <ConfirmDialog
+        open={confirmState !== null}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

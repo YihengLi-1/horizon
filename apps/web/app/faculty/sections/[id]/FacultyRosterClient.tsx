@@ -95,11 +95,11 @@ export default function FacultyRosterClient({ sectionId }: { sectionId: string }
   return (
     <div className="space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">教师</p>
-        <h1 className="font-heading text-3xl font-bold text-slate-900">
+        <p className="campus-eyebrow">教学管理</p>
+        <h1 className="campus-title">
           {section ? `${section.course.code} §${section.sectionCode}` : "教学班名单"}
         </h1>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="campus-subtitle">
           {section
             ? `${section.course.title} · ${section.term.name} · 教师：${section.instructorName}`
             : "加载教学班名单中。"}

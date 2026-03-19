@@ -54,7 +54,7 @@ export default function ProfileCompletenessCard({
     <section className="campus-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="campus-eyebrow">Profile</p>
+          <p className="campus-eyebrow">档案管理</p>
           <h3 className="mt-1 text-lg font-semibold text-slate-900">{title}</h3>
         </div>
         <span className={palette.chip}>{palette.label}</span>

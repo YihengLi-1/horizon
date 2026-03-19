@@ -272,10 +272,8 @@ export default async function GradesPage({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">学业记录</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">我的成绩</h1>
-            <p className="text-sm text-slate-600 md:text-base">
-              查看各学期的最终成绩与 GPA 走势。
-            </p>
+            <h1 className="campus-title">我的成绩</h1>
+            <p className="campus-subtitle">查看各学期的最终成绩与 GPA 走势</p>
             <div className="flex flex-wrap gap-2 pt-1">
               <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{grades.length} 门已出分课程</span>
               <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{gradeTerms.length} 个学期</span>
@@ -437,19 +435,19 @@ export default async function GradesPage({
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-slate-200">
           <p className="text-xs font-semibold text-slate-500">已修学分</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{completedCredits}</p>
+          <p className="campus-kpi-value">{completedCredits}</p>
         </div>
         <div className="campus-kpi border-slate-200">
           <p className="text-xs font-semibold text-slate-500">已评分课程</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{grades.length}</p>
+          <p className="campus-kpi-value">{grades.length}</p>
         </div>
         <div className="campus-kpi border-slate-200">
           <p className="text-xs font-semibold text-slate-500">有成绩学期</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{gradeTerms.length}</p>
+          <p className="campus-kpi-value">{gradeTerms.length}</p>
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50/70">
           <p className="text-xs font-semibold text-blue-700">累计 GPA</p>
-          <p className={`mt-1 text-2xl font-semibold ${cumulative ? gpaTone(cumulative.gpa) : "text-slate-700"}`}>
+          <p className={`campus-kpi-value ${cumulative ? gpaTone(cumulative.gpa) : "text-slate-700"}`}>
             {cumulative ? cumulative.gpa.toFixed(2) : "—"}
           </p>
           {cumulative ? (

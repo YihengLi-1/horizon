@@ -121,26 +121,24 @@ export default async function SharedSchedulePage({
     <div className="campus-page space-y-5">
       <section className="campus-hero">
         <p className="campus-eyebrow">课表共享</p>
-        <h1 className="font-heading text-3xl font-bold text-slate-900 md:text-4xl">课表快照</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          这是一份只读课表快照，生成于 {new Date(snapshot.createdAt).toLocaleString()}。
-        </p>
+        <h1 className="campus-title">课表快照</h1>
+        <p className="campus-subtitle">这是一份只读课表快照，生成于 {new Date(snapshot.createdAt).toLocaleString()}</p>
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">
         <div className="campus-kpi">
           <p className="text-xs font-semibold text-slate-500">教学班数</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{sections.length}</p>
+          <p className="campus-kpi-value">{sections.length}</p>
         </div>
         <div className="campus-kpi">
           <p className="text-xs font-semibold text-slate-500">总学分</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">
+          <p className="campus-kpi-value">
             {sections.reduce((sum, section) => sum + (section.credits ?? 0), 0)}
           </p>
         </div>
         <div className="campus-kpi">
           <p className="text-xs font-semibold text-slate-500">上课次数</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">
+          <p className="campus-kpi-value">
             {sections.reduce((sum, section) => sum + (section.meetingTimes?.length ?? 0), 0)}
           </p>
         </div>
@@ -234,7 +232,7 @@ export default async function SharedSchedulePage({
       <div className="text-center text-sm text-slate-500">
         访问{" "}
         <Link href="/login" className="font-semibold text-slate-900 underline">
-          University SIS 管理你的课程 →
+          学籍管理系统 管理你的课程 →
         </Link>
       </div>
     </div>

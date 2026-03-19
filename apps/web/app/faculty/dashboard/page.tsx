@@ -33,17 +33,27 @@ export default async function FacultyDashboardPage() {
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">教师</p>
-        <h1 className="font-heading text-3xl font-bold text-slate-900">我的教学班</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          查看您负责的教学班，打开名单并录入期末成绩。
-        </p>
+        <p className="campus-eyebrow">教师工作台</p>
+        <h1 className="campus-title">我的教学班</h1>
+        <p className="campus-subtitle">查看您负责的教学班，打开名单并录入期末成绩</p>
       </section>
 
-      <section className="campus-toolbar">
+      <section className="grid gap-3 sm:grid-cols-3">
         <div className="campus-kpi">
           <p className="campus-kpi-label">负责教学班</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{sections.length}</p>
+          <p className="campus-kpi-value">{sections.length}</p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">学生总数（含候补）</p>
+          <p className="campus-kpi-value">
+            {sections.reduce((sum, s) => sum + (s._count?.enrollments ?? 0), 0)}
+          </p>
+        </div>
+        <div className="campus-kpi">
+          <p className="campus-kpi-label">总容量</p>
+          <p className="campus-kpi-value">
+            {sections.reduce((sum, s) => sum + s.capacity, 0)}
+          </p>
         </div>
       </section>
 
@@ -52,6 +62,26 @@ export default async function FacultyDashboardPage() {
           教师工作台暂时不可用：{error}
         </section>
       ) : null}
+
+      {/* Quick nav */}
+      <section className="campus-card p-4">
+        <p className="text-xs font-semibold text-slate-500 mb-2">快速入口</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {[
+            { href: "/faculty/sections", label: "课程名单" },
+            { href: "/faculty/requests", label: "先修审批" },
+            { href: "/faculty/grade-stats", label: "成绩统计" },
+          ].map(({ href, label }) => (
+            <Link
+              key={href}
+              href={href}
+              className="flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 no-underline transition hover:bg-slate-100 hover:text-slate-900"
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
+      </section>
 
       {!error && sections.length === 0 ? (
         <section className="campus-card p-8 text-center text-sm text-slate-500">

@@ -92,7 +92,7 @@ export default function AdminRegWindowsPage() {
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">注册窗口管理</p>
+        <p className="campus-eyebrow">学期管理</p>
         <h1 className="campus-title">注册窗口管理</h1>
         <p className="campus-subtitle">统一查看各学期注册窗口，并直接内联调整开放与关闭时间。</p>
       </section>

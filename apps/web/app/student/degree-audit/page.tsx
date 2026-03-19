@@ -66,11 +66,11 @@ function majorPrefixes(programMajor: string | null | undefined) {
 }
 
 const GRADE_COLOR: Record<string, string> = {
-  "A+": "#166534", A: "#166534", "A-": "#15803d",
-  "B+": "#1d4ed8", B: "#1d4ed8", "B-": "#2563eb",
-  "C+": "#92400e", C: "#92400e", "C-": "#b45309",
-  "D+": "#9a3412", D: "#9a3412", "D-": "#c2410c",
-  F: "#991b1b",
+  "A+": "text-green-800", A: "text-green-800", "A-": "text-green-700",
+  "B+": "text-blue-700", B: "text-blue-700", "B-": "text-blue-600",
+  "C+": "text-amber-800", C: "text-amber-800", "C-": "text-amber-700",
+  "D+": "text-orange-700", D: "text-orange-700", "D-": "text-orange-600",
+  F: "text-red-700",
 };
 
 export default function DegreeAuditPage() {
@@ -79,7 +79,6 @@ export default function DegreeAuditPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // What-if state: extra hypothetical credits
   const [whatIfCredits, setWhatIfCredits] = useState(0);
   const [whatIfGpa, setWhatIfGpa] = useState("");
 
@@ -134,7 +133,6 @@ export default function DegreeAuditPage() {
       });
     }
 
-    // sort by term then code
     rows.sort((a, b) => a.term.localeCompare(b.term) || a.code.localeCompare(b.code));
 
     const electiveCredits = Math.max(0, totalCredits - coreCredits);
@@ -159,7 +157,6 @@ export default function DegreeAuditPage() {
     };
   }, [courses, profile]);
 
-  // What-if projected values
   const projected = useMemo(() => {
     const extra = Math.max(0, whatIfCredits);
     const extraGpa = parseFloat(whatIfGpa);
@@ -167,7 +164,6 @@ export default function DegreeAuditPage() {
     const projRemaining = Math.max(0, 120 - projTotal);
     let projGpa = audit.gpa;
     if (extra > 0 && !isNaN(extraGpa) && extraGpa >= 0 && extraGpa <= 4) {
-      // weighted average: (currentGpa * currentCredits + extraGpa * extra) / projTotal
       const currentWeight = audit.gpa * audit.totalCredits;
       const extraWeight = extraGpa * extra;
       projGpa = projTotal > 0 ? (currentWeight + extraWeight) / projTotal : audit.gpa;
@@ -179,79 +175,69 @@ export default function DegreeAuditPage() {
   const electiveRows = audit.rows.filter((r) => !r.isCore);
 
   return (
-    <div className="campus-page" style={{ display: "grid", gap: "1.5rem" }}>
+    <div className="campus-page space-y-6">
       <section className="campus-hero">
         <p className="campus-eyebrow">毕业进度</p>
-        <h1 style={{ margin: 0 }}>毕业审计</h1>
-        <p style={{ marginTop: "0.5rem", color: "#64748b" }}>
+        <h1 className="campus-title">毕业审计</h1>
+        <p className="campus-subtitle">
           {profile?.legalName ?? "学生"} · {profile?.programMajor ?? "未申报专业"} 的当前毕业完成度
         </p>
       </section>
 
-      {error ? <div className="campus-card" style={{ color: "#b91c1c" }}>{error}</div> : null}
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">{error}</div>
+      )}
 
       {loading ? (
-        <div className="campus-card" style={{ textAlign: "center", color: "#64748b" }}>加载中...</div>
+        <div className="campus-card p-10 text-center text-sm text-slate-500">⏳ 加载中…</div>
       ) : !profile ? (
-        <div className="campus-card" style={{ textAlign: "center", color: "#64748b" }}>无法加载毕业审计数据</div>
+        <div className="campus-card p-10 text-center text-sm text-slate-400">无法加载毕业审计数据</div>
       ) : (
         <>
           {/* Progress buckets */}
-          <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {audit.buckets.map((bucket) => {
               const pct = Math.max(0, Math.min(100, (bucket.current / bucket.required) * 100));
               return (
-                <div key={bucket.label} className="campus-card" style={{ display: "grid", gap: "0.75rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <p style={{ margin: 0, fontWeight: 700 }}>{bucket.label}</p>
-                    <span
-                      className="campus-chip"
-                      style={{
-                        color: bucket.complete ? "#166534" : "#b45309",
-                        background: bucket.complete ? "#dcfce7" : "#fef3c7",
-                      }}
-                    >
+                <div key={bucket.label} className="campus-card p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold text-slate-900">{bucket.label}</p>
+                    <span className={`campus-chip text-xs ${bucket.complete ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
                       {bucket.complete ? "达标" : "未达标"}
                     </span>
                   </div>
-                  <div style={{ height: "10px", background: "#e2e8f0", borderRadius: "999px", overflow: "hidden" }}>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
                     <div
-                      style={{
-                        width: `${pct}%`,
-                        height: "100%",
-                        background: bucket.complete ? "#16a34a" : "#f59e0b",
-                        transition: "width 0.4s ease",
-                      }}
+                      className={`h-full rounded-full transition-all ${bucket.complete ? "bg-emerald-500" : "bg-amber-400"}`}
+                      style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <div style={{ color: "#475569", fontSize: "0.95rem" }}>
+                  <p className="text-sm text-slate-600">
                     {bucket.label === "GPA"
                       ? `${audit.gpa.toFixed(2)} / ${bucket.required.toFixed(1)} ${bucket.unit}`
                       : `${bucket.current} / ${bucket.required} ${bucket.unit}`}
-                  </div>
+                  </p>
                 </div>
               );
             })}
           </div>
 
           {/* Gap summary */}
-          <div className="campus-card" style={{ display: "grid", gap: "0.5rem" }}>
-            <p style={{ margin: 0, fontWeight: 700 }}>毕业差距</p>
-            <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap", color: "#334155", fontSize: "0.95rem" }}>
-              <span>还差 <strong>{audit.remainingCredits}</strong> 学分</span>
-              <span>已修 <strong>{audit.totalCredits}</strong> 学分（核心 {audit.coreCredits} + 选修 {audit.electiveCredits}）</span>
-              <span>当前 GPA <strong>{audit.gpa.toFixed(2)}</strong></span>
+          <div className="campus-card p-4">
+            <p className="mb-2 text-sm font-bold text-slate-900">毕业差距</p>
+            <div className="flex flex-wrap gap-6 text-sm text-slate-700">
+              <span>还差 <strong className="text-slate-900">{audit.remainingCredits}</strong> 学分</span>
+              <span>已修 <strong className="text-slate-900">{audit.totalCredits}</strong> 学分（核心 {audit.coreCredits} + 选修 {audit.electiveCredits}）</span>
+              <span>当前 GPA <strong className="text-slate-900">{audit.gpa.toFixed(2)}</strong></span>
             </div>
           </div>
 
-          {/* Completed courses table — grouped */}
+          {/* Completed courses table */}
           {audit.rows.length > 0 && (
-            <div className="campus-card" style={{ padding: 0, overflow: "hidden" }}>
-              <div style={{ padding: "1rem 1.25rem 0.75rem", borderBottom: "1px solid #e2e8f0" }}>
-                <p style={{ margin: 0, fontWeight: 700 }}>已修课程明细</p>
-                <p style={{ margin: "0.2rem 0 0", fontSize: "0.85rem", color: "#64748b" }}>
-                  共 {audit.rows.length} 门 · {audit.totalCredits} 学分
-                </p>
+            <div className="campus-card overflow-hidden">
+              <div className="border-b border-slate-100 px-5 py-3">
+                <p className="text-sm font-bold text-slate-900">已修课程明细</p>
+                <p className="mt-0.5 text-xs text-slate-500">共 {audit.rows.length} 门 · {audit.totalCredits} 学分</p>
               </div>
 
               {[
@@ -259,53 +245,37 @@ export default function DegreeAuditPage() {
                 { title: `选修课程（${electiveRows.length} 门 · ${audit.electiveCredits} 学分）`, rows: electiveRows },
               ].map(({ title, rows }) =>
                 rows.length === 0 ? null : (
-                  <details key={title} open style={{ borderTop: "1px solid #f1f5f9" }}>
-                    <summary
-                      style={{
-                        padding: "0.65rem 1.25rem",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        color: "#475569",
-                        cursor: "pointer",
-                        listStyle: "none",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.5rem",
-                        userSelect: "none",
-                      }}
-                    >
-                      <span style={{ fontSize: "0.7rem", color: "#94a3b8" }}>▶</span>
+                  <details key={title} open className="border-t border-slate-100">
+                    <summary className="flex cursor-pointer select-none list-none items-center gap-2 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                      <span className="text-[10px] text-slate-300">▶</span>
                       {title}
                     </summary>
-                    <div style={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
                         <thead>
-                          <tr style={{ borderBottom: "1px solid #e2e8f0", color: "#94a3b8" }}>
-                            <th style={{ textAlign: "left", padding: "0.4rem 1.25rem", fontWeight: 600 }}>课程</th>
-                            <th style={{ textAlign: "center", padding: "0.4rem 0.75rem", fontWeight: 600 }}>学分</th>
-                            <th style={{ textAlign: "center", padding: "0.4rem 0.75rem", fontWeight: 600 }}>成绩</th>
-                            <th style={{ textAlign: "right", padding: "0.4rem 1.25rem", fontWeight: 600 }}>学期</th>
+                          <tr className="border-b border-slate-100 bg-slate-50">
+                            <th className="px-5 py-2 text-left text-xs font-semibold text-slate-500">课程</th>
+                            <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500">学分</th>
+                            <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500">成绩</th>
+                            <th className="px-5 py-2 text-right text-xs font-semibold text-slate-500">学期</th>
                           </tr>
                         </thead>
                         <tbody>
                           {rows.map((r) => (
-                            <tr
-                              key={r.enrollmentId}
-                              style={{ borderBottom: "1px solid #f8fafc" }}
-                            >
-                              <td style={{ padding: "0.5rem 1.25rem" }}>
-                                <span style={{ fontFamily: "monospace", fontWeight: 700, color: "#4f46e5" }}>{r.code}</span>
-                                <span style={{ color: "#64748b", marginLeft: "0.5rem" }}>
+                            <tr key={r.enrollmentId} className="border-b border-slate-50 hover:bg-slate-50/50">
+                              <td className="px-5 py-2.5">
+                                <span className="font-mono font-bold text-indigo-600">{r.code}</span>
+                                <span className="ml-2 text-slate-500">
                                   {r.title.length > 36 ? r.title.slice(0, 36) + "…" : r.title}
                                 </span>
                               </td>
-                              <td style={{ padding: "0.5rem 0.75rem", textAlign: "center", color: "#475569" }}>{r.credits}</td>
-                              <td style={{ padding: "0.5rem 0.75rem", textAlign: "center" }}>
-                                <span style={{ fontFamily: "monospace", fontWeight: 700, color: GRADE_COLOR[r.grade] ?? "#334155" }}>
+                              <td className="px-3 py-2.5 text-center text-slate-600">{r.credits}</td>
+                              <td className="px-3 py-2.5 text-center">
+                                <span className={`font-mono font-bold ${GRADE_COLOR[r.grade] ?? "text-slate-800"}`}>
                                   {r.grade}
                                 </span>
                               </td>
-                              <td style={{ padding: "0.5rem 1.25rem", textAlign: "right", color: "#94a3b8" }}>{r.term}</td>
+                              <td className="px-5 py-2.5 text-right text-slate-400">{r.term}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -318,28 +288,15 @@ export default function DegreeAuditPage() {
           )}
 
           {/* What-if panel */}
-          <details className="campus-card" style={{ padding: 0, overflow: "hidden" }}>
-            <summary
-              style={{
-                padding: "0.9rem 1.25rem",
-                fontWeight: 700,
-                cursor: "pointer",
-                listStyle: "none",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                userSelect: "none",
-              }}
-            >
-              <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>▶</span>
+          <details className="campus-card overflow-hidden">
+            <summary className="flex cursor-pointer select-none list-none items-center gap-2 px-5 py-4 font-bold text-slate-800 hover:bg-slate-50">
+              <span className="text-[10px] text-slate-300">▶</span>
               模拟未来学期
-              <span style={{ marginLeft: "auto", fontSize: "0.8rem", fontWeight: 400, color: "#94a3b8" }}>
-                假设多修若干学分后的预测毕业进度
-              </span>
+              <span className="ml-auto text-sm font-normal text-slate-400">假设多修若干学分后的预测毕业进度</span>
             </summary>
-            <div style={{ padding: "1rem 1.25rem 1.25rem", borderTop: "1px solid #e2e8f0", display: "grid", gap: "1rem" }}>
-              <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", alignItems: "flex-end" }}>
-                <label style={{ display: "grid", gap: "0.3rem", fontSize: "0.875rem", color: "#475569" }}>
+            <div className="space-y-4 border-t border-slate-100 p-5">
+              <div className="flex flex-wrap items-end gap-6">
+                <label className="grid gap-1 text-sm text-slate-600">
                   假设再修学分
                   <input
                     type="number"
@@ -347,11 +304,10 @@ export default function DegreeAuditPage() {
                     max={120}
                     value={whatIfCredits}
                     onChange={(e) => setWhatIfCredits(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="campus-input"
-                    style={{ width: "110px" }}
+                    className="campus-input w-28"
                   />
                 </label>
-                <label style={{ display: "grid", gap: "0.3rem", fontSize: "0.875rem", color: "#475569" }}>
+                <label className="grid gap-1 text-sm text-slate-600">
                   假设这些课 GPA（留空沿用当前）
                   <input
                     type="number"
@@ -361,18 +317,11 @@ export default function DegreeAuditPage() {
                     placeholder={audit.gpa.toFixed(2)}
                     value={whatIfGpa}
                     onChange={(e) => setWhatIfGpa(e.target.value)}
-                    className="campus-input"
-                    style={{ width: "110px" }}
+                    className="campus-input w-28"
                   />
                 </label>
               </div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                  gap: "0.75rem",
-                }}
-              >
+              <div className="grid gap-3 sm:grid-cols-3">
                 {[
                   {
                     label: "预测总学分",
@@ -397,18 +346,11 @@ export default function DegreeAuditPage() {
                 ].map(({ label, value, sub, ok }) => (
                   <div
                     key={label}
-                    style={{
-                      background: ok ? "#f0fdf4" : "#fffbeb",
-                      border: `1px solid ${ok ? "#bbf7d0" : "#fde68a"}`,
-                      borderRadius: "0.5rem",
-                      padding: "0.75rem 1rem",
-                    }}
+                    className={`rounded-xl border p-3 ${ok ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}
                   >
-                    <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b" }}>{label}</p>
-                    <p style={{ margin: "0.25rem 0 0", fontSize: "1.25rem", fontWeight: 700, color: ok ? "#166534" : "#92400e" }}>
-                      {value}
-                    </p>
-                    <p style={{ margin: "0.15rem 0 0", fontSize: "0.78rem", color: "#94a3b8" }}>{sub}</p>
+                    <p className="text-xs text-slate-500">{label}</p>
+                    <p className={`mt-1 text-xl font-bold ${ok ? "text-emerald-800" : "text-amber-800"}`}>{value}</p>
+                    <p className="mt-0.5 text-xs text-slate-400">{sub}</p>
                   </div>
                 ))}
               </div>

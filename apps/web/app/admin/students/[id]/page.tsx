@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { ApiError, apiFetch } from "@/lib/api";
 import { useToast } from "@/components/Toast";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type StudentDetail = {
   id: string;
@@ -77,6 +78,7 @@ export default function AdminStudentDetailPage() {
   const [noteFlag, setNoteFlag] = useState("");
   const [savingNote, setSavingNote] = useState(false);
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
   const toast = useToast();
 
   const loadStudent = async () => {
@@ -125,18 +127,24 @@ export default function AdminStudentDetailPage() {
     }
   };
 
-  const deleteNote = async (noteId: string) => {
-    if (!window.confirm("确认删除该备注？")) return;
-    setDeletingNoteId(noteId);
-    try {
-      await apiFetch(`/admin/students/${id}/notes/${noteId}`, { method: "DELETE" });
-      setNotes((prev) => prev.filter((n) => n.id !== noteId));
-      toast("备注已删除", "success");
-    } catch {
-      toast("删除失败", "error");
-    } finally {
-      setDeletingNoteId(null);
-    }
+  const deleteNote = (noteId: string) => {
+    setConfirmState({
+      title: "删除备注",
+      message: "确认删除该备注？此操作不可撤销。",
+      onConfirm: async () => {
+        setConfirmState(null);
+        setDeletingNoteId(noteId);
+        try {
+          await apiFetch(`/admin/students/${id}/notes/${noteId}`, { method: "DELETE" });
+          setNotes((prev) => prev.filter((n) => n.id !== noteId));
+          toast("备注已删除", "success");
+        } catch {
+          toast("删除失败", "error");
+        } finally {
+          setDeletingNoteId(null);
+        }
+      },
+    });
   };
 
   if (loading) {
@@ -174,23 +182,21 @@ export default function AdminStudentDetailPage() {
           <Link href="/admin/students" className="hover:underline">学生管理</Link>
           {" / "}学生档案
         </p>
-        <h1 className="font-heading text-3xl font-bold text-slate-900">
+        <h1 className="campus-title">
           {profile?.legalName ?? student.email}
         </h1>
-        <p className="mt-2 text-sm text-slate-600">
-          {student.studentId ?? "无学号"} · {profile?.programMajor ?? "未申报专业"}
-        </p>
+        <p className="campus-subtitle">{student.studentId ?? "无学号"} · {profile?.programMajor ?? "未申报专业"}</p>
       </section>
 
       {/* KPIs */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="campus-kpi">
           <p className="campus-kpi-label">累计 GPA</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{gpa ?? "—"}</p>
+          <p className="campus-kpi-value">{gpa ?? "—"}</p>
         </div>
         <div className="campus-kpi">
           <p className="campus-kpi-label">已修学分</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{completedCredits}</p>
+          <p className="campus-kpi-value">{completedCredits}</p>
         </div>
         <div className="campus-kpi">
           <p className="campus-kpi-label">学业状态</p>
@@ -320,6 +326,13 @@ export default function AdminStudentDetailPage() {
           </div>
         )}
       </section>
+      <ConfirmDialog
+        open={confirmState !== null}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

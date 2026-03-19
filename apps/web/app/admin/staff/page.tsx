@@ -216,11 +216,9 @@ export default function StaffPage() {
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">管理员</p>
-        <h1 className="font-heading text-3xl font-bold text-slate-900">教职与导师管理</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          管理教职人员、学术导师账号，以及学生导师分配关系。
-        </p>
+        <p className="campus-eyebrow">人员管理</p>
+        <h1 className="campus-title">教职与导师管理</h1>
+        <p className="campus-subtitle">管理教职人员、学术导师账号，以及学生导师分配关系。</p>
       </section>
 
       {/* KPI Strip */}

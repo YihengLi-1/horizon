@@ -5,7 +5,7 @@
  * Searchable, filterable table of all enrollment records with CSV export.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type Term = { id: string; name: string };
@@ -47,6 +47,18 @@ export default function EnrollmentAuditPage() {
   const [data, setData] = useState<AuditData | null>(null);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     void apiFetch<Term[]>("/academics/terms")
@@ -96,7 +108,7 @@ export default function EnrollmentAuditPage() {
       <section className="campus-hero">
         <p className="campus-eyebrow">报名分析</p>
         <h1 className="campus-title">注册审计报告</h1>
-        <p className="mt-1 text-sm text-slate-500">查看所有注册记录，支持筛选、搜索与 CSV 导出</p>
+        <p className="campus-subtitle">查看所有注册记录，支持筛选、搜索与 CSV 导出</p>
       </section>
 
       <div className="campus-toolbar flex-wrap gap-2">
@@ -112,8 +124,9 @@ export default function EnrollmentAuditPage() {
           <option value="WAITLISTED">候补</option>
         </select>
         <input
+          ref={searchRef}
           className="campus-input flex-1 min-w-48"
-          placeholder="搜索学生邮箱、课程代码…"
+          placeholder="搜索学生邮箱、课程代码… (/)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

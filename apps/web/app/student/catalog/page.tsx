@@ -848,10 +848,8 @@ export default function StudentCatalogPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">学业规划</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">课程目录</h1>
-            <p className="text-base text-slate-600">
-              提交选课单前，请先确认余位、先修条件与时间安排。
-            </p>
+            <h1 className="campus-title">课程目录</h1>
+            <p className="campus-subtitle">提交选课单前，请先确认余位、先修条件与时间安排。</p>
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {activeTerm ? <span className="campus-chip chip-blue">{activeTerm.name}</span> : null}
               {activeTerm ? <span className="campus-chip chip-purple">最多 {activeTerm.maxCredits} 学分</span> : null}
@@ -1577,7 +1575,7 @@ export default function StudentCatalogPage() {
               disabled={safePage === 1}
               className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              ← Prev
+              ← 上页
             </button>
             {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
               let pageNum: number;
@@ -1611,7 +1609,7 @@ export default function StudentCatalogPage() {
               disabled={safePage === totalPages}
               className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Next →
+              下页 →
             </button>
           </div>
         </div>

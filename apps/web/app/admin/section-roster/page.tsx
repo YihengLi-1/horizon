@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type SectionSummary = {
@@ -68,6 +68,7 @@ export default function SectionRosterPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void apiFetch<SectionSummary[]>("/admin/sections")
@@ -85,6 +86,17 @@ export default function SectionRosterPage() {
       .catch((err) => setError(err instanceof Error ? err.message : "加载花名册失败"))
       .finally(() => setRosterLoading(false));
   }, [selectedId]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const filteredSections = useMemo(() => {
     const q = search.toLowerCase();
@@ -128,8 +140,9 @@ export default function SectionRosterPage() {
         <>
           <div className="campus-toolbar">
             <input
+              ref={searchRef}
               className="campus-input max-w-xs"
-              placeholder="搜索课程代码、班级…"
+              placeholder="搜索课程代码、班级… (/)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />

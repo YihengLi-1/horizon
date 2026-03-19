@@ -100,6 +100,7 @@ const adminItems: NavItem[] = [
   // 运营
   { href: "/admin/announcements-mgmt",     label: "公告管理", icon: <Megaphone className={iconClass} /> },
   { href: "/admin/bulk-ops",               label: "批量操作", icon: <ListChecks className={iconClass} /> },
+  { href: "/admin/import",                 label: "CSV 导入", icon: <ListChecks className={iconClass} /> },
   { href: "/admin/closeout",               label: "学期关闭", icon: <CalendarRange className={iconClass} /> },
   { href: "/admin/audit-logs",             label: "审计日志", icon: <ScrollText className={iconClass} /> },
   // 系统

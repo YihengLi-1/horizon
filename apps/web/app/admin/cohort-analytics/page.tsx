@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type CohortRow = {
@@ -15,6 +15,17 @@ type CohortRow = {
 type Term = { id: string; name: string };
 type SortKey = "studentCount" | "avgGpa" | "totalCredits" | "activeCount";
 
+function downloadCsv(filename: string, rows: string[][]) {
+  const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function CohortAnalyticsPage() {
   const [rows, setRows] = useState<CohortRow[]>([]);
   const [terms, setTerms] = useState<Term[]>([]);
@@ -23,6 +34,18 @@ export default function CohortAnalyticsPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("studentCount");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? [])).catch(() => {});
@@ -47,6 +70,20 @@ export default function CohortAnalyticsPage() {
   }, [rows, search, sortKey]);
 
   const maxStudents = Math.max(1, ...rows.map((r) => r.studentCount));
+
+  function exportCsv() {
+    downloadCsv("cohort-analytics.csv", [
+      ["专业", "学生数", "在读人数", "已完课", "总学分", "平均 GPA"],
+      ...sorted.map((r) => [
+        r.major,
+        String(r.studentCount),
+        String(r.activeCount),
+        String(r.completedCount),
+        String(r.totalCredits),
+        r.avgGpa > 0 ? r.avgGpa.toFixed(2) : "—",
+      ]),
+    ]);
+  }
 
   return (
     <div className="campus-page">
@@ -91,7 +128,21 @@ export default function CohortAnalyticsPage() {
           <option value="totalCredits">按学分排序</option>
           <option value="activeCount">按在读人数排序</option>
         </select>
-        <input className="campus-input max-w-xs" placeholder="搜索专业…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input
+          ref={searchRef}
+          className="campus-input max-w-xs"
+          placeholder="搜索专业… (/)"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <button
+          type="button"
+          onClick={exportCsv}
+          disabled={!sorted.length}
+          className="campus-btn-ghost shrink-0 disabled:opacity-40"
+        >
+          CSV 导出
+        </button>
       </div>
 
       {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
@@ -106,7 +157,7 @@ export default function CohortAnalyticsPage() {
                 <span className="w-28 shrink-0 text-slate-700 text-xs truncate" title={r.major}>{r.major}</span>
                 <div className="flex-1 h-3 rounded-full bg-slate-100">
                   <div
-                    className="h-3 rounded-full bg-[hsl(221_83%_43%)]"
+                    className="h-3 rounded-full bg-blue-600"
                     style={{ width: `${(r.studentCount / maxStudents) * 100}%` }}
                   />
                 </div>

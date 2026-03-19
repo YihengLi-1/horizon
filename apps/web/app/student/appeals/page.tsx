@@ -122,10 +122,8 @@ export default function GradeAppealsPage() {
     <div className="campus-page space-y-6">
       <section className="campus-hero">
         <p className="campus-eyebrow">学业申诉</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">成绩申诉</h1>
-        <p className="mt-1 text-sm text-slate-600 md:text-base">
-          如对期末成绩有异议，请提交申诉，管理员将在 5 个工作日内审核。
-        </p>
+        <h1 className="campus-title">成绩申诉</h1>
+        <p className="campus-subtitle">如对期末成绩有异议，请提交申诉，管理员将在 5 个工作日内审核。</p>
       </section>
 
       {!loading && appeals.length > 0 && (

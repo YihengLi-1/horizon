@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type Student = {
   id: string;
@@ -132,6 +133,7 @@ export default function AdminStudentsPage() {
   const [savingTags, setSavingTags] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState("");
   const [newNoteFlag, setNewNoteFlag] = useState("");
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   const loadTagsForStudents = async (list: Student[]) => {
     const entries = await Promise.all(
@@ -348,18 +350,24 @@ export default function AdminStudentsPage() {
     }
   };
 
-  const onDelete = async (id: string, name: string) => {
-    if (!confirm(`确认删除学生"${name}"？此操作不可撤销。`)) return;
-    try {
-      setError("");
-      setNotice("");
-      await apiFetch(`/students/${id}`, { method: "DELETE" });
-      setNotice(`学生"${name}"已删除。`);
-      if (editingId === id) setEditingId(null);
-      await loadStudents();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "删除失败");
-    }
+  const onDelete = (id: string, name: string) => {
+    setConfirmState({
+      title: "删除学生",
+      message: `确认删除学生"${name}"？此操作不可撤销，所有关联数据将一并删除。`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          setError("");
+          setNotice("");
+          await apiFetch(`/students/${id}`, { method: "DELETE" });
+          setNotice(`学生"${name}"已删除。`);
+          if (editingId === id) setEditingId(null);
+          await loadStudents();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "删除失败");
+        }
+      },
+    });
   };
 
   const openDetails = async (id: string) => {
@@ -502,12 +510,10 @@ export default function AdminStudentsPage() {
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">学籍管理</p>
             <h1 className="campus-title">学生管理</h1>
-            <p className="text-sm text-slate-600 md:text-base">
-              Manage core student accounts used for portal access and registration operations.
-            </p>
+            <p className="campus-subtitle">管理学生账号，用于系统登录与注册选课操作。</p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip chip-blue">{students.length} total</span>
-              {search ? <span className="campus-chip chip-purple">{visibleStudents.length} visible</span> : null}
+              <span className="campus-chip chip-blue">共 {students.length} 名学生</span>
+              {search ? <span className="campus-chip chip-purple">显示 {visibleStudents.length} 名</span> : null}
             </div>
           </div>
           <div className="flex gap-2">
@@ -540,7 +546,7 @@ export default function AdminStudentsPage() {
           <p className="campus-kpi-value text-emerald-700">{studentStats.active}</p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label text-amber-700">察看期</p>
+          <p className="campus-kpi-label text-amber-700">学业观察</p>
           <p className="campus-kpi-value text-amber-700">{studentStats.probation}</p>
         </div>
         <div className="campus-kpi">
@@ -558,7 +564,7 @@ export default function AdminStudentsPage() {
           window.localStorage.setItem("admin_gpa_open", String(nextOpen));
         }}
       >
-        <summary className="cursor-pointer select-none text-sm font-semibold text-slate-700">🏆 Top 5 by GPA</summary>
+        <summary className="cursor-pointer select-none text-sm font-semibold text-slate-700">🏆 GPA 前五名</summary>
         <div className="mt-3 space-y-2">
           {topStudents.length === 0 ? (
             <p className="text-sm text-slate-400">暂无 GPA 数据。</p>
@@ -1385,6 +1391,13 @@ export default function AdminStudentsPage() {
           </div>
         </div>
       ) : null}
+      <ConfirmDialog
+        open={confirmState !== null}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

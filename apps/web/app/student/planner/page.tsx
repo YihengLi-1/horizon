@@ -185,8 +185,8 @@ export default function PlannerPage() {
     <div className="campus-page space-y-5">
       <section className="campus-hero">
         <p className="campus-eyebrow">学业规划</p>
-        <h1 className="font-heading text-3xl font-bold text-slate-900">选课规划器</h1>
-        <p className="mt-1 text-sm text-slate-600">选择最多 5 门课，自动生成所有无时间冲突的选课方案</p>
+        <h1 className="campus-title">选课规划器</h1>
+        <p className="campus-subtitle">选择最多 5 门课，自动生成所有无时间冲突的选课方案</p>
       </section>
 
       <div className="campus-toolbar">
@@ -343,7 +343,7 @@ export default function PlannerPage() {
                         <div key={section.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs">
                           <span className="font-semibold text-slate-800">{section.course.code}</span>
                           <span className="text-slate-500">§{section.sectionCode}</span>
-                          {section.credits != null && <span className="text-slate-400">{section.credits}cr</span>}
+                          {section.credits != null && <span className="text-slate-400">{section.credits}学分</span>}
                           <span className="text-slate-500">{section.instructorName}</span>
                           <span className="ml-auto text-slate-400">
                             {(section.meetingTimes ?? [])

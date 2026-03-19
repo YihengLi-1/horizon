@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type InviteCode = {
   id: string;
@@ -24,6 +25,7 @@ export default function InviteCodesPage() {
   const [newExpiry, setNewExpiry] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -80,16 +82,23 @@ export default function InviteCodesPage() {
     }
   }
 
-  async function deleteCode(id: string) {
-    setDeletingId(id);
-    try {
-      await apiFetch(`/admin/invite-codes/${id}`, { method: "DELETE" });
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "删除失败");
-    } finally {
-      setDeletingId(null);
-    }
+  function deleteCode(id: string, code: string) {
+    setConfirmState({
+      title: "删除邀请码",
+      message: `确认删除邀请码「${code}」？此操作不可撤销。`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        setDeletingId(id);
+        try {
+          await apiFetch(`/admin/invite-codes/${id}`, { method: "DELETE" });
+          await load();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "删除失败");
+        } finally {
+          setDeletingId(null);
+        }
+      },
+    });
   }
 
   const active = codes.filter((c) => c.active);
@@ -237,7 +246,7 @@ export default function InviteCodesPage() {
                           <button
                             type="button"
                             disabled={deletingId === c.id}
-                            onClick={() => deleteCode(c.id)}
+                            onClick={() => deleteCode(c.id, c.code)}
                             className="text-xs text-red-500 hover:text-red-700 underline disabled:opacity-50"
                           >
                             {deletingId === c.id ? "删除中…" : "删除"}
@@ -252,6 +261,13 @@ export default function InviteCodesPage() {
           </table>
         </div>
       </section>
+      <ConfirmDialog
+        open={!!confirmState}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

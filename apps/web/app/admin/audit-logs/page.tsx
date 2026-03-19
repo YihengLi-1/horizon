@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import AuditExportButton from "./AuditExportButton";
+import { auditActionLabel, auditActorDisplay, auditEntityTypeLabel } from "@/lib/audit-labels";
 
 type AuditLog = {
   id: string;
@@ -155,10 +156,8 @@ export default function AuditLogsPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">运营可视化</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">审计日志</h1>
-            <p className="text-sm text-slate-600 md:text-base">
-              记录用户操作与管理行为，涵盖登录、注册、成绩录入、候补等全流程审计轨迹。
-            </p>
+            <h1 className="campus-title">审计日志</h1>
+            <p className="campus-subtitle">记录用户操作与管理行为，涵盖登录、注册、成绩录入、候补等全流程审计轨迹。</p>
             <div className="flex flex-wrap gap-2 pt-1">
               <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{total} 条匹配</span>
               <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">第 {safePage} / {totalPages} 页</span>
@@ -173,10 +172,10 @@ export default function AuditLogsPage() {
             <AuditExportButton
               rows={logs.map((log) => ({
                 createdAt: new Date(log.createdAt).toISOString(),
-                action: log.action,
-                entityType: log.entityType,
+                action: auditActionLabel(log.action),
+                entityType: auditEntityTypeLabel(log.entityType),
                 entityId: log.entityId ?? "",
-                actorLabel: log.actor?.email || log.actor?.studentId || "system"
+                actorLabel: auditActorDisplay(log.actor?.email || log.actor?.studentId)
               }))}
             />
             <button
@@ -220,21 +219,21 @@ export default function AuditLogsPage() {
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-slate-200 bg-white">
           <p className="text-xs font-semibold text-slate-500">匹配记录</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{total.toLocaleString()}</p>
+          <p className="campus-kpi-value">{total.toLocaleString()}</p>
         </div>
         <div className="campus-kpi border-slate-200 bg-white">
           <p className="text-xs font-semibold text-slate-500">本页</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{logs.length}</p>
+          <p className="campus-kpi-value">{logs.length}</p>
           <p className="mt-0.5 text-xs text-slate-500">第 {safePage} / {totalPages} 页</p>
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50/70">
           <p className="text-xs font-semibold text-blue-700">唯一操作者</p>
-          <p className="mt-1 text-2xl font-semibold text-blue-900">{pageStats.uniqueActors}</p>
+          <p className="campus-kpi-value text-blue-900">{pageStats.uniqueActors}</p>
           <p className="mt-0.5 text-xs text-blue-600">本页</p>
         </div>
         <div className="campus-kpi border-violet-200 bg-violet-50/70">
           <p className="text-xs font-semibold text-violet-700">最频繁操作</p>
-          <p className="mt-1 truncate text-lg font-semibold text-violet-900">{pageStats.topAction}</p>
+          <p className="mt-1 truncate text-lg font-semibold text-violet-900">{auditActionLabel(pageStats.topAction)}</p>
           <p className="mt-0.5 text-xs text-violet-600">本页最多</p>
         </div>
       </section>
@@ -255,14 +254,14 @@ export default function AuditLogsPage() {
             <span className="mb-1.5 block text-xs font-semibold text-slate-500">操作类型</span>
             <select className="campus-select" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
               <option value="">全部操作</option>
-              {actions.map((a) => <option key={a} value={a}>{a}</option>)}
+              {actions.map((a) => <option key={a} value={a}>{auditActionLabel(a)}</option>)}
             </select>
           </label>
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold text-slate-500">实体类型</span>
             <select className="campus-select" value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)}>
               <option value="">全部实体</option>
-              {entityTypes.map((e) => <option key={e} value={e}>{e}</option>)}
+              {entityTypes.map((e) => <option key={e} value={e}>{auditEntityTypeLabel(e)}</option>)}
             </select>
           </label>
         </div>
@@ -319,13 +318,13 @@ export default function AuditLogsPage() {
                     <p>{new Date(log.createdAt).toLocaleDateString()}</p>
                     <p className="text-slate-400">{new Date(log.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{log.actor?.email || log.actor?.studentId || "system"}</td>
+                  <td className="px-4 py-3 text-slate-700">{auditActorDisplay(log.actor?.email || log.actor?.studentId)}</td>
                   <td className="px-4 py-3 text-slate-800">
-                    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${actionTone(log.action)}`}>
-                      {log.action}
+                    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${actionTone(log.action)}`} title={log.action}>
+                      {auditActionLabel(log.action)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{log.entityType}</td>
+                  <td className="px-4 py-3 text-slate-700">{auditEntityTypeLabel(log.entityType)}</td>
                   <td className="px-4 py-3 font-mono text-xs text-slate-500" title={log.entityId ?? undefined}>{log.entityId ? log.entityId.slice(0, 8) + "…" : "-"}</td>
                 </tr>
               ))

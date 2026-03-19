@@ -21,6 +21,12 @@ type StandingData = {
   termHistory: TermHistory[];
 };
 
+const ENROLLMENT_STATUS_LABEL: Record<string, string> = {
+  ACTIVE: "在读",
+  INACTIVE: "非在读",
+  SUSPENDED: "停学",
+};
+
 const STANDING_CONFIG = {
   DEAN_LIST: {
     label: "院长名单",
@@ -101,7 +107,7 @@ export default function StandingPage() {
         <p className="campus-eyebrow">学籍状态</p>
         <h1 className="campus-title">学业状态</h1>
         <p className="campus-subtitle">
-          {loading ? "加载中…" : data?.major ? `${data.major} · ${data.enrollmentStatus ?? ""}` : "当前学业状况概览"}
+          {loading ? "加载中…" : data?.major ? `${data.major} · ${data.enrollmentStatus ? (ENROLLMENT_STATUS_LABEL[data.enrollmentStatus] ?? data.enrollmentStatus) : ""}` : "当前学业状况概览"}
         </p>
       </section>
 

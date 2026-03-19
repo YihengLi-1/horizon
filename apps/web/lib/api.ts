@@ -144,8 +144,8 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     }
     const baseMessage = body?.error?.message || `请求失败（${res.status}）`;
     const requestId = body?.error?.requestId;
-    const message = requestId ? `${baseMessage}（请求 ID：${requestId}）` : baseMessage;
-    throw new ApiError(message, {
+    // Keep requestId on the error object for debugging but never expose it in the user-visible message
+    throw new ApiError(baseMessage, {
       statusCode: body?.error?.statusCode ?? res.status,
       code: body?.error?.code,
       requestId,

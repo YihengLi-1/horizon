@@ -117,10 +117,8 @@ export default function FacultyRequestsClient() {
     <div className="space-y-6">
       <section className="campus-hero">
         <p className="campus-eyebrow">学术治理</p>
-        <h1 className="font-heading text-3xl font-bold text-slate-900">待审批先修豁免</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          审批您所负责课程教学班的先修豁免申请，批准后将转交教务处终审。
-        </p>
+        <h1 className="campus-title">待审批先修豁免</h1>
+        <p className="campus-subtitle">审批您所负责课程教学班的先修豁免申请，批准后将转交教务处终审</p>
       </section>
 
       {error ? <section className="campus-card p-6 text-sm text-red-600">教师申请暂时不可用：{error}</section> : null}

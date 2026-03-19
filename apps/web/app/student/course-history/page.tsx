@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type CourseItem = {
@@ -55,6 +55,18 @@ export default function CourseHistoryPage() {
   const [expandedTerms, setExpandedTerms] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [search, setSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     void apiFetch<HistoryData>("/students/course-history")
@@ -105,8 +117,8 @@ export default function CourseHistoryPage() {
 
       <section className="campus-hero">
         <p className="campus-eyebrow">学业记录</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">课程修读历史</h1>
-        <p className="mt-1 text-sm text-slate-500">按学期查看所有注册记录与成绩</p>
+        <h1 className="campus-title">课程修读历史</h1>
+        <p className="campus-subtitle">按学期查看所有注册记录与成绩</p>
       </section>
 
       {error && <div className="campus-card border-red-200 bg-red-50 px-6 py-4 text-sm text-red-700">{error}</div>}
@@ -144,8 +156,9 @@ export default function CourseHistoryPage() {
           {/* Filters */}
           <div className="campus-toolbar gap-2 flex-wrap">
             <input
+              ref={searchRef}
               className="campus-input flex-1 min-w-48"
-              placeholder="搜索课程代码或名称…"
+              placeholder="搜索课程代码或名称… (/)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { ApiError, apiFetch } from "@/lib/api";
 import { useToast } from "@/components/Toast";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type Term = { id: string; name: string };
 
@@ -53,6 +54,7 @@ export default function CalendarPage() {
   const [form, setForm] = useState({ ...BLANK_FORM });
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -146,29 +148,33 @@ export default function CalendarPage() {
     }
   };
 
-  const deleteEvent = async (id: string) => {
-    if (!window.confirm("确认删除该日历事件？")) return;
-    setDeletingId(id);
-    try {
-      await apiFetch(`/admin/calendar-events/${id}`, { method: "DELETE" });
-      toast("日历事件已删除", "success");
-      await load(filterTermId);
-    } catch (err) {
-      if (err instanceof ApiError) toast(err.message, "error");
-      else toast("删除失败", "error");
-    } finally {
-      setDeletingId(null);
-    }
+  const deleteEvent = (id: string) => {
+    setConfirmState({
+      title: "删除日历事件",
+      message: "确认删除该日历事件？",
+      onConfirm: async () => {
+        setConfirmState(null);
+        setDeletingId(id);
+        try {
+          await apiFetch(`/admin/calendar-events/${id}`, { method: "DELETE" });
+          toast("日历事件已删除", "success");
+          await load(filterTermId);
+        } catch (err) {
+          if (err instanceof ApiError) toast(err.message, "error");
+          else toast("删除失败", "error");
+        } finally {
+          setDeletingId(null);
+        }
+      },
+    });
   };
 
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">管理员</p>
-        <h1 className="font-heading text-3xl font-bold text-slate-900">学术日历</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          管理考试、假期、注册截止日等重要校历事件。
-        </p>
+        <p className="campus-eyebrow">学术管理</p>
+        <h1 className="campus-title">学术日历</h1>
+        <p className="campus-subtitle">管理考试、假期、注册截止日等重要校历事件</p>
       </section>
 
       <section className="campus-toolbar flex-wrap gap-3">
@@ -355,6 +361,13 @@ export default function CalendarPage() {
           ))}
         </section>
       ) : null}
+      <ConfirmDialog
+        open={confirmState !== null}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

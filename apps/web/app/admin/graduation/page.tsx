@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type GradStudent = {
@@ -24,6 +24,18 @@ export default function GraduationPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "eligible" | "ineligible">("all");
   const [minCredits, setMinCredits] = useState(120);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -106,8 +118,9 @@ export default function GraduationPage() {
           <option value="ineligible">不符合条件</option>
         </select>
         <input
+          ref={searchRef}
           className="campus-input max-w-xs"
-          placeholder="搜索邮箱、姓名或专业…"
+          placeholder="搜索邮箱、姓名或专业… (/)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

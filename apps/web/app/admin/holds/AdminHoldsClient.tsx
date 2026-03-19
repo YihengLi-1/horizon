@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type HoldType = "REGISTRATION" | "ACADEMIC" | "FINANCIAL";
@@ -66,6 +66,18 @@ export default function AdminHoldsClient() {
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
   const [studentQuery, setStudentQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
   const [studentOptions, setStudentOptions] = useState<StudentOption[]>([]);
   const [studentLoading, setStudentLoading] = useState(false);
   const [studentError, setStudentError] = useState("");
@@ -202,19 +214,19 @@ export default function AdminHoldsClient() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="campus-eyebrow">合规管理</p>
-            <h1 className="font-heading text-3xl font-bold text-slate-900">学生保留</h1>
-            <p className="mt-2 text-sm text-slate-600">
-              通过此页面创建或移除阻止学生注册的学籍限制记录。
+            <h1 className="campus-title">注册限制管理</h1>
+            <p className="campus-subtitle">
+              通过此页面创建或移除阻止学生注册的学籍限制记录
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="campus-kpi border-slate-200 bg-white">
-              <p className="text-xs font-semibold text-slate-500">学籍限制总数</p>
-              <p className="mt-1 text-2xl font-semibold text-slate-900">{holds.length}</p>
+            <div className="campus-kpi">
+              <p className="campus-kpi-label">学籍限制总数</p>
+              <p className="campus-kpi-value">{holds.length}</p>
             </div>
-            <div className="campus-kpi border-red-200 bg-red-50">
-              <p className="text-xs font-semibold text-red-700">生效中</p>
-              <p className="mt-1 text-2xl font-semibold text-red-900">{activeCount}</p>
+            <div className="campus-kpi">
+              <p className="campus-kpi-label">生效中</p>
+              <p className="campus-kpi-value text-red-500">{activeCount}</p>
             </div>
           </div>
         </div>
@@ -268,7 +280,7 @@ export default function AdminHoldsClient() {
           ) : null}
 
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold text-slate-500">保留类型</span>
+            <span className="mb-2 block text-xs font-semibold text-slate-500">限制类型</span>
             <select className="campus-select" value={type} onChange={(event) => setType(event.target.value as HoldType)}>
               {HOLD_TYPES.map((item) => (
                 <option key={item} value={item}>{HOLD_TYPE_LABELS[item]}</option>
@@ -296,19 +308,20 @@ export default function AdminHoldsClient() {
             disabled={creating || !selectedStudent || reason.trim().length < 3}
             className="inline-flex h-10 items-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {creating ? "创建中…" : "创建保留"}
+            {creating ? "创建中…" : "创建限制"}
           </button>
         </form>
 
         <section className="space-y-4">
           <div className="campus-toolbar">
             <label className="block max-w-md flex-1">
-              <span className="mb-2 block text-xs font-semibold text-slate-500">筛选保留记录</span>
+              <span className="mb-2 block text-xs font-semibold text-slate-500">筛选限制记录</span>
               <input
+                ref={searchRef}
                 className="campus-input"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="按学生、类型、原因或备注搜索"
+                placeholder="按学生、类型、原因或备注搜索… (/)"
               />
             </label>
             <button
@@ -370,7 +383,7 @@ export default function AdminHoldsClient() {
                       disabled={resolvingId === hold.id}
                       className="mt-3 inline-flex h-9 items-center rounded-lg border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {resolvingId === hold.id ? "移除中…" : "移除保留"}
+                      {resolvingId === hold.id ? "移除中…" : "移除限制"}
                     </button>
                   </div>
                 ) : null}

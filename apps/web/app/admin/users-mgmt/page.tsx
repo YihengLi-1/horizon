@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/components/Toast";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type UserRow = {
   id: string;
@@ -20,7 +21,7 @@ const ROLE_LABELS: Record<string, string> = {
   STUDENT: "学生",
   ADMIN: "管理员",
   FACULTY: "教师",
-  ADVISOR: "顾问",
+  ADVISOR: "导师",
 };
 
 const ROLE_COLORS: Record<string, string> = {
@@ -39,6 +40,19 @@ export default function UsersMgmtPage() {
   const [roleFilter, setRoleFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState<string | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const LIMIT = 20;
 
@@ -105,17 +119,18 @@ export default function UsersMgmtPage() {
 
   return (
     <div className="campus-page space-y-6">
-      <div className="campus-hero">
+      <section className="campus-hero">
         <p className="campus-eyebrow">系统管理</p>
         <h1 className="campus-title">用户管理</h1>
         <p className="campus-subtitle">查看、锁定账号、变更用户角色</p>
-      </div>
+      </section>
 
       {/* Toolbar */}
       <form onSubmit={handleSearch} className="campus-toolbar flex-wrap gap-2">
         <input
+          ref={searchRef}
           className="campus-input flex-1 min-w-48"
-          placeholder="搜索邮箱或学号…"
+          placeholder="搜索邮箱或学号… (/)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -128,7 +143,7 @@ export default function UsersMgmtPage() {
           <option value="STUDENT">学生</option>
           <option value="ADMIN">管理员</option>
           <option value="FACULTY">教师</option>
-          <option value="ADVISOR">顾问</option>
+          <option value="ADVISOR">导师</option>
         </select>
         <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
           搜索
@@ -178,7 +193,7 @@ export default function UsersMgmtPage() {
                           <option value="STUDENT">学生</option>
                           <option value="ADMIN">管理员</option>
                           <option value="FACULTY">教师</option>
-                          <option value="ADVISOR">顾问</option>
+                          <option value="ADVISOR">导师</option>
                         </select>
                       </td>
                       <td className="px-4 py-3">
@@ -198,7 +213,16 @@ export default function UsersMgmtPage() {
                         <button
                           type="button"
                           disabled={working === u.id}
-                          onClick={() => void toggleLock(u)}
+                          onClick={() => {
+                            const willLock = !isLocked;
+                            setConfirmState({
+                              title: willLock ? "锁定账号" : "解锁账号",
+                              message: willLock
+                                ? `确认锁定 ${u.email}？该用户将无法登录。`
+                                : `确认解锁 ${u.email}？`,
+                              onConfirm: () => { setConfirmState(null); void toggleLock(u); },
+                            });
+                          }}
                           className={`rounded px-2.5 py-1 text-xs font-medium disabled:opacity-50 ${
                             isLocked
                               ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
@@ -216,6 +240,14 @@ export default function UsersMgmtPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!confirmState}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
 
       {/* Pagination */}
       {totalPages > 1 && (

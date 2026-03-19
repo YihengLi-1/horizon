@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import PrereqGraph from "@/components/PrereqGraph";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type Course = {
   id: string;
@@ -69,6 +70,7 @@ export default function CoursesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({ code: "", title: "", credits: 3, weeklyHours: "", description: "", prerequisiteCourseIds: [] });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   const load = async () => {
     try {
@@ -165,19 +167,25 @@ export default function CoursesPage() {
     }
   };
 
-  const onDelete = async (id: string, code: string) => {
-    if (!confirm(`确认删除课程 "${code}"？此操作无法撤销。`)) return;
-    try {
-      setError("");
-      setNotice("");
-      await apiFetch(`/admin/courses/${id}`, { method: "DELETE" });
-      setNotice(`课程「${code}」已删除。`);
-      if (editingId === id) setEditingId(null);
-      await load();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "删除失败";
-      setError(message);
-    }
+  const onDelete = (id: string, code: string) => {
+    setConfirmState({
+      title: "删除课程",
+      message: `确认删除课程"${code}"？此操作无法撤销。`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          setError("");
+          setNotice("");
+          await apiFetch(`/admin/courses/${id}`, { method: "DELETE" });
+          setNotice(`课程「${code}」已删除。`);
+          if (editingId === id) setEditingId(null);
+          await load();
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "删除失败";
+          setError(message);
+        }
+      },
+    });
   };
 
   const creditOptions = useMemo(
@@ -266,9 +274,7 @@ export default function CoursesPage() {
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">课程目录管理</p>
             <h1 className="campus-title">课程管理</h1>
-            <p className="text-sm text-slate-600 md:text-base">
-              维护课程定义、学分值及先修课关联，用于注册校验。
-            </p>
+            <p className="campus-subtitle">维护课程定义、学分值及先修课关联，用于注册校验。</p>
             <div className="flex flex-wrap gap-2 pt-1">
               <span className="campus-chip chip-emerald">{stats.total} 门课程</span>
               <span className="campus-chip chip-purple">均 {stats.avg} 学分</span>
@@ -786,6 +792,13 @@ export default function CoursesPage() {
           </div>
         ) : null}
       </section>
+      <ConfirmDialog
+        open={confirmState !== null}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

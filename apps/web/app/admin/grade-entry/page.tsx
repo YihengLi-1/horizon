@@ -357,7 +357,7 @@ export default function AdminGradeEntryPage() {
       ) : rows.length === 0 ? (
         <div className="campus-empty campus-card">
           <div className="campus-empty-title">当前教学班暂无在读学生</div>
-          <div className="campus-empty-desc">换一个教学班，或先确认该班已有 ENROLLED 学生。</div>
+          <div className="campus-empty-desc">换一个教学班，或先确认该班已有在读学生。</div>
         </div>
       ) : (
         <div className="campus-card overflow-x-auto">

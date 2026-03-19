@@ -11,9 +11,7 @@ export default function TermsError({
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">教学日历管理</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">
-          出现错误
-        </h1>
+        <h1 className="campus-title">出现错误</h1>
       </section>
       <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
         <p className="font-semibold">学期加载失败。</p>

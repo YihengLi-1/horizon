@@ -437,12 +437,10 @@ export default async function StudentDashboardPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">本学期概览</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">
+            <h1 className="campus-title">
               {me?.profile?.legalName ? `${me.profile.legalName}，你好` : "学生概览"}
             </h1>
-            <p className="text-base text-slate-600">
-              {term ? `${term.name} 的选课状态、提醒和学业进度都在这里。` : "当前还没有可用学期。"}
-            </p>
+            <p className="campus-subtitle">{term ? `${term.name} 的选课状态、提醒和学业进度都在这里。` : "当前还没有可用学期。"}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {term ? <span className="campus-chip chip-blue">{term.name}</span> : null}
@@ -755,7 +753,7 @@ export default async function StudentDashboardPage() {
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
                   <p className="text-[11px] font-semibold text-violet-700">待审批</p>
-                  <p className="mt-1 text-2xl font-semibold text-violet-900">{pendingApproval.length}</p>
+                  <p className="campus-kpi-value text-violet-900">{pendingApproval.length}</p>
                   <ul className="mt-2 space-y-1 text-sm text-violet-900">
                     {pendingApproval.slice(0, 5).map((item) => (
                       <li key={item.id}>
@@ -766,7 +764,7 @@ export default async function StudentDashboardPage() {
                 </div>
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
                   <p className="text-[11px] font-semibold text-amber-700">候补中</p>
-                  <p className="mt-1 text-2xl font-semibold text-amber-900">{waitlisted.length}</p>
+                  <p className="campus-kpi-value text-amber-900">{waitlisted.length}</p>
                   <ul className="mt-2 space-y-1 text-sm text-amber-900">
                     {waitlisted.slice(0, 5).map((item) => (
                       <li key={item.id}>
@@ -816,18 +814,20 @@ export default async function StudentDashboardPage() {
           <CardContent>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {[
-                { href: "/student/grade-estimator",     label: "成绩估算" },
-                { href: "/student/gpa-goal",            label: "GPA 目标" },
-                { href: "/student/what-if",             label: "GPA 假设" },
-                { href: "/student/graduation-checklist",label: "毕业核查" },
-                { href: "/student/peer-compare",        label: "同伴对比" },
-                { href: "/student/recommendations",     label: "课程推荐" },
-                { href: "/student/conflicts",           label: "冲突检测" },
-                { href: "/student/study-timer",         label: "学习计时" },
-                { href: "/student/my-notes",            label: "我的笔记" },
-                { href: "/student/enrollment-timeline", label: "注册时线" },
-                { href: "/student/credit-summary",      label: "学分总览" },
                 { href: "/student/quick-add",           label: "快速选课" },
+                { href: "/student/conflicts",           label: "冲突检测" },
+                { href: "/student/planner",             label: "选课规划" },
+                { href: "/student/watchlist",           label: "课程订阅" },
+                { href: "/student/recommendations",     label: "课程推荐" },
+                { href: "/student/graduation-checklist",label: "毕业核查" },
+                { href: "/student/credit-summary",      label: "学分总览" },
+                { href: "/student/enrollment-timeline", label: "注册记录" },
+                { href: "/student/what-if",             label: "GPA 模拟" },
+                { href: "/student/gpa-goal",            label: "GPA 目标" },
+                { href: "/student/peer-compare",        label: "同伴对比" },
+                { href: "/student/term-compare",        label: "学期对比" },
+                { href: "/student/my-ratings",          label: "我的评价" },
+                { href: "/student/honors",              label: "荣誉成就" },
               ].map(({ href, label }) => (
                 <Link
                   key={href}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type Webhook = {
   id: string;
@@ -33,6 +34,7 @@ export default function WebhooksPage() {
   const [newEvents, setNewEvents] = useState<string[]>(["enrollment.created"]);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -71,16 +73,23 @@ export default function WebhooksPage() {
     }
   }
 
-  async function remove(id: string) {
-    setDeletingId(id);
-    try {
-      await apiFetch(`/admin/webhooks/${id}`, { method: "DELETE" });
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "删除失败");
-    } finally {
-      setDeletingId(null);
-    }
+  function remove(id: string, url: string) {
+    setConfirmState({
+      title: "删除 Webhook",
+      message: `确认删除此 Webhook？\n${url}`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        setDeletingId(id);
+        try {
+          await apiFetch(`/admin/webhooks/${id}`, { method: "DELETE" });
+          await load();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "删除失败");
+        } finally {
+          setDeletingId(null);
+        }
+      },
+    });
   }
 
   function toggleEvent(evt: string) {
@@ -201,7 +210,7 @@ export default function WebhooksPage() {
                 <button
                   type="button"
                   disabled={deletingId === w.id}
-                  onClick={() => remove(w.id)}
+                  onClick={() => remove(w.id, w.url)}
                   className="shrink-0 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 transition"
                 >
                   {deletingId === w.id ? "删除中…" : "删除"}
@@ -211,6 +220,13 @@ export default function WebhooksPage() {
           ))}
         </section>
       )}
+      <ConfirmDialog
+        open={!!confirmState}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }
