@@ -266,7 +266,7 @@ check_exists "apps/api/src/faculty/faculty.service.spec.ts" "Faculty workflow un
 check_exists "apps/api/src/advising/advising.service.spec.ts" "Advisor workflow unit tests"
 check_contains "apps/web/app/admin/waitlist/page.tsx" "sectionFilter|All sections|Section filter" "Waitlist section filter"
 check_exists "apps/web/app/student/announcements/page.tsx" "Student announcements page"
-check_contains "apps/web/components/app-shell.tsx" "student/announcements|Invite Codes" "Announcements and invite-code nav links"
+check_contains "apps/web/components/app-shell.tsx" "admin/invite-codes|invite-codes" "Admin invite-codes nav link"
 check_exists "apps/api/ARCHITECTURE.md" "API architecture docs"
 check_contains "apps/api/src/main.ts" "/api/health|status: \"ok\"|status:'ok'" "API health route in Nest app"
 check_contains "nginx/nginx.conf" "Permissions-Policy|X-Frame-Options" "Expanded security headers in nginx"
