@@ -167,7 +167,9 @@ export function CommandPalette({
               id: course.id,
               label: `${course.code} · ${course.title}`,
               subtitle: course.code,
-              href: `/student/catalog?search=${encodeURIComponent(course.code)}`
+              href: isAdmin
+              ? `/admin/courses?search=${encodeURIComponent(course.code)}`
+              : `/student/catalog?search=${encodeURIComponent(course.code)}`
             }));
           setCourses(filtered);
         })

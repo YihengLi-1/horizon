@@ -122,8 +122,8 @@ export default function NotificationBell() {
           <div className="max-h-80 overflow-y-auto px-2 py-2">
             {items.length === 0 ? (
               <div className="campus-empty py-8">
-                <div className="campus-empty-title text-sm">未找到</div>
-                <div className="campus-empty-desc text-xs">当前还没有新的系统通知。</div>
+                <div className="campus-empty-title text-sm">暂无通知</div>
+                <div className="campus-empty-desc text-xs">当前没有系统通知。</div>
               </div>
             ) : (
               items.map((item) => (
