@@ -3224,11 +3224,11 @@ export class AdminService {
       }
 
       if (!studentId) {
-        issues.push({ rowNumber, field: "studentId", message: "studentId is required" });
+        issues.push({ rowNumber, field: "studentId", message: "学号为必填项" });
       }
 
       if (!legalName) {
-        issues.push({ rowNumber, field: "legalName", message: "legalName is required" });
+        issues.push({ rowNumber, field: "legalName", message: "真实姓名为必填项" });
       }
 
       if (issues.length > rowIssueCountBefore) {
@@ -3303,7 +3303,7 @@ export class AdminService {
         issues.push({
           rowNumber: row.rowNumber,
           field: "studentId",
-          message: "studentId already exists"
+          message: "学号已存在"
         });
       }
     }
@@ -3380,7 +3380,7 @@ export class AdminService {
             raceIssues.push({
               rowNumber: row.rowNumber,
               field: "studentId",
-              message: "studentId already exists"
+              message: "学号已存在"
             });
           }
         }
@@ -3467,15 +3467,15 @@ export class AdminService {
       const beforeIssueCount = issues.length;
 
       if (!code) {
-        issues.push({ rowNumber, field: "code", message: "code is required" });
+        issues.push({ rowNumber, field: "code", message: "课程代码为必填项" });
       }
       if (!title) {
-        issues.push({ rowNumber, field: "title", message: "title is required" });
+        issues.push({ rowNumber, field: "title", message: "课程名称为必填项" });
       }
       if (!creditsRaw) {
-        issues.push({ rowNumber, field: "credits", message: "credits is required" });
+        issues.push({ rowNumber, field: "credits", message: "学分为必填项" });
       } else if (!Number.isInteger(credits) || credits <= 0) {
-        issues.push({ rowNumber, field: "credits", message: "credits must be a positive integer" });
+        issues.push({ rowNumber, field: "credits", message: "学分必须为正整数" });
       }
 
       if (issues.length > beforeIssueCount) {
@@ -3487,7 +3487,7 @@ export class AdminService {
         issues.push({
           rowNumber,
           field: "code",
-          message: `Duplicate course code in CSV (first seen at row ${existingRow})`
+          message: `CSV 中存在重复课程代码（第一次出现于第 ${existingRow} 行）`
         });
         continue;
       }
@@ -3675,31 +3675,31 @@ export class AdminService {
 
       const beforeIssueCount = issues.length;
 
-      if (!termName) issues.push({ rowNumber, field: "termName", message: "termName is required" });
-      if (!courseCode) issues.push({ rowNumber, field: "courseCode", message: "courseCode is required" });
-      if (!sectionCode) issues.push({ rowNumber, field: "sectionCode", message: "sectionCode is required" });
+      if (!termName) issues.push({ rowNumber, field: "termName", message: "学期名称为必填项" });
+      if (!courseCode) issues.push({ rowNumber, field: "courseCode", message: "课程代码为必填项" });
+      if (!sectionCode) issues.push({ rowNumber, field: "sectionCode", message: "教学班编号为必填项" });
       if (!modalityRaw) {
-        issues.push({ rowNumber, field: "modality", message: "modality is required" });
+        issues.push({ rowNumber, field: "modality", message: "上课形式为必填项" });
       } else if (!allowedModalities.has(modalityRaw as Modality)) {
-        issues.push({ rowNumber, field: "modality", message: "modality must be ONLINE, ON_CAMPUS, or HYBRID" });
+        issues.push({ rowNumber, field: "modality", message: "上课形式必须为 ONLINE、ON_CAMPUS 或 HYBRID" });
       }
 
       const capacity = Number(capacityRaw);
       if (!capacityRaw) {
-        issues.push({ rowNumber, field: "capacity", message: "capacity is required" });
+        issues.push({ rowNumber, field: "capacity", message: "容量为必填项" });
       } else if (!Number.isInteger(capacity) || capacity <= 0) {
-        issues.push({ rowNumber, field: "capacity", message: "capacity must be a positive integer" });
+        issues.push({ rowNumber, field: "capacity", message: "容量必须为正整数" });
       }
 
       const credits = Number(creditsRaw);
       if (!creditsRaw) {
-        issues.push({ rowNumber, field: "credits", message: "credits is required" });
+        issues.push({ rowNumber, field: "credits", message: "学分为必填项" });
       } else if (!Number.isInteger(credits) || credits <= 0) {
-        issues.push({ rowNumber, field: "credits", message: "credits must be a positive integer" });
+        issues.push({ rowNumber, field: "credits", message: "学分必须为正整数" });
       }
 
       if (!instructorName) {
-        issues.push({ rowNumber, field: "instructorName", message: "instructorName is required" });
+        issues.push({ rowNumber, field: "instructorName", message: "教师姓名为必填项" });
       }
 
       const meetingTimes: SectionImportMeeting[] = [];
@@ -7169,7 +7169,7 @@ export class AdminService {
     if (!normalizedSectionId || uniqueStudentIds.length === 0) {
       throw new BadRequestException({
         code: "BULK_INPUT_INVALID",
-        message: "sectionId and at least one studentId are required"
+        message: "sectionId 和至少一个 studentId 为必填项"
       });
     }
 
@@ -7265,7 +7265,7 @@ export class AdminService {
     if (!mappedStatus || uniqueStudentIds.length === 0) {
       throw new BadRequestException({
         code: "BULK_INPUT_INVALID",
-        message: "studentIds and a valid status are required"
+        message: "studentIds 和有效状态为必填项"
       });
     }
 
@@ -7320,7 +7320,7 @@ export class AdminService {
     if (!termId.trim() || !openAt || !closeAt) {
       throw new BadRequestException({
         code: "WINDOW_INPUT_INVALID",
-        message: "termId, openAt, and closeAt are required"
+        message: "termId、openAt 和 closeAt 为必填项"
       });
     }
 

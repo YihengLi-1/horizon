@@ -173,7 +173,7 @@ async function bootstrap() {
         error: {
           statusCode: 403,
           code: "CSRF_ORIGIN_BLOCKED",
-          message: "Request origin is not allowed",
+          message: "请求来源不在允许范围内",
           requestId: req.requestId
         }
       });
@@ -203,7 +203,7 @@ async function bootstrap() {
         error: {
           statusCode: 403,
           code: "CSRF_TOKEN_INVALID",
-          message: "Missing or invalid CSRF token",
+          message: "CSRF 令牌缺失或无效，请刷新页面后重试",
           requestId: req.requestId
         }
       });
@@ -341,7 +341,7 @@ async function bootstrap() {
       alerts.push({
         level: "warning",
         code: "CSRF_TOKEN_INVALID_SPIKE",
-        message: "Invalid CSRF token responses exceeded threshold",
+        message: "CSRF 令牌无效响应次数超过阈值",
         value: metrics.security.csrfTokenInvalid,
         threshold: securityAlertThresholds.csrfTokenInvalid
       });
@@ -350,7 +350,7 @@ async function bootstrap() {
       alerts.push({
         level: "warning",
         code: "LOGIN_RATE_LIMIT_SPIKE",
-        message: "Login rate-limit events exceeded threshold",
+        message: "登录频率限制触发次数超过阈值",
         value: metrics.security.loginRateLimited,
         threshold: securityAlertThresholds.loginRateLimited
       });
@@ -359,7 +359,7 @@ async function bootstrap() {
       alerts.push({
         level: "warning",
         code: "HTTP_ERROR_RATE_HIGH",
-        message: "HTTP error rate exceeded threshold",
+        message: "HTTP 错误率超过阈值",
         value: errorRatePercent,
         threshold: securityAlertThresholds.errorRatePercent
       });
@@ -368,7 +368,7 @@ async function bootstrap() {
       alerts.push({
         level: "critical",
         code: "MAIL_TRANSPORT_MISCONFIGURED",
-        message: "MAIL_ENABLED=true but SMTP credentials are incomplete",
+        message: "MAIL_ENABLED=true 但 SMTP 凭据不完整",
         value: 1,
         threshold: 1
       });
@@ -377,7 +377,7 @@ async function bootstrap() {
       alerts.push({
         level: "warning",
         code: "MAIL_DELIVERY_FAILURE_SPIKE",
-        message: "Email delivery failures exceeded threshold",
+        message: "邮件投递失败次数超过阈值",
         value: mail.failed,
         threshold: securityAlertThresholds.mailDeliveryFailed
       });
@@ -386,7 +386,7 @@ async function bootstrap() {
       alerts.push({
         level: "critical",
         code: "MAIL_DELIVERY_FAILURE_RATE_HIGH",
-        message: "Email delivery failure rate exceeded threshold",
+        message: "邮件投递失败率超过阈值",
         value: mailFailureRatePercent,
         threshold: securityAlertThresholds.mailFailureRatePercent
       });
@@ -401,7 +401,7 @@ async function bootstrap() {
       alerts.push({
         level: "critical",
         code: "MAIL_DELIVERY_STALE_SUCCESS",
-        message: "No successful email delivery observed within allowed window",
+        message: "在允许时间窗口内未观测到成功的邮件投递",
         value: minutesSinceLastSuccess,
         threshold: securityAlertThresholds.mailSuccessStaleMinutes
       });
