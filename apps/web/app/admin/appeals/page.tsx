@@ -240,7 +240,7 @@ export default function AdminAppealsPage() {
                       className="campus-input w-full min-h-[80px] resize-y"
                       value={reviewForm.adminNote}
                       onChange={(e) => setReviewForm((f) => ({ ...f, adminNote: e.target.value }))}
-                      placeholder="请说明审核结论..."
+                      placeholder="请说明审核结论…"
                     />
                   </div>
 

@@ -468,7 +468,7 @@ export default async function GradesPage({
               href="/student/schedule"
               className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 no-underline transition hover:bg-slate-50"
             >
-              View Schedule →
+              查看课表 →
             </Link>
           </div>
         </section>
@@ -501,7 +501,7 @@ export default async function GradesPage({
                     dist[letter] > 0 ? (
                       <div
                         key={letter}
-                        title={`${letter}: ${dist[letter]} course${dist[letter] !== 1 ? "s" : ""}`}
+                        title={`${letter}：${dist[letter]} 门`}
                         className={`h-full transition-all ${
                           letter === "A" ? "bg-emerald-400"
                           : letter === "B" ? "bg-blue-400"

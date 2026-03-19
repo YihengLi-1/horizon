@@ -235,6 +235,15 @@ export default function SectionRosterPage() {
               <option value="DROPPED">已退课</option>
               <option value="WAITLISTED">候补</option>
             </select>
+            {statusFilter ? (
+              <button
+                type="button"
+                onClick={() => setStatusFilter("")}
+                className="campus-btn-ghost shrink-0 text-xs"
+              >
+                清除筛选
+              </button>
+            ) : null}
             <button type="button" onClick={exportCsv} disabled={!filteredRoster.length} className="campus-btn-ghost shrink-0 disabled:opacity-40">
               CSV 导出
             </button>

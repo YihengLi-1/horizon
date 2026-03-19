@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type RequestItem = {
   id: string;
@@ -33,6 +34,7 @@ export default function AdminPrereqWaiversPage() {
   const [savingId, setSavingId] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   async function loadData() {
     setLoading(true);
@@ -69,6 +71,18 @@ export default function AdminPrereqWaiversPage() {
     }
   }
 
+  function confirmDecide(item: RequestItem, status: "APPROVED" | "REJECTED") {
+    const name = item.student?.studentProfile?.legalName ?? item.student?.email ?? item.id;
+    const courseLabel = item.section ? `${item.section.course.code} §${item.section.sectionCode}` : "该课程";
+    setConfirmState({
+      title: status === "APPROVED" ? "批准先修豁免" : "拒绝先修豁免",
+      message: status === "APPROVED"
+        ? `确认批准 ${name} 对 ${courseLabel} 的先修课豁免申请？`
+        : `确认拒绝 ${name} 的先修课豁免申请？`,
+      onConfirm: () => { setConfirmState(null); void decide(item.id, status); },
+    });
+  }
+
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
@@ -99,8 +113,8 @@ export default function AdminPrereqWaiversPage() {
                   <td><textarea className="campus-input min-h-20 py-2" value={notes[item.id] ?? ""} onChange={(event) => setNotes((prev) => ({ ...prev, [item.id]: event.target.value }))} placeholder="可选：给学生的审批备注" /></td>
                   <td>
                     <div className="flex flex-col gap-2">
-                      <button type="button" disabled={savingId === item.id} onClick={() => void decide(item.id, "APPROVED")} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50">通过</button>
-                      <button type="button" disabled={savingId === item.id} onClick={() => void decide(item.id, "REJECTED")} className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-50">拒绝</button>
+                      <button type="button" disabled={savingId === item.id} onClick={() => confirmDecide(item, "APPROVED")} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50">通过</button>
+                      <button type="button" disabled={savingId === item.id} onClick={() => confirmDecide(item, "REJECTED")} className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-50">拒绝</button>
                     </div>
                   </td>
                 </tr>
@@ -129,6 +143,14 @@ export default function AdminPrereqWaiversPage() {
           </table>
         </div>
       </details>
+
+      <ConfirmDialog
+        open={!!confirmState}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

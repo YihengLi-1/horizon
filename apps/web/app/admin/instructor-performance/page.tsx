@@ -230,7 +230,7 @@ export default function InstructorPerformancePage() {
                           {row.avgGpa.toFixed(2)}
                         </span>
                       ) : (
-                        <span className="text-slate-300">N/A</span>
+                        <span className="text-slate-300">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3">

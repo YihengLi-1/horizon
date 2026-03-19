@@ -78,6 +78,9 @@ const ACADEMIC_STATUS_LABEL: Record<string, string> = {
   // legacy / bulk-update values
   Active: "在读",  Inactive: "未活跃",  Suspended: "已停学",  Probation: "察看期",  Graduated: "已毕业"
 };
+const ROLE_LABEL: Record<string, string> = {
+  STUDENT: "学生",  ADMIN: "管理员",  FACULTY: "教师",  ADVISOR: "顾问",
+};
 const PAGE_SIZE = 50;
 
 export default function AdminStudentsPage() {
@@ -136,17 +139,17 @@ export default function AdminStudentsPage() {
   const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   const loadTagsForStudents = async (list: Student[]) => {
-    const entries = await Promise.all(
-      list.map(async (student) => {
-        try {
-          const result = await apiFetch<{ studentId: string; tags: string[] }>(`/admin/students/${student.id}/tags`);
-          return [student.id, result.tags ?? []] as const;
-        } catch {
-          return [student.id, []] as const;
-        }
-      })
-    );
-    setStudentTagsMap(Object.fromEntries(entries));
+    if (!list.length) { setStudentTagsMap({}); return; }
+    try {
+      const ids = list.map((s) => s.id).join(",");
+      const result = await apiFetch<Record<string, string[]>>(
+        `/admin/student-tags/bulk?studentIds=${encodeURIComponent(ids)}`
+      );
+      setStudentTagsMap(result ?? {});
+    } catch {
+      // Fallback: empty tags for all
+      setStudentTagsMap(Object.fromEntries(list.map((s) => [s.id, []])));
+    }
   };
 
   const loadStudents = async () => {
@@ -832,7 +835,7 @@ export default function AdminStudentsPage() {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                    加载学生数据中...
+                    加载学生数据中…
                   </td>
                 </tr>
               ) : visibleStudents.length === 0 ? (
@@ -921,7 +924,7 @@ export default function AdminStudentsPage() {
 
         <div className="space-y-3 p-4 md:hidden">
           {loading ? (
-            <div className="campus-card p-4 text-sm text-slate-500">加载学生数据中...</div>
+            <div className="campus-card p-4 text-sm text-slate-500">加载学生数据中…</div>
           ) : visibleStudents.length === 0 ? (
             <div className="campus-card p-4 text-sm text-slate-500">暂无学生数据。</div>
           ) : (
@@ -1085,7 +1088,7 @@ export default function AdminStudentsPage() {
                       </div>
                       <div>
                         <p className="text-xs text-slate-500">角色</p>
-                        <p className="font-medium text-slate-800 dark:text-slate-100">{detailStudent.role ?? "STUDENT"}</p>
+                        <p className="font-medium text-slate-800 dark:text-slate-100">{ROLE_LABEL[detailStudent.role ?? "STUDENT"] ?? detailStudent.role ?? "学生"}</p>
                       </div>
                     </div>
                   </div>
@@ -1133,7 +1136,7 @@ export default function AdminStudentsPage() {
                               : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                           } disabled:opacity-50`}
                         >
-                          {roleSaving && detailStudent.role !== role ? "更新中…" : role}
+                          {roleSaving && detailStudent.role !== role ? "更新中…" : (ROLE_LABEL[role] ?? role)}
                         </button>
                       ))}
                     </div>
@@ -1198,7 +1201,7 @@ export default function AdminStudentsPage() {
                       </div>
                       <div>
                         <p className="text-xs text-slate-500">角色</p>
-                        <p className="font-medium text-slate-800 dark:text-slate-100">{detailStudent.role ?? "STUDENT"}</p>
+                        <p className="font-medium text-slate-800 dark:text-slate-100">{ROLE_LABEL[detailStudent.role ?? "STUDENT"] ?? detailStudent.role ?? "学生"}</p>
                       </div>
                     </div>
                     {detailLocked ? (

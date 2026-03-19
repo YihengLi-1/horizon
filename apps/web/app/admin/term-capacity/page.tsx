@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type SectionRow = {
@@ -43,6 +43,18 @@ export default function TermCapacityPage() {
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     void apiFetch<CapacityData>("/admin/term-capacity")
@@ -123,8 +135,9 @@ export default function TermCapacityPage() {
 
       <div className="campus-toolbar">
         <input
+          ref={searchRef}
           className="campus-input max-w-xs"
-          placeholder="搜索课程代码或名称…"
+          placeholder="搜索课程代码或名称…  [/]"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

@@ -95,14 +95,34 @@ function Field({
   );
 }
 
+const ENROLLMENT_STATUS_DISPLAY: Record<string, string> = {
+  ACTIVE: "在籍", INACTIVE: "未在籍", GRADUATED: "已毕业",
+  WITHDRAWN: "已退学", SUSPENDED: "停学", Imported: "已导入",
+  Active: "在籍", Inactive: "未在籍", Graduated: "已毕业", Withdrawn: "已退学",
+};
+const ACADEMIC_STATUS_DISPLAY: Record<string, string> = {
+  GOOD_STANDING: "学业良好", ACADEMIC_PROBATION: "学业观察",
+  ACADEMIC_SUSPENSION: "学业暂停",
+  Active: "在读", Inactive: "未活跃", Suspended: "已停学", Probation: "察看期",
+};
+
+function displayStatus(value: string | null | undefined, kind: "enrollment" | "academic"): string {
+  if (!value) return kind === "enrollment" ? "未设置注册状态" : "未设置学术状态";
+  const map = kind === "enrollment" ? ENROLLMENT_STATUS_DISPLAY : ACADEMIC_STATUS_DISPLAY;
+  return map[value] ?? value;
+}
+
 function statusClass(value: string | null | undefined) {
   if (!value) return "border-slate-300 bg-slate-100 text-slate-600";
   const lower = value.toLowerCase();
   if (lower.includes("good") || lower.includes("active") || lower.includes("full")) {
     return "border-emerald-200 bg-emerald-50 text-emerald-700";
   }
-  if (lower.includes("probation") || lower.includes("hold")) {
+  if (lower.includes("probation") || lower.includes("hold") || lower.includes("suspension")) {
     return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+  if (lower.includes("suspend") || lower.includes("withdraw") || lower.includes("inactive")) {
+    return "border-red-200 bg-red-50 text-red-700";
   }
   return "border-blue-200 bg-blue-50 text-blue-700";
 }
@@ -555,10 +575,10 @@ export default function StudentProfilePage() {
             </div>
             <div className="flex flex-wrap gap-2">
               <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusClass(profile?.enrollmentStatus)}`}>
-                {profile?.enrollmentStatus || "未设置注册状态"}
+                {displayStatus(profile?.enrollmentStatus, "enrollment")}
               </span>
               <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusClass(profile?.academicStatus)}`}>
-                {profile?.academicStatus || "未设置学术状态"}
+                {displayStatus(profile?.academicStatus, "academic")}
               </span>
             </div>
           </div>
@@ -572,7 +592,7 @@ export default function StudentProfilePage() {
       </section>
 
       {loading ? (
-        <section className="campus-card px-5 py-8 text-center text-sm text-slate-500">加载中...</section>
+        <section className="campus-card px-5 py-8 text-center text-sm text-slate-500">加载中…</section>
       ) : (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
           <form onSubmit={onSubmit} className="campus-card overflow-hidden">

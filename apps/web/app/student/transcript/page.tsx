@@ -276,7 +276,7 @@ export default function TranscriptPage() {
             checked={showAll}
             onChange={(e) => setShowAll(e.target.checked)}
           />
-          显示退课/CART记录
+          显示退课/购物车记录
         </label>
       </div>
 
@@ -305,7 +305,7 @@ export default function TranscriptPage() {
                 <div className={`flex items-center justify-between px-4 py-3 ${isPast ? "bg-slate-50 border-b border-slate-100" : "bg-indigo-50 border-b border-indigo-100"}`}>
                   <h2 className="text-sm font-bold text-slate-900">{group.termName}</h2>
                   <div className="flex items-center gap-2">
-                    {groupCredits > 0 && <span className="text-xs text-slate-500">{groupCredits}cr 已完成</span>}
+                    {groupCredits > 0 && <span className="text-xs text-slate-500">{groupCredits} 学分已完成</span>}
                     {!isPast && <span className="campus-chip border-indigo-300 bg-indigo-100 text-indigo-700 text-xs">进行中</span>}
                   </div>
                 </div>
@@ -319,7 +319,7 @@ export default function TranscriptPage() {
                             <span className="font-mono text-xs font-bold text-indigo-700">{e.section.course.code}</span>
                             <span className="text-xs text-slate-500 truncate">{e.section.course.title}</span>
                           </div>
-                          <p className="text-xs text-slate-400 mt-0.5">§{e.section.sectionCode} · {e.section.instructorName} · {e.section.credits}cr</p>
+                          <p className="text-xs text-slate-400 mt-0.5">§{e.section.sectionCode} · {e.section.instructorName} · {e.section.credits} 学分</p>
                         </div>
                         <span className={`campus-chip text-xs ${STATUS_CHIP[e.status] ?? "border-slate-200 bg-slate-50 text-slate-500"}`}>
                           {STATUS_LABEL[e.status] ?? e.status}

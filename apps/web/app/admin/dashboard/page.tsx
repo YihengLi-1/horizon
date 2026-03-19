@@ -471,11 +471,30 @@ export default async function AdminDashboardPage() {
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                 <p className="text-xs font-semibold tracking-wide text-slate-500">环境</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{opsVersion?.nodeEnv ?? nodeEnv}</p>
+                <p className="mt-1.5">
+                  {(() => {
+                    const env = opsVersion?.nodeEnv ?? nodeEnv;
+                    const cls =
+                      env === "production"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        : env === "development"
+                        ? "border-amber-200 bg-amber-50 text-amber-800"
+                        : "border-blue-200 bg-blue-50 text-blue-800";
+                    return (
+                      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-xs font-semibold ${cls}`}>
+                        {env}
+                      </span>
+                    );
+                  })()}
+                </p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                 <p className="text-xs font-semibold tracking-wide text-slate-500">版本</p>
-                <p className="mt-1 font-mono text-sm font-semibold text-slate-900">{opsVersion?.version ?? appVersion}</p>
+                <p className="mt-1.5">
+                  <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 font-mono text-xs font-semibold text-blue-800">
+                    {opsVersion?.version ?? appVersion}
+                  </span>
+                </p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                 <p className="text-xs font-semibold tracking-wide text-slate-500">待审批</p>

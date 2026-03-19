@@ -245,7 +245,7 @@ export default function AuditLogsPage() {
             <input
               ref={searchRef}
               className="campus-input"
-              placeholder="操作者、操作类型、实体ID...  [/]"
+              placeholder="操作者、操作类型、实体ID…  [/]"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -297,7 +297,7 @@ export default function AuditLogsPage() {
           <tbody>
               {loading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">加载审计日志中...</td>
+                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">加载审计日志中…</td>
               </tr>
             ) : logs.length === 0 ? (
               <tr>

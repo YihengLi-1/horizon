@@ -67,6 +67,22 @@ const STATUS_LABEL: Record<string, string> = {
   WAITLISTED: "候补", PENDING_APPROVAL: "待审批",
 };
 
+const ACADEMIC_STATUS_LABEL: Record<string, string> = {
+  GOOD_STANDING: "学业良好", ACADEMIC_PROBATION: "学业观察", ACADEMIC_SUSPENSION: "学业暂停",
+  Active: "在读", Inactive: "未活跃", Suspended: "已停学", Probation: "察看期",
+};
+
+const ENROLLMENT_STATUS_LABEL: Record<string, string> = {
+  ACTIVE: "在籍", INACTIVE: "未在籍", GRADUATED: "已毕业",
+  WITHDRAWN: "已退学", SUSPENDED: "停学",
+  Active: "在籍", Inactive: "未在籍", Graduated: "已毕业",
+  Withdrawn: "已退学", Imported: "已导入",
+};
+
+const FLAG_LABEL: Record<string, string> = {
+  URGENT: "紧急", FOLLOW_UP: "跟进", POSITIVE: "正面",
+};
+
 export default function AdminStudentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [student, setStudent] = useState<StudentDetail | null>(null);
@@ -200,11 +216,15 @@ export default function AdminStudentDetailPage() {
         </div>
         <div className="campus-kpi">
           <p className="campus-kpi-label">学业状态</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">{profile?.academicStatus ?? "—"}</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900">
+            {profile?.academicStatus ? (ACADEMIC_STATUS_LABEL[profile.academicStatus] ?? profile.academicStatus) : "—"}
+          </p>
         </div>
         <div className="campus-kpi">
           <p className="campus-kpi-label">注册状态</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">{profile?.enrollmentStatus ?? "—"}</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900">
+            {profile?.enrollmentStatus ? (ENROLLMENT_STATUS_LABEL[profile.enrollmentStatus] ?? profile.enrollmentStatus) : "—"}
+          </p>
         </div>
       </section>
 
@@ -308,7 +328,7 @@ export default function AdminStudentDetailPage() {
                     <p className="text-xs text-slate-400">
                       {note.admin.email} · {new Date(note.createdAt).toLocaleString("zh-CN")}
                       {note.flag ? (
-                        <span className="ml-2 campus-chip text-[11px] border-amber-200 bg-amber-50 text-amber-700">{note.flag}</span>
+                        <span className="ml-2 campus-chip text-[11px] border-amber-200 bg-amber-50 text-amber-700">{FLAG_LABEL[note.flag] ?? note.flag}</span>
                       ) : null}
                     </p>
                   </div>

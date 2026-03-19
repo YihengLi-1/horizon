@@ -327,7 +327,7 @@ export default function CoursesPage() {
           <div className="mt-1 flex flex-wrap gap-1.5">
             {stats.byCredits.map(({ cr, count }) => (
               <span key={cr} className="campus-chip chip-purple gap-1 rounded-lg px-2 py-0.5">
-                <span className="font-semibold">{cr}cr</span>
+                <span className="font-semibold">{cr} 学分</span>
                 <span className="text-slate-400">×{count}</span>
               </span>
             ))}
@@ -563,7 +563,7 @@ export default function CoursesPage() {
             <span className="mb-1.5 block text-xs font-semibold text-slate-500">学分</span>
             <select className="campus-select" value={filterCredits} onChange={(e) => setFilterCredits(e.target.value)}>
               <option value="ALL">全部学分</option>
-              {creditOptions.map((cr) => <option key={cr} value={cr}>{cr} cr</option>)}
+              {creditOptions.map((cr) => <option key={cr} value={cr}>{cr} 学分</option>)}
             </select>
           </label>
           <label className="block">
@@ -618,7 +618,7 @@ export default function CoursesPage() {
               {loading ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
-                    加载课程中...
+                    加载课程中…
                   </td>
                 </tr>
               ) : visibleCourses.length === 0 ? (
@@ -676,7 +676,7 @@ export default function CoursesPage() {
                         {course.credits} 学分
                       </span>
                       {course.weeklyHours ? (
-                        <span className="ml-1 text-xs text-slate-400">{course.weeklyHours}h/wk</span>
+                        <span className="ml-1 text-xs text-slate-400">{course.weeklyHours} 课时/周</span>
                       ) : null}
                     </td>
                     <td className="px-4 py-3">

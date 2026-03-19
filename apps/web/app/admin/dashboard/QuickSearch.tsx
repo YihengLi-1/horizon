@@ -62,7 +62,7 @@ export default function QuickSearch() {
         }}
         onFocus={() => setOpen(true)}
         onBlur={() => window.setTimeout(() => setOpen(false), 200)}
-        placeholder="快速搜索学生、课程..."
+        placeholder="快速搜索学生、课程…"
         className="campus-input w-full pr-8 text-sm"
       />
       {open && results.length > 0 ? (

@@ -214,7 +214,7 @@ export default function GradeAppealsPage() {
                 className="campus-input w-full min-h-[100px] resize-y"
                 value={form.reason}
                 onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
-                placeholder="请详细说明申诉原因，附上相关证据或说明..."
+                placeholder="请详细说明申诉原因，附上相关证据或说明…"
               />
             </div>
 

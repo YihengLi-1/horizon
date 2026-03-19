@@ -25,6 +25,15 @@ const STATUS_COLORS: Record<string, string> = {
   WAITLISTED: "text-slate-500 bg-slate-100",
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  ENROLLED: "在读",
+  COMPLETED: "已完成",
+  DROPPED: "已退课",
+  WAITLISTED: "候补",
+  PENDING_APPROVAL: "待审批",
+  WITHDRAWN: "已撤回",
+};
+
 const GRADE_COLORS: Record<string, string> = {
   "A+": "text-emerald-700", "A": "text-emerald-700", "A-": "text-emerald-600",
   "B+": "text-indigo-700", "B": "text-indigo-700", "B-": "text-indigo-600",
@@ -169,7 +178,7 @@ export default function CourseHistoryPage() {
                 onClick={() => setStatusFilter(s)}
                 className={`campus-chip ${statusFilter === s ? "bg-indigo-600 text-white border-indigo-600" : "border-slate-200 bg-slate-50 text-slate-600"}`}
               >
-                {s === "ALL" ? "全部" : s === "ENROLLED" ? "在读" : s === "COMPLETED" ? "完成" : s === "DROPPED" ? "退课" : "候补"}
+                {s === "ALL" ? "全部" : (STATUS_LABELS[s] ?? s)}
               </button>
             ))}
             <button
@@ -228,7 +237,7 @@ export default function CourseHistoryPage() {
                                 <td className="py-2.5 pr-3 text-center text-slate-600">{e.credits}</td>
                                 <td className="py-2.5 pr-3 text-center">
                                   <span className={`inline-block rounded px-1.5 py-0.5 font-medium text-xs ${STATUS_COLORS[e.status] ?? ""}`}>
-                                    {e.status}
+                                    {STATUS_LABELS[e.status] ?? e.status}
                                   </span>
                                 </td>
                                 <td className="py-2.5 pr-3 text-center">

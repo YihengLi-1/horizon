@@ -476,7 +476,7 @@ export default function EnrollmentsPage() {
               <span className="font-medium text-slate-700">{selectedTerm.name}</span>
               {" · "}
               {new Date(selectedTerm.startDate).toLocaleDateString()} – {new Date(selectedTerm.endDate).toLocaleDateString()}
-              {" · Drop by "}
+              {" · 退课截止 "}
               {new Date(selectedTerm.dropDeadline).toLocaleDateString()}
             </div>
           )}
@@ -594,7 +594,7 @@ export default function EnrollmentsPage() {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                    加载注册数据中...
+                    加载注册数据中…
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
@@ -632,7 +632,7 @@ export default function EnrollmentsPage() {
                     <td className="px-4 py-3 text-slate-700">
                       <p className="font-medium">{row.section.course.code} · {row.section.sectionCode}</p>
                       <p className="text-xs text-slate-500">{row.section.course.title}</p>
-                      <p className="text-xs text-slate-400">{row.section.course.credits} cr</p>
+                      <p className="text-xs text-slate-400">{row.section.course.credits} 学分</p>
                     </td>
                     {!selectedTermId && (
                       <td className="px-4 py-3 text-xs text-slate-500">{row.term?.name ?? "—"}</td>
@@ -721,7 +721,7 @@ export default function EnrollmentsPage() {
 
         <div className="space-y-3 p-4 md:hidden">
           {loading ? (
-            <div className="campus-card p-4 text-sm text-slate-500">加载注册数据中...</div>
+            <div className="campus-card p-4 text-sm text-slate-500">加载注册数据中…</div>
           ) : rows.length === 0 ? (
             <div className="campus-card p-4 text-sm text-slate-500">
               {hasActiveFilters ? "没有符合筛选条件的注册记录。" : "暂无注册记录。"}
@@ -773,7 +773,7 @@ export default function EnrollmentsPage() {
                   >
                     {STATUS_OPTIONS.map((status) => (
                       <option key={status} value={status}>
-                        {status}
+                        {STATUS_LABELS[status] ?? status}
                       </option>
                     ))}
                   </select>
@@ -825,7 +825,7 @@ export default function EnrollmentsPage() {
         {total > PAGE_SIZE ? (
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-3 text-sm text-slate-600">
             <p>
-              Showing {total === 0 ? 0 : ((safePage - 1) * PAGE_SIZE) + 1}–{Math.min((safePage - 1) * PAGE_SIZE + rows.length, total)} of {total} records
+              显示 {total === 0 ? 0 : ((safePage - 1) * PAGE_SIZE) + 1}–{Math.min((safePage - 1) * PAGE_SIZE + rows.length, total)} / 共 {total} 条
             </p>
             <div className="flex items-center gap-1.5">
               <button
