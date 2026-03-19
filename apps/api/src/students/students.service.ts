@@ -593,7 +593,7 @@ export class StudentsService {
     }
 
     if (!termId) {
-      throw new BadRequestException({ code: "TERM_REQUIRED", message: "termId is required" });
+      throw new BadRequestException({ code: "TERM_REQUIRED", message: "termId 为必填项" });
     }
 
     const enrollments = await this.prisma.enrollment.findMany({
