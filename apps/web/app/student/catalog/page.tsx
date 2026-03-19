@@ -889,7 +889,7 @@ export default function StudentCatalogPage() {
       <section className="campus-toolbar">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">学期</span>
+            <span className="mb-1.5 block text-xs font-semibold text-slate-500">学期</span>
             <select
               className="campus-select"
               value={termId}
@@ -901,7 +901,7 @@ export default function StudentCatalogPage() {
             </select>
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">院系</span>
+            <span className="mb-1.5 block text-xs font-semibold text-slate-500">院系</span>
             <select
               className="campus-select"
               value={filterDept}
@@ -914,7 +914,7 @@ export default function StudentCatalogPage() {
             </select>
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">搜索</span>
+            <span className="mb-1.5 block text-xs font-semibold text-slate-500">搜索</span>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
               <input
@@ -927,7 +927,7 @@ export default function StudentCatalogPage() {
             </div>
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">排序</span>
+            <span className="mb-1.5 block text-xs font-semibold text-slate-500">排序</span>
             <select
               className="campus-select"
               value={sortBy}
@@ -944,7 +944,7 @@ export default function StudentCatalogPage() {
 
         <div className="mt-4 space-y-4">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">授课方式</p>
+            <p className="mb-2 text-xs font-semibold text-slate-500">授课方式</p>
             <div className="flex flex-wrap gap-2">
               {[
                 { value: "ALL", label: "全部" },
@@ -969,7 +969,7 @@ export default function StudentCatalogPage() {
           </div>
 
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">学分</p>
+            <p className="mb-2 text-xs font-semibold text-slate-500">学分</p>
             <div className="flex flex-wrap gap-2">
               {[
                 { value: "ALL", label: "全部" },
@@ -995,7 +995,7 @@ export default function StudentCatalogPage() {
           </div>
 
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">星期</p>
+            <p className="mb-2 text-xs font-semibold text-slate-500">星期</p>
             <div className="flex flex-wrap gap-2">
               {[
                 { value: 1, label: "一" },
@@ -1073,7 +1073,7 @@ export default function StudentCatalogPage() {
 
         {/* Day filter */}
         <div className="mt-3">
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">上课日筛选</p>
+          <p className="mb-1.5 text-xs font-semibold text-slate-500">上课日筛选</p>
           <div className="flex flex-wrap gap-1.5">
             {[{d:1,label:"周一"},{d:2,label:"周二"},{d:3,label:"周三"},{d:4,label:"周四"},{d:5,label:"周五"},{d:6,label:"周六"}].map(({ d, label }) => {
               const active = filters.days.includes(d);
@@ -1147,7 +1147,7 @@ export default function StudentCatalogPage() {
       {recentlyViewed.length > 0 ? (
         <section className="campus-card p-4" aria-label="最近浏览的教学班">
           <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">最近查看</p>
+            <p className="text-xs font-semibold text-slate-500">最近查看</p>
             <button
               type="button"
               onClick={() => {
@@ -1356,11 +1356,11 @@ export default function StudentCatalogPage() {
 
                     <dl className="grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
                       <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2">
-                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">教师</dt>
+                        <dt className="text-xs font-semibold text-slate-500">教师</dt>
                         <dd className="mt-1 font-medium text-slate-800">{section.instructorName}</dd>
                       </div>
                       <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2">
-                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">上课地点</dt>
+                        <dt className="text-xs font-semibold text-slate-500">上课地点</dt>
                         <dd className="mt-1 font-medium text-slate-800">{section.location ?? "待定"}</dd>
                       </div>
                     </dl>
@@ -1380,7 +1380,7 @@ export default function StudentCatalogPage() {
 
                     {prereqs.length > 0 ? (
                       <div className="space-y-1">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">先修课要求</p>
+                        <p className="text-xs font-semibold text-slate-500">先修课要求</p>
                         <div className="flex flex-wrap items-center gap-1.5">
                           {prereqs.map((prereqCode, index) => (
                             <span
@@ -1426,7 +1426,7 @@ export default function StudentCatalogPage() {
 
                     <aside className="flex w-full flex-col justify-between gap-4 border-t border-slate-200 bg-[linear-gradient(180deg,hsl(221_40%_98%)_0%,white_100%)] p-4 lg:border-l lg:border-t-0">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">名额状态</p>
+                      <p className="text-xs font-semibold text-slate-500">名额状态</p>
                       <p className={`mt-1 text-lg font-semibold ${isUnlimited ? "text-emerald-700" : seatTone?.className ?? "text-slate-700"}`}>
                         {isUnlimited ? "不限人数" : seatTone?.text}
                       </p>

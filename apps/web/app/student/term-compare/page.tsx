@@ -123,7 +123,7 @@ export default function TermComparePage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-200">
+                  <tr className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-200">
                     <th className="px-4 py-3 text-left">学期</th>
                     <th className="px-4 py-3 text-right">课程数</th>
                     <th className="px-4 py-3 text-right">学分</th>

@@ -68,7 +68,7 @@ function StatBadge({ label, count, color }: { label: string; count: number; colo
   return (
     <div className={`flex flex-col items-center rounded-xl border px-4 py-3 ${color}`}>
       <span className="text-2xl font-bold">{count}</span>
-      <span className="mt-0.5 text-xs font-semibold uppercase tracking-wide">{label}</span>
+      <span className="mt-0.5 text-xs font-semibold">{label}</span>
     </div>
   );
 }
@@ -448,7 +448,7 @@ export default function EnrollmentsPage() {
       <section className="campus-card p-5 md:p-6">
         <div className="flex flex-wrap items-end gap-4">
           <div className="min-w-[220px] flex-1">
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <label className="mb-1.5 block text-xs font-semibold text-slate-500">
               按学期筛选
             </label>
             <select
@@ -494,7 +494,7 @@ export default function EnrollmentsPage() {
       <section className="campus-toolbar">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">搜索</span>
+            <span className="mb-1.5 block text-xs font-semibold text-slate-500">搜索</span>
             <input
               ref={searchRef}
               className="campus-input"
@@ -504,7 +504,7 @@ export default function EnrollmentsPage() {
             />
           </label>
           <div className="flex flex-col">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">状态</span>
+            <span className="mb-1.5 block text-xs font-semibold text-slate-500">状态</span>
             <select
               className="campus-select h-10"
               value={statusFilter}

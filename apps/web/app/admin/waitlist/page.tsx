@@ -267,21 +267,21 @@ export default function WaitlistPage() {
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-amber-200 bg-amber-50/60">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">候补总数</p>
+          <p className="text-xs font-semibold text-amber-700">候补总数</p>
           <p className="mt-1 text-2xl font-semibold text-amber-900">{totalWaitlisted}</p>
           <p className="text-[11px] text-amber-500">覆盖所有教学班</p>
         </div>
         <div className="campus-kpi border-slate-200">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">有候补队列的班级</p>
+          <p className="text-xs font-semibold text-slate-500">有候补队列的班级</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{grouped.length}</p>
         </div>
         <div className="campus-kpi border-slate-200">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">平均队列深度</p>
+          <p className="text-xs font-semibold text-slate-500">平均队列深度</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{avgQueueDepth}</p>
           <p className="text-[11px] text-slate-400">人/班</p>
         </div>
         <div className={`campus-kpi ${longestQueue >= 5 ? "border-red-200 bg-red-50/60" : "border-slate-200"}`}>
-          <p className={`text-xs font-semibold uppercase tracking-wide ${longestQueue >= 5 ? "text-red-600" : "text-slate-500"}`}>
+          <p className={`text-xs font-semibold ${longestQueue >= 5 ? "text-red-600" : "text-slate-500"}`}>
             最长队列
           </p>
           <p className={`mt-1 text-2xl font-semibold ${longestQueue >= 5 ? "text-red-800" : "text-slate-900"}`}>
@@ -294,7 +294,7 @@ export default function WaitlistPage() {
       <section className="campus-toolbar">
         <div className="flex flex-wrap items-end gap-3">
           <label className="block flex-1 min-w-48">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">搜索</span>
+            <span className="mb-1.5 block text-xs font-semibold text-slate-500">搜索</span>
             <input
               ref={searchRef}
               className="campus-input"
@@ -304,7 +304,7 @@ export default function WaitlistPage() {
             />
           </label>
           <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <label className="mb-1.5 block text-xs font-semibold text-slate-500">
               晋升人数
             </label>
             <select
@@ -320,7 +320,7 @@ export default function WaitlistPage() {
             </select>
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <label className="mb-1.5 block text-xs font-semibold text-slate-500">
               班级筛选
             </label>
             <select
@@ -483,10 +483,10 @@ export default function WaitlistPage() {
                   <table className="min-w-[560px] w-full border-collapse text-sm">
                     <thead className="bg-slate-50 text-left">
                       <tr className="border-b border-slate-200">
-                        <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">排队位置</th>
-                        <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">学生</th>
-                        <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">学号</th>
-                        <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">等待自</th>
+                        <th className="px-4 py-2 text-xs font-semibold text-slate-500">排队位置</th>
+                        <th className="px-4 py-2 text-xs font-semibold text-slate-500">学生</th>
+                        <th className="px-4 py-2 text-xs font-semibold text-slate-500">学号</th>
+                        <th className="px-4 py-2 text-xs font-semibold text-slate-500">等待自</th>
                       </tr>
                     </thead>
                     <tbody>

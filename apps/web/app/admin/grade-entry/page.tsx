@@ -211,7 +211,7 @@ export default function AdminGradeEntryPage() {
       {/* Toolbar */}
       <div className="campus-toolbar flex-wrap gap-2">
         <label className="block min-w-[320px] flex-1">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">选择教学班</span>
+          <span className="mb-2 block text-xs font-semibold text-slate-500">选择教学班</span>
           <select
             className="campus-select"
             value={sectionId}

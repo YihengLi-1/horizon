@@ -181,7 +181,7 @@ export default function DemandReportPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-semibold text-slate-500">
                 <th className="px-4 py-3">教学班</th>
                 <th className="px-4 py-3">课程</th>
                 <th className="px-4 py-3">学期</th>

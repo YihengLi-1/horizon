@@ -287,27 +287,27 @@ export default function StaffPage() {
               <h2 className="text-sm font-semibold text-slate-700">新建教职人员账号</h2>
               <form onSubmit={(e) => void onCreateFaculty(e)} className="grid gap-3 md:grid-cols-3">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">邮箱 *</label>
+                  <label className="mb-1 block text-xs font-semibold text-slate-500">邮箱 *</label>
                   <input className="campus-input" type="email" required value={facultyForm.email} onChange={(e) => setFacultyForm((p) => ({ ...p, email: e.target.value }))} placeholder="faculty@university.edu" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">初始密码 *</label>
+                  <label className="mb-1 block text-xs font-semibold text-slate-500">初始密码 *</label>
                   <input className="campus-input" type="password" required minLength={8} value={facultyForm.password} onChange={(e) => setFacultyForm((p) => ({ ...p, password: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">姓名 *</label>
+                  <label className="mb-1 block text-xs font-semibold text-slate-500">姓名 *</label>
                   <input className="campus-input" required value={facultyForm.displayName} onChange={(e) => setFacultyForm((p) => ({ ...p, displayName: e.target.value }))} placeholder="张三" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">工号</label>
+                  <label className="mb-1 block text-xs font-semibold text-slate-500">工号</label>
                   <input className="campus-input" value={facultyForm.employeeId} onChange={(e) => setFacultyForm((p) => ({ ...p, employeeId: e.target.value }))} placeholder="F2024001" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">院系</label>
+                  <label className="mb-1 block text-xs font-semibold text-slate-500">院系</label>
                   <input className="campus-input" value={facultyForm.department} onChange={(e) => setFacultyForm((p) => ({ ...p, department: e.target.value }))} placeholder="计算机学院" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">职称</label>
+                  <label className="mb-1 block text-xs font-semibold text-slate-500">职称</label>
                   <input className="campus-input" value={facultyForm.title} onChange={(e) => setFacultyForm((p) => ({ ...p, title: e.target.value }))} placeholder="副教授" />
                 </div>
                 <div className="md:col-span-3 flex justify-end gap-3">
@@ -377,27 +377,27 @@ export default function StaffPage() {
               <h2 className="text-sm font-semibold text-slate-700">新建导师账号</h2>
               <form onSubmit={(e) => void onCreateAdvisor(e)} className="grid gap-3 md:grid-cols-3">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">邮箱 *</label>
+                  <label className="mb-1 block text-xs font-semibold text-slate-500">邮箱 *</label>
                   <input className="campus-input" type="email" required value={advisorForm.email} onChange={(e) => setAdvisorForm((p) => ({ ...p, email: e.target.value }))} placeholder="advisor@university.edu" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">初始密码 *</label>
+                  <label className="mb-1 block text-xs font-semibold text-slate-500">初始密码 *</label>
                   <input className="campus-input" type="password" required minLength={8} value={advisorForm.password} onChange={(e) => setAdvisorForm((p) => ({ ...p, password: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">姓名 *</label>
+                  <label className="mb-1 block text-xs font-semibold text-slate-500">姓名 *</label>
                   <input className="campus-input" required value={advisorForm.displayName} onChange={(e) => setAdvisorForm((p) => ({ ...p, displayName: e.target.value }))} placeholder="李老师" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">工号</label>
+                  <label className="mb-1 block text-xs font-semibold text-slate-500">工号</label>
                   <input className="campus-input" value={advisorForm.employeeId} onChange={(e) => setAdvisorForm((p) => ({ ...p, employeeId: e.target.value }))} placeholder="A2024001" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">院系</label>
+                  <label className="mb-1 block text-xs font-semibold text-slate-500">院系</label>
                   <input className="campus-input" value={advisorForm.department} onChange={(e) => setAdvisorForm((p) => ({ ...p, department: e.target.value }))} placeholder="学生服务处" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">办公室位置</label>
+                  <label className="mb-1 block text-xs font-semibold text-slate-500">办公室位置</label>
                   <input className="campus-input" value={advisorForm.officeLocation} onChange={(e) => setAdvisorForm((p) => ({ ...p, officeLocation: e.target.value }))} placeholder="行政楼 302" />
                 </div>
                 <div className="md:col-span-3 flex justify-end gap-3">
@@ -469,7 +469,7 @@ export default function StaffPage() {
             <p className="text-xs text-slate-500">分配后将自动结束该学生的上一个有效导师关系。</p>
             <form onSubmit={(e) => void onAssign(e)} className="space-y-4">
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <label className="mb-1 block text-xs font-semibold text-slate-500">
                   选择学生
                 </label>
                 <select
@@ -489,7 +489,7 @@ export default function StaffPage() {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <label className="mb-1 block text-xs font-semibold text-slate-500">
                   选择导师
                 </label>
                 <select
@@ -510,7 +510,7 @@ export default function StaffPage() {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <label className="mb-1 block text-xs font-semibold text-slate-500">
                   分配备注（可选）
                 </label>
                 <textarea

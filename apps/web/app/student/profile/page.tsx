@@ -79,7 +79,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</label>
+      <label className="mb-1.5 block text-xs font-semibold text-slate-500">{label}</label>
       {readOnly ? (
         <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">{value || "—"}</p>
       ) : (
@@ -187,7 +187,7 @@ function ChangePasswordCard() {
       </div>
       <form onSubmit={onSubmit} className="space-y-3 p-4">
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">当前密码</label>
+          <label className="mb-1 block text-xs font-semibold text-slate-500">当前密码</label>
           <div className="relative">
             <input
               type={showCurrent ? "text" : "password"}
@@ -209,7 +209,7 @@ function ChangePasswordCard() {
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">新密码</label>
+          <label className="mb-1 block text-xs font-semibold text-slate-500">新密码</label>
           <div className="relative">
             <input
               type={showNew ? "text" : "password"}
@@ -254,7 +254,7 @@ function ChangePasswordCard() {
           ) : null}
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">确认新密码</label>
+          <label className="mb-1 block text-xs font-semibold text-slate-500">确认新密码</label>
           <div className="relative">
             <input
               type={showConfirm ? "text" : "password"}
@@ -545,7 +545,7 @@ export default function StudentProfilePage() {
                 {initials}
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">学生档案</p>
+                <p className="text-xs font-semibold text-slate-500">学生档案</p>
                 <h1 className="font-heading text-3xl font-bold text-slate-900">{form.legalName || "学生"}</h1>
                 <p className="text-sm text-slate-600">{profile?.user.email || "—"}</p>
                 <button className="mt-2 cursor-not-allowed text-xs font-medium text-blue-600 opacity-50 hover:underline" disabled>
@@ -649,7 +649,7 @@ export default function StudentProfilePage() {
             />
 
             <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">学业汇总</h3>
+              <h3 className="text-sm font-semibold text-slate-700">学业汇总</h3>
               {summaryError ? (
                 <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
                   无法加载学业汇总。{summaryError}
@@ -682,26 +682,26 @@ export default function StudentProfilePage() {
 
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div className="campus-kpi">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">总已修学分</p>
+                  <p className="text-xs font-semibold text-slate-500">总已修学分</p>
                   <p className="mt-1 text-2xl font-semibold text-slate-900">{completedCredits}</p>
                 </div>
                 <div className="campus-kpi">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">总在读学分</p>
+                  <p className="text-xs font-semibold text-slate-500">总在读学分</p>
                   <p className="mt-1 text-2xl font-semibold text-slate-900">{enrolledCredits}</p>
                 </div>
                 <div className="campus-kpi">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">当前 GPA</p>
+                  <p className="text-xs font-semibold text-slate-500">当前 GPA</p>
                   <p className="mt-1 text-2xl font-semibold text-slate-900">{currentGpa != null ? currentGpa.toFixed(2) : "—"}</p>
                 </div>
                 <div className="campus-kpi">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">预计毕业</p>
+                  <p className="text-xs font-semibold text-slate-500">预计毕业</p>
                   <p className="mt-1 text-2xl font-semibold text-slate-900">{expectedGraduation}</p>
                 </div>
               </div>
             </section>
 
             <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">学习目标</h3>
+              <h3 className="text-sm font-semibold text-slate-700">学习目标</h3>
               <p className="mt-1 text-xs text-slate-500">设置本学期的学业目标，随时可见。</p>
               <textarea
                 value={goalDraft}
@@ -723,7 +723,7 @@ export default function StudentProfilePage() {
             </section>
 
             <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">学期总结</h3>
+              <h3 className="text-sm font-semibold text-slate-700">学期总结</h3>
               <p className="mt-1 text-xs text-slate-500">本学期笔记，仅保存在本地浏览器中。</p>
               <textarea
                 value={semesterNotes}
@@ -736,7 +736,7 @@ export default function StudentProfilePage() {
             </section>
 
             <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">隐私设置</h3>
+              <h3 className="text-sm font-semibold text-slate-700">隐私设置</h3>
               <div className="mt-3 space-y-3 text-sm">
                 <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2">
                   <span>允许推荐课程</span>
@@ -761,7 +761,7 @@ export default function StudentProfilePage() {
             </section>
 
             <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">档案完整度检查</h3>
+              <h3 className="text-sm font-semibold text-slate-700">档案完整度检查</h3>
               <div className="mt-2 space-y-2 text-sm">
                 {[
                   { label: "法定姓名", done: Boolean(form.legalName), required: true },
@@ -789,7 +789,7 @@ export default function StudentProfilePage() {
             <ChangePasswordCard />
 
             <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">快捷链接</h3>
+              <h3 className="text-sm font-semibold text-slate-700">快捷链接</h3>
               <div className="mt-2 space-y-1.5">
                 {[
                   { href: "/student/dashboard", label: "概览" },
@@ -811,7 +811,7 @@ export default function StudentProfilePage() {
             </section>
 
             <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">教务处说明</h3>
+              <h3 className="text-sm font-semibold text-slate-700">教务处说明</h3>
               <ul className="mt-2 space-y-2 text-sm text-slate-600">
                 <li>专业、学号和注册状态由教务处管理。</li>
                 <li>如需变更法定身份信息，请向学生事务处提交相关证明材料。</li>

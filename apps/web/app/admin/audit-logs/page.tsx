@@ -219,21 +219,21 @@ export default function AuditLogsPage() {
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-slate-200 bg-white">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">匹配记录</p>
+          <p className="text-xs font-semibold text-slate-500">匹配记录</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{total.toLocaleString()}</p>
         </div>
         <div className="campus-kpi border-slate-200 bg-white">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">本页</p>
+          <p className="text-xs font-semibold text-slate-500">本页</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{logs.length}</p>
           <p className="mt-0.5 text-xs text-slate-500">第 {safePage} / {totalPages} 页</p>
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">唯一操作者</p>
+          <p className="text-xs font-semibold text-blue-700">唯一操作者</p>
           <p className="mt-1 text-2xl font-semibold text-blue-900">{pageStats.uniqueActors}</p>
           <p className="mt-0.5 text-xs text-blue-600">本页</p>
         </div>
         <div className="campus-kpi border-violet-200 bg-violet-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">最频繁操作</p>
+          <p className="text-xs font-semibold text-violet-700">最频繁操作</p>
           <p className="mt-1 truncate text-lg font-semibold text-violet-900">{pageStats.topAction}</p>
           <p className="mt-0.5 text-xs text-violet-600">本页最多</p>
         </div>
@@ -242,7 +242,7 @@ export default function AuditLogsPage() {
       <section className="campus-toolbar">
         <div className="grid gap-3 md:grid-cols-3">
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">搜索</span>
+            <span className="mb-1.5 block text-xs font-semibold text-slate-500">搜索</span>
             <input
               ref={searchRef}
               className="campus-input"
@@ -252,14 +252,14 @@ export default function AuditLogsPage() {
             />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">操作类型</span>
+            <span className="mb-1.5 block text-xs font-semibold text-slate-500">操作类型</span>
             <select className="campus-select" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
               <option value="">全部操作</option>
               {actions.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">实体类型</span>
+            <span className="mb-1.5 block text-xs font-semibold text-slate-500">实体类型</span>
             <select className="campus-select" value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)}>
               <option value="">全部实体</option>
               {entityTypes.map((e) => <option key={e} value={e}>{e}</option>)}

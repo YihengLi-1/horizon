@@ -168,7 +168,7 @@ export default function StatusEmailPage() {
 
           {/* Sample recipients */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">收件人预览（前 5 名）</p>
+            <p className="text-xs font-semibold text-slate-500 mb-2">收件人预览（前 5 名）</p>
             <div className="rounded-lg border border-slate-200 divide-y divide-slate-100">
               {preview.sampleRecipients.map((r) => (
                 <div key={r.email} className="flex items-center gap-3 px-4 py-2.5">
@@ -186,7 +186,7 @@ export default function StatusEmailPage() {
 
           {/* Email preview */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">邮件内容预览</p>
+            <p className="text-xs font-semibold text-slate-500 mb-2">邮件内容预览</p>
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
               <p className="text-sm font-bold text-slate-800 mb-2">主题：{subject}</p>
               <p className="text-sm text-slate-700 whitespace-pre-wrap">{body}</p>

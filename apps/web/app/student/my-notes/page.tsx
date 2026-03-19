@@ -233,7 +233,7 @@ export default function MyNotesPage() {
         <>
           {pinned.length > 0 ? (
             <section>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">已置顶</p>
+              <p className="text-xs font-semiboldr text-slate-400 mb-2">已置顶</p>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {pinned.map((n) => <NoteCard key={n.id} note={n} />)}
               </div>
@@ -241,7 +241,7 @@ export default function MyNotesPage() {
           ) : null}
           {unpinned.length > 0 ? (
             <section>
-              {pinned.length > 0 ? <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 mt-4">其他</p> : null}
+              {pinned.length > 0 ? <p className="text-xs font-semiboldr text-slate-400 mb-2 mt-4">其他</p> : null}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {unpinned.map((n) => <NoteCard key={n.id} note={n} />)}
               </div>

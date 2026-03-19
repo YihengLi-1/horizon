@@ -226,7 +226,7 @@ export default function GpaGoalPage() {
             </div>
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr className="bg-slate-50 text-xs font-semibold text-slate-500">
                   <th className="px-5 py-3 text-left">目标</th>
                   <th className="px-5 py-3 text-right">目标 GPA</th>
                   <th className="px-5 py-3 text-right">差距</th>

@@ -129,17 +129,17 @@ export default async function SharedSchedulePage({
 
       <section className="grid gap-4 md:grid-cols-3">
         <div className="campus-kpi">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">教学班数</p>
+          <p className="text-xs font-semibold text-slate-500">教学班数</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{sections.length}</p>
         </div>
         <div className="campus-kpi">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">总学分</p>
+          <p className="text-xs font-semibold text-slate-500">总学分</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">
             {sections.reduce((sum, section) => sum + (section.credits ?? 0), 0)}
           </p>
         </div>
         <div className="campus-kpi">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">上课次数</p>
+          <p className="text-xs font-semibold text-slate-500">上课次数</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">
             {sections.reduce((sum, section) => sum + (section.meetingTimes?.length ?? 0), 0)}
           </p>

@@ -591,7 +591,7 @@ export default async function StudentDashboardPage() {
                   <p className="mt-1 text-xs opacity-70">{new Date().toLocaleDateString()}</p>
                   <p className="mt-1 text-sm opacity-90">{alert.description}</p>
                 </div>
-                <span className="rounded-full border border-current/30 bg-white/40 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide">
+                <span className="rounded-full border border-current/30 bg-white/40 px-2 py-0.5 text-xs font-semibold">
                   {alertBadge(alert.level)}
                 </span>
               </div>
@@ -650,15 +650,15 @@ export default async function StudentDashboardPage() {
             {term ? (
               <>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">注册开始</p>
+                  <p className="text-[11px] font-semibold text-slate-500">注册开始</p>
                   <p className="mt-1 text-slate-800">{fmtDateTime(term.registrationOpenAt)}</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">注册截止</p>
+                  <p className="text-[11px] font-semibold text-slate-500">注册截止</p>
                   <p className="mt-1 text-slate-800">{fmtDateTime(term.registrationCloseAt)}</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">退课截止</p>
+                  <p className="text-[11px] font-semibold text-slate-500">退课截止</p>
                   <p className="mt-1 text-slate-800">{fmtDateTime(term.dropDeadline)}</p>
                 </div>
               </>
@@ -668,7 +668,7 @@ export default async function StudentDashboardPage() {
 
             {actionItems.length > 0 ? (
               <div className="space-y-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">待处理事项</p>
+                <p className="text-[11px] font-semibold text-slate-500">待处理事项</p>
                 {actionItems.slice(0, 2).map((item) => (
                   <div key={item.title} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -700,7 +700,7 @@ export default async function StudentDashboardPage() {
           <CardContent className="space-y-4">
             {enrolled.length > 0 ? (
               <div>
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                <p className="mb-2 text-[11px] font-semibold text-slate-500">
                   已注册 ({enrolledCount})
                 </p>
                 <div className="overflow-hidden rounded-xl border border-emerald-200">
@@ -754,7 +754,7 @@ export default async function StudentDashboardPage() {
             ) : pendingApproval.length > 0 || waitlisted.length > 0 ? (
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">待审批</p>
+                  <p className="text-[11px] font-semibold text-violet-700">待审批</p>
                   <p className="mt-1 text-2xl font-semibold text-violet-900">{pendingApproval.length}</p>
                   <ul className="mt-2 space-y-1 text-sm text-violet-900">
                     {pendingApproval.slice(0, 5).map((item) => (
@@ -765,7 +765,7 @@ export default async function StudentDashboardPage() {
                   </ul>
                 </div>
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">候补中</p>
+                  <p className="text-[11px] font-semibold text-amber-700">候补中</p>
                   <p className="mt-1 text-2xl font-semibold text-amber-900">{waitlisted.length}</p>
                   <ul className="mt-2 space-y-1 text-sm text-amber-900">
                     {waitlisted.slice(0, 5).map((item) => (

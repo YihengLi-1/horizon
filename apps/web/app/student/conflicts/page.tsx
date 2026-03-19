@@ -162,7 +162,7 @@ export default function ConflictsPage() {
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <tr className="bg-slate-50 text-xs font-semibold text-slate-500">
                 <th className="px-5 py-2 text-left">课程</th>
                 <th className="px-5 py-2 text-left">教学班</th>
                 <th className="px-5 py-2 text-left">上课时间</th>

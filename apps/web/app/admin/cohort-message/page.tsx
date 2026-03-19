@@ -58,7 +58,7 @@ export default function CohortMessagePage() {
       <section className="campus-card p-6 space-y-5 max-w-xl">
         <form onSubmit={(e) => void onSubmit(e)} className="space-y-5">
           <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <span className="mb-1 block text-xs font-semibold text-slate-500">
               入学年份（批次）
             </span>
             <input
@@ -76,7 +76,7 @@ export default function CohortMessagePage() {
           </label>
 
           <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <span className="mb-1 block text-xs font-semibold text-slate-500">
               邮件主题
             </span>
             <input
@@ -90,7 +90,7 @@ export default function CohortMessagePage() {
           </label>
 
           <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <span className="mb-1 block text-xs font-semibold text-slate-500">
               邮件正文
             </span>
             <textarea

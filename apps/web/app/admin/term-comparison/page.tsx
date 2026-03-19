@@ -152,7 +152,7 @@ export default function TermComparisonPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-200">
+                  <tr className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-200">
                     <th className="px-5 py-3 text-left">指标</th>
                     <th className="px-5 py-3 text-right text-blue-600">{result.termA.name}</th>
                     <th className="px-5 py-3 text-right text-violet-600">{result.termB.name}</th>

@@ -369,7 +369,7 @@ export default function SchedulePage() {
           </div>
           <div className="w-full max-w-sm space-y-2">
             <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">学期</label>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-500">学期</label>
               <select
                 className="campus-select bg-white/95"
                 value={termId}
@@ -444,24 +444,24 @@ export default function SchedulePage() {
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-emerald-200 bg-emerald-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">已注册</p>
+          <p className="text-xs font-semibold text-emerald-700">已注册</p>
           <p className="mt-1 text-2xl font-semibold text-emerald-900">{statusCounts.ENROLLED}</p>
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">待审批</p>
+          <p className="text-xs font-semibold text-blue-700">待审批</p>
           <p className="mt-1 text-2xl font-semibold text-blue-900">{statusCounts.PENDING_APPROVAL}</p>
         </div>
         <div className="campus-kpi border-amber-200 bg-amber-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">候补中</p>
+          <p className="text-xs font-semibold text-amber-700">候补中</p>
           <p className="mt-1 text-2xl font-semibold text-amber-900">{statusCounts.WAITLISTED}</p>
         </div>
         <div className="campus-kpi border-slate-200">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">已注册学分</p>
+          <p className="text-xs font-semibold text-slate-500">已注册学分</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{visibleCredits}</p>
         </div>
         {weeklyMeetingHours > 0 ? (
           <div className={`campus-kpi ${weeklyMeetingHours > 20 ? "border-red-200 bg-red-50" : weeklyMeetingHours > 15 ? "border-amber-200 bg-amber-50" : "border-indigo-200 bg-indigo-50"}`}>
-            <p className={`text-xs font-semibold uppercase tracking-wide ${weeklyMeetingHours > 20 ? "text-red-700" : weeklyMeetingHours > 15 ? "text-amber-700" : "text-indigo-700"}`}>每周课时</p>
+            <p className={`text-xs font-semibold ${weeklyMeetingHours > 20 ? "text-red-700" : weeklyMeetingHours > 15 ? "text-amber-700" : "text-indigo-700"}`}>每周课时</p>
             <p className={`mt-1 text-2xl font-semibold ${weeklyMeetingHours > 20 ? "text-red-900" : weeklyMeetingHours > 15 ? "text-amber-900" : "text-indigo-900"}`}>{weeklyMeetingHours}h</p>
             <p className={`text-[10px] ${weeklyMeetingHours > 20 ? "text-red-500" : weeklyMeetingHours > 15 ? "text-amber-500" : "text-indigo-400"}`}>每周上课时长</p>
           </div>
@@ -908,7 +908,7 @@ export default function SchedulePage() {
             <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50/60 p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">课程详情</p>
+                  <p className="text-xs font-semibold text-blue-600">课程详情</p>
                   <h3 className="mt-1 text-base font-semibold text-slate-900">
                     {selectedEnrollment.section.course.code} · {selectedEnrollment.section.course.title}
                   </h3>

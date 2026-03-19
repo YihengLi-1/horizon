@@ -147,7 +147,7 @@ export default function NotificationLogPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500">
                   <th className="px-4 py-3 text-left">时间</th>
                   <th className="px-4 py-3 text-left">用户</th>
                   <th className="px-4 py-3 text-left">类型</th>

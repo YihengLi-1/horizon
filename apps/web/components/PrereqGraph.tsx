@@ -93,7 +93,7 @@ export default function PrereqGraph({ courseId, courses }: Props) {
 
   return (
     <div className="mt-2 overflow-x-auto rounded-lg border border-slate-100 bg-slate-50/60 p-2">
-      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">先修课依赖链</p>
+      <p className="mb-1 text-[10px] font-semibold text-slate-400">先修课依赖链</p>
       <svg width={width} height={height} className="font-mono">
         <defs>
           <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">

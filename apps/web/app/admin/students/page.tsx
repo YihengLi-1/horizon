@@ -592,7 +592,7 @@ export default function AdminStudentsPage() {
         <h2 className="mb-3 text-base font-semibold text-slate-900">新建学生账号</h2>
         <form className="grid gap-3 md:grid-cols-5" onSubmit={onCreate}>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">姓名</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-500">姓名</label>
             <input
               className="campus-input"
               placeholder="张三"
@@ -602,7 +602,7 @@ export default function AdminStudentsPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">学号</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-500">学号</label>
             <input
               className="campus-input"
               placeholder="S4001"
@@ -612,7 +612,7 @@ export default function AdminStudentsPage() {
             />
           </div>
           <div className="md:col-span-2">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">邮箱</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-500">邮箱</label>
             <input
               className="campus-input"
               type="email"
@@ -623,7 +623,7 @@ export default function AdminStudentsPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">初始密码</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-500">初始密码</label>
             <input
               className="campus-input"
               type="password"
@@ -661,7 +661,7 @@ export default function AdminStudentsPage() {
           </div>
           <form className="grid gap-3 md:grid-cols-3" onSubmit={onSaveEdit}>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">姓名</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">姓名</label>
               <input
                 className="campus-input"
                 value={editForm.legalName}
@@ -670,7 +670,7 @@ export default function AdminStudentsPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">学号</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">学号</label>
               <input
                 className="campus-input"
                 value={editForm.studentId}
@@ -679,7 +679,7 @@ export default function AdminStudentsPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">邮箱</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">邮箱</label>
               <input
                 className="campus-input"
                 type="email"
@@ -689,7 +689,7 @@ export default function AdminStudentsPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">专业 / 项目</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">专业 / 项目</label>
               <input
                 className="campus-input"
                 placeholder="计算机科学与技术"
@@ -698,7 +698,7 @@ export default function AdminStudentsPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">注册状态</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">注册状态</label>
               <select
                 className="campus-select"
                 value={editForm.enrollmentStatus}
@@ -708,7 +708,7 @@ export default function AdminStudentsPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">学业状态</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">学业状态</label>
               <select
                 className="campus-select"
                 value={editForm.academicStatus}
@@ -740,7 +740,7 @@ export default function AdminStudentsPage() {
       <section className="campus-toolbar">
         <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">搜索</span>
+            <span className="mb-1.5 block text-xs font-semibold text-slate-500">搜索</span>
             <input
               ref={searchRef}
               className="campus-input"
@@ -750,7 +750,7 @@ export default function AdminStudentsPage() {
             />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">学业状态</span>
+            <span className="mb-1.5 block text-xs font-semibold text-slate-500">学业状态</span>
             <select
               className="campus-select"
               value={filterAcademic}
@@ -761,7 +761,7 @@ export default function AdminStudentsPage() {
             </select>
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">注册状态</span>
+            <span className="mb-1.5 block text-xs font-semibold text-slate-500">注册状态</span>
             <select
               className="campus-select"
               value={filterEnrollment}

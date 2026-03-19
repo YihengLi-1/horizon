@@ -124,7 +124,7 @@ export default function CohortAnalyticsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500">
                 <th className="px-4 py-3 text-left">专业</th>
                 <th className="px-4 py-3 text-right">学生数</th>
                 <th className="px-4 py-3 text-right">在读人数</th>

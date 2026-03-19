@@ -142,7 +142,7 @@ export default function AdvisorRequestsClient() {
               </div>
 
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">审批备注</span>
+                <span className="mb-2 block text-xs font-semibold text-slate-500">审批备注</span>
                 <textarea
                   className="campus-input min-h-24"
                   value={decisionNotes[request.id] ?? ""}

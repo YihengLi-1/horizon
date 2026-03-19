@@ -18,7 +18,7 @@ export function TableRow({ className, ...props }: React.HTMLAttributes<HTMLTable
 }
 
 export function TableHead({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
-  return <th className={cn("h-10 px-2 text-left align-middle text-[11px] font-semibold uppercase tracking-wide text-slate-500", className)} {...props} />;
+  return <th className={cn("h-10 px-2 text-left align-middle text-[11px] font-semibold text-slate-500", className)} {...props} />;
 }
 
 export function TableCell({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {

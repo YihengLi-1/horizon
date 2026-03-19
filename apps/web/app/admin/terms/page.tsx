@@ -116,35 +116,35 @@ function TermFormFields({
   return (
     <form className="grid gap-3 md:grid-cols-4" onSubmit={onSubmit}>
       <div className="md:col-span-2">
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">学期名称</label>
+        <label className="mb-1 block text-xs font-semibold text-slate-500">学期名称</label>
         <input className="campus-input" placeholder="2027年春季" value={form.name} onChange={onInput("name")} required />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">最大学分</label>
+        <label className="mb-1 block text-xs font-semibold text-slate-500">最大学分</label>
         <input className="campus-input" type="number" min={1} value={form.maxCredits} onChange={onInput("maxCredits")} required />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">时区</label>
+        <label className="mb-1 block text-xs font-semibold text-slate-500">时区</label>
         <input className="campus-input" value={form.timezone} onChange={onInput("timezone")} required />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">开始时间</label>
+        <label className="mb-1 block text-xs font-semibold text-slate-500">开始时间</label>
         <input className="campus-input" type="datetime-local" value={form.startDate} onChange={onInput("startDate")} required />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">结束时间</label>
+        <label className="mb-1 block text-xs font-semibold text-slate-500">结束时间</label>
         <input className="campus-input" type="datetime-local" value={form.endDate} onChange={onInput("endDate")} required />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">开放注册</label>
+        <label className="mb-1 block text-xs font-semibold text-slate-500">开放注册</label>
         <input className="campus-input" type="datetime-local" value={form.registrationOpenAt} onChange={onInput("registrationOpenAt")} required />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">关闭注册</label>
+        <label className="mb-1 block text-xs font-semibold text-slate-500">关闭注册</label>
         <input className="campus-input" type="datetime-local" value={form.registrationCloseAt} onChange={onInput("registrationCloseAt")} required />
       </div>
       <div className="md:col-span-2">
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">退课截止</label>
+        <label className="mb-1 block text-xs font-semibold text-slate-500">退课截止</label>
         <input className="campus-input" type="datetime-local" value={form.dropDeadline} onChange={onInput("dropDeadline")} required />
       </div>
       <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 md:col-span-2">
@@ -387,19 +387,19 @@ export default function TermsPage() {
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-slate-200 bg-white">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">学期总数</p>
+          <p className="text-xs font-semibold text-slate-500">学期总数</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{stats.total}</p>
         </div>
         <div className="campus-kpi border-emerald-200 bg-emerald-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">活跃学期</p>
+          <p className="text-xs font-semibold text-emerald-700">活跃学期</p>
           <p className="mt-1 text-2xl font-semibold text-emerald-900">{stats.active}</p>
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">教学班总数</p>
+          <p className="text-xs font-semibold text-blue-700">教学班总数</p>
           <p className="mt-1 text-2xl font-semibold text-blue-900">{stats.totalSections}</p>
         </div>
         <div className="campus-kpi border-amber-200 bg-amber-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">报名总数</p>
+          <p className="text-xs font-semibold text-amber-700">报名总数</p>
           <p className="mt-1 text-2xl font-semibold text-amber-900">{stats.totalEnrollments}</p>
         </div>
       </section>

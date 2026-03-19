@@ -343,7 +343,7 @@ export default function CoursesPage() {
         {showCreateForm ? (
         <form className="grid gap-3 md:grid-cols-5" onSubmit={onCreate}>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">课程代码</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-500">课程代码</label>
             <input
               className="campus-input"
               placeholder="CS301"
@@ -353,7 +353,7 @@ export default function CoursesPage() {
             />
           </div>
           <div className="md:col-span-2">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">课程名称</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-500">课程名称</label>
             <input
               className="campus-input"
               placeholder="如：算法设计"
@@ -363,7 +363,7 @@ export default function CoursesPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">学分</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-500">学分</label>
             <input
               className="campus-input"
               type="number"
@@ -374,7 +374,7 @@ export default function CoursesPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">每周课时</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-500">每周课时</label>
             <input
               className="campus-input"
               type="number"
@@ -403,7 +403,7 @@ export default function CoursesPage() {
           </div>
 
           <div className="md:col-span-3">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">课程简介</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-500">课程简介</label>
             <input
               className="campus-input"
               placeholder="课程简介（选填）"
@@ -412,7 +412,7 @@ export default function CoursesPage() {
             />
           </div>
           <div className="md:col-span-2">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">先修课程</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-500">先修课程</label>
             <select
               multiple
               className="campus-input min-h-[80px]"
@@ -445,7 +445,7 @@ export default function CoursesPage() {
           </div>
           <form className="grid gap-3 md:grid-cols-5" onSubmit={onSaveEdit}>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">课程代码</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">课程代码</label>
               <input
                 className="campus-input"
                 value={editForm.code}
@@ -454,7 +454,7 @@ export default function CoursesPage() {
               />
             </div>
             <div className="md:col-span-2">
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">课程名称</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">课程名称</label>
               <input
                 className="campus-input"
                 value={editForm.title}
@@ -463,7 +463,7 @@ export default function CoursesPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">学分</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">学分</label>
               <input
                 className="campus-input"
                 type="number"
@@ -474,7 +474,7 @@ export default function CoursesPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">每周课时</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">每周课时</label>
               <input
                 className="campus-input"
                 type="number"
@@ -502,7 +502,7 @@ export default function CoursesPage() {
               </button>
             </div>
             <div className="md:col-span-3">
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">课程简介</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">课程简介</label>
               <input
                 className="campus-input"
                 placeholder="课程简介（选填）"
@@ -511,7 +511,7 @@ export default function CoursesPage() {
               />
             </div>
             <div className="md:col-span-2">
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">先修课程</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">先修课程</label>
               <select
                 multiple
                 className="campus-input min-h-[80px]"
@@ -537,7 +537,7 @@ export default function CoursesPage() {
       <section className="campus-toolbar">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="block sm:col-span-2">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">搜索</span>
+            <span className="mb-1.5 block text-xs font-semibold text-slate-500">搜索</span>
             <input
               ref={searchRef}
               className="campus-input"
@@ -547,21 +547,21 @@ export default function CoursesPage() {
             />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">院系</span>
+            <span className="mb-1.5 block text-xs font-semibold text-slate-500">院系</span>
             <select className="campus-select" value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
               <option value="ALL">全部院系</option>
               {deptOptions.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
             </select>
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">学分</span>
+            <span className="mb-1.5 block text-xs font-semibold text-slate-500">学分</span>
             <select className="campus-select" value={filterCredits} onChange={(e) => setFilterCredits(e.target.value)}>
               <option value="ALL">全部学分</option>
               {creditOptions.map((cr) => <option key={cr} value={cr}>{cr} cr</option>)}
             </select>
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">先修课程</span>
+            <span className="mb-1.5 block text-xs font-semibold text-slate-500">先修课程</span>
             <select className="campus-select" value={filterPrereq} onChange={(e) => setFilterPrereq(e.target.value)}>
               <option value="ALL">全部课程</option>
               <option value="WITHOUT">无先修课</option>
@@ -596,7 +596,7 @@ export default function CoursesPage() {
                     <button
                       type="button"
                       onClick={() => toggleSort(col)}
-                      className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wide transition-colors ${sortCol === col ? "text-slate-900" : "text-slate-400 hover:text-slate-700"}`}
+                      className={`flex items-center gap-1 text-xs font-semibold transition-colors ${sortCol === col ? "text-slate-900" : "text-slate-400 hover:text-slate-700"}`}
                     >
                       {{ code: "课程代码", title: "名称", credits: "学分", prereqs: "先修课" }[col]}
                       <span className="text-[9px] leading-none">
@@ -642,7 +642,7 @@ export default function CoursesPage() {
                       title="双击编辑名称"
                     >
                       <p className="font-medium">{course.title}</p>
-                      <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                      <p className="mt-0.5 text-[11px] font-medium text-slate-400">
                         {getDept(course.code)}
                       </p>
                       {(course.prerequisiteLinks ?? []).length > 0 ? (

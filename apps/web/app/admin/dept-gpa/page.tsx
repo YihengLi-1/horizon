@@ -185,7 +185,7 @@ export default function DeptGpaPage() {
                   <div className="border-t border-slate-100 overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <tr className="bg-slate-50 text-xs font-semibold text-slate-500">
                           <th className="px-5 py-2 text-left">学期</th>
                           <th className="px-5 py-2 text-right">学生数</th>
                           <th className="px-5 py-2 text-right">平均 GPA</th>

@@ -172,7 +172,7 @@ export default function TermCapacityPage() {
                   <div className="border-t border-slate-100 overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        <tr className="bg-slate-50 text-xs font-semibold text-slate-400">
                           <th className="px-5 py-2 text-left">课程</th>
                           <th className="px-5 py-2 text-right">容量</th>
                           <th className="px-5 py-2 text-right">在读</th>

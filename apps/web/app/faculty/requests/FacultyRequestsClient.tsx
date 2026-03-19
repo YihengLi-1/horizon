@@ -173,7 +173,7 @@ export default function FacultyRequestsClient() {
               </div>
 
               <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">审批流程进度</p>
+                <p className="text-xs font-semibold text-blue-700">审批流程进度</p>
                 <div className="mt-2 space-y-2">
                   <div className="flex items-center justify-between gap-3 rounded-lg border border-blue-100 bg-white px-3 py-2">
                     <span className="font-medium">1. 教师审核</span>
@@ -191,7 +191,7 @@ export default function FacultyRequestsClient() {
               </div>
 
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">审批备注</span>
+                <span className="mb-2 block text-xs font-semibold text-slate-500">审批备注</span>
                 <textarea
                   className="campus-input min-h-24"
                   value={decisionNotes[request.id] ?? ""}

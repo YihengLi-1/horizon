@@ -181,7 +181,7 @@ function SortTh({
     <th className={`px-4 py-2 ${right ? "text-right" : ""}`}>
       <Link
         href={`?sortBy=${col}&sortDir=${nextDir}`}
-        className={`inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide whitespace-nowrap transition-colors ${
+        className={`inline-flex items-center gap-1 text-xs font-semibold whitespace-nowrap transition-colors ${
           active ? "text-slate-900" : "text-slate-400 hover:text-slate-700"
         } ${right ? "flex-row-reverse" : ""}`}
       >
@@ -436,19 +436,19 @@ export default async function GradesPage({
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-slate-200">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">已修学分</p>
+          <p className="text-xs font-semibold text-slate-500">已修学分</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{completedCredits}</p>
         </div>
         <div className="campus-kpi border-slate-200">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">已评分课程</p>
+          <p className="text-xs font-semibold text-slate-500">已评分课程</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{grades.length}</p>
         </div>
         <div className="campus-kpi border-slate-200">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">有成绩学期</p>
+          <p className="text-xs font-semibold text-slate-500">有成绩学期</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{gradeTerms.length}</p>
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50/70">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">累计 GPA</p>
+          <p className="text-xs font-semibold text-blue-700">累计 GPA</p>
           <p className={`mt-1 text-2xl font-semibold ${cumulative ? gpaTone(cumulative.gpa) : "text-slate-700"}`}>
             {cumulative ? cumulative.gpa.toFixed(2) : "—"}
           </p>
@@ -542,7 +542,7 @@ export default async function GradesPage({
                     <SortTh col="credits"      label="学分"   sortBy={sortBy} sortDir={sortDir} />
                     <SortTh col="grade"        label="成绩"   sortBy={sortBy} sortDir={sortDir} />
                     <SortTh col="points"       label="绩点"   sortBy={sortBy} sortDir={sortDir} />
-                    <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">评价</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500">评价</th>
                     <SortTh col="contribution" label="GPA贡献" sortBy={sortBy} sortDir={sortDir} right />
                   </tr>
                 </thead>
