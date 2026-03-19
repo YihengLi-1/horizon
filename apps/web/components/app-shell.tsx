@@ -52,47 +52,22 @@ const iconClass = "size-4";
 
 const studentItems: NavItem[] = [
   // 概览
-  { href: "/student/dashboard",      label: "概览",       icon: <Home className={iconClass} /> },
+  { href: "/student/dashboard",            label: "概览",     icon: <Home className={iconClass} /> },
   // 选课
-  { href: "/student/catalog",        label: "课程目录",   icon: <BookOpen className={iconClass} /> },
-  { href: "/student/planner",        label: "选课规划",   icon: <CalendarDays className={iconClass} /> },
-  { href: "/student/cart",           label: "购物车",     icon: <ShoppingCart className={iconClass} /> },
-  { href: "/student/schedule",       label: "我的课表",   icon: <CalendarDays className={iconClass} /> },
-  { href: "/student/waitlist",       label: "候补名单",   icon: <Clock className={iconClass} /> },
-  { href: "/student/watchlist",      label: "订阅课程",   icon: <Bell className={iconClass} /> },
+  { href: "/student/catalog",              label: "课程目录", icon: <BookOpen className={iconClass} /> },
+  { href: "/student/cart",                 label: "购物车",   icon: <ShoppingCart className={iconClass} /> },
+  { href: "/student/schedule",             label: "我的课表", icon: <CalendarDays className={iconClass} /> },
+  { href: "/student/waitlist",             label: "候补名单", icon: <Clock className={iconClass} /> },
   // 学籍
-  { href: "/student/grades",         label: "成绩",       icon: <GraduationCap className={iconClass} /> },
-  { href: "/student/transcript",     label: "成绩单",     icon: <ScrollText className={iconClass} /> },
-  { href: "/student/degree-audit",   label: "毕业进度",   icon: <GraduationCap className={iconClass} /> },
-  { href: "/student/standing",        label: "学业状态",   icon: <GraduationCap className={iconClass} /> },
-  { href: "/student/term-compare",    label: "学期对比",   icon: <BarChart3 className={iconClass} /> },
-  { href: "/student/appeals",         label: "成绩申诉",   icon: <ScrollText className={iconClass} /> },
-  // 申请
-  { href: "/student/prereq-waivers",  label: "先修课豁免", icon: <ListChecks className={iconClass} /> },
-  { href: "/student/recommendations", label: "推荐课程",   icon: <BookOpen className={iconClass} /> },
-  { href: "/student/receipt",         label: "选课凭证",   icon: <ScrollText className={iconClass} /> },
+  { href: "/student/grades",               label: "成绩",     icon: <GraduationCap className={iconClass} /> },
+  { href: "/student/transcript",           label: "成绩单",   icon: <ScrollText className={iconClass} /> },
+  { href: "/student/degree-audit",         label: "毕业进度", icon: <GraduationCap className={iconClass} /> },
+  { href: "/student/standing",             label: "学业状态", icon: <GraduationCap className={iconClass} /> },
+  { href: "/student/appeals",              label: "成绩申诉", icon: <ScrollText className={iconClass} /> },
+  { href: "/student/prereq-waivers",       label: "先修豁免", icon: <ListChecks className={iconClass} /> },
   // 账号
-  { href: "/student/profile",         label: "个人资料",   icon: <User className={iconClass} /> },
-  { href: "/student/notifications",   label: "通知",       icon: <Bell className={iconClass} /> },
-  { href: "/student/announcements",   label: "公告",       icon: <Megaphone className={iconClass} /> },
-  { href: "/student/advisor",          label: "我的导师",    icon: <User className={iconClass} /> },
-  // 工具
-  { href: "/student/grade-estimator",  label: "成绩估算",    icon: <BarChart3 className={iconClass} /> },
-  { href: "/student/what-if",          label: "GPA模拟",     icon: <BarChart3 className={iconClass} /> },
-  { href: "/student/gpa-goal",         label: "GPA目标",     icon: <BarChart3 className={iconClass} /> },
-  { href: "/student/credit-summary",   label: "学分总览",    icon: <GraduationCap className={iconClass} /> },
-  { href: "/student/peer-compare",     label: "同伴对比",    icon: <BarChart3 className={iconClass} /> },
-  { href: "/student/my-notes",         label: "我的笔记",    icon: <ScrollText className={iconClass} /> },
-  { href: "/student/study-timer",      label: "学习计时",    icon: <Clock className={iconClass} /> },
-  { href: "/student/conflicts",        label: "时间冲突",    icon: <ShieldAlert className={iconClass} /> },
-  { href: "/student/enrollment-timeline", label: "注册时间线", icon: <CalendarDays className={iconClass} /> },
-  { href: "/student/quick-add",        label: "快速选课",    icon: <ShoppingCart className={iconClass} /> },
-  { href: "/student/calendar",         label: "学术日历",    icon: <CalendarDays className={iconClass} /> },
-  // 学籍延伸
-  { href: "/student/graduation-checklist", label: "毕业条件",  icon: <GraduationCap className={iconClass} /> },
-  { href: "/student/course-history",   label: "课程历史",    icon: <BookOpen className={iconClass} /> },
-  { href: "/student/enrollment-log",   label: "操作日志",    icon: <ScrollText className={iconClass} /> },
-  { href: "/student/my-ratings",       label: "我的评价",    icon: <BarChart3 className={iconClass} /> },
+  { href: "/student/profile",              label: "个人资料", icon: <User className={iconClass} /> },
+  { href: "/student/advisor",              label: "我的导师", icon: <User className={iconClass} /> },
 ];
 
 const adminItems: NavItem[] = [
@@ -266,10 +241,9 @@ export function AppShell({
           : area === "advisor"
             ? [{ label: "顾问工作台", hrefs: ["/advisor/dashboard", "/advisor/advisees", "/advisor/requests"] }]
         : [
-            { label: "概览", hrefs: ["/student/dashboard", "/student/notifications", "/student/announcements"] },
-            { label: "选课", hrefs: ["/student/catalog", "/student/planner", "/student/cart", "/student/schedule", "/student/waitlist", "/student/watchlist"] },
-            { label: "学籍", hrefs: ["/student/grades", "/student/transcript", "/student/degree-audit", "/student/graduation-checklist", "/student/standing", "/student/term-compare", "/student/appeals", "/student/prereq-waivers", "/student/recommendations", "/student/receipt", "/student/course-history", "/student/enrollment-log", "/student/my-ratings"] },
-            { label: "工具", hrefs: ["/student/grade-estimator", "/student/what-if", "/student/gpa-goal", "/student/credit-summary", "/student/peer-compare", "/student/my-notes", "/student/study-timer", "/student/conflicts", "/student/enrollment-timeline", "/student/quick-add", "/student/calendar"] },
+            { label: "概览", hrefs: ["/student/dashboard"] },
+            { label: "选课", hrefs: ["/student/catalog", "/student/cart", "/student/schedule", "/student/waitlist"] },
+            { label: "学籍", hrefs: ["/student/grades", "/student/transcript", "/student/degree-audit", "/student/standing", "/student/appeals", "/student/prereq-waivers"] },
             { label: "账号", hrefs: ["/student/profile", "/student/advisor"] },
           ];
 
@@ -410,7 +384,7 @@ export function AppShell({
           <nav aria-label="主导航">
             {navGroups.map((group) => (
               <div key={group.label} className="mt-4 first:mt-0">
-                <p className="px-5 pb-1 pt-3 text-[12px] font-semibold uppercase tracking-[0.16em] text-[hsl(221_15%_60%)]">
+                <p className="px-5 pb-1 pt-3 text-[11px] font-semibold text-[hsl(221_15%_60%)]">
                   {group.label}
                 </p>
                 <div>{group.items.map(renderNavItem)}</div>
