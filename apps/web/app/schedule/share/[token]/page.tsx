@@ -60,10 +60,10 @@ export default async function SharedSchedulePage({
           <p className="text-4xl">🔒</p>
           <h1 className="mt-4 text-2xl font-bold text-slate-900">课表分享已禁用</h1>
           <p className="mt-2 text-sm text-slate-600">
-            Public schedule links are disabled in this deployment to reduce student privacy risk.
+            当前部署已禁用课表分享链接，以保护学生隐私。
           </p>
           <p className="mt-2 text-xs text-slate-400">
-            Ask the registrar/support team if read-only schedule export needs to be re-enabled with expiration controls.
+            如需重新启用只读课表导出功能，请联系教务处或技术支持团队并确认过期控制策略。
           </p>
           <Link href="/login" className="mt-6 inline-block text-sm font-semibold text-slate-900 underline">
             返回系统登录

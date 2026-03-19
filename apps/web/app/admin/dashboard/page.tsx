@@ -221,15 +221,15 @@ export default async function AdminDashboardPage() {
       : [];
 
   function formatUptime(seconds: number): string {
-    if (seconds < 3600) return `${Math.floor(seconds / 60)} min`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} 分钟`;
     if (seconds < 86400) {
       const h = Math.floor(seconds / 3600);
       const m = Math.floor((seconds % 3600) / 60);
-      return `${h}h ${m}m`;
+      return `${h} 小时 ${m} 分`;
     }
     const d = Math.floor(seconds / 86400);
     const h = Math.floor((seconds % 86400) / 3600);
-    return `${d}d ${h}h`;
+    return `${d} 天 ${h} 小时`;
   }
 
   const errorRatePct = opsMetrics

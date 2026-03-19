@@ -546,10 +546,10 @@ export default function StudentProfilePage() {
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">学生档案</p>
-                <h1 className="font-heading text-3xl font-bold text-slate-900">{form.legalName || "Student"}</h1>
+                <h1 className="font-heading text-3xl font-bold text-slate-900">{form.legalName || "学生"}</h1>
                 <p className="text-sm text-slate-600">{profile?.user.email || "—"}</p>
                 <button className="mt-2 cursor-not-allowed text-xs font-medium text-blue-600 opacity-50 hover:underline" disabled>
-                  Change Avatar (Coming Soon)
+                  更换头像（即将上线）
                 </button>
               </div>
             </div>

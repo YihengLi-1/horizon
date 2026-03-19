@@ -64,7 +64,6 @@ const studentItems: NavItem[] = [
   { href: "/student/grades",         label: "成绩",       icon: <GraduationCap className={iconClass} /> },
   { href: "/student/transcript",     label: "成绩单",     icon: <ScrollText className={iconClass} /> },
   { href: "/student/degree-audit",   label: "毕业进度",   icon: <GraduationCap className={iconClass} /> },
-  { href: "/student/honors",          label: "荣誉记录",   icon: <GraduationCap className={iconClass} /> },
   { href: "/student/standing",        label: "学业状态",   icon: <GraduationCap className={iconClass} /> },
   { href: "/student/term-compare",    label: "学期对比",   icon: <BarChart3 className={iconClass} /> },
   { href: "/student/appeals",         label: "成绩申诉",   icon: <ScrollText className={iconClass} /> },
@@ -269,7 +268,7 @@ export function AppShell({
         : [
             { label: "概览", hrefs: ["/student/dashboard", "/student/notifications", "/student/announcements"] },
             { label: "选课", hrefs: ["/student/catalog", "/student/planner", "/student/cart", "/student/schedule", "/student/waitlist", "/student/watchlist"] },
-            { label: "学籍", hrefs: ["/student/grades", "/student/transcript", "/student/degree-audit", "/student/graduation-checklist", "/student/standing", "/student/honors", "/student/term-compare", "/student/appeals", "/student/prereq-waivers", "/student/recommendations", "/student/receipt", "/student/course-history", "/student/enrollment-log", "/student/my-ratings"] },
+            { label: "学籍", hrefs: ["/student/grades", "/student/transcript", "/student/degree-audit", "/student/graduation-checklist", "/student/standing", "/student/term-compare", "/student/appeals", "/student/prereq-waivers", "/student/recommendations", "/student/receipt", "/student/course-history", "/student/enrollment-log", "/student/my-ratings"] },
             { label: "工具", hrefs: ["/student/grade-estimator", "/student/what-if", "/student/gpa-goal", "/student/credit-summary", "/student/peer-compare", "/student/my-notes", "/student/study-timer", "/student/conflicts", "/student/enrollment-timeline", "/student/quick-add", "/student/calendar"] },
             { label: "账号", hrefs: ["/student/profile", "/student/advisor"] },
           ];

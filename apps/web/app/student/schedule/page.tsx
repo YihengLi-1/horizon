@@ -659,10 +659,10 @@ export default function SchedulePage() {
                       {enrollment.section.course.code} - {enrollment.section.course.title}
                     </p>
                     <p className="mt-1 text-xs text-slate-600">
-                      Section {enrollment.section.sectionCode}
-                      {enrollment.section.location ? ` @ ${enrollment.section.location}` : ""}
+                      班级 {enrollment.section.sectionCode}
+                      {enrollment.section.location ? `（${enrollment.section.location}）` : ""}
                     </p>
-                    <p className="mt-1 text-xs text-slate-600">Instructor: {enrollment.section.instructorName}</p>
+                    <p className="mt-1 text-xs text-slate-600">教师：{enrollment.section.instructorName}</p>
                     <p className="mt-1 text-xs text-slate-600">{meetingSummary(enrollment.section.meetingTimes)}</p>
                     <div className="mt-2 flex items-center justify-between gap-2">
                       <div>

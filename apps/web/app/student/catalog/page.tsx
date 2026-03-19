@@ -850,23 +850,23 @@ export default function StudentCatalogPage() {
             <p className="campus-eyebrow">学业规划</p>
             <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">课程目录</h1>
             <p className="text-base text-slate-600">
-              Plan registration with clear seat, prerequisite, and schedule signals before submitting your cart.
+              提交选课单前，请先确认余位、先修条件与时间安排。
             </p>
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {activeTerm ? <span className="campus-chip chip-blue">{activeTerm.name}</span> : null}
-              {activeTerm ? <span className="campus-chip chip-purple">Max {activeTerm.maxCredits} credits</span> : null}
-              <span className="campus-chip chip-emerald">{sections.length} sections</span>
+              {activeTerm ? <span className="campus-chip chip-purple">最多 {activeTerm.maxCredits} 学分</span> : null}
+              <span className="campus-chip chip-emerald">{sections.length} 个教学班</span>
               {cartItems.length > 0 && (
-                <span className="campus-chip chip-blue">In cart {cartItems.length}</span>
+                <span className="campus-chip chip-blue">购物车 {cartItems.length} 项</span>
               )}
               {catalogStats.conflictCount > 0 ? (
                 <span className="campus-chip chip-red">
-                  Conflicts {catalogStats.conflictCount}
+                  时间冲突 {catalogStats.conflictCount}
                 </span>
               ) : null}
               {isFilteredView ? (
                 <span className="campus-chip chip-amber">
-                  Visible {filteredSections.length}
+                  当前显示 {filteredSections.length}
                 </span>
               ) : null}
             </div>
@@ -876,7 +876,7 @@ export default function StudentCatalogPage() {
               href={`/student/cart${termId ? `?termId=${termId}` : ""}`}
               className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:bg-slate-50 sm:w-auto"
             >
-              View cart {cartItems.length > 0 ? `(${cartItems.length})` : ""}
+              查看选课单{cartItems.length > 0 ? `（${cartItems.length}）` : ""}
             </Link>
             <p className="text-xs text-slate-500">提交前请先运行预检。</p>
           </div>
@@ -1058,7 +1058,7 @@ export default function StudentCatalogPage() {
               checked={filterApprovalOnly}
               onChange={(event) => setFilterApprovalOnly(event.target.checked)}
             />
-            Only approval-required sections
+            仅显示需审批教学班
           </label>
           <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
             <input
@@ -1336,18 +1336,18 @@ export default function StudentCatalogPage() {
                           {stats.avgDifficulty !== null ? (
                             <span className="flex items-center gap-1 text-xs text-slate-600">
                               <span className="font-semibold text-rose-500">{stats.avgDifficulty.toFixed(1)}</span>
-                              <span className="text-slate-400">difficulty</span>
+                              <span className="text-slate-400">难度</span>
                             </span>
                           ) : null}
                           {stats.avgWorkload !== null ? (
                             <span className="flex items-center gap-1 text-xs text-slate-600">
                               <span className="font-semibold text-amber-600">{stats.avgWorkload.toFixed(1)}</span>
-                              <span className="text-slate-400">workload</span>
+                              <span className="text-slate-400">工作量</span>
                             </span>
                           ) : null}
                           {stats.recommendPct !== null ? (
                             <span className={`text-xs font-semibold ${stats.recommendPct >= 70 ? "text-emerald-600" : stats.recommendPct >= 40 ? "text-amber-600" : "text-red-500"}`}>
-                              {stats.recommendPct}% recommend
+                              {stats.recommendPct}% 推荐
                             </span>
                           ) : null}
                         </div>
@@ -1392,10 +1392,10 @@ export default function StudentCatalogPage() {
                           ))}
                           {prereqBlocked ? (
                             <span className="ml-1 text-xs font-medium text-red-700">
-                              Missing: {missingPrereqs.join(", ")}
+                              缺少：{missingPrereqs.join(", ")}
                             </span>
                           ) : (
-                            <span className="ml-1 text-xs font-medium text-emerald-700">Met</span>
+                            <span className="ml-1 text-xs font-medium text-emerald-700">已满足</span>
                           )}
                         </div>
                       </div>
@@ -1403,7 +1403,7 @@ export default function StudentCatalogPage() {
 
                     {cartConflict ? (
                       <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">
-                        Time conflict with a section already in your cart.
+                        与选课单中已有教学班存在时间冲突。
                       </p>
                     ) : null}
 
