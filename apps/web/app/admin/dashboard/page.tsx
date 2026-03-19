@@ -577,6 +577,44 @@ export default async function AdminDashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* Analytics toolbox */}
+      <div className="campus-card p-5">
+        <h2 className="text-sm font-semibold text-slate-700 mb-3">分析与工具</h2>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          {([
+            { href: "/admin/grade-distribution",      label: "成绩分布" },
+            { href: "/admin/dropout-risk",            label: "退学风险" },
+            { href: "/admin/top-performers",          label: "优秀榜单" },
+            { href: "/admin/registration-heatmap",    label: "注册热图" },
+            { href: "/admin/waitlist-analytics",      label: "候补分析" },
+            { href: "/admin/capacity-plan",           label: "容量规划" },
+            { href: "/admin/dept-workload",           label: "院系工作量" },
+            { href: "/admin/faculty-schedule",        label: "教师排课" },
+            { href: "/admin/enrollment-velocity",     label: "注册速率" },
+            { href: "/admin/enrollment-audit",        label: "注册审计" },
+            { href: "/admin/major-trends",            label: "专业趋势" },
+            { href: "/admin/late-drops",              label: "晚期退课" },
+            { href: "/admin/term-capacity",           label: "学期容量" },
+            { href: "/admin/cohort-analytics",        label: "群体分析" },
+            { href: "/admin/term-enrollment-forecast",label: "注册预测" },
+            { href: "/admin/grade-curve",             label: "成绩曲线" },
+            { href: "/admin/prereq-map",              label: "先修图谱" },
+            { href: "/admin/prereq-audit",            label: "先修审计" },
+            { href: "/admin/schedule-conflicts",      label: "排课冲突" },
+            { href: "/admin/section-roster",          label: "班级名册" },
+            { href: "/admin/search",                  label: "全局搜索" },
+          ] as const).map(({ href, label }) => (
+            <Link
+              key={href}
+              href={href}
+              className="flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-2 py-2.5 text-center text-xs font-medium text-slate-700 no-underline transition hover:border-[hsl(221_83%_43%_/_0.3)] hover:bg-[hsl(221_80%_97%)] hover:text-[hsl(221_83%_43%)]"
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
