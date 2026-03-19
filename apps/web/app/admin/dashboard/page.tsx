@@ -604,6 +604,12 @@ export default async function AdminDashboardPage() {
             { href: "/admin/schedule-conflicts",      label: "排课冲突" },
             { href: "/admin/section-roster",          label: "班级名册" },
             { href: "/admin/search",                  label: "全局搜索" },
+            { href: "/admin/section-swap",            label: "换班工具" },
+            { href: "/admin/offering-history",        label: "开课历史" },
+            { href: "/admin/status-email",            label: "状态邮件" },
+            { href: "/admin/cohort-message",          label: "群发邮件" },
+            { href: "/admin/calendar",                label: "学术日历" },
+            { href: "/admin/reports-summary",         label: "报告摘要" },
           ] as const).map(({ href, label }) => (
             <Link
               key={href}
