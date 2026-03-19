@@ -122,10 +122,10 @@ export default function FacultyRosterClient({ sectionId }: { sectionId: string }
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">学生</th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">邮箱</th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">状态</th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">期末成绩</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-slate-500">学生</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-slate-500">邮箱</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-slate-500">状态</th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold text-slate-500">期末成绩</th>
                 </tr>
               </thead>
               <tbody>

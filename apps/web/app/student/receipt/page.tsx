@@ -113,7 +113,7 @@ export default function ReceiptPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-200">
+                <tr className="bg-slate-50 text-xs font-semibold text-slate-500 border-b border-slate-200">
                   <th className="px-5 py-3 text-left">课程代码</th>
                   <th className="px-5 py-3 text-left">课程名称</th>
                   <th className="px-5 py-3 text-left">班级</th>

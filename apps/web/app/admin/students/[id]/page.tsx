@@ -205,7 +205,7 @@ export default function AdminStudentDetailPage() {
       {/* Tags */}
       {tags.length > 0 ? (
         <section className="campus-card p-4 flex flex-wrap gap-2 items-center">
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">标签</span>
+          <span className="text-xs font-semibold text-slate-500">标签</span>
           {tags.map((tag) => (
             <span key={tag} className="campus-chip text-xs">{tag}</span>
           ))}

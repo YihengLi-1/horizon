@@ -201,7 +201,7 @@ export default function CalendarPage() {
           </h2>
           <div className="space-y-3">
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">标题 *</span>
+              <span className="mb-1 block text-xs font-semibold text-slate-500">标题 *</span>
               <input
                 type="text"
                 className="campus-input"
@@ -212,7 +212,7 @@ export default function CalendarPage() {
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">开始日期 *</span>
+                <span className="mb-1 block text-xs font-semibold text-slate-500">开始日期 *</span>
                 <input
                   type="date"
                   className="campus-input"
@@ -221,7 +221,7 @@ export default function CalendarPage() {
                 />
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">结束日期</span>
+                <span className="mb-1 block text-xs font-semibold text-slate-500">结束日期</span>
                 <input
                   type="date"
                   className="campus-input"
@@ -232,7 +232,7 @@ export default function CalendarPage() {
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">事件类型</span>
+                <span className="mb-1 block text-xs font-semibold text-slate-500">事件类型</span>
                 <select
                   className="campus-select"
                   value={form.type}
@@ -244,7 +244,7 @@ export default function CalendarPage() {
                 </select>
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">关联学期</span>
+                <span className="mb-1 block text-xs font-semibold text-slate-500">关联学期</span>
                 <select
                   className="campus-select"
                   value={form.termId}
@@ -258,7 +258,7 @@ export default function CalendarPage() {
               </label>
             </div>
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">说明</span>
+              <span className="mb-1 block text-xs font-semibold text-slate-500">说明</span>
               <textarea
                 className="campus-input min-h-20"
                 value={form.description}

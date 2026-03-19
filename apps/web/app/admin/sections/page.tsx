@@ -817,7 +817,7 @@ export default function AdminSectionsPage() {
       <section className="campus-toolbar">
         <div className="grid gap-3 md:grid-cols-[260px_minmax(0,1fr)]">
           <label className="block">
-            <span className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <span className="mb-2 inline-flex items-center gap-2 text-xs font-semibold text-slate-500">
               <span className="inline-flex size-5 items-center justify-center rounded-full bg-slate-100 text-[10px]">期</span>
               学期
             </span>
@@ -836,7 +836,7 @@ export default function AdminSectionsPage() {
           </label>
 
           <label className="block">
-            <span className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <span className="mb-2 inline-flex items-center gap-2 text-xs font-semibold text-slate-500">
               <span className="inline-flex size-5 items-center justify-center rounded-full bg-slate-100 text-[10px]">S</span>
               搜索
             </span>
@@ -1018,7 +1018,7 @@ export default function AdminSectionsPage() {
           </div>
           <div className="col-span-full space-y-2">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">上课时间</span>
+              <span className="text-xs font-semibold text-slate-500">上课时间</span>
               <button
                 type="button"
                 onClick={() => setCreateMeetingTimes((prev) => [...prev, { weekday: 1, startTime: "09:00", endTime: "10:00" }])}
@@ -1093,7 +1093,7 @@ export default function AdminSectionsPage() {
           </div>
           <form className="grid gap-3 md:grid-cols-4" onSubmit={(e) => void onSaveEdit(e)}>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">授课形式</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">授课形式</label>
               <select
                 className="campus-select"
                 value={editForm.modality}
@@ -1105,7 +1105,7 @@ export default function AdminSectionsPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">容量</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">容量</label>
               <input
                 type="number"
                 min={1}
@@ -1116,7 +1116,7 @@ export default function AdminSectionsPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">教师</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">教师</label>
               <input
                 required
                 className="campus-input"
@@ -1125,7 +1125,7 @@ export default function AdminSectionsPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">地点</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-500">地点</label>
               <input
                 className="campus-input"
                 placeholder="选填"
@@ -1146,7 +1146,7 @@ export default function AdminSectionsPage() {
             </div>
             <div className="col-span-full space-y-2">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">上课时间</span>
+                <span className="text-xs font-semibold text-slate-500">上课时间</span>
                 <button
                   type="button"
                   onClick={() => setEditMeetingTimes((prev) => [...prev, { weekday: 1, startTime: "09:00", endTime: "10:00" }])}
@@ -1218,7 +1218,7 @@ export default function AdminSectionsPage() {
         <div className="campus-card p-4 md:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-900">
+              <h2 className="text-sm font-semibold text-slate-900">
                 晋升管理
               </h2>
               <p className="mt-1 text-sm text-slate-600">
@@ -1226,7 +1226,7 @@ export default function AdminSectionsPage() {
               </p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-right">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">建议晋升数</p>
+              <p className="text-[11px] font-semibold text-slate-500">建议晋升数</p>
               <p className="text-2xl font-semibold text-slate-900">{recommendedPromotionTotal}</p>
             </div>
           </div>
@@ -1305,7 +1305,7 @@ export default function AdminSectionsPage() {
         </div>
 
         <div className="campus-card p-4 md:p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-900">容量压力监控</h2>
+          <h2 className="text-sm font-semibold text-slate-900">容量压力监控</h2>
           <p className="mt-1 text-sm text-slate-600">
             按<span className="font-medium">候补人数减余位数</span>排序的高压教学班。
           </p>

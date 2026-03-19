@@ -165,7 +165,7 @@ export default function EnrollmentVelocityPage() {
             </div>
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr className="bg-slate-50 text-xs font-semibold text-slate-500">
                   <th className="px-5 py-2 text-left">日期</th>
                   <th className="px-5 py-2 text-right">新增注册</th>
                   <th className="px-5 py-2 text-right">退课</th>

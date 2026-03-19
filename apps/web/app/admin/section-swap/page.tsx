@@ -107,13 +107,13 @@ export default function SectionSwapPage() {
 
           <div className="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
             <div className="p-5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">原教学班</p>
+              <p className="text-xs font-semibold text-slate-400 mb-2">原教学班</p>
               <p className="font-bold text-slate-900">{preview.fromSection.courseCode} — {preview.fromSection.sectionCode}</p>
               <p className="text-sm text-slate-600 mt-0.5">{preview.fromSection.courseTitle}</p>
               <p className="text-xs text-slate-400 mt-1">{preview.fromSection.termName}</p>
             </div>
             <div className="p-5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">目标教学班</p>
+              <p className="text-xs font-semibold text-slate-400 mb-2">目标教学班</p>
               <p className="font-bold text-slate-900">{preview.toSection.courseCode} — {preview.toSection.sectionCode}</p>
               <p className="text-sm text-slate-600 mt-0.5">{preview.toSection.courseTitle}</p>
               <p className="text-xs text-slate-400 mt-1">{preview.toSection.termName}</p>

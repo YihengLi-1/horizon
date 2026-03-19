@@ -155,7 +155,7 @@ export default function StudentCalendarPage() {
         <>
           {upcoming.length > 0 ? (
             <section className="space-y-2">
-              <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-amber-600">
+              <h2 className="px-1 text-xs font-semibold text-amber-600">
                 即将到来（7 天内）
               </h2>
               {upcoming.map((ev) => (
@@ -166,7 +166,7 @@ export default function StudentCalendarPage() {
 
           {future.length > 0 ? (
             <section className="space-y-2">
-              <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <h2 className="px-1 text-xs font-semibold text-slate-500">
                 未来日程
               </h2>
               {future.map((ev) => (
@@ -177,7 +177,7 @@ export default function StudentCalendarPage() {
 
           {past.length > 0 ? (
             <section className="space-y-2">
-              <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <h2 className="px-1 text-xs font-semibold text-slate-400">
                 历史事件
               </h2>
               {past.map((ev) => (

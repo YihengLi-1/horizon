@@ -1217,11 +1217,11 @@ export default function StudentCartPage() {
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-slate-200 bg-white">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">购物车课程</p>
+          <p className="text-xs font-semibold text-slate-500">购物车课程</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{items.length}</p>
         </div>
         <div className={`campus-kpi ${cartMetrics.overLimit ? "border-red-200 bg-red-50" : "border-slate-200 bg-white"}`}>
-          <p className={`text-xs font-semibold uppercase tracking-wide ${cartMetrics.overLimit ? "text-red-700" : "text-slate-500"}`}>
+          <p className={`text-xs font-semibold ${cartMetrics.overLimit ? "text-red-700" : "text-slate-500"}`}>
             计划学分
           </p>
           <p className={`mt-1 text-2xl font-semibold ${cartMetrics.overLimit ? "text-red-900" : "text-slate-900"}`}>
@@ -1239,7 +1239,7 @@ export default function StudentCartPage() {
           ) : null}
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">需审批</p>
+          <p className="text-xs font-semibold text-blue-700">需审批</p>
           <p className="mt-1 text-2xl font-semibold text-blue-900">{cartMetrics.approvalCount}</p>
           {cartMetrics.approvalCount > 0 ? (
             <p className="mt-0.5 text-xs text-blue-600">等待管理员操作</p>
@@ -1248,7 +1248,7 @@ export default function StudentCartPage() {
           )}
         </div>
         <div className={`campus-kpi ${invalidCartItemIds.length > 0 ? "border-red-200 bg-red-50" : "border-emerald-200 bg-emerald-50"}`}>
-          <p className={`text-xs font-semibold uppercase tracking-wide ${invalidCartItemIds.length > 0 ? "text-red-700" : "text-emerald-700"}`}>
+          <p className={`text-xs font-semibold ${invalidCartItemIds.length > 0 ? "text-red-700" : "text-emerald-700"}`}>
             问题条目
           </p>
           <p className={`mt-1 text-2xl font-semibold ${invalidCartItemIds.length > 0 ? "text-red-900" : "text-emerald-900"}`}>
@@ -1265,7 +1265,7 @@ export default function StudentCartPage() {
       <section className="campus-toolbar">
         <div className="grid gap-3 md:grid-cols-[260px_minmax(0,1fr)] md:items-end">
           <label className="block">
-            <span className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <span className="mb-2 inline-flex items-center gap-2 text-xs font-semibold text-slate-500">
               <span className="inline-flex size-5 items-center justify-center rounded-full bg-slate-100 text-[10px]">期</span>
               学期
             </span>
@@ -1469,7 +1469,7 @@ export default function StudentCartPage() {
           {canSubmitOverloadRequest ? (
             <div className="mt-4 space-y-3">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <span className="mb-2 block text-xs font-semibold text-slate-500">
                   申请超学分的原因
                 </span>
                 <textarea
@@ -1705,7 +1705,7 @@ export default function StudentCartPage() {
                   ) : null}
                   {prereqIssue ? (
                     <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">先修课豁免</p>
+                      <p className="text-xs font-semibold text-blue-700">先修课豁免</p>
                       <p className="mt-1 text-xs text-blue-900">{prereqIssue.message}</p>
                       {prereqRequest && prereqRequestBlocksNewSubmit ? (
                         <div className="mt-2 space-y-1 text-xs text-blue-700">
@@ -1890,7 +1890,7 @@ export default function StudentCartPage() {
                           <div className="rounded-xl border border-blue-200 bg-white p-3">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                               <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">先修课豁免</p>
+                                <p className="text-xs font-semibold text-blue-700">先修课豁免</p>
                                 <p className="mt-1 text-sm text-slate-800">{prereqIssue.message}</p>
                               </div>
                               {prereqRequest ? (

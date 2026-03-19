@@ -126,7 +126,7 @@ function StatCard({
     <div
       className={`group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition ${href ? "hover:shadow-md hover:border-slate-300 cursor-pointer" : ""}`}
     >
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="text-[11px] font-semibold text-slate-500">{label}</p>
       <p className={`mt-2 text-3xl font-bold ${accent ?? "text-slate-900"}`}>{value}</p>
       {sub ? <p className="mt-1 text-sm text-slate-500">{sub}</p> : null}
     </div>
@@ -308,10 +308,10 @@ export default async function AdminDashboardPage() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <p className={`text-[11px] font-semibold uppercase tracking-wide ${regOpen ? "text-emerald-700" : "text-blue-700"}`}>
+                <p className={`text-[11px] font-semibold ${regOpen ? "text-emerald-700" : "text-blue-700"}`}>
                   当前学期
                 </p>
-                <span className={`campus-chip px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                <span className={`campus-chip px-2 py-0.5 text-[10px] font-boldr ${
                   regOpen
                     ? "chip-emerald"
                     : "chip-blue"
@@ -534,7 +534,7 @@ export default async function AdminDashboardPage() {
         </div>
 
         <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">最近审计</h2>
+          <h2 className="mb-3 text-sm font-semibold text-slate-500">最近审计</h2>
           {recentActivity.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-8 text-center">
               <p className="text-2xl">📋</p>

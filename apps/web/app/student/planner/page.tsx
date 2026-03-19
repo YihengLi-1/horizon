@@ -191,7 +191,7 @@ export default function PlannerPage() {
 
       <div className="campus-toolbar">
         <label className="block">
-          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">学期</span>
+          <span className="mb-1 block text-xs font-semibold text-slate-500">学期</span>
           <select
             className="campus-select"
             value={termId}

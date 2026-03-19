@@ -186,7 +186,7 @@ export default function StudentProgressPage() {
         <div className="campus-card overflow-x-auto">
           <table className="w-full min-w-[920px] text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-slate-100 text-left text-xs font-semibold text-slate-500">
                 <th className="px-4 py-3">学生</th>
                 <th className="px-4 py-3">院系</th>
                 <th className="px-4 py-3">已修学分</th>

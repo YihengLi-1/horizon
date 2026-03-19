@@ -176,7 +176,7 @@ export default function FacultySectionsPage() {
             <div className="space-y-4">
               {grouped.map((group) => (
                 <div key={group.termName}>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2 px-1">
+                  <p className="text-xs font-semiboldst text-slate-400 mb-2 px-1">
                     {group.termName}
                   </p>
                   <div className="space-y-2">
@@ -249,7 +249,7 @@ export default function FacultySectionsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500">
                     <th className="px-4 py-3 text-left">学生</th>
                     <th className="px-4 py-3 text-left">专业</th>
                     <th className="px-4 py-3 text-left">状态</th>

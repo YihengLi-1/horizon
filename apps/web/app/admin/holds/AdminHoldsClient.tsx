@@ -209,11 +209,11 @@ export default function AdminHoldsClient() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="campus-kpi border-slate-200 bg-white">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">学籍限制总数</p>
+              <p className="text-xs font-semibold text-slate-500">学籍限制总数</p>
               <p className="mt-1 text-2xl font-semibold text-slate-900">{holds.length}</p>
             </div>
             <div className="campus-kpi border-red-200 bg-red-50">
-              <p className="text-xs font-semibold uppercase tracking-wide text-red-700">生效中</p>
+              <p className="text-xs font-semibold text-red-700">生效中</p>
               <p className="mt-1 text-2xl font-semibold text-red-900">{activeCount}</p>
             </div>
           </div>
@@ -233,7 +233,7 @@ export default function AdminHoldsClient() {
           </div>
 
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">搜索学生</span>
+            <span className="mb-2 block text-xs font-semibold text-slate-500">搜索学生</span>
             <input
               className="campus-input"
               value={studentQuery}
@@ -268,7 +268,7 @@ export default function AdminHoldsClient() {
           ) : null}
 
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">保留类型</span>
+            <span className="mb-2 block text-xs font-semibold text-slate-500">保留类型</span>
             <select className="campus-select" value={type} onChange={(event) => setType(event.target.value as HoldType)}>
               {HOLD_TYPES.map((item) => (
                 <option key={item} value={item}>{HOLD_TYPE_LABELS[item]}</option>
@@ -277,17 +277,17 @@ export default function AdminHoldsClient() {
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">原因</span>
+            <span className="mb-2 block text-xs font-semibold text-slate-500">原因</span>
             <input className="campus-input" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="例：教务处审核" />
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">备注</span>
+            <span className="mb-2 block text-xs font-semibold text-slate-500">备注</span>
             <textarea className="campus-input min-h-28" value={note} onChange={(event) => setNote(event.target.value)} placeholder="显示在保留详情中的备注" />
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">过期时间（选填）</span>
+            <span className="mb-2 block text-xs font-semibold text-slate-500">过期时间（选填）</span>
             <input className="campus-input" type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} />
           </label>
 
@@ -303,7 +303,7 @@ export default function AdminHoldsClient() {
         <section className="space-y-4">
           <div className="campus-toolbar">
             <label className="block max-w-md flex-1">
-              <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">筛选保留记录</span>
+              <span className="mb-2 block text-xs font-semibold text-slate-500">筛选保留记录</span>
               <input
                 className="campus-input"
                 value={search}
@@ -356,7 +356,7 @@ export default function AdminHoldsClient() {
                 {hold.active ? (
                   <div className="rounded-xl border border-slate-200 bg-white p-3">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">解除备注</span>
+                      <span className="mb-2 block text-xs font-semibold text-slate-500">解除备注</span>
                       <textarea
                         className="campus-input min-h-20"
                         value={resolveNotes[hold.id] ?? ""}
