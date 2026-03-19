@@ -807,6 +807,39 @@ export default async function StudentDashboardPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Toolbox quick-access */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold text-slate-700">学习工具箱</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {[
+                { href: "/student/grade-estimator",     label: "成绩估算" },
+                { href: "/student/gpa-goal",            label: "GPA 目标" },
+                { href: "/student/what-if",             label: "GPA 假设" },
+                { href: "/student/graduation-checklist",label: "毕业核查" },
+                { href: "/student/peer-compare",        label: "同伴对比" },
+                { href: "/student/recommendations",     label: "课程推荐" },
+                { href: "/student/conflicts",           label: "冲突检测" },
+                { href: "/student/study-timer",         label: "学习计时" },
+                { href: "/student/my-notes",            label: "我的笔记" },
+                { href: "/student/enrollment-timeline", label: "注册时线" },
+                { href: "/student/credit-summary",      label: "学分总览" },
+                { href: "/student/quick-add",           label: "快速选课" },
+              ].map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-2 py-2.5 text-center text-xs font-medium text-slate-700 no-underline transition hover:border-[hsl(221_83%_43%_/_0.3)] hover:bg-[hsl(221_80%_97%)] hover:text-[hsl(221_83%_43%)]"
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

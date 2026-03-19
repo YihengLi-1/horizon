@@ -792,11 +792,42 @@ export default function StudentProfilePage() {
               <h3 className="text-sm font-semibold text-slate-700">快捷链接</h3>
               <div className="mt-2 space-y-1.5">
                 {[
-                  { href: "/student/dashboard", label: "概览" },
-                  { href: "/student/schedule", label: "课程表" },
-                  { href: "/student/grades", label: "成绩" },
-                  { href: "/student/catalog", label: "课程目录" },
-                  { href: "/student/cart", label: "选课购物车" },
+                  { href: "/student/dashboard",    label: "概览" },
+                  { href: "/student/schedule",     label: "课程表" },
+                  { href: "/student/grades",       label: "成绩" },
+                  { href: "/student/catalog",      label: "课程目录" },
+                  { href: "/student/cart",         label: "选课购物车" },
+                  { href: "/student/notifications",label: "我的通知" },
+                  { href: "/student/enrollment-log", label: "选课记录" },
+                  { href: "/student/receipt",      label: "注册确认书" },
+                ].map(({ href, label }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 no-underline transition hover:bg-slate-100 hover:text-slate-900"
+                  >
+                    {label}
+                    <span className="text-slate-400">→</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+
+            <section className="campus-card p-4">
+              <h3 className="text-sm font-semibold text-slate-700">学习工具箱</h3>
+              <div className="mt-2 space-y-1.5">
+                {[
+                  { href: "/student/grade-estimator",     label: "成绩估算器" },
+                  { href: "/student/gpa-goal",            label: "GPA 目标追踪" },
+                  { href: "/student/what-if",             label: "GPA 假设模拟" },
+                  { href: "/student/graduation-checklist",label: "毕业条件核查" },
+                  { href: "/student/degree-audit",        label: "毕业进度" },
+                  { href: "/student/credit-summary",      label: "学分总览" },
+                  { href: "/student/peer-compare",        label: "同伴 GPA 对比" },
+                  { href: "/student/recommendations",     label: "课程推荐" },
+                  { href: "/student/conflicts",           label: "时间冲突检测" },
+                  { href: "/student/study-timer",         label: "学习计时器" },
+                  { href: "/student/my-notes",            label: "我的笔记" },
                 ].map(({ href, label }) => (
                   <Link
                     key={href}
