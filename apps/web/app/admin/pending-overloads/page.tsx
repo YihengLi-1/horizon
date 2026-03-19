@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type PendingOverload = {
   id: string;
@@ -25,6 +26,7 @@ export default function PendingOverloadsPage() {
   const [savingId, setSavingId] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   async function loadRows() {
     setLoading(true);
@@ -60,6 +62,16 @@ export default function PendingOverloadsPage() {
     } finally {
       setSavingId("");
     }
+  }
+
+  function confirmDecide(row: PendingOverload, approve: boolean) {
+    setConfirmState({
+      title: approve ? "批准超学分申请" : "拒绝超学分申请",
+      message: approve
+        ? `确认批准 ${row.studentName} 注册 ${row.courseCode} §${row.sectionCode}？该学生当前已有 ${row.currentCredits} 学分。`
+        : `确认拒绝 ${row.studentName} 的超学分申请？`,
+      onConfirm: () => { setConfirmState(null); void decide(row.id, approve); },
+    });
   }
 
   return (
@@ -102,8 +114,12 @@ export default function PendingOverloadsPage() {
                   <td className="text-sm text-slate-600">{new Date(row.submittedAt).toLocaleString()}</td>
                   <td>
                     <div className="flex gap-2">
-                      <button type="button" disabled={savingId === row.id} onClick={() => void decide(row.id, true)} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50">批准</button>
-                      <button type="button" disabled={savingId === row.id} onClick={() => void decide(row.id, false)} className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-50">拒绝</button>
+                      <button type="button" disabled={savingId === row.id} onClick={() => confirmDecide(row, true)} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50">
+                        {savingId === row.id ? "处理中…" : "批准"}
+                      </button>
+                      <button type="button" disabled={savingId === row.id} onClick={() => confirmDecide(row, false)} className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-50">
+                        {savingId === row.id ? "处理中…" : "拒绝"}
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -112,6 +128,14 @@ export default function PendingOverloadsPage() {
           </tbody>
         </table>
       </section>
+
+      <ConfirmDialog
+        open={!!confirmState}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

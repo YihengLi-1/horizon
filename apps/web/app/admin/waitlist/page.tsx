@@ -515,7 +515,7 @@ export default function WaitlistPage() {
                               {row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "—"}
                               {daysSince !== null ? (
                                 <span className={`ml-1.5 ${daysSince > 14 ? "text-amber-600 font-medium" : "text-slate-400"}`}>
-                                  ({daysSince}d)
+                                  （{daysSince}天）
                                 </span>
                               ) : null}
                             </td>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type ViolationRow = {
@@ -19,6 +19,18 @@ export default function PrereqAuditPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     void apiFetch<ViolationRow[]>("/admin/prereq-audit")
@@ -80,8 +92,9 @@ export default function PrereqAuditPage() {
 
       <div className="campus-toolbar">
         <input
+          ref={searchRef}
           className="campus-input max-w-xs"
-          placeholder="搜索学生邮箱或课程代码…"
+          placeholder="搜索学生邮箱或课程代码…  [/]"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

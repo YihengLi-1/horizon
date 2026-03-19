@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/Toast";
 import { ApiError, apiFetch } from "@/lib/api";
@@ -95,10 +95,22 @@ export default function PlannerPage() {
   const [allSections, setAllSections] = useState<Section[]>([]);
   const [basket, setBasket] = useState<string[]>([]);
   const [search, setSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
   const [combos, setCombos] = useState<Section[][]>([]);
   const [loading, setLoading] = useState(false);
   const [applyingComboIndex, setApplyingComboIndex] = useState<number | null>(null);
   const [appliedComboKey, setAppliedComboKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     void apiFetch<Term[]>("/academics/terms").then(setTerms).catch(() => setTerms([]));
@@ -226,8 +238,9 @@ export default function PlannerPage() {
           <div className="campus-card p-4 space-y-3">
             <h2 className="text-sm font-semibold text-slate-700">搜索课程</h2>
             <input
+              ref={searchRef}
               className="campus-input"
-              placeholder="输入课程代码（如 CS101）"
+              placeholder="输入课程代码（如 CS101）  [/]"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               disabled={!termId || loading}

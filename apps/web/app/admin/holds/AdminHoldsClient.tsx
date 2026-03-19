@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type HoldType = "REGISTRATION" | "ACADEMIC" | "FINANCIAL";
 
@@ -89,6 +90,7 @@ export default function AdminHoldsClient() {
   const [creating, setCreating] = useState(false);
   const [resolveNotes, setResolveNotes] = useState<Record<string, string>>({});
   const [resolvingId, setResolvingId] = useState("");
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   const loadHolds = async () => {
     try {
@@ -379,7 +381,11 @@ export default function AdminHoldsClient() {
                     </label>
                     <button
                       type="button"
-                      onClick={() => void resolveHold(hold.id)}
+                      onClick={() => setConfirmState({
+                        title: "移除学籍限制",
+                        message: `确认移除 ${hold.student.email} 的学籍限制？此操作不可撤销。`,
+                        onConfirm: () => { setConfirmState(null); void resolveHold(hold.id); },
+                      })}
                       disabled={resolvingId === hold.id}
                       className="mt-3 inline-flex h-9 items-center rounded-lg border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -392,6 +398,13 @@ export default function AdminHoldsClient() {
           )}
         </section>
       </section>
+      <ConfirmDialog
+        open={!!confirmState}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

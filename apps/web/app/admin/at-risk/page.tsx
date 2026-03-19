@@ -20,7 +20,7 @@ type AtRiskStudent = {
 };
 
 const FLAG_LABEL: Record<string, string> = {
-  "GPA < 2.0": "GPA < 2.0",
+  "GPA < 2.0": "GPA 低于 2.0",
   "No active enrollment": "无在修课程",
 };
 
@@ -29,6 +29,9 @@ function flagLabel(flag: string) {
   // Dropped X courses
   const m = flag.match(/Dropped (\d+) courses?/);
   if (m) return `已退 ${m[1]} 门课`;
+  // GPA below X.X
+  const g = flag.match(/GPA\s*<\s*([\d.]+)/);
+  if (g) return `GPA 低于 ${g[1]}`;
   return flag;
 }
 

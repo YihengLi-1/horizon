@@ -204,6 +204,9 @@ model EmailVerificationToken {
   usedAt    DateTime?
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model PasswordResetToken {
@@ -294,6 +297,7 @@ model CoursePrerequisite {
   prerequisiteCourse   Course @relation("RequiredForCourses", fields: [prerequisiteCourseId], references: [id], onDelete: Cascade)
 
   @@unique([courseId, prerequisiteCourseId])
+  @@index([prerequisiteCourseId])
 }
 
 model Section {
@@ -334,6 +338,8 @@ model MeetingTime {
   startMinutes Int
   endMinutes   Int
   section      Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId])
 }
 
 model Enrollment {
@@ -394,6 +400,8 @@ model AuditLog {
   @@index([createdAt])
   @@index([actorUserId])
   @@index([action])
+  @@index([action, entityType, entityId])
+  @@index([entityType, entityId, createdAt])
 }
 
 model CourseRating {
@@ -547,6 +555,7 @@ model SectionWatch {
   section    Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
   @@unique([userId, sectionId])
+  @@index([sectionId])
 }
 
 model ScheduleSnapshot {

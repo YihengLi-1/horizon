@@ -150,7 +150,7 @@ function TermFormFields({
       </div>
       <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 md:col-span-2">
         <input type="checkbox" checked={form.registrationOpen} onChange={onInput("registrationOpen")} className="size-4 accent-slate-900" />
-        registrationOpen / 开放中
+        注册开放
       </label>
       <div className="md:col-span-4 flex flex-wrap items-center gap-2">
         <button
@@ -158,7 +158,7 @@ function TermFormFields({
           disabled={saving}
           className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {saving ? <><span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />Saving…</> : submitLabel}
+          {saving ? <><span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />保存中…</> : submitLabel}
         </button>
         {onCancel ? (
           <button
@@ -322,7 +322,7 @@ export default function TermsPage() {
     const base = termToForm(term);
     setCreateForm({
       ...base,
-      name: `${term.name} (Copy)`,
+      name: `${term.name}（复制）`,
       startDate: shiftMonths(base.startDate, 6),
       endDate: shiftMonths(base.endDate, 6),
       registrationOpenAt: shiftMonths(base.registrationOpenAt, 6),
@@ -452,7 +452,7 @@ export default function TermsPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">加载学期数据中...</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">加载学期数据中…</td></tr>
               ) : terms.length === 0 ? (
                 <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-500">暂无学期记录。</td></tr>
               ) : (
@@ -479,7 +479,7 @@ export default function TermsPage() {
                           >
                             {togglingId === term.id ? "更新中…" : term.registrationOpen ? "开放中" : "已关闭"}
                           </button>
-                          <span className="text-xs text-slate-500">dropDeadline: {new Date(term.dropDeadline).toLocaleDateString()}</span>
+                          <span className="text-xs text-slate-500">退课截止：{new Date(term.dropDeadline).toLocaleDateString()}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3">

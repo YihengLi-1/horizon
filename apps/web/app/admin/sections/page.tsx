@@ -606,7 +606,7 @@ export default function AdminSectionsPage() {
         body: JSON.stringify({})
       });
       setCreateSuccess("教学班复制成功。");
-      toast(`已复制 Section，新 ID: ${cloned.id}`, "success");
+      toast(`教学班已复制，新 ID：${cloned.id}`, "success");
       await loadSections();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : "复制失败");
@@ -1291,7 +1291,7 @@ export default function AdminSectionsPage() {
                     disabled={loadingBySection[section.id]}
                     className="inline-flex h-8 items-center rounded-md border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-800 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {loadingBySection[section.id] ? "处理中..." : "立即晋升"}
+                    {loadingBySection[section.id] ? "处理中…" : "立即晋升"}
                   </button>
                   <a
                     href={`#section-row-${section.id}`}
@@ -1454,8 +1454,8 @@ export default function AdminSectionsPage() {
                               </span>
                             ) : null}
                             {(conflicts.get(section.id)?.length ?? 0) > 0 ? (
-                              <span className="campus-chip chip-red px-2 py-0.5 text-[11px]" title={`Conflicts with ${conflicts.get(section.id)!.length} section(s)`}>
-                                ⚠️ Conflict
+                              <span className="campus-chip chip-red px-2 py-0.5 text-[11px]" title={`与 ${conflicts.get(section.id)!.length} 个教学班时间冲突`}>
+                                ⚠️ 冲突
                               </span>
                             ) : null}
                           </div>
@@ -1575,7 +1575,7 @@ export default function AdminSectionsPage() {
                               onClick={() => void exportRoster(section)}
                               className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
                             >
-                              {exportingRosterId === section.id ? "导出中..." : "📋 名单"}
+                              {exportingRosterId === section.id ? "导出中…" : "📋 名单"}
                             </button>
                             <button
                               type="button"
@@ -1589,7 +1589,7 @@ export default function AdminSectionsPage() {
                               onClick={() => setTimelineId(timelineId === section.id ? null : section.id)}
                               className={`rounded border px-2 py-1 text-xs font-medium transition ${timelineId === section.id ? "border-indigo-300 bg-indigo-100 text-indigo-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
                             >
-                              📈 Timeline
+                              📈 时间轴
                             </button>
                             <button
                               type="button"

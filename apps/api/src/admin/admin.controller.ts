@@ -687,6 +687,13 @@ export class AdminController {
     return ok(await this.adminService.getAvailableStudentTags());
   }
 
+  @Get("student-tags/bulk")
+  @RequireAdminPermissions("students:read")
+  async getBulkStudentTags(@Query("studentIds") studentIds?: string) {
+    const ids = (studentIds ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+    return ok(await this.adminService.getBulkStudentTags(ids));
+  }
+
   @Get("students/:id/tags")
   @RequireAdminPermissions("students:read")
   async getStudentTags(@Param("id") id: string) {

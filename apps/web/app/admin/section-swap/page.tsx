@@ -70,7 +70,7 @@ export default function SectionSwapPage() {
         <p className="font-semibold text-slate-800 mb-4">填写换班信息</p>
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
-            <label className="text-sm text-slate-600 mb-1 block">注册记录 ID（Enrollment ID）</label>
+            <label className="text-sm text-slate-600 mb-1 block">注册记录 ID</label>
             <input
               className="campus-input w-full"
               placeholder="输入注册记录的 UUID…"
@@ -79,7 +79,7 @@ export default function SectionSwapPage() {
             />
           </div>
           <div>
-            <label className="text-sm text-slate-600 mb-1 block">目标教学班 ID（Section ID）</label>
+            <label className="text-sm text-slate-600 mb-1 block">目标教学班 ID</label>
             <input
               className="campus-input w-full"
               placeholder="输入目标教学班的 UUID…"

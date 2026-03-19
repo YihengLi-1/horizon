@@ -98,7 +98,7 @@ export default function StudentProgressPage() {
   }, [filteredRows]);
 
   function exportCsv() {
-    const header = ["name", "email", "dept", "creditsCompleted", "creditsEnrolled", "gpa", "enrollmentStatus"];
+    const header = ["姓名", "邮箱", "院系", "已修学分", "当前学分", "GPA", "状态"];
     const lines = [
       header.join(","),
       ...filteredRows.map((row) =>

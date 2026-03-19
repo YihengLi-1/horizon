@@ -386,39 +386,39 @@ export default function SchedulePage() {
                 {terms.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-1.5">
               <PrintButton />
               <button
                 type="button"
                 onClick={downloadIcs}
-                className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 transition hover:bg-white"
+                className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 whitespace-nowrap transition hover:bg-slate-50"
               >
                 iCal 导出
               </button>
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-blue-200 bg-white px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
+                className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-white px-3 text-xs font-semibold text-blue-700 whitespace-nowrap transition hover:bg-blue-50"
               >
                 打印课表
               </button>
-              {publicScheduleSharingEnabled ? null : (
-                <span className="campus-chip inline-flex h-9 flex-1 items-center justify-center border-slate-300 bg-slate-100 px-3 text-xs font-semibold text-slate-600">
-                  公开课表分享已禁用
-                </span>
-              )}
               <Link
                 href={termId ? `/student/catalog?termId=${termId}` : "/student/catalog"}
-                className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 no-underline transition hover:bg-white"
+                className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 no-underline whitespace-nowrap transition hover:bg-slate-50"
               >
                 浏览课程目录
               </Link>
               <Link
                 href={termId ? `/student/cart?termId=${termId}` : "/student/cart"}
-                className="inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 no-underline transition hover:bg-white"
+                className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 no-underline whitespace-nowrap transition hover:bg-slate-50"
               >
                 打开购物车
               </Link>
+              {!publicScheduleSharingEnabled ? (
+                <span className="campus-chip inline-flex h-9 shrink-0 items-center justify-center border-slate-300 bg-slate-100 px-3 text-xs font-semibold text-slate-600 whitespace-nowrap">
+                  分享已禁用
+                </span>
+              ) : null}
             </div>
             <div className="flex items-center justify-end gap-2">
               <button

@@ -193,7 +193,7 @@ export function AppShell({
             { label: "课务",   hrefs: ["/admin/courses", "/admin/sections", "/admin/terms", "/admin/reg-windows"] },
             { label: "注册",   hrefs: ["/admin/enrollments", "/admin/grade-entry", "/admin/waitlist", "/admin/graduation"] },
             { label: "审批",   hrefs: ["/admin/appeals", "/admin/prereq-waivers", "/admin/pending-overloads"] },
-            { label: "运营",   hrefs: ["/admin/announcements-mgmt", "/admin/bulk-ops", "/admin/closeout", "/admin/audit-logs"] },
+            { label: "运营",   hrefs: ["/admin/announcements-mgmt", "/admin/bulk-ops", "/admin/import", "/admin/closeout", "/admin/audit-logs"] },
             { label: "系统",   hrefs: ["/admin/invite-codes", "/admin/settings", "/admin/webhooks"] },
           ]
         : area === "faculty"

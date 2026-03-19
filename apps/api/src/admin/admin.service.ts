@@ -1684,32 +1684,27 @@ export class AdminService {
       orderBy: [{ createdAt: "asc" }]
     });
 
-    const currentCreditsByEnrollment = await Promise.all(
-      rows.map(async (row) => {
-        const currentCredits = await this.prisma.enrollment.findMany({
-          where: {
-            deletedAt: null,
-            studentId: row.studentId,
-            termId: row.termId,
-            status: "ENROLLED"
-          },
-          include: {
-            section: {
-              select: {
-                credits: true
-              }
-            }
-          }
-        });
-
-        return [
-          row.id,
-          currentCredits.reduce((sum, item) => sum + item.section.credits, 0)
-        ] as const;
-      })
+    // Batch-fetch enrolled credits for all (studentId, termId) pairs in one query
+    // instead of one query per row (N+1 elimination).
+    const studentIdList = [...new Set(rows.map((r) => r.studentId))];
+    const termIdList = [...new Set(rows.map((r) => r.termId))];
+    type CreditRow = { studentId: string; termId: string; totalCredits: number };
+    const creditRows = await this.prisma.$queryRaw<CreditRow[]>(Prisma.sql`
+      SELECT e."studentId", e."termId", COALESCE(SUM(s.credits), 0)::int AS "totalCredits"
+      FROM "Enrollment" e
+      JOIN "Section" s ON s.id = e."sectionId"
+      WHERE e."deletedAt" IS NULL
+        AND e.status = 'ENROLLED'
+        AND e."studentId" = ANY(${studentIdList}::text[])
+        AND e."termId"   = ANY(${termIdList}::text[])
+      GROUP BY e."studentId", e."termId"
+    `);
+    const creditByPair = new Map<string, number>(
+      creditRows.map((r) => [`${r.studentId}::${r.termId}`, Number(r.totalCredits)])
     );
-
-    const creditMap = new Map(currentCreditsByEnrollment);
+    const creditMap = new Map<string, number>(
+      rows.map((row) => [row.id, creditByPair.get(`${row.studentId}::${row.termId}`) ?? 0])
+    );
 
     return rows.map((row) => ({
       id: row.id,
@@ -4415,6 +4410,27 @@ export class AdminService {
     });
 
     return { studentId, tags: normalized };
+  }
+
+  async getBulkStudentTags(studentIds: string[]): Promise<Record<string, string[]>> {
+    if (!studentIds.length) return {};
+
+    // Fetch latest STUDENT_TAGS_SET audit log per student in one query
+    type TagRow = { entityId: string; metadata: Prisma.JsonValue };
+    const rows = await this.prisma.$queryRaw<TagRow[]>(Prisma.sql`
+      SELECT DISTINCT ON ("entityId") "entityId", metadata
+      FROM "AuditLog"
+      WHERE action = 'STUDENT_TAGS_SET'
+        AND "entityType" = 'student_tags'
+        AND "entityId" = ANY(${studentIds}::text[])
+      ORDER BY "entityId", "createdAt" DESC, id DESC
+    `);
+
+    const result: Record<string, string[]> = Object.fromEntries(studentIds.map((id) => [id, []]));
+    for (const row of rows) {
+      result[row.entityId] = extractTagsFromMetadata(row.metadata);
+    }
+    return result;
   }
 
   // ── Email Digest ─────────────────────────────────────────────────────

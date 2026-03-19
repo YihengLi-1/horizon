@@ -130,6 +130,15 @@ export default function EnrollmentAuditPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        {(termId || statusFilter || search) ? (
+          <button
+            type="button"
+            onClick={() => { setTermId(""); setStatusFilter(""); setSearch(""); }}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            清除筛选
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={exportCsv}

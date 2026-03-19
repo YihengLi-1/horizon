@@ -193,7 +193,7 @@ export default function AdminSearchPage() {
                       className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 no-underline"
                     >
                       <div className="size-8 rounded-lg bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700 shrink-0">
-                        {c.credits}cr
+                        {c.credits}学分
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-slate-900">
