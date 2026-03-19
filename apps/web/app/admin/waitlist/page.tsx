@@ -421,7 +421,7 @@ export default function WaitlistPage() {
                       </span>
                       {group.items[0]?.section.capacity ? (
                         <span className="campus-chip border-slate-200 bg-white text-slate-500 text-[11px]">
-                          Cap {group.items[0].section.capacity}
+                          容量 {group.items[0].section.capacity}
                         </span>
                       ) : null}
                     </div>

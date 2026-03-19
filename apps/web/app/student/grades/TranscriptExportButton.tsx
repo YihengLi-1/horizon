@@ -24,7 +24,7 @@ export default function TranscriptExportButton({ grades }: Props) {
           g.section.course.code ?? "",
           g.section.course.title ?? "",
           String(credits ?? ""),
-          g.finalGrade ?? "IP",
+          g.finalGrade ?? "进行中",
           points != null ? String(points) : "",
           points != null && credits != null ? String((points * credits).toFixed(2)) : ""
         ];

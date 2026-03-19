@@ -87,7 +87,7 @@ function getStanding(gpa: number | null): Standing {
   if (gpa >= 3.7) {
     return {
       label: "院长名单",
-      description: `GPA ${gpa.toFixed(2)} — Outstanding academic performance.`,
+      description: `GPA ${gpa.toFixed(2)} — 学业表现卓越，荣登院长名单。`,
       cls: "border-emerald-200 bg-emerald-50 text-emerald-800",
       icon: "🏆"
     };
@@ -95,7 +95,7 @@ function getStanding(gpa: number | null): Standing {
   if (gpa >= 3.0) {
     return {
       label: "学业正常",
-      description: `GPA ${gpa.toFixed(2)} — Satisfactory academic progress.`,
+      description: `GPA ${gpa.toFixed(2)} — 学业进展良好，符合要求。`,
       cls: "border-blue-200 bg-blue-50 text-blue-800",
       icon: "✅"
     };
@@ -103,7 +103,7 @@ function getStanding(gpa: number | null): Standing {
   if (gpa >= 2.0) {
     return {
       label: "学业警告",
-      description: `GPA ${gpa.toFixed(2)} — Minimum progression met, but improvement is needed.`,
+      description: `GPA ${gpa.toFixed(2)} — 达到最低要求，但需继续努力提升。`,
       cls: "border-amber-200 bg-amber-50 text-amber-800",
       icon: "⚠️"
     };
@@ -274,12 +274,12 @@ export default async function GradesPage({
             <p className="campus-eyebrow">学业记录</p>
             <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">我的成绩</h1>
             <p className="text-sm text-slate-600 md:text-base">
-              Final grades and GPA trends across completed terms.
+              查看各学期的最终成绩与 GPA 走势。
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{grades.length} graded courses</span>
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{gradeTerms.length} term{gradeTerms.length === 1 ? "" : "s"}</span>
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{completedCredits} credits completed</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{grades.length} 门已出分课程</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{gradeTerms.length} 个学期</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">已完成 {completedCredits} 学分</span>
               {cumulative ? (
                 <span className={`campus-chip ${gpaTier(cumulative.gpa).cls}`}>GPA {cumulative.gpa.toFixed(2)} · {gpaTier(cumulative.gpa).label}</span>
               ) : null}
@@ -322,7 +322,7 @@ export default async function GradesPage({
 
       {transcriptResult.error ? (
         <section className="campus-card border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          Transcript data is temporarily unavailable. GPA trend and semester breakdowns may be incomplete until the service recovers.
+          成绩单数据暂时不可用，GPA 走势与学期明细可能不完整，请稍后再试。
         </section>
       ) : null}
 

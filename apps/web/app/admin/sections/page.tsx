@@ -777,12 +777,12 @@ export default function AdminSectionsPage() {
             <p className="campus-eyebrow">报名管理</p>
             <h1 className="campus-title">教学班管理</h1>
             <p className="text-sm text-slate-600 md:text-base">
-              Monitor seat utilization, track waitlist pressure, and promote students into open ENROLLED seats.
+              监控余位使用情况，跟踪候补压力，并将候补学生晋级至空余在读名额。
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip chip-blue">{overview.sections} visible sections</span>
-              <span className="campus-chip chip-amber">{overview.waitlisted} waitlisted</span>
-              <span className="campus-chip chip-purple">{actionableSections.length} actionable</span>
+              <span className="campus-chip chip-blue">{overview.sections} 个教学班</span>
+              <span className="campus-chip chip-amber">{overview.waitlisted} 人候补</span>
+              <span className="campus-chip chip-purple">{actionableSections.length} 个可操作</span>
             </div>
           </div>
           <div className="flex gap-2">
@@ -1522,7 +1522,7 @@ export default function AdminSectionsPage() {
                               <input
                                 type="number"
                                 min={1}
-                                aria-label={`Promotion count for ${section.course.code} section ${section.sectionCode}`}
+                                aria-label={`${section.course.code} 教学班 ${section.sectionCode} 的晋级人数`}
                                 value={countsBySection[section.id] ?? 1}
                                 onChange={(event) => setRowCount(section.id, event.target.value)}
                                 className="h-10 w-20 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"

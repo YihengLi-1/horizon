@@ -1673,11 +1673,11 @@ export default function StudentCartPage() {
                       <p className="text-xs text-slate-500">{item.section.course.title}</p>
                     </div>
                     <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
-                      {item.section.credits} cr
+                      {item.section.credits} 学分
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-slate-600">
-                    Section {item.section.sectionCode}
+                    班级 {item.section.sectionCode}
                   </p>
                   <div className="mt-2 flex items-center gap-2">
                     <span
