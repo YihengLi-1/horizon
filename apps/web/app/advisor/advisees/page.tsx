@@ -22,15 +22,23 @@ type AdviseeAssignment = {
 
 const STATUS_STYLE: Record<string, string> = {
   GOOD_STANDING: "text-emerald-700 bg-emerald-50 border-emerald-200",
-  PROBATION: "text-red-700 bg-red-50 border-red-200",
-  SUSPENDED: "text-red-800 bg-red-100 border-red-300",
-  AT_RISK: "text-amber-700 bg-amber-50 border-amber-200",
+  ACADEMIC_PROBATION: "text-amber-700 bg-amber-50 border-amber-200",
+  ACADEMIC_SUSPENSION: "text-red-800 bg-red-100 border-red-300",
+  // legacy bulk-update values
+  Active: "text-emerald-700 bg-emerald-50 border-emerald-200",
+  Inactive: "text-slate-600 bg-slate-50 border-slate-200",
+  Suspended: "text-red-800 bg-red-100 border-red-300",
+  Probation: "text-amber-700 bg-amber-50 border-amber-200",
 };
 const STATUS_LABEL: Record<string, string> = {
-  GOOD_STANDING: "成绩良好",
-  PROBATION: "学业观察",
-  SUSPENDED: "学业暂停",
-  AT_RISK: "存在风险",
+  GOOD_STANDING: "学业良好",
+  ACADEMIC_PROBATION: "学业观察",
+  ACADEMIC_SUSPENSION: "学业暂停",
+  // legacy bulk-update values
+  Active: "在读",
+  Inactive: "未活跃",
+  Suspended: "已停学",
+  Probation: "察看期",
 };
 
 export default function AdviseeListPage() {
@@ -74,13 +82,13 @@ export default function AdviseeListPage() {
         <div className="campus-kpi">
           <p className="campus-kpi-label">学业风险</p>
           <p className="campus-kpi-value text-amber-600">
-            {loading ? "—" : assignments.filter((a) => a.student.studentProfile?.academicStatus === "AT_RISK").length}
+            {loading ? "—" : assignments.filter((a) => ["ACADEMIC_PROBATION", "Probation"].includes(a.student.studentProfile?.academicStatus ?? "")).length}
           </p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label">学业观察</p>
+          <p className="campus-kpi-label">学业暂停</p>
           <p className="campus-kpi-value text-red-600">
-            {loading ? "—" : assignments.filter((a) => a.student.studentProfile?.academicStatus === "PROBATION").length}
+            {loading ? "—" : assignments.filter((a) => ["ACADEMIC_SUSPENSION", "Suspended"].includes(a.student.studentProfile?.academicStatus ?? "")).length}
           </p>
         </div>
       </section>
@@ -98,10 +106,10 @@ export default function AdviseeListPage() {
         />
         <select className="campus-select w-36" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="">全部状态</option>
-          <option value="GOOD_STANDING">成绩良好</option>
-          <option value="AT_RISK">存在风险</option>
-          <option value="PROBATION">学业观察</option>
-          <option value="SUSPENDED">学业暂停</option>
+          <option value="GOOD_STANDING">学业良好</option>
+          <option value="ACADEMIC_PROBATION">学业观察</option>
+          <option value="ACADEMIC_SUSPENSION">学业暂停</option>
+          <option value="Active">在读</option>
         </select>
       </div>
 

@@ -65,10 +65,18 @@ type StudentNoteItem = {
   admin: { email: string };
 };
 
-const ENROLLMENT_STATUSES = ["New", "Continuing", "Returning", "Graduated", "Withdrawn"];
-const ACADEMIC_STATUSES = ["Active", "Probation", "Suspended", "Graduated"];
-const ENROLLMENT_STATUS_LABEL: Record<string, string> = { New: "新生", Continuing: "在读", Returning: "复读", Graduated: "已毕业", Withdrawn: "已退学" };
-const ACADEMIC_STATUS_LABEL: Record<string, string> = { Active: "在读", Probation: "察看期", Suspended: "停学", Graduated: "已毕业" };
+const ENROLLMENT_STATUSES = ["ACTIVE", "INACTIVE", "GRADUATED", "WITHDRAWN", "SUSPENDED", "Imported"];
+const ACADEMIC_STATUSES = ["GOOD_STANDING", "ACADEMIC_PROBATION", "ACADEMIC_SUSPENSION", "Active", "Inactive", "Suspended"];
+const ENROLLMENT_STATUS_LABEL: Record<string, string> = {
+  ACTIVE: "在籍",  INACTIVE: "未在籍",  GRADUATED: "已毕业",  WITHDRAWN: "已退学",  SUSPENDED: "停学",  Imported: "已导入",
+  // legacy values
+  New: "新生",  Continuing: "在读",  Returning: "复读",  Active: "在籍",  Graduated: "已毕业",  Withdrawn: "已退学"
+};
+const ACADEMIC_STATUS_LABEL: Record<string, string> = {
+  GOOD_STANDING: "学业良好",  ACADEMIC_PROBATION: "学业观察",  ACADEMIC_SUSPENSION: "学业暂停",
+  // legacy / bulk-update values
+  Active: "在读",  Inactive: "未活跃",  Suspended: "已停学",  Probation: "察看期",  Graduated: "已毕业"
+};
 const PAGE_SIZE = 50;
 
 export default function AdminStudentsPage() {
@@ -103,7 +111,7 @@ export default function AdminStudentsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({
     email: "", studentId: "", legalName: "", programMajor: "",
-    enrollmentStatus: "New", academicStatus: "Active"
+    enrollmentStatus: "ACTIVE", academicStatus: "GOOD_STANDING"
   });
   const [savingId, setSavingId] = useState<string | null>(null);
   const [detailStudent, setDetailStudent] = useState<Student | null>(null);
@@ -303,8 +311,8 @@ export default function AdminStudentsPage() {
       studentId: student.studentId,
       legalName: student.studentProfile?.legalName ?? "",
       programMajor: student.studentProfile?.programMajor ?? "",
-      enrollmentStatus: student.studentProfile?.enrollmentStatus ?? "New",
-      academicStatus: student.studentProfile?.academicStatus ?? "Active"
+      enrollmentStatus: student.studentProfile?.enrollmentStatus ?? "ACTIVE",
+      academicStatus: student.studentProfile?.academicStatus ?? "GOOD_STANDING"
     });
     setError("");
     setNotice("");
@@ -427,10 +435,10 @@ export default function AdminStudentsPage() {
   const [filterEnrollment, setFilterEnrollment] = useState("");
 
   const studentStats = useMemo(() => {
-    const active = students.filter((s) => s.studentProfile?.academicStatus === "Active").length;
-    const probation = students.filter((s) => s.studentProfile?.academicStatus === "Probation").length;
-    const suspended = students.filter((s) => s.studentProfile?.academicStatus === "Suspended").length;
-    const graduated = students.filter((s) => s.studentProfile?.academicStatus === "Graduated").length;
+    const active = students.filter((s) => ["GOOD_STANDING", "Active", "ACTIVE"].includes(s.studentProfile?.academicStatus ?? "")).length;
+    const probation = students.filter((s) => ["ACADEMIC_PROBATION", "Probation"].includes(s.studentProfile?.academicStatus ?? "")).length;
+    const suspended = students.filter((s) => ["ACADEMIC_SUSPENSION", "Suspended"].includes(s.studentProfile?.academicStatus ?? "")).length;
+    const graduated = students.filter((s) => ["GRADUATED", "Graduated"].includes(s.studentProfile?.enrollmentStatus ?? "")).length;
     return { active, probation, suspended, graduated };
   }, [students]);
 
@@ -855,15 +863,14 @@ export default function AdminStudentsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="space-y-1">
-                        <span className="block text-xs text-slate-600">{({"Active":"在读","Inactive":"未在读","Graduated":"已毕业","Withdrawn":"已退学","New":"新生","Leave":"休学"} as Record<string,string>)[student.studentProfile?.enrollmentStatus ?? ""] ?? student.studentProfile?.enrollmentStatus ?? "-"}</span>
+                        <span className="block text-xs text-slate-600">{ENROLLMENT_STATUS_LABEL[student.studentProfile?.enrollmentStatus ?? ""] ?? student.studentProfile?.enrollmentStatus ?? "-"}</span>
                         {student.studentProfile?.academicStatus ? (
                           <span className={`campus-chip text-[11px] ${
-                            student.studentProfile.academicStatus === "Probation" ? "chip-amber"
-                            : student.studentProfile.academicStatus === "Suspended" ? "chip-red"
-                            : student.studentProfile.academicStatus === "Graduated" ? "chip-purple"
+                            student.studentProfile.academicStatus === "ACADEMIC_PROBATION" || student.studentProfile.academicStatus === "Probation" ? "chip-amber"
+                            : student.studentProfile.academicStatus === "ACADEMIC_SUSPENSION" || student.studentProfile.academicStatus === "Suspended" ? "chip-red"
                             : "chip-emerald"
                           }`}>
-                            {{Active:"在读",Probation:"察看",Suspended:"停学",Graduated:"已毕业",Withdrawn:"已退学"}[student.studentProfile.academicStatus] ?? student.studentProfile.academicStatus}
+                            {ACADEMIC_STATUS_LABEL[student.studentProfile.academicStatus] ?? student.studentProfile.academicStatus}
                           </span>
                         ) : <span className="text-xs text-slate-400">-</span>}
                       </div>
