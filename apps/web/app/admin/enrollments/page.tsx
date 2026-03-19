@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type Term = {
   id: string;
@@ -67,7 +68,7 @@ const STATUS_COLORS: Record<string, string> = {
 function StatBadge({ label, count, color }: { label: string; count: number; color: string }) {
   return (
     <div className={`flex flex-col items-center rounded-xl border px-4 py-3 ${color}`}>
-      <span className="text-2xl font-bold">{count}</span>
+      <span className="campus-kpi-value">{count}</span>
       <span className="mt-0.5 text-xs font-semibold">{label}</span>
     </div>
   );
@@ -102,6 +103,7 @@ export default function EnrollmentsPage() {
   const [loading, setLoading] = useState(false);
   const [savingStatusId, setSavingStatusId] = useState<string | null>(null);
   const [savingGradeId, setSavingGradeId] = useState<string | null>(null);
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
   const [gradeState, setGradeState] = useState<Record<string, string>>({});
   const [statusState, setStatusState] = useState<Record<string, string>>({});
   const [selectedById, setSelectedById] = useState<Record<string, boolean>>({});
@@ -217,22 +219,26 @@ export default function EnrollmentsPage() {
     }
   };
 
-  const forceDrop = async (id: string) => {
-    if (!window.confirm("确认强制退课？")) return;
-    try {
-      setSavingStatusId(id);
-      setError("");
-      setNotice("");
-      await apiFetch(`/admin/enrollments/${id}`, {
-        method: "DELETE"
-      });
-      setNotice("已强制退课。");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "强制退课失败");
-    } finally {
-      setSavingStatusId(null);
-    }
+  const forceDrop = (id: string) => {
+    setConfirmState({
+      title: "强制退课",
+      message: "确认强制退课？此操作将立即从课程中移除该学生。",
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          setSavingStatusId(id);
+          setError("");
+          setNotice("");
+          await apiFetch(`/admin/enrollments/${id}`, { method: "DELETE" });
+          setNotice("已强制退课。");
+          await load();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "强制退课失败");
+        } finally {
+          setSavingStatusId(null);
+        }
+      },
+    });
   };
 
   const statusCounts = useMemo(() => {
@@ -400,10 +406,8 @@ export default function EnrollmentsPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">学籍管理</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">报名与成绩</h1>
-            <p className="text-sm text-slate-600 md:text-base">
-              调整注册状态、录入并发布已结课教学班的最终成绩。
-            </p>
+            <h1 className="campus-title">报名与成绩</h1>
+            <p className="campus-subtitle">调整注册状态、录入并发布已结课教学班的最终成绩。</p>
             <div className="flex flex-wrap gap-2 pt-1">
               <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-700">共 {total} 条</span>
               {(statusCounts.get("ENROLLED") ?? 0) > 0 && (
@@ -830,7 +834,7 @@ export default function EnrollmentsPage() {
                 disabled={safePage === 1}
                 className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                ← Prev
+                ← 上页
               </button>
               {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
                 let pageNum: number;
@@ -859,12 +863,19 @@ export default function EnrollmentsPage() {
                 disabled={safePage === totalPages}
                 className="inline-flex h-8 min-w-[4rem] items-center justify-center rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Next →
+                下页 →
               </button>
             </div>
           </div>
         ) : null}
       </section>
+      <ConfirmDialog
+        open={confirmState !== null}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

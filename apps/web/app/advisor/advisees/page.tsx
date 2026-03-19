@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type AdviseeAssignment = {
@@ -47,6 +47,19 @@ export default function AdviseeListPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Press "/" to focus search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     void apiFetch<AdviseeAssignment[]>("/advising/advisees")
@@ -99,8 +112,9 @@ export default function AdviseeListPage() {
 
       <div className="campus-toolbar">
         <input
+          ref={searchRef}
           className="campus-input max-w-xs"
-          placeholder="搜索姓名、邮箱或专业…"
+          placeholder="搜索姓名、邮箱或专业… (/)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

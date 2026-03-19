@@ -48,11 +48,9 @@ export default function CohortMessagePage() {
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">管理员</p>
-        <h1 className="font-heading text-3xl font-bold text-slate-900">群组消息</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          向指定入学年份的所有学生批量发送通知邮件。
-        </p>
+        <p className="campus-eyebrow">批量通知</p>
+        <h1 className="campus-title">群组消息</h1>
+        <p className="campus-subtitle">向指定入学年份的所有学生批量发送通知邮件</p>
       </section>
 
       <section className="campus-card p-6 space-y-5 max-w-xl">

@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { apiFetch } from "@/lib/api";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 interface Announcement {
   id: string;
@@ -53,6 +54,7 @@ export default function AnnouncementsPage() {
   const [filterAudience, setFilterAudience] = useState<AudienceFilter>("ALL");
   const [saving, setSaving] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   async function load() {
     const data = await apiFetch<Announcement[]>("/admin/announcements").catch(() => []);
@@ -110,14 +112,20 @@ export default function AnnouncementsPage() {
   }
 
   async function remove(id: string) {
-    if (!window.confirm("确认删除这条公告？")) return;
-    try {
-      await apiFetch(`/admin/announcements/${id}`, { method: "DELETE" });
-      toast("公告已删除", "success");
-      await load();
-    } catch (error) {
-      toast(error instanceof Error ? error.message : "删除失败", "error");
-    }
+    setConfirmState({
+      title: "删除公告",
+      message: "确认删除这条公告？",
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          await apiFetch(`/admin/announcements/${id}`, { method: "DELETE" });
+          toast("公告已删除", "success");
+          await load();
+        } catch (error) {
+          toast(error instanceof Error ? error.message : "删除失败", "error");
+        }
+      },
+    });
   }
 
   const stats = useMemo(() => {
@@ -145,17 +153,18 @@ export default function AnnouncementsPage() {
 
   return (
     <div className="campus-page space-y-6">
-      <div className="campus-hero">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">系统公告</h1>
-        <p className="mt-1 text-sm text-slate-500">向学生和管理员发布通知公告。</p>
-      </div>
+      <section className="campus-hero">
+        <p className="campus-eyebrow">运营管理</p>
+        <h1 className="campus-title">系统公告</h1>
+        <p className="campus-subtitle">向学生和管理员发布通知公告</p>
+      </section>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="campus-kpi"><p className="text-xs font-semibold uppercase text-slate-500">总计</p><p className="mt-1 text-2xl font-bold text-slate-900">{stats.total}</p></div>
-        <div className="campus-kpi border-emerald-200 bg-emerald-50/70"><p className="text-xs font-semibold uppercase text-emerald-700">生效中</p><p className="mt-1 text-2xl font-bold text-emerald-900">{stats.active}</p></div>
-        <div className="campus-kpi border-amber-200 bg-amber-50/70"><p className="text-xs font-semibold uppercase text-amber-700">置顶</p><p className="mt-1 text-2xl font-bold text-amber-900">{stats.pinned}</p></div>
-        <div className="campus-kpi border-red-200 bg-red-50/70"><p className="text-xs font-semibold uppercase text-red-700">已过期</p><p className="mt-1 text-2xl font-bold text-red-900">{stats.expired}</p></div>
-      </div>
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="campus-kpi"><p className="campus-kpi-label">总计</p><p className="campus-kpi-value">{stats.total}</p></div>
+        <div className="campus-kpi"><p className="campus-kpi-label">生效中</p><p className="campus-kpi-value text-emerald-600">{stats.active}</p></div>
+        <div className="campus-kpi"><p className="campus-kpi-label">置顶</p><p className="campus-kpi-value text-amber-600">{stats.pinned}</p></div>
+        <div className="campus-kpi"><p className="campus-kpi-label">已过期</p><p className="campus-kpi-value text-red-500">{stats.expired}</p></div>
+      </section>
 
       <form onSubmit={create} className="campus-card space-y-3 p-5">
         <p className="text-sm font-semibold text-slate-700">新建公告</p>
@@ -382,6 +391,13 @@ export default function AnnouncementsPage() {
           </div>
         </div>
       ) : null}
+      <ConfirmDialog
+        open={confirmState !== null}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

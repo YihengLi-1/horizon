@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
-import { API_URL } from "@/lib/config";
 
 type Term = { id: string; name: string };
 type PerfRow = {
@@ -27,6 +26,7 @@ export default function InstructorPerformancePage() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("totalStudents");
   const [asc, setAsc] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void apiFetch<Term[]>("/admin/terms")
@@ -43,6 +43,17 @@ export default function InstructorPerformancePage() {
       .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setLoading(false));
   }, [termId]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -125,8 +136,9 @@ export default function InstructorPerformancePage() {
       <div className="campus-toolbar">
         <div className="flex flex-1 flex-wrap items-center gap-3">
           <input
+            ref={searchRef}
             className="campus-input max-w-xs"
-            placeholder="按教师姓名或邮箱筛选…"
+            placeholder="按教师姓名或邮箱筛选… (/)"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />

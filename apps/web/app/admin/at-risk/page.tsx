@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type Term = { id: string; name: string };
@@ -46,6 +46,18 @@ export default function AtRiskPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     void apiFetch<Term[]>("/admin/terms")
@@ -111,10 +123,8 @@ export default function AtRiskPage() {
     <div className="campus-page space-y-6">
       <section className="campus-hero">
         <p className="campus-eyebrow">学生支持</p>
-        <h1 className="font-heading text-3xl font-bold text-slate-900">学生预警</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          本学期 GPA 低于 2.0、大量退课或无在修课程的高风险学生。
-        </p>
+        <h1 className="campus-title">学生预警</h1>
+        <p className="campus-subtitle">本学期 GPA 低于 2.0、大量退课或无在修课程的高风险学生。</p>
       </section>
 
       <section className="campus-toolbar flex-wrap gap-3">
@@ -131,8 +141,9 @@ export default function AtRiskPage() {
           ))}
         </select>
         <input
+          ref={searchRef}
           className="campus-input max-w-xs"
-          placeholder="搜索姓名、学号或邮箱…"
+          placeholder="搜索姓名、学号或邮箱… (/)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -150,17 +161,17 @@ export default function AtRiskPage() {
         <section className="grid gap-4 sm:grid-cols-3">
           <div className="campus-kpi">
             <p className="campus-kpi-label">预警学生数</p>
-            <p className="mt-1 text-2xl font-semibold text-red-700">{filtered.length}</p>
+            <p className="campus-kpi-value text-red-700">{filtered.length}</p>
           </div>
           <div className="campus-kpi">
             <p className="campus-kpi-label">GPA &lt; 2.0</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-900">
+            <p className="campus-kpi-value">
               {filtered.filter((r) => r.riskFlags.some((f) => f === "GPA < 2.0")).length}
             </p>
           </div>
           <div className="campus-kpi">
             <p className="campus-kpi-label">无在修课程</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-900">
+            <p className="campus-kpi-value">
               {filtered.filter((r) => r.riskFlags.some((f) => f === "No active enrollment")).length}
             </p>
           </div>

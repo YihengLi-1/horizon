@@ -82,11 +82,9 @@ export default function ReportsSummaryPage() {
   return (
     <div className="campus-page space-y-6">
       <section className="campus-hero">
-        <p className="campus-eyebrow">管理员</p>
-        <h1 className="font-heading text-3xl font-bold text-slate-900">报告汇总</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          查看全校招生、选课及成绩的综合报告概览。
-        </p>
+        <p className="campus-eyebrow">管理分析</p>
+        <h1 className="campus-title">报告汇总</h1>
+        <p className="campus-subtitle">查看全校招生、选课及成绩的综合报告概览</p>
       </section>
 
       <section className="campus-toolbar">
@@ -125,19 +123,19 @@ export default function ReportsSummaryPage() {
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <div className="campus-kpi">
               <p className="campus-kpi-label">在校学生</p>
-              <p className="mt-1 text-2xl font-semibold text-slate-900">{data.totalStudents.toLocaleString()}</p>
+              <p className="campus-kpi-value">{data.totalStudents.toLocaleString()}</p>
             </div>
             <div className="campus-kpi">
               <p className="campus-kpi-label">开设课程</p>
-              <p className="mt-1 text-2xl font-semibold text-slate-900">{data.totalCourses.toLocaleString()}</p>
+              <p className="campus-kpi-value">{data.totalCourses.toLocaleString()}</p>
             </div>
             <div className="campus-kpi">
               <p className="campus-kpi-label">教学班数</p>
-              <p className="mt-1 text-2xl font-semibold text-slate-900">{data.totalSections.toLocaleString()}</p>
+              <p className="campus-kpi-value">{data.totalSections.toLocaleString()}</p>
             </div>
             <div className="campus-kpi">
               <p className="campus-kpi-label">人均已注册学分</p>
-              <p className="mt-1 text-2xl font-semibold text-slate-900">{data.avgCreditsPerStudent}</p>
+              <p className="campus-kpi-value">{data.avgCreditsPerStudent}</p>
             </div>
           </section>
 

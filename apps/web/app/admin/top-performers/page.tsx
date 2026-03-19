@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type Performer = {
@@ -30,6 +30,18 @@ export default function TopPerformersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? [])).catch(() => {});
@@ -128,8 +140,9 @@ export default function TopPerformersPage() {
           <option value={50}>前 50 名</option>
         </select>
         <input
+          ref={searchRef}
           className="campus-input max-w-xs"
-          placeholder="搜索邮箱或专业…"
+          placeholder="搜索邮箱或专业… (/)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

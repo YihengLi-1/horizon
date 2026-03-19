@@ -9,19 +9,29 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <div>
               <p className="text-xs font-semibold text-amber-100/90">地平线学籍管理系统</p>
               <h1 className="mt-3 max-w-md font-heading text-4xl font-bold leading-tight text-white">
-                学生信息与选课注册门户
+                学生信息与教务管理系统
               </h1>
               <p className="mt-4 max-w-md text-sm text-slate-200">
-                面向真实高校场景的学务管理平台：清晰的任务列表、选课就绪检查，以及对教务人员友好的审批流程。
+                支持选课注册、成绩管理、学籍审核与教师教务的一体化高校信息平台。
               </p>
             </div>
-            <div className="space-y-2 text-xs text-slate-200/90">
-              <p>系统功能</p>
-              <ul className="space-y-1.5 text-sm">
-                <li>课程目录，含先修课与容量提示</li>
-                <li>提交前购物车预检，提供可操作的错误引导</li>
-                <li>管理员候补晋升与 CSV 导入管控</li>
-              </ul>
+            <div className="space-y-3 text-sm text-slate-200/90">
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 text-amber-300">✓</span>
+                <span>在线选课、候补排队与注册状态实时追踪</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 text-amber-300">✓</span>
+                <span>成绩查询、成绩单申请与学业状态管理</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 text-amber-300">✓</span>
+                <span>先修课豁免、成绩申诉与超学分审批流程</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 text-amber-300">✓</span>
+                <span>管理端数据统计、学生预警与教学班管理</span>
+              </div>
             </div>
           </div>
         </section>

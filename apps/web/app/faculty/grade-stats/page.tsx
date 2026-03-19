@@ -98,10 +98,11 @@ export default function FacultyGradeStatsPage() {
 
   return (
     <div className="campus-page space-y-6">
-      <div className="campus-hero">
-        <h1 className="campus-title">我的成绩分布统计</h1>
+      <section className="campus-hero">
+        <p className="campus-eyebrow">教学分析</p>
+        <h1 className="campus-title">成绩分布统计</h1>
         <p className="campus-subtitle">查看各班级最终成绩分布、平均绩点和通过率</p>
-      </div>
+      </section>
 
       {!loading && rows.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-3">

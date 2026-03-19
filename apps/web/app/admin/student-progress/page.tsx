@@ -120,8 +120,8 @@ export default function StudentProgressPage() {
     <div className="campus-page space-y-6">
       <section className="campus-hero">
         <p className="campus-eyebrow">学业追踪</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">学生进度</h1>
-        <p className="mt-1 text-sm text-slate-500">按院系和风险状态查看学生累计进度、当前学分与 GPA</p>
+        <h1 className="campus-title">学生进度</h1>
+        <p className="campus-subtitle">按院系和风险状态查看学生累计进度、当前学分与 GPA</p>
       </section>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type WaitlistRow = {
   id: string;
@@ -45,6 +46,7 @@ export default function WaitlistPage() {
   const [search, setSearch] = useState("");
   const [sectionFilter, setSectionFilter] = useState("ALL");
   const searchRef = useRef<HTMLInputElement>(null);
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   // Press "/" to focus search
   useEffect(() => {
@@ -220,13 +222,11 @@ export default function WaitlistPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">候补队列</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">候补名单</h1>
-            <p className="text-sm text-slate-600 md:text-base">
-              Review ordered waitlist positions and promote the next student when ENROLLED seats free up.
-            </p>
+            <h1 className="campus-title">候补名单</h1>
+            <p className="campus-subtitle">按顺序查看候补队列，当已注册席位空出时将下一位学生晋升。</p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-amber-300 bg-amber-50 text-amber-700">{totalWaitlisted} Waitlisted</span>
-              <span className="campus-chip border-blue-300 bg-blue-50 text-blue-700">{grouped.length} Section Queue{grouped.length !== 1 ? "s" : ""}</span>
+              <span className="campus-chip border-amber-300 bg-amber-50 text-amber-700">{totalWaitlisted} 人候补</span>
+              <span className="campus-chip border-blue-300 bg-blue-50 text-blue-700">{grouped.length} 个候补队列</span>
               {longestQueue >= 5 && (
                 <span className="campus-chip border-red-300 bg-red-50 text-red-700">⚠ 最长队列：{longestQueue}</span>
               )}
@@ -238,7 +238,11 @@ export default function WaitlistPage() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => void promoteAll()}
+              onClick={() => setConfirmState({
+                title: "批量晋升候补",
+                message: `确认将 ${filteredGroups.length} 个候补队列各晋升 1 人？此操作将立即生效，不可撤销。`,
+                onConfirm: () => { setConfirmState(null); void promoteAll(); },
+              })}
               disabled={bulkPromoting || filteredGroups.length === 0}
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
@@ -268,23 +272,23 @@ export default function WaitlistPage() {
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-amber-200 bg-amber-50/60">
           <p className="text-xs font-semibold text-amber-700">候补总数</p>
-          <p className="mt-1 text-2xl font-semibold text-amber-900">{totalWaitlisted}</p>
+          <p className="campus-kpi-value text-amber-900">{totalWaitlisted}</p>
           <p className="text-[11px] text-amber-500">覆盖所有教学班</p>
         </div>
         <div className="campus-kpi border-slate-200">
           <p className="text-xs font-semibold text-slate-500">有候补队列的班级</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{grouped.length}</p>
+          <p className="campus-kpi-value">{grouped.length}</p>
         </div>
         <div className="campus-kpi border-slate-200">
           <p className="text-xs font-semibold text-slate-500">平均队列深度</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{avgQueueDepth}</p>
+          <p className="campus-kpi-value">{avgQueueDepth}</p>
           <p className="text-[11px] text-slate-400">人/班</p>
         </div>
         <div className={`campus-kpi ${longestQueue >= 5 ? "border-red-200 bg-red-50/60" : "border-slate-200"}`}>
           <p className={`text-xs font-semibold ${longestQueue >= 5 ? "text-red-600" : "text-slate-500"}`}>
             最长队列
           </p>
-          <p className={`mt-1 text-2xl font-semibold ${longestQueue >= 5 ? "text-red-800" : "text-slate-900"}`}>
+          <p className={`campus-kpi-value ${longestQueue >= 5 ? "text-red-800" : "text-slate-900"}`}>
             {longestQueue}
           </p>
           <p className="text-[11px] text-slate-400">最深队列中的学生人数</p>
@@ -526,6 +530,13 @@ export default function WaitlistPage() {
           })
         )}
       </section>
+      <ConfirmDialog
+        open={!!confirmState}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

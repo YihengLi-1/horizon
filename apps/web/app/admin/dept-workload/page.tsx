@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type WorkloadRow = {
@@ -21,6 +21,7 @@ export default function DeptWorkloadPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? [])).catch(() => {});
@@ -36,6 +37,17 @@ export default function DeptWorkloadPage() {
       .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setLoading(false));
   }, [termId]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -103,8 +115,9 @@ export default function DeptWorkloadPage() {
           {terms.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
         <input
+          ref={searchRef}
           className="campus-input max-w-xs"
-          placeholder="按课程前缀搜索…"
+          placeholder="按课程前缀搜索… (/)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

@@ -12,10 +12,10 @@ type PreviewData = {
 };
 
 const STATUS_OPTIONS = [
-  { value: "ENROLLED", label: "在读 (ENROLLED)" },
-  { value: "COMPLETED", label: "已完课 (COMPLETED)" },
-  { value: "DROPPED", label: "已退课 (DROPPED)" },
-  { value: "WAITLISTED", label: "候补 (WAITLISTED)" },
+  { value: "ENROLLED", label: "在读" },
+  { value: "COMPLETED", label: "已完课" },
+  { value: "DROPPED", label: "已退课" },
+  { value: "WAITLISTED", label: "候补" },
 ];
 
 export default function StatusEmailPage() {

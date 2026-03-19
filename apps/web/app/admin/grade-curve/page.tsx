@@ -42,8 +42,8 @@ export default function GradeCurvePage() {
 
   useEffect(() => {
     if (!termId) { setSections([]); setSectionId(""); return; }
-    void apiFetch<{ sections: Section[] }>(`/admin/sections?termId=${termId}&limit=200`)
-      .then((d) => setSections((d as unknown as Section[]) ?? []))
+    void apiFetch<Section[]>(`/admin/sections?termId=${termId}&limit=200`)
+      .then((d) => setSections(d ?? []))
       .catch(() => setSections([]));
   }, [termId]);
 

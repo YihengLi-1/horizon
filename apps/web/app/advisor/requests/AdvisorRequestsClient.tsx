@@ -92,10 +92,8 @@ export default function AdvisorRequestsClient() {
     <div className="space-y-6">
       <section className="campus-hero">
         <p className="campus-eyebrow">学术治理</p>
-        <h1 className="font-heading text-3xl font-bold text-slate-900">待审批学术请求</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          审批您名下学生提交的超学分申请
-        </p>
+        <h1 className="campus-title">待审批学术请求</h1>
+        <p className="campus-subtitle">审批您名下学生提交的超学分申请</p>
       </section>
 
       {error ? <section className="campus-card p-6 text-sm text-red-600">顾问申请暂时不可用：{error}</section> : null}

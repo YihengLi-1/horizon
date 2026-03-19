@@ -48,7 +48,7 @@ function detectIssues(enrollments: Enrollment[]): Issue[] {
         enrollmentId: e.id,
         severity: "error",
         label: "成绩缺失",
-        detail: `${e.section.course.code} (${termName}) 状态为 COMPLETED 但缺少最终成绩`
+        detail: `${e.section.course.code} (${termName}) 已完成但缺少最终成绩`
       });
     }
 
@@ -211,8 +211,8 @@ export default function TranscriptPage() {
 
       <section className="campus-hero">
         <p className="campus-eyebrow">学业记录</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">完整修课记录</h1>
-        <p className="mt-1 text-sm text-slate-500">所有历史注册记录，包含状态检查和问题标记</p>
+        <h1 className="campus-title">完整修课记录</h1>
+        <p className="campus-subtitle">所有历史注册记录，包含状态检查和问题标记</p>
       </section>
 
       {/* KPIs */}

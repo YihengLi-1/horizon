@@ -3,6 +3,7 @@ import { serverApi } from "@/lib/server-api";
 import { requireRole } from "@/lib/server-auth";
 import EnrollmentTrendChart from "./EnrollmentTrendChart";
 import RefreshButton from "./RefreshButton";
+import { auditActionLabel, auditActorDisplay, auditEntityTypeLabel } from "@/lib/audit-labels";
 
 type Breakdown = {
   enrolled: number;
@@ -127,7 +128,7 @@ function StatCard({
       className={`group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition ${href ? "hover:shadow-md hover:border-slate-300 cursor-pointer" : ""}`}
     >
       <p className="text-[11px] font-semibold text-slate-500">{label}</p>
-      <p className={`mt-2 text-3xl font-bold ${accent ?? "text-slate-900"}`}>{value}</p>
+      <p className={`campus-kpi-value ${accent ?? ""}`}>{value}</p>
       {sub ? <p className="mt-1 text-sm text-slate-500">{sub}</p> : null}
     </div>
   );
@@ -149,17 +150,6 @@ function ActionButton({ href, label, desc }: { href: string; label: string; desc
   );
 }
 
-function actionLabel(action: string): string {
-  const map: Record<string, string> = {
-    admin_crud: "数据更新",
-    promote_waitlist: "候补补位",
-    grade_update: "成绩更新",
-    login: "登录",
-    registration_submit: "提交注册",
-    drop: "退课"
-  };
-  return map[action] ?? action;
-}
 
 function actorRoleBadge(role: string): { label: string; className: string } {
   const normalized = role.toUpperCase();
@@ -266,9 +256,7 @@ export default async function AdminDashboardPage() {
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">运营概览</p>
             <h1 className="campus-title">管理概览</h1>
-            <p className="text-base text-slate-600">
-              查看学生、课程、注册状态和当前学期的运营概况。
-            </p>
+            <p className="campus-subtitle">查看学生、课程、注册状态和当前学期的运营概况。</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="campus-chip chip-emerald">
@@ -357,11 +345,11 @@ export default async function AdminDashboardPage() {
             </div>
             <div className={`flex gap-6 text-center`}>
               <div>
-                <p className={`text-2xl font-bold ${regOpen ? "text-emerald-900" : "text-blue-900"}`}>{activeTerm.sectionCount}</p>
+                <p className={`campus-kpi-value ${regOpen ? "text-emerald-900" : "text-blue-900"}`}>{activeTerm.sectionCount}</p>
                 <p className={`text-sm ${regOpen ? "text-emerald-700" : "text-blue-700"}`}>教学班</p>
               </div>
               <div>
-                <p className={`text-2xl font-bold ${regOpen ? "text-emerald-900" : "text-blue-900"}`}>{activeTerm.enrollmentCount}</p>
+                <p className={`campus-kpi-value ${regOpen ? "text-emerald-900" : "text-blue-900"}`}>{activeTerm.enrollmentCount}</p>
                 <p className={`text-sm ${regOpen ? "text-emerald-700" : "text-blue-700"}`}>注册记录</p>
               </div>
             </div>
@@ -524,12 +512,18 @@ export default async function AdminDashboardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <div>
           <h2 className="mb-3 text-sm font-semibold tracking-wide text-slate-500">常用操作</h2>
-          <div className="grid gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <ActionButton href="/admin/sections" label="管理教学班" desc="查看、创建和修改课程教学班" />
             <ActionButton href="/admin/waitlist" label="处理候补" desc="将候补学生推进到正式注册" />
             <ActionButton href="/admin/grade-entry" label="录入成绩" desc="为已完成课程录入最终成绩" />
             <ActionButton href="/admin/bulk-ops" label="批量操作" desc="批量管理学生注册状态与数据" />
-            <ActionButton href="/admin/enrollment-audit" label="注册审计" desc="按学期和状态查看注册明细" />
+            <ActionButton href="/admin/import" label="CSV 导入" desc="批量导入学生、课程和教学班数据" />
+            <ActionButton href="/admin/appeals" label="成绩申诉" desc="审核并批准或拒绝学生申诉" />
+            <ActionButton href="/admin/prereq-waivers" label="先修豁免" desc="审批先修课豁免请求" />
+            <ActionButton href="/admin/pending-overloads" label="超学分审批" desc="处理超出学分上限的注册请求" />
+            <ActionButton href="/admin/holds" label="学籍限制" desc="管理阻止注册的学籍限制记录" />
+            <ActionButton href="/admin/closeout" label="学期关闭" desc="确认学期结束并批量归档成绩" />
+            <ActionButton href="/admin/graduation" label="毕业审核" desc="审核毕业资格与学分完成情况" />
           </div>
         </div>
 
@@ -550,13 +544,13 @@ export default async function AdminDashboardPage() {
                   <div key={log.id} className="flex items-center justify-between px-4 py-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-medium text-slate-800">{actionLabel(log.action)}</p>
+                        <p className="truncate text-sm font-medium text-slate-800">{auditActionLabel(log.action)}</p>
                         <span className={`hidden shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase sm:inline-flex ${badge.className}`}>
                           {badge.label}
                         </span>
                       </div>
                       <p className="truncate text-xs text-slate-500">
-                        {log.actorEmail} · {log.entityType}
+                        {auditActorDisplay(log.actorEmail)} · {auditEntityTypeLabel(log.entityType)}
                       </p>
                     </div>
                     <div className="ml-4 shrink-0 text-right">
@@ -610,6 +604,15 @@ export default async function AdminDashboardPage() {
             { href: "/admin/cohort-message",          label: "群发邮件" },
             { href: "/admin/calendar",                label: "学术日历" },
             { href: "/admin/reports-summary",         label: "报告摘要" },
+            { href: "/admin/instructor-performance",  label: "教师绩效" },
+            { href: "/admin/dept-gpa",                label: "院系GPA" },
+            { href: "/admin/course-pairings",         label: "课程同选" },
+            { href: "/admin/retention",               label: "学生留存" },
+            { href: "/admin/demand-report",           label: "需求报告" },
+            { href: "/admin/data-quality",            label: "数据质量" },
+            { href: "/admin/term-comparison",         label: "学期对比" },
+            { href: "/admin/digest-preview",          label: "运营周报" },
+            { href: "/admin/notification-log",         label: "通知日志" },
           ] as const).map(({ href, label }) => (
             <Link
               key={href}

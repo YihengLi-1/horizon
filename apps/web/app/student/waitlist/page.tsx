@@ -89,10 +89,8 @@ export default function WaitlistPage() {
     <div className="campus-page space-y-6">
       <section className="campus-hero">
         <p className="campus-eyebrow">候补管理</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">候补名单</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          实时查看您在各教学班的候补排名（每 60 秒自动刷新）
-        </p>
+        <h1 className="campus-title">候补名单</h1>
+        <p className="campus-subtitle">实时查看您在各教学班的候补排名（每 60 秒自动刷新）</p>
       </section>
 
       <div className="flex items-center justify-between">

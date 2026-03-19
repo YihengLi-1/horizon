@@ -96,7 +96,7 @@ export default function TermComparePage() {
                     <span className={`text-[10px] font-bold ${gpaColor(row.gpa)} opacity-0 group-hover:opacity-100 transition`}>
                       {row.gpa.toFixed(2)}
                     </span>
-                    <div className="w-full rounded-t-sm bg-slate-100 flex items-end" style={{ height: "80px" }}>
+                    <div className="w-full rounded-t-sm bg-slate-100 flex items-end h-20">
                       <div
                         className={`w-full rounded-t-sm transition-all ${gpaBarColor(row.gpa)}`}
                         style={{ height: `${pct}%` }}

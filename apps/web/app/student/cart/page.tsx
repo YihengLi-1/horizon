@@ -1089,7 +1089,7 @@ export default function StudentCartPage() {
       if (invalidCartItemIds.length > 0) {
         return {
           title: "清除无效课程",
-          detail: `${invalidCartItemIds.length} item(s) currently fail precheck and can be removed in one click.`,
+          detail: `${invalidCartItemIds.length} 门课程未通过预检，可一键移除。`,
           tone: "red",
           buttonLabel: removingInvalid ? "清除中" : "移除无效课程",
           buttonTone: "danger",
@@ -1127,14 +1127,12 @@ export default function StudentCartPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">选课流程</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-[2.65rem]">选课购物车</h1>
-            <p className="text-sm text-slate-600 md:text-base">
-              Review selections for {activeTerm ? activeTerm.name : "the selected term"}, run precheck, and submit safely.
-            </p>
+            <h1 className="campus-title">选课购物车</h1>
+            <p className="campus-subtitle">查看 {activeTerm ? activeTerm.name : "所选学期"} 的选课情况，运行预检后安全提交。</p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{items.length} item(s)</span>
+              <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{items.length} 项</span>
               <span className={`campus-chip ${cartMetrics.overLimit ? "border-red-300 bg-red-50 text-red-700" : "border-slate-300 bg-slate-50 text-slate-700"}`}>
-                {cartMetrics.totalCredits}{cartMetrics.maxCredits !== null ? ` / ${cartMetrics.maxCredits}` : ""} credits
+                {cartMetrics.totalCredits}{cartMetrics.maxCredits !== null ? ` / ${cartMetrics.maxCredits}` : ""} 学分
                 {cartMetrics.overLimit ? " ⚠" : ""}
               </span>
               {cartMetrics.approvalCount > 0 ? (
@@ -1218,13 +1216,13 @@ export default function StudentCartPage() {
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-slate-200 bg-white">
           <p className="text-xs font-semibold text-slate-500">购物车课程</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{items.length}</p>
+          <p className="campus-kpi-value">{items.length}</p>
         </div>
         <div className={`campus-kpi ${cartMetrics.overLimit ? "border-red-200 bg-red-50" : "border-slate-200 bg-white"}`}>
           <p className={`text-xs font-semibold ${cartMetrics.overLimit ? "text-red-700" : "text-slate-500"}`}>
             计划学分
           </p>
-          <p className={`mt-1 text-2xl font-semibold ${cartMetrics.overLimit ? "text-red-900" : "text-slate-900"}`}>
+          <p className={`campus-kpi-value ${cartMetrics.overLimit ? "text-red-900" : "text-slate-900"}`}>
             {cartMetrics.totalCredits}{cartMetrics.maxCredits !== null ? ` / ${cartMetrics.maxCredits}` : ""}
           </p>
           {cartMetrics.overLimit ? (
@@ -1240,7 +1238,7 @@ export default function StudentCartPage() {
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50">
           <p className="text-xs font-semibold text-blue-700">需审批</p>
-          <p className="mt-1 text-2xl font-semibold text-blue-900">{cartMetrics.approvalCount}</p>
+          <p className="campus-kpi-value text-blue-900">{cartMetrics.approvalCount}</p>
           {cartMetrics.approvalCount > 0 ? (
             <p className="mt-0.5 text-xs text-blue-600">等待管理员操作</p>
           ) : (
@@ -1251,7 +1249,7 @@ export default function StudentCartPage() {
           <p className={`text-xs font-semibold ${invalidCartItemIds.length > 0 ? "text-red-700" : "text-emerald-700"}`}>
             问题条目
           </p>
-          <p className={`mt-1 text-2xl font-semibold ${invalidCartItemIds.length > 0 ? "text-red-900" : "text-emerald-900"}`}>
+          <p className={`campus-kpi-value ${invalidCartItemIds.length > 0 ? "text-red-900" : "text-emerald-900"}`}>
             {invalidCartItemIds.length}
           </p>
           {invalidCartItemIds.length > 0 ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type CapacityRow = {
@@ -26,6 +26,7 @@ export default function CapacityPlanPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? [])).catch(() => {});
@@ -41,6 +42,17 @@ export default function CapacityPlanPage() {
       .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setLoading(false));
   }, [termId]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -130,8 +142,9 @@ export default function CapacityPlanPage() {
           <option value="waitlisted">有候补</option>
         </select>
         <input
+          ref={searchRef}
           className="campus-input max-w-xs"
-          placeholder="搜索课程代码或名称…"
+          placeholder="搜索课程代码或名称… (/)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

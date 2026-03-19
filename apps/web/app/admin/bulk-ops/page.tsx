@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type TabKey = "enroll" | "drop" | "status";
 
@@ -43,6 +44,7 @@ export default function AdminBulkOpsPage() {
   const [status, setStatus] = useState("ACTIVE");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
   const [enrollResult, setEnrollResult] = useState<BulkEnrollResult | null>(null);
   const [dropResult, setDropResult] = useState<BulkDropResult | null>(null);
   const [statusResult, setStatusResult] = useState<BulkStatusResult | null>(null);
@@ -121,11 +123,8 @@ export default function AdminBulkOpsPage() {
 
   return (
     <div className="campus-page space-y-6">
-      <section
-        className="campus-hero"
-        style={{ background: "linear-gradient(135deg, hsl(38 100% 97%) 0%, white 60%)" }}
-      >
-        <p className="campus-eyebrow" style={{ color: "hsl(32 75% 40%)" }}>教务工具</p>
+      <section className="campus-hero">
+        <p className="campus-eyebrow">教务工具</p>
         <h1 className="campus-title">批量操作中心</h1>
         <p className="campus-subtitle">谨慎操作，此处修改不可撤销。</p>
       </section>
@@ -167,10 +166,14 @@ export default function AdminBulkOpsPage() {
             />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="campus-chip chip-blue">已解析 {parsedStudentIds.length} 个 studentId</span>
+            <span className="campus-chip chip-blue">已解析 {parsedStudentIds.length} 名学生</span>
             <button
               type="button"
-              onClick={() => void runBulkEnroll()}
+              onClick={() => setConfirmState({
+                title: "批量选课",
+                message: `确认将 ${parsedStudentIds.length} 名学生批量加入班级？此操作不可撤销。`,
+                onConfirm: () => { setConfirmState(null); void runBulkEnroll(); },
+              })}
               disabled={loading || !sectionId.trim() || parsedStudentIds.length === 0}
               className="rounded-lg bg-[hsl(221_83%_43%)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[hsl(221_83%_38%)] disabled:opacity-50"
             >
@@ -189,10 +192,14 @@ export default function AdminBulkOpsPage() {
             onChange={(e) => setEnrollmentIdsText(e.target.value)}
           />
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="campus-chip chip-blue">已解析 {parsedEnrollmentIds.length} 个 enrollmentId</span>
+            <span className="campus-chip chip-blue">已解析 {parsedEnrollmentIds.length} 条注册记录</span>
             <button
               type="button"
-              onClick={() => void runBulkDrop()}
+              onClick={() => setConfirmState({
+                title: "批量退课",
+                message: `确认批量退课 ${parsedEnrollmentIds.length} 条注册记录？此操作不可撤销。`,
+                onConfirm: () => { setConfirmState(null); void runBulkDrop(); },
+              })}
               disabled={loading || parsedEnrollmentIds.length === 0}
               className="rounded-lg bg-[hsl(221_83%_43%)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[hsl(221_83%_38%)] disabled:opacity-50"
             >
@@ -218,10 +225,14 @@ export default function AdminBulkOpsPage() {
             </select>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="campus-chip chip-blue">已解析 {parsedStatusStudentIds.length} 个 studentId</span>
+            <span className="campus-chip chip-blue">已解析 {parsedStatusStudentIds.length} 名学生</span>
             <button
               type="button"
-              onClick={() => void runBulkStatus()}
+              onClick={() => setConfirmState({
+                title: "批量改状态",
+                message: `确认将 ${parsedStatusStudentIds.length} 名学生的学籍状态批量更改？此操作不可撤销。`,
+                onConfirm: () => { setConfirmState(null); void runBulkStatus(); },
+              })}
               disabled={loading || parsedStatusStudentIds.length === 0}
               className="rounded-lg bg-[hsl(221_83%_43%)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[hsl(221_83%_38%)] disabled:opacity-50"
             >
@@ -275,7 +286,7 @@ export default function AdminBulkOpsPage() {
           {dropResult.failed.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="campus-table">
-                <thead><tr><th>报名ID</th><th>原因</th></tr></thead>
+                <thead><tr><th>注册记录 ID</th><th>原因</th></tr></thead>
                 <tbody>{dropResult.failed.map((item) => <tr key={item.enrollmentId}><td>{item.enrollmentId}</td><td>{item.reason}</td></tr>)}</tbody>
               </table>
             </div>
@@ -288,6 +299,13 @@ export default function AdminBulkOpsPage() {
           <span className="campus-chip chip-emerald">已更新 {statusResult.updated} 条</span>
         </div>
       ) : null}
+      <ConfirmDialog
+        open={!!confirmState}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

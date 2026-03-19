@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 
@@ -39,11 +39,23 @@ export default function ScheduleConflictsPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void apiFetch<Term[]>("/admin/terms")
       .then((d) => setTerms(d ?? []))
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
 
   async function load() {
@@ -80,10 +92,11 @@ export default function ScheduleConflictsPage() {
 
   return (
     <div className="campus-page space-y-6">
-      <div className="campus-hero">
+      <section className="campus-hero">
+        <p className="campus-eyebrow">注册管理</p>
         <h1 className="campus-title">排课冲突检测</h1>
         <p className="campus-subtitle">检测已注册学生中存在时间重叠排课的情况</p>
-      </div>
+      </section>
 
       <div className="campus-card flex flex-wrap items-end gap-3 p-5">
         <div>
@@ -133,8 +146,9 @@ export default function ScheduleConflictsPage() {
       {searched && rows.length > 0 ? (
         <div className="campus-toolbar">
           <input
+            ref={searchRef}
             className="campus-input max-w-xs"
-            placeholder="按姓名或邮箱搜索…"
+            placeholder="按姓名或邮箱搜索… (/)"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />

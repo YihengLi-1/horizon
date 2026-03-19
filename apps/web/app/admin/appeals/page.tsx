@@ -92,10 +92,8 @@ export default function AdminAppealsPage() {
     <div className="campus-page space-y-6">
       <section className="campus-hero">
         <p className="campus-eyebrow">行政管理</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">成绩申诉管理</h1>
-        <p className="mt-1 text-sm text-slate-600 md:text-base">
-          审核学生提交的成绩申诉，批准或拒绝并更新最终成绩。
-        </p>
+        <h1 className="campus-title">成绩申诉管理</h1>
+        <p className="campus-subtitle">审核学生提交的成绩申诉，批准或拒绝并更新最终成绩。</p>
       </section>
 
       <div className="grid grid-cols-3 gap-4">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type TermOffering = {
@@ -25,6 +25,17 @@ type CourseHistory = {
   offerings: TermOffering[];
 };
 
+function downloadCsv(filename: string, rows: string[][]) {
+  const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function OfferingHistoryPage() {
   const [rows, setRows] = useState<CourseHistory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +43,18 @@ export default function OfferingHistoryPage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     void apiFetch<CourseHistory[]>("/admin/course-offering-history")
@@ -53,6 +76,25 @@ export default function OfferingHistoryPage() {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+  }
+  void toggle; // used for future expansion
+
+  function exportCsv() {
+    downloadCsv("offering-history.csv", [
+      ["课程代码", "课程名称", "学分", "开设学期数", "平均利用率"],
+      ...filtered.map((r) => [r.courseCode, r.courseTitle, String(r.credits), String(r.termCount), `${r.avgUtilization}%`]),
+    ]);
+  }
+
+  function exportDetailCsv(d: CourseHistory) {
+    downloadCsv(`offering-${d.courseCode}.csv`, [
+      ["学期", "教学班", "教师", "容量", "注册", "利用率", "评分"],
+      ...d.offerings.map((o) => [
+        o.termName, o.sectionCode, o.instructorName || "",
+        String(o.capacity), String(o.enrolled), `${o.utilizationPct}%`,
+        o.avgRating != null ? o.avgRating.toFixed(1) : "",
+      ]),
+    ]);
   }
 
   return (
@@ -82,13 +124,23 @@ export default function OfferingHistoryPage() {
 
       <div className="campus-toolbar">
         <input
+          ref={searchRef}
           className="campus-input max-w-xs"
-          placeholder="搜索课程代码或名称…"
+          placeholder="搜索课程代码或名称… (/)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         {selected ? (
           <button type="button" onClick={() => setSelected(null)} className="campus-btn-ghost text-xs">← 返回列表</button>
+        ) : (
+          <button type="button" onClick={exportCsv} disabled={!filtered.length} className="campus-btn-ghost shrink-0 disabled:opacity-40">
+            CSV 导出
+          </button>
+        )}
+        {selected && detail ? (
+          <button type="button" onClick={() => exportDetailCsv(detail)} className="campus-btn-ghost shrink-0">
+            导出明细
+          </button>
         ) : null}
       </div>
 
@@ -113,7 +165,7 @@ export default function OfferingHistoryPage() {
               ) : filtered.map((r) => (
                 <tr key={r.courseId} className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => setSelected(r.courseId)}>
                   <td className="px-4 py-3">
-                    <p className="font-bold text-[hsl(221_83%_43%)]">{r.courseCode}</p>
+                    <p className="font-bold text-blue-700">{r.courseCode}</p>
                     <p className="text-xs text-slate-500">{r.courseTitle}</p>
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-slate-600">{r.credits}</td>

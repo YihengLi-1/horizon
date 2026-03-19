@@ -4,6 +4,7 @@ import { FormEvent, Fragment, useEffect, useMemo, useRef, useState } from "react
 import { useToast } from "@/components/Toast";
 import { apiFetch } from "@/lib/api";
 import SectionEnrollmentTimeline from "@/components/SectionEnrollmentTimeline";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type Enrollment = {
   id: string;
@@ -211,6 +212,7 @@ export default function AdminSectionsPage() {
   const [notifySending, setNotifySending] = useState(false);
   const [editingCapacity, setEditingCapacity] = useState<{ id: string; val: number } | null>(null);
   const [timelineId, setTimelineId] = useState<string | null>(null);
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -572,21 +574,27 @@ export default function AdminSectionsPage() {
     }
   };
 
-  const onDeleteSection = async (id: string, code: string) => {
-    if (!window.confirm(`确认删除班级"${code}"？这将同时删除所有关联的选课记录，不可撤销。`)) return;
-    setCreateError("");
-    setCreateSuccess("");
-    try {
-      setDeletingId(id);
-      await apiFetch(`/admin/sections/${id}`, { method: "DELETE" });
-      setCreateSuccess(`教学班 "${code}" 已删除。`);
-      if (editingId === id) setEditingId(null);
-      await loadSections();
-    } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "删除失败");
-    } finally {
-      setDeletingId(null);
-    }
+  const onDeleteSection = (id: string, code: string) => {
+    setConfirmState({
+      title: "删除教学班",
+      message: `确认删除教学班"${code}"？这将同时删除所有关联的选课记录，此操作不可撤销。`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        setCreateError("");
+        setCreateSuccess("");
+        try {
+          setDeletingId(id);
+          await apiFetch(`/admin/sections/${id}`, { method: "DELETE" });
+          setCreateSuccess(`教学班 "${code}" 已删除。`);
+          if (editingId === id) setEditingId(null);
+          await loadSections();
+        } catch (err) {
+          setCreateError(err instanceof Error ? err.message : "删除失败");
+        } finally {
+          setDeletingId(null);
+        }
+      },
+    });
   };
 
   const cloneSection = async (sectionId: string) => {
@@ -776,9 +784,7 @@ export default function AdminSectionsPage() {
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">报名管理</p>
             <h1 className="campus-title">教学班管理</h1>
-            <p className="text-sm text-slate-600 md:text-base">
-              监控余位使用情况，跟踪候补压力，并将候补学生晋级至空余在读名额。
-            </p>
+            <p className="campus-subtitle">监控余位使用情况，跟踪候补压力，并将候补学生晋级至空余在读名额。</p>
             <div className="flex flex-wrap gap-2 pt-1">
               <span className="campus-chip chip-blue">{overview.sections} 个教学班</span>
               <span className="campus-chip chip-amber">{overview.waitlisted} 人候补</span>
@@ -1024,7 +1030,7 @@ export default function AdminSectionsPage() {
                 onClick={() => setCreateMeetingTimes((prev) => [...prev, { weekday: 1, startTime: "09:00", endTime: "10:00" }])}
                 className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
               >
-                + Add time
+                + 添加时间
               </button>
             </div>
             {createMeetingTimes.map((mt, idx) => (
@@ -1227,7 +1233,7 @@ export default function AdminSectionsPage() {
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-right">
               <p className="text-[11px] font-semibold text-slate-500">建议晋升数</p>
-              <p className="text-2xl font-semibold text-slate-900">{recommendedPromotionTotal}</p>
+              <p className="campus-kpi-value">{recommendedPromotionTotal}</p>
             </div>
           </div>
 
@@ -1728,6 +1734,13 @@ export default function AdminSectionsPage() {
           </div>
         ) : null}
       </section>
+      <ConfirmDialog
+        open={confirmState !== null}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

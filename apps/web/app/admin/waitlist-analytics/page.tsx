@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type SectionQueue = {
@@ -41,6 +41,18 @@ export default function WaitlistAnalyticsPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"sections" | "dept">("sections");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? [])).catch(() => {});
@@ -116,8 +128,9 @@ export default function WaitlistAnalyticsPage() {
           </button>
         </div>
         <input
+          ref={searchRef}
           className="campus-input max-w-xs"
-          placeholder="搜索…"
+          placeholder="搜索… (/)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

@@ -29,8 +29,9 @@ export default async function SectionRosterPage({ params }: { params: Promise<{ 
       <section className="campus-hero">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">教学班名单</h1>
-            <p className="mt-1 text-sm text-slate-500">{rows.length} enrollment record(s)</p>
+            <p className="campus-eyebrow">教学管理</p>
+            <h1 className="campus-title">教学班名单</h1>
+            <p className="campus-subtitle">{rows.length} 条注册记录</p>
           </div>
           <div className="flex gap-2">
             <RosterExport rows={rows} />
@@ -38,7 +39,7 @@ export default async function SectionRosterPage({ params }: { params: Promise<{ 
               href="/admin/sections"
               className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
-              返回 Sections
+              返回教学班列表
             </Link>
           </div>
         </div>

@@ -26,6 +26,7 @@ type WaiverRequest = {
 function statusClass(status: WaiverRequest["status"]) {
   if (status === "APPROVED") return "campus-chip chip-emerald";
   if (status === "REJECTED") return "campus-chip chip-red";
+  if (status === "WITHDRAWN") return "campus-chip border-slate-200 bg-slate-50 text-slate-500";
   return "campus-chip chip-amber";
 }
 
@@ -174,7 +175,7 @@ export default function StudentPrereqWaiversPage() {
                   <td className="max-w-[280px] text-sm text-slate-600">{request.reason}</td>
                   <td>
                     <span className={statusClass(request.status)}>
-                      {request.status === "SUBMITTED" ? "待审批" : request.status === "APPROVED" ? "已通过" : "已拒绝"}
+                      {request.status === "SUBMITTED" ? "待审批" : request.status === "APPROVED" ? "已通过" : request.status === "WITHDRAWN" ? "已撤回" : "已拒绝"}
                     </span>
                     {request.status === "APPROVED" ? <p className="mt-1 text-xs text-emerald-700">该豁免将在下次选课时自动生效</p> : null}
                   </td>

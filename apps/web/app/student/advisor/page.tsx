@@ -72,10 +72,8 @@ export default function MyAdvisorPage() {
     <div className="campus-page space-y-6">
       <section className="campus-hero">
         <p className="campus-eyebrow">学术支持</p>
-        <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">我的学术顾问</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          查看已分配的学术顾问信息及顾问留言
-        </p>
+        <h1 className="campus-title">我的学术顾问</h1>
+        <p className="campus-subtitle">查看已分配的学术顾问信息及顾问留言</p>
       </section>
 
       {loading ? (

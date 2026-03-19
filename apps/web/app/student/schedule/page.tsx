@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { ApiError, apiFetch } from "@/lib/api";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SkeletonTable } from "@/components/skeleton-table";
 import { API_URL } from "@/lib/config";
 import { enrollmentStatusLabel } from "@/lib/labels";
@@ -109,6 +110,7 @@ export default function SchedulePage() {
   const [clientNow, setClientNow] = useState<number | null>(null);
   const [todayWeekday, setTodayWeekday] = useState(0);
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<string | null>(null);
+  const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   useEffect(() => {
     const now = Date.now();
@@ -282,8 +284,14 @@ export default function SchedulePage() {
 
   const confirmDrop = (enrollment: Enrollment) => {
     const label = `${enrollment.section.course.code} §${enrollment.section.sectionCode}`;
-    if (!window.confirm(`确认退课"${label}"？此操作不可撤销。`)) return;
-    void dropEnrollment(enrollment.id);
+    setConfirmState({
+      title: "退课确认",
+      message: `确认退课"${label}"？此操作不可撤销。`,
+      onConfirm: () => {
+        setConfirmState(null);
+        void dropEnrollment(enrollment.id);
+      },
+    });
   };
 
   const dropEnrollment = async (enrollmentId: string) => {
@@ -350,10 +358,8 @@ export default function SchedulePage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">每周课程</p>
-            <h1 className="font-heading text-4xl font-bold text-slate-900 md:text-5xl">课程表</h1>
-            <p className="text-sm text-slate-600 md:text-base">
-              查看注册状态，使用时间表视图管理退课。
-            </p>
+            <h1 className="campus-title">课程表</h1>
+            <p className="campus-subtitle">查看注册状态，使用时间表视图管理退课。</p>
             <div className="flex flex-wrap gap-2 pt-1">
               <span className="campus-chip border-emerald-300 bg-emerald-50 text-emerald-800">已选课 {statusCounts.ENROLLED}</span>
               {statusCounts.PENDING_APPROVAL > 0 ? (
@@ -445,24 +451,24 @@ export default function SchedulePage() {
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="campus-kpi border-emerald-200 bg-emerald-50/70">
           <p className="text-xs font-semibold text-emerald-700">已注册</p>
-          <p className="mt-1 text-2xl font-semibold text-emerald-900">{statusCounts.ENROLLED}</p>
+          <p className="campus-kpi-value text-emerald-900">{statusCounts.ENROLLED}</p>
         </div>
         <div className="campus-kpi border-blue-200 bg-blue-50/70">
           <p className="text-xs font-semibold text-blue-700">待审批</p>
-          <p className="mt-1 text-2xl font-semibold text-blue-900">{statusCounts.PENDING_APPROVAL}</p>
+          <p className="campus-kpi-value text-blue-900">{statusCounts.PENDING_APPROVAL}</p>
         </div>
         <div className="campus-kpi border-amber-200 bg-amber-50/70">
           <p className="text-xs font-semibold text-amber-700">候补中</p>
-          <p className="mt-1 text-2xl font-semibold text-amber-900">{statusCounts.WAITLISTED}</p>
+          <p className="campus-kpi-value text-amber-900">{statusCounts.WAITLISTED}</p>
         </div>
         <div className="campus-kpi border-slate-200">
           <p className="text-xs font-semibold text-slate-500">已注册学分</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{visibleCredits}</p>
+          <p className="campus-kpi-value">{visibleCredits}</p>
         </div>
         {weeklyMeetingHours > 0 ? (
           <div className={`campus-kpi ${weeklyMeetingHours > 20 ? "border-red-200 bg-red-50" : weeklyMeetingHours > 15 ? "border-amber-200 bg-amber-50" : "border-indigo-200 bg-indigo-50"}`}>
             <p className={`text-xs font-semibold ${weeklyMeetingHours > 20 ? "text-red-700" : weeklyMeetingHours > 15 ? "text-amber-700" : "text-indigo-700"}`}>每周课时</p>
-            <p className={`mt-1 text-2xl font-semibold ${weeklyMeetingHours > 20 ? "text-red-900" : weeklyMeetingHours > 15 ? "text-amber-900" : "text-indigo-900"}`}>{weeklyMeetingHours}h</p>
+            <p className={`campus-kpi-value ${weeklyMeetingHours > 20 ? "text-red-900" : weeklyMeetingHours > 15 ? "text-amber-900" : "text-indigo-900"}`}>{weeklyMeetingHours}h</p>
             <p className={`text-[10px] ${weeklyMeetingHours > 20 ? "text-red-500" : weeklyMeetingHours > 15 ? "text-amber-500" : "text-indigo-400"}`}>每周上课时长</p>
           </div>
         ) : null}
@@ -966,6 +972,14 @@ export default function SchedulePage() {
           </tbody>
         </table>
       </section>
+      <ConfirmDialog
+        open={confirmState !== null}
+        title={confirmState?.title ?? ""}
+        message={confirmState?.message ?? ""}
+        confirmLabel="确认退课"
+        onConfirm={() => confirmState?.onConfirm()}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type DemandRow = {
@@ -39,6 +39,7 @@ export default function DemandReportPage() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("demand");
   const [asc, setAsc] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? [])).catch(() => {});
@@ -53,6 +54,17 @@ export default function DemandReportPage() {
       .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setLoading(false));
   }, [termId]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -141,8 +153,9 @@ export default function DemandReportPage() {
       <div className="campus-toolbar">
         <div className="flex flex-1 flex-wrap items-center gap-3">
           <input
+            ref={searchRef}
             className="campus-input max-w-xs"
-            placeholder="按课程代码或名称搜索…"
+            placeholder="按课程代码或名称搜索… (/)"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />

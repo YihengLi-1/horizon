@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type MeetingTime = { weekday: number; startMinutes: number; endMinutes: number };
@@ -32,6 +32,17 @@ function fmt(m: number) {
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }
 
+function downloadCsv(filename: string, rows: string[][]) {
+  const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function FacultySchedulePage() {
   const [instructors, setInstructors] = useState<InstructorRow[]>([]);
   const [terms, setTerms] = useState<Term[]>([]);
@@ -40,6 +51,18 @@ export default function FacultySchedulePage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? [])).catch(() => {});
@@ -72,6 +95,22 @@ export default function FacultySchedulePage() {
     });
   }
 
+  function exportCsv() {
+    const rows: string[][] = [["教师", "邮箱", "课程代码", "教学班", "容量", "注册", "候补", "上课时间"]];
+    for (const inst of filtered) {
+      for (const sec of inst.sections) {
+        const times = sec.meetingTimes.length === 0
+          ? ""
+          : sec.meetingTimes.map((m) => `${WEEKDAY[m.weekday]} ${fmt(m.startMinutes)}–${fmt(m.endMinutes)}`).join("; ");
+        rows.push([
+          inst.instructorName, inst.email, sec.courseCode, sec.sectionCode,
+          String(sec.capacity), String(sec.enrolled), String(sec.waitlisted), times,
+        ]);
+      }
+    }
+    downloadCsv("faculty-schedule.csv", rows);
+  }
+
   const totalInstructors = filtered.length;
   const totalSections = filtered.reduce((s, r) => s + r.totalSections, 0);
   const avgSections = totalInstructors > 0 ? (totalSections / totalInstructors).toFixed(1) : "—";
@@ -95,7 +134,7 @@ export default function FacultySchedulePage() {
         </div>
         <div className="campus-kpi">
           <p className="campus-kpi-label">人均教学班数</p>
-          <p className="campus-kpi-value text-[hsl(221_83%_43%)]">{loading ? "—" : avgSections}</p>
+          <p className="campus-kpi-value text-blue-600">{loading ? "—" : avgSections}</p>
         </div>
       </section>
 
@@ -105,8 +144,9 @@ export default function FacultySchedulePage() {
           {terms.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
         <input
+          ref={searchRef}
           className="campus-input max-w-xs"
-          placeholder="搜索教师姓名或邮箱…"
+          placeholder="搜索教师姓名或邮箱… (/)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -123,6 +163,14 @@ export default function FacultySchedulePage() {
           className="campus-btn-ghost text-xs"
         >
           全部收起
+        </button>
+        <button
+          type="button"
+          onClick={exportCsv}
+          disabled={!filtered.length}
+          className="campus-btn-ghost shrink-0 disabled:opacity-40"
+        >
+          CSV 导出
         </button>
       </div>
 

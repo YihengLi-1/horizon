@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 type MeetingTime = { weekday: number; startMinutes: number; endMinutes: number };
@@ -53,6 +53,9 @@ const STATUS_STYLE: Record<string, string> = {
 const STATUS_LABEL: Record<string, string> = {
   ENROLLED: "在读", COMPLETED: "已完课", DROPPED: "已退课", WAITLISTED: "候补",
 };
+const MODALITY_LABEL: Record<string, string> = {
+  ON_CAMPUS: "线下", ONLINE: "线上", HYBRID: "混合",
+};
 
 function gradeColor(g: string | null): string {
   if (!g) return "text-slate-400";
@@ -74,6 +77,18 @@ export default function FacultySectionsPage() {
   const [savingGrade, setSavingGrade] = useState<string | null>(null);
   const [gradeError, setGradeError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA" && document.activeElement?.tagName !== "SELECT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     void apiFetch<Section[]>("/faculty/sections")
@@ -162,8 +177,9 @@ export default function FacultySectionsPage() {
         <>
           <div className="campus-toolbar">
             <input
+              ref={searchRef}
               className="campus-input max-w-xs"
-              placeholder="搜索课程代码或名称…"
+              placeholder="搜索课程代码或名称… (/)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -176,7 +192,7 @@ export default function FacultySectionsPage() {
             <div className="space-y-4">
               {grouped.map((group) => (
                 <div key={group.termName}>
-                  <p className="text-xs font-semiboldst text-slate-400 mb-2 px-1">
+                  <p className="text-xs font-semibold text-slate-400 mb-2 px-1">
                     {group.termName}
                   </p>
                   <div className="space-y-2">
@@ -195,7 +211,7 @@ export default function FacultySectionsPage() {
                             </div>
                             <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-slate-500">
                               <span>{s.course.credits} 学分</span>
-                              <span className="capitalize">{s.modality}</span>
+                              <span>{MODALITY_LABEL[s.modality] ?? s.modality}</span>
                               {s.meetingTimes.map((mt, i) => (
                                 <span key={i}>周{DAYS[mt.weekday]} {fmt(mt.startMinutes)}–{fmt(mt.endMinutes)}</span>
                               ))}
