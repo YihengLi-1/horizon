@@ -53,7 +53,7 @@ export default function SessionExpiryBanner() {
           href="/login"
           className="rounded-md border border-white/40 px-3 py-0.5 text-xs font-semibold hover:bg-white/20"
         >
-          Re-login
+          重新登录
         </a>
       </div>
     </div>
