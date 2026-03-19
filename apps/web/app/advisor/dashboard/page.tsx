@@ -55,8 +55,8 @@ export default async function AdvisorDashboardPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">顾问工作台</p>
-        <h1 className="campus-hero-title">我的学生</h1>
-        <p className="campus-hero-subtitle">查看您负责辅导的学生，记录学业指导意见</p>
+        <h1 className="campus-title">我的学生</h1>
+        <p className="campus-subtitle">查看您负责辅导的学生，记录学业指导意见</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

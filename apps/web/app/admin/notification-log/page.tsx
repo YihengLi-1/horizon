@@ -95,8 +95,8 @@ export default function NotificationLogPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">消息中心</p>
-        <h1 className="campus-hero-title">通知发送记录</h1>
-        <p className="campus-hero-subtitle">查看系统向用户发送的所有通知历史，支持按类型和关键词筛选</p>
+        <h1 className="campus-title">通知发送记录</h1>
+        <p className="campus-subtitle">查看系统向用户发送的所有通知历史，支持按类型和关键词筛选</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

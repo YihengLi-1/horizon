@@ -49,8 +49,8 @@ export default function MajorTrendsPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">招生分析</p>
-        <h1 className="campus-hero-title">专业注册趋势</h1>
-        <p className="campus-hero-subtitle">按专业汇总各学期注册量、完成率与退课率</p>
+        <h1 className="campus-title">专业注册趋势</h1>
+        <p className="campus-subtitle">按专业汇总各学期注册量、完成率与退课率</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

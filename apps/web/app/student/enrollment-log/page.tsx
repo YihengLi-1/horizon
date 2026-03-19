@@ -51,8 +51,8 @@ export default function EnrollmentLogPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">注册记录</p>
-        <h1 className="campus-hero-title">选课操作日志</h1>
-        <p className="campus-hero-subtitle">您的所有选课与退课操作记录</p>
+        <h1 className="campus-title">选课操作日志</h1>
+        <p className="campus-subtitle">您的所有选课与退课操作记录</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

@@ -188,8 +188,8 @@ export default function MyNotesPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">个人工具</p>
-        <h1 className="campus-hero-title">我的笔记</h1>
-        <p className="campus-hero-subtitle">本地存储的个人学习笔记，支持置顶、颜色标记与搜索</p>
+        <h1 className="campus-title">我的笔记</h1>
+        <p className="campus-subtitle">本地存储的个人学习笔记，支持置顶、颜色标记与搜索</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

@@ -99,8 +99,8 @@ export default function StandingPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">学籍状态</p>
-        <h1 className="campus-hero-title">学业状态</h1>
-        <p className="campus-hero-subtitle">
+        <h1 className="campus-title">学业状态</h1>
+        <p className="campus-subtitle">
           {loading ? "加载中…" : data?.major ? `${data.major} · ${data.enrollmentStatus ?? ""}` : "当前学业状况概览"}
         </p>
       </section>

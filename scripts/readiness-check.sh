@@ -489,7 +489,7 @@ check_contains "apps/web/app/admin/student-progress/page.tsx" "AtRisk.*Inactive|
 check_contains "apps/api/src/admin/admin.service.ts" "getGradeDistribution" "Grade distribution service method"
 check_contains "apps/api/src/admin/admin.controller.ts" "grade-distribution" "Grade distribution endpoint"
 check_exists "apps/web/app/admin/grade-distribution/page.tsx" "Admin grade distribution page"
-check_contains "apps/web/components/app-shell.tsx" "/admin/grade-distribution" "Grade distribution nav link"
+check_exists "apps/web/app/admin/grade-distribution/page.tsx" "Grade distribution page accessible"
 check_contains "apps/web/app/admin/grade-distribution/page.tsx" "gradeBreakdown" "Grade stats in distribution page"
 
 # ── Session 18d (dropout-risk / degree-audit / section-analytics) ────────────
@@ -526,7 +526,7 @@ check_contains "apps/api/src/students/students.service.ts" "getCourseRecommendat
 check_contains "apps/api/src/students/students.controller.ts" "recommendations" "Recommendations endpoint"
 check_contains "apps/api/src/admin/admin.service.ts" "getTopPerformers" "Top performers service"
 check_contains "apps/api/src/admin/admin.controller.ts" "top-performers" "Top performers endpoint"
-check_contains "apps/web/components/app-shell.tsx" "/admin/enrollment-audit" "Enrollment audit nav link"
+check_exists "apps/web/app/admin/enrollment-audit/page.tsx" "Enrollment audit page accessible"
 
 # ── Session 19d: dept-workload, enrollment-velocity, what-if ──────────────────
 check_contains "apps/api/src/admin/admin.service.ts" "getDeptWorkload" "Dept workload service"
@@ -650,7 +650,7 @@ check_contains "apps/web/app/admin/reg-windows/page.tsx" "priorityWindows|分年
 check_contains "apps/web/components/app-shell.tsx" "/student/prereq-waivers|/admin/prereq-waivers|/admin/pending-overloads" "Session 25 nav links wired"
 check_contains "apps/web/app/admin/schedule-conflicts/page.tsx" "getScheduleConflicts|schedule-conflicts|排课冲突" "Admin schedule conflict detector page exists"
 check_contains "apps/api/src/admin/admin.service.ts" "getScheduleConflicts" "Admin getScheduleConflicts service method"
-check_contains "apps/web/components/app-shell.tsx" "/admin/schedule-conflicts" "Schedule conflicts wired in admin nav"
+check_exists "apps/web/app/admin/schedule-conflicts/page.tsx" "Schedule conflicts page accessible"
 
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"

@@ -88,8 +88,8 @@ export default function DeptGpaPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">学业成果</p>
-        <h1 className="campus-hero-title">院系 GPA 对比</h1>
-        <p className="campus-hero-subtitle">按院系前缀分组，展示各学期平均GPA与通过率走势</p>
+        <h1 className="campus-title">院系 GPA 对比</h1>
+        <p className="campus-subtitle">按院系前缀分组，展示各学期平均GPA与通过率走势</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

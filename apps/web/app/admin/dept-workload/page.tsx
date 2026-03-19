@@ -72,8 +72,8 @@ export default function DeptWorkloadPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">教学分析</p>
-        <h1 className="campus-hero-title">院系工作量总览</h1>
-        <p className="campus-hero-subtitle">按课程代码前缀汇总各院系教学班、教师与注册情况</p>
+        <h1 className="campus-title">院系工作量总览</h1>
+        <p className="campus-subtitle">按课程代码前缀汇总各院系教学班、教师与注册情况</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-4">

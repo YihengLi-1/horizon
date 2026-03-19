@@ -32,8 +32,8 @@ export default function RecommendationsPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">智能推荐</p>
-        <h1 className="campus-hero-title">课程推荐</h1>
-        <p className="campus-hero-subtitle">基于同专业同学的选课数据，为你推荐可能感兴趣的课程</p>
+        <h1 className="campus-title">课程推荐</h1>
+        <p className="campus-subtitle">基于同专业同学的选课数据，为你推荐可能感兴趣的课程</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

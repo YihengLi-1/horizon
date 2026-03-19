@@ -61,8 +61,8 @@ export default function CoursePairingsPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">选课洞察</p>
-        <h1 className="campus-hero-title">课程同选分析</h1>
-        <p className="campus-hero-subtitle">统计学生同学期同时选修两门课程的频率，发现课程搭配规律</p>
+        <h1 className="campus-title">课程同选分析</h1>
+        <p className="campus-subtitle">统计学生同学期同时选修两门课程的频率，发现课程搭配规律</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

@@ -77,8 +77,8 @@ export default function PrereqMapPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">课程管理</p>
-        <h1 className="campus-hero-title">先修课图谱</h1>
-        <p className="campus-hero-subtitle">可视化课程先修依赖关系，查看入度与被依赖情况</p>
+        <h1 className="campus-title">先修课图谱</h1>
+        <p className="campus-subtitle">可视化课程先修依赖关系，查看入度与被依赖情况</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

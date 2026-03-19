@@ -92,8 +92,8 @@ export default function AdminSearchPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">管理</p>
-        <h1 className="campus-hero-title">全局搜索</h1>
-        <p className="campus-hero-subtitle">跨学生、课程、教学班的统一搜索入口</p>
+        <h1 className="campus-title">全局搜索</h1>
+        <p className="campus-subtitle">跨学生、课程、教学班的统一搜索入口</p>
       </section>
 
       <section className="campus-card p-4 space-y-3">

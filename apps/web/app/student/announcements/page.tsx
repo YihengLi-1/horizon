@@ -73,8 +73,8 @@ export default function StudentAnnouncementsPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">校园动态</p>
-        <h1 className="campus-hero-title">系统公告</h1>
-        <p className="campus-hero-subtitle">
+        <h1 className="campus-title">系统公告</h1>
+        <p className="campus-subtitle">
           {loading ? "加载中…" : `共 ${items.length} 条公告${pinnedCount ? `，${pinnedCount} 条已置顶` : ""}`}
         </p>
       </section>

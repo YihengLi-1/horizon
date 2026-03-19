@@ -93,8 +93,8 @@ export default function WebhooksPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">系统集成</p>
-        <h1 className="campus-hero-title">Webhook 管理</h1>
-        <p className="campus-hero-subtitle">配置系统事件的 HTTP 回调地址，将注册、成绩等事件推送到外部系统</p>
+        <h1 className="campus-title">Webhook 管理</h1>
+        <p className="campus-subtitle">配置系统事件的 HTTP 回调地址，将注册、成绩等事件推送到外部系统</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2">

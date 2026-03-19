@@ -77,8 +77,8 @@ export default function NotificationsPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">消息中心</p>
-        <h1 className="campus-hero-title">我的通知</h1>
-        <p className="campus-hero-subtitle">
+        <h1 className="campus-title">我的通知</h1>
+        <p className="campus-subtitle">
           {loading ? "加载中…" : `共 ${items.length} 条通知`}
         </p>
       </section>

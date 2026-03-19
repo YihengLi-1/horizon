@@ -122,8 +122,8 @@ export default function SystemSettingsPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">系统管理</p>
-        <h1 className="campus-hero-title">系统设置</h1>
-        <p className="campus-hero-subtitle">配置系统级参数，包括维护模式、选课开关、学分限制等</p>
+        <h1 className="campus-title">系统设置</h1>
+        <p className="campus-subtitle">配置系统级参数，包括维护模式、选课开关、学分限制等</p>
       </section>
 
       {error ? (

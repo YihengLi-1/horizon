@@ -147,8 +147,8 @@ export default function StudyTimerPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">个人工具</p>
-        <h1 className="campus-hero-title">学习计时器</h1>
-        <p className="campus-hero-subtitle">番茄钟工作法：25 分钟专注 + 5 分钟休息，提升学习效率</p>
+        <h1 className="campus-title">学习计时器</h1>
+        <p className="campus-subtitle">番茄钟工作法：25 分钟专注 + 5 分钟休息，提升学习效率</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

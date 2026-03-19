@@ -81,8 +81,8 @@ export default function ScheduleConflictsPage() {
   return (
     <div className="campus-page space-y-6">
       <div className="campus-hero">
-        <h1 className="campus-hero-title">排课冲突检测</h1>
-        <p className="campus-hero-subtitle">检测已注册学生中存在时间重叠排课的情况</p>
+        <h1 className="campus-title">排课冲突检测</h1>
+        <p className="campus-subtitle">检测已注册学生中存在时间重叠排课的情况</p>
       </div>
 
       <div className="campus-card flex flex-wrap items-end gap-3 p-5">

@@ -69,8 +69,8 @@ export default function GraduationPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">学业管理</p>
-        <h1 className="campus-hero-title">毕业审核</h1>
-        <p className="campus-hero-subtitle">检查学生是否满足毕业所需学分、成绩与申诉要求</p>
+        <h1 className="campus-title">毕业审核</h1>
+        <p className="campus-subtitle">检查学生是否满足毕业所需学分、成绩与申诉要求</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

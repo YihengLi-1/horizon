@@ -70,8 +70,8 @@ export default function DigestPreviewPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">运营工具</p>
-        <h1 className="campus-hero-title">管理员周报预览</h1>
-        <p className="campus-hero-subtitle">查看当前注册运营摘要，并一键发送邮件周报至指定收件人</p>
+        <h1 className="campus-title">管理员周报预览</h1>
+        <p className="campus-subtitle">查看当前注册运营摘要，并一键发送邮件周报至指定收件人</p>
       </section>
 
       {digest ? (

@@ -127,6 +127,14 @@ h1 {
     @apply mt-1.5 max-w-3xl text-[0.97rem] leading-6 text-slate-600;
   }
 
+  .campus-btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .campus-btn-primary {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[hsl(221_83%_43%)] px-5 text-sm font-semibold text-white shadow-md transition hover:bg-[hsl(221_83%_38%)] hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70;
+  }
+
   .campus-hero {
     position: relative;
     overflow: hidden;

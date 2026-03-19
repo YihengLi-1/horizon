@@ -61,8 +61,8 @@ export default function PeerComparePage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">学业分析</p>
-        <h1 className="campus-hero-title">同伴 GPA 对比</h1>
-        <p className="campus-hero-subtitle">将你的累计 GPA 与同届学生进行横向比较</p>
+        <h1 className="campus-title">同伴 GPA 对比</h1>
+        <p className="campus-subtitle">将你的累计 GPA 与同届学生进行横向比较</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-4">

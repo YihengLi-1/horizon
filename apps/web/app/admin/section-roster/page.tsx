@@ -120,8 +120,8 @@ export default function SectionRosterPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">班级管理</p>
-        <h1 className="campus-hero-title">班级花名册</h1>
-        <p className="campus-hero-subtitle">查看各教学班注册学生名单及成绩，支持 CSV 导出</p>
+        <h1 className="campus-title">班级花名册</h1>
+        <p className="campus-subtitle">查看各教学班注册学生名单及成绩，支持 CSV 导出</p>
       </section>
 
       {!selectedId ? (

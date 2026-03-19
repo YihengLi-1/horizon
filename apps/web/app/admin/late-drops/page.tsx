@@ -77,8 +77,8 @@ export default function LateDropsPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">注册管理</p>
-        <h1 className="campus-hero-title">晚期退课报告</h1>
-        <p className="campus-hero-subtitle">筛选开课若干周后仍退课的记录，识别潜在学业风险</p>
+        <h1 className="campus-title">晚期退课报告</h1>
+        <p className="campus-subtitle">筛选开课若干周后仍退课的记录，识别潜在学业风险</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

@@ -52,8 +52,8 @@ export default function CohortAnalyticsPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">学生分析</p>
-        <h1 className="campus-hero-title">按专业学生群体分析</h1>
-        <p className="campus-hero-subtitle">按专业汇总学生人数、平均 GPA 与学分完成情况</p>
+        <h1 className="campus-title">按专业学生群体分析</h1>
+        <p className="campus-subtitle">按专业汇总学生人数、平均 GPA 与学分完成情况</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-4">

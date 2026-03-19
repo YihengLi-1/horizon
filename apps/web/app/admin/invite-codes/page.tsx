@@ -99,8 +99,8 @@ export default function InviteCodesPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">系统管理</p>
-        <h1 className="campus-hero-title">邀请码管理</h1>
-        <p className="campus-hero-subtitle">创建和管理用于注册的邀请码，可设置使用次数与有效期</p>
+        <h1 className="campus-title">邀请码管理</h1>
+        <p className="campus-subtitle">创建和管理用于注册的邀请码，可设置使用次数与有效期</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

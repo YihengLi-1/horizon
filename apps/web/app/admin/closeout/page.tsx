@@ -84,8 +84,8 @@ export default function CloseoutPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">学期管理</p>
-        <h1 className="campus-hero-title">学期关闭操作</h1>
-        <p className="campus-hero-subtitle">批量处理学期末的注册状态转换，请谨慎操作</p>
+        <h1 className="campus-title">学期关闭操作</h1>
+        <p className="campus-subtitle">批量处理学期末的注册状态转换，请谨慎操作</p>
       </section>
 
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

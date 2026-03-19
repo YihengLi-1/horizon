@@ -104,8 +104,8 @@ export default function DataQualityPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">数据治理</p>
-        <h1 className="campus-hero-title">数据质量检查</h1>
-        <p className="campus-hero-subtitle">自动扫描常见数据完整性问题，辅助管理员排查与修复</p>
+        <h1 className="campus-title">数据质量检查</h1>
+        <p className="campus-subtitle">自动扫描常见数据完整性问题，辅助管理员排查与修复</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

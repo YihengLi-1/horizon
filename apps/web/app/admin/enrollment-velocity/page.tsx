@@ -56,8 +56,8 @@ export default function EnrollmentVelocityPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">注册分析</p>
-        <h1 className="campus-hero-title">注册速率趋势</h1>
-        <p className="campus-hero-subtitle">按日期展示注册量、退课量与累计净注册数变化</p>
+        <h1 className="campus-title">注册速率趋势</h1>
+        <p className="campus-subtitle">按日期展示注册量、退课量与累计净注册数变化</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-4">

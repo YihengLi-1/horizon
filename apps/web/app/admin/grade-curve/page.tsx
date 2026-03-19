@@ -82,8 +82,8 @@ export default function GradeCurvePage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">成绩管理</p>
-        <h1 className="campus-hero-title">成绩曲线工具</h1>
-        <p className="campus-hero-subtitle">预览将指定教学班所有成绩提升 N 个等级的效果</p>
+        <h1 className="campus-title">成绩曲线工具</h1>
+        <p className="campus-subtitle">预览将指定教学班所有成绩提升 N 个等级的效果</p>
       </section>
 
       {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}

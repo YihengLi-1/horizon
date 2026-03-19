@@ -17,20 +17,20 @@ function getAnnouncementTone(announcement: Announcement) {
     return {
       bar: "bg-red-500",
       badge: "campus-chip chip-red",
-      label: "urgent"
+      label: "紧急"
     };
   }
   if (text.includes("warning") || text.includes("提醒") || text.includes("截止") || text.includes("注意")) {
     return {
       bar: "bg-amber-500",
       badge: "campus-chip chip-amber",
-      label: "warning"
+      label: "提醒"
     };
   }
   return {
     bar: "bg-blue-500",
     badge: "campus-chip chip-blue",
-    label: "info"
+    label: "公告"
   };
 }
 
