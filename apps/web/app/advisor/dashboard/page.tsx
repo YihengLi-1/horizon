@@ -20,17 +20,21 @@ type AdviseeAssignment = {
 
 const STATUS_STYLE: Record<string, string> = {
   GOOD_STANDING: "text-emerald-700 bg-emerald-50 border-emerald-200",
-  PROBATION: "text-red-700 bg-red-50 border-red-200",
-  SUSPENDED: "text-red-800 bg-red-100 border-red-300",
-  AT_RISK: "text-amber-700 bg-amber-50 border-amber-200",
+  ACADEMIC_PROBATION: "text-amber-700 bg-amber-50 border-amber-200",
+  ACADEMIC_SUSPENSION: "text-red-800 bg-red-100 border-red-300",
+  Active: "text-emerald-700 bg-emerald-50 border-emerald-200",
+  Inactive: "text-slate-600 bg-slate-50 border-slate-200",
+  Suspended: "text-red-800 bg-red-100 border-red-300",
+  Probation: "text-amber-700 bg-amber-50 border-amber-200",
 };
 const STATUS_LABEL: Record<string, string> = {
-  GOOD_STANDING: "成绩良好",
-  PROBATION: "学业观察",
-  SUSPENDED: "学业暂停",
-  AT_RISK: "存在风险",
-  ACTIVE: "在籍",
-  INACTIVE: "未在籍",
+  GOOD_STANDING: "学业良好",
+  ACADEMIC_PROBATION: "学业观察",
+  ACADEMIC_SUSPENSION: "学业暂停",
+  Active: "在读",
+  Inactive: "未活跃",
+  Suspended: "已停学",
+  Probation: "察看期",
 };
 
 export default async function AdvisorDashboardPage() {
@@ -44,7 +48,7 @@ export default async function AdvisorDashboardPage() {
   }
 
   const atRisk = assignments.filter(
-    (a) => a.student.studentProfile?.academicStatus === "AT_RISK" || a.student.studentProfile?.academicStatus === "PROBATION"
+    (a) => ["ACADEMIC_PROBATION", "ACADEMIC_SUSPENSION", "Probation", "Suspended"].includes(a.student.studentProfile?.academicStatus ?? "")
   );
 
   return (

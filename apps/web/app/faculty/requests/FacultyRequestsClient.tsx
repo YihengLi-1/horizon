@@ -45,6 +45,14 @@ type FacultyRequest = {
   }>;
 };
 
+const STEP_STATUS_LABEL: Record<string, string> = {
+  WAITING: "待处理",
+  PENDING: "审核中",
+  APPROVED: "已批准",
+  REJECTED: "已拒绝",
+  SKIPPED: "已跳过",
+};
+
 export default function FacultyRequestsClient() {
   const [requests, setRequests] = useState<FacultyRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -170,13 +178,13 @@ export default function FacultyRequestsClient() {
                   <div className="flex items-center justify-between gap-3 rounded-lg border border-blue-100 bg-white px-3 py-2">
                     <span className="font-medium">1. 教师审核</span>
                     <span className={`campus-chip text-[11px] ${facultyStep?.status === "PENDING" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
-                      {facultyStep?.status ?? "PENDING"}
+                      {STEP_STATUS_LABEL[facultyStep?.status ?? "PENDING"] ?? facultyStep?.status ?? "待处理"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-3 rounded-lg border border-blue-100 bg-white px-3 py-2">
                     <span className="font-medium">2. 教务处终审</span>
                     <span className={`campus-chip text-[11px] ${finalStep?.status === "WAITING" ? "border-slate-200 bg-slate-50 text-slate-700" : "border-blue-200 bg-blue-50 text-blue-700"}`}>
-                      {finalStep?.status ?? "WAITING"}
+                      {STEP_STATUS_LABEL[finalStep?.status ?? "WAITING"] ?? finalStep?.status ?? "待处理"}
                     </span>
                   </div>
                 </div>
