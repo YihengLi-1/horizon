@@ -58,8 +58,8 @@ export default function ReceiptPage() {
     <div className="campus-page">
       <section className="campus-hero no-print">
         <p className="campus-eyebrow">选课凭证</p>
-        <h1 className="campus-hero-title">注册确认书</h1>
-        <p className="campus-hero-subtitle">当前已注册课程的正式确认凭证，可打印留存</p>
+        <h1 className="campus-title">注册确认书</h1>
+        <p className="campus-subtitle">当前已注册课程的正式确认凭证，可打印留存</p>
       </section>
 
       <div className="campus-toolbar no-print">

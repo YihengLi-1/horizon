@@ -52,8 +52,8 @@ export default function TermComparePage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">学业分析</p>
-        <h1 className="campus-hero-title">学期成绩对比</h1>
-        <p className="campus-hero-subtitle">按学期纵向对比 GPA、学分与通过率，追踪学业趋势</p>
+        <h1 className="campus-title">学期成绩对比</h1>
+        <p className="campus-subtitle">按学期纵向对比 GPA、学分与通过率，追踪学业趋势</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-4">

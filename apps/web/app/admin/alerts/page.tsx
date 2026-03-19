@@ -48,8 +48,8 @@ export default function AlertsPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">系统监控</p>
-        <h1 className="campus-hero-title">系统预警中心</h1>
-        <p className="campus-hero-subtitle">实时监控系统状态，自动每 60 秒刷新</p>
+        <h1 className="campus-title">系统预警中心</h1>
+        <p className="campus-subtitle">实时监控系统状态，自动每 60 秒刷新</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

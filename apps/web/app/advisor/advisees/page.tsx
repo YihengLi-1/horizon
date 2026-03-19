@@ -70,8 +70,8 @@ export default function AdviseeListPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">顾问工作台</p>
-        <h1 className="campus-hero-title">辅导学生名单</h1>
-        <p className="campus-hero-subtitle">搜索和筛选您负责辅导的所有学生</p>
+        <h1 className="campus-title">辅导学生名单</h1>
+        <p className="campus-subtitle">搜索和筛选您负责辅导的所有学生</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

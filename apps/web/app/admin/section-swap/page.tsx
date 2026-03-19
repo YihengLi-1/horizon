@@ -59,8 +59,8 @@ export default function SectionSwapPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">管理工具</p>
-        <h1 className="campus-hero-title">学生换班工具</h1>
-        <p className="campus-hero-subtitle">将学生从一个教学班调换至另一个教学班，需先预览确认</p>
+        <h1 className="campus-title">学生换班工具</h1>
+        <p className="campus-subtitle">将学生从一个教学班调换至另一个教学班，需先预览确认</p>
       </section>
 
       {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}

@@ -59,8 +59,8 @@ export default function OfferingHistoryPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">课程管理</p>
-        <h1 className="campus-hero-title">课程开设历史</h1>
-        <p className="campus-hero-subtitle">查看各课程历年开设记录、利用率与评分趋势</p>
+        <h1 className="campus-title">课程开设历史</h1>
+        <p className="campus-subtitle">查看各课程历年开设记录、利用率与评分趋势</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

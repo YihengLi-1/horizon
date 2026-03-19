@@ -69,8 +69,8 @@ export default function MyRatingsPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">我的评价</p>
-        <h1 className="campus-hero-title">课程评价记录</h1>
-        <p className="campus-hero-subtitle">查看您提交过的所有课程与教师评分</p>
+        <h1 className="campus-title">课程评价记录</h1>
+        <p className="campus-subtitle">查看您提交过的所有课程与教师评分</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

@@ -107,8 +107,8 @@ export default function QuickAddPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">选课工具</p>
-        <h1 className="campus-hero-title">快速选课</h1>
-        <p className="campus-hero-subtitle">勾选购物车中的课程，一键批量注册</p>
+        <h1 className="campus-title">快速选课</h1>
+        <p className="campus-subtitle">勾选购物车中的课程，一键批量注册</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-4">

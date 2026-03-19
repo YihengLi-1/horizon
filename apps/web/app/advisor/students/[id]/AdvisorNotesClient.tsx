@@ -105,7 +105,9 @@ export default function AdvisorNotesClient({ studentId }: { studentId: string })
             </div>
             <div className="campus-kpi">
               <p className="campus-kpi-label">学业状态</p>
-              <p className="mt-1 font-semibold text-slate-900">{payload.student.studentProfile?.academicStatus ?? "未知"}</p>
+              <p className="mt-1 font-semibold text-slate-900">
+                {({"GOOD_STANDING":"学业正常","ACADEMIC_PROBATION":"学业警告","ACADEMIC_SUSPENSION":"学业停学","Active":"活跃","Inactive":"未活跃","Suspended":"已停学"} as Record<string,string>)[payload.student.studentProfile?.academicStatus ?? ""] ?? payload.student.studentProfile?.academicStatus ?? "未知"}
+              </p>
             </div>
             <div className="campus-kpi">
               <p className="campus-kpi-label">注册记录</p>
@@ -153,7 +155,7 @@ export default function AdvisorNotesClient({ studentId }: { studentId: string })
                 onChange={(event) => setBody(event.target.value)}
                 placeholder="记录指导备注、跟进事项或学业关注点。"
               />
-              <button type="submit" disabled={saving || !body.trim()} className="campus-chip cursor-pointer text-xs">
+              <button type="submit" disabled={saving || !body.trim()} className="campus-btn-primary text-sm">
                 {saving ? "保存中…" : "添加顾问备注"}
               </button>
             </form>

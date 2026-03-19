@@ -119,8 +119,8 @@ export default function DemandReportPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">选课分析</p>
-        <h1 className="campus-hero-title">教学班需求报告</h1>
-        <p className="campus-hero-subtitle">按购物车、候补与关注人数综合评估各教学班的选课需求热度</p>
+        <h1 className="campus-title">教学班需求报告</h1>
+        <p className="campus-subtitle">按购物车、候补与关注人数综合评估各教学班的选课需求热度</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

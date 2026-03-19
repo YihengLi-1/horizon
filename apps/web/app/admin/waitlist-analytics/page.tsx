@@ -75,8 +75,8 @@ export default function WaitlistAnalyticsPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">注册管理</p>
-        <h1 className="campus-hero-title">候补名单分析</h1>
-        <p className="campus-hero-subtitle">各教学班候补队列深度与学生分布情况</p>
+        <h1 className="campus-title">候补名单分析</h1>
+        <p className="campus-subtitle">各教学班候补队列深度与学生分布情况</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

@@ -42,8 +42,8 @@ export default function GraduationChecklistPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">毕业申请</p>
-        <h1 className="campus-hero-title">毕业条件核查</h1>
-        <p className="campus-hero-subtitle">检查您是否满足毕业所需的全部条件</p>
+        <h1 className="campus-title">毕业条件核查</h1>
+        <p className="campus-subtitle">检查您是否满足毕业所需的全部条件</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-4">

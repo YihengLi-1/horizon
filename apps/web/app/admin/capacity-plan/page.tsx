@@ -87,8 +87,8 @@ export default function CapacityPlanPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">资源规划</p>
-        <h1 className="campus-hero-title">容量规划</h1>
-        <p className="campus-hero-subtitle">教学班容量利用率与预计需求分析，帮助合理分配教学资源</p>
+        <h1 className="campus-title">容量规划</h1>
+        <p className="campus-subtitle">教学班容量利用率与预计需求分析，帮助合理分配教学资源</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-4">

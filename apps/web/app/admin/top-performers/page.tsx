@@ -74,8 +74,8 @@ export default function TopPerformersPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">学生表彰</p>
-        <h1 className="campus-hero-title">优秀学生榜单</h1>
-        <p className="campus-hero-subtitle">按 GPA 与完成学分综合排名的学生排行榜</p>
+        <h1 className="campus-title">优秀学生榜单</h1>
+        <p className="campus-subtitle">按 GPA 与完成学分综合排名的学生排行榜</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

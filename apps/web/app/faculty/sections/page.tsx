@@ -133,8 +133,8 @@ export default function FacultySectionsPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">教学管理</p>
-        <h1 className="campus-hero-title">我的课程</h1>
-        <p className="campus-hero-subtitle">查看所授教学班、学生名单，并录入最终成绩</p>
+        <h1 className="campus-title">我的课程</h1>
+        <p className="campus-subtitle">查看所授教学班、学生名单，并录入最终成绩</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

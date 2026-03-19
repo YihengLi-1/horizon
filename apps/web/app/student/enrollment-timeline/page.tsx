@@ -115,8 +115,8 @@ export default function EnrollmentTimelinePage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">学业记录</p>
-        <h1 className="campus-hero-title">注册时间线</h1>
-        <p className="campus-hero-subtitle">按学期展示完整的课程注册历史与学业轨迹</p>
+        <h1 className="campus-title">注册时间线</h1>
+        <p className="campus-subtitle">按学期展示完整的课程注册历史与学业轨迹</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-4">

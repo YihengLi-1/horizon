@@ -53,8 +53,8 @@ export default function CreditSummaryPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">学业进度</p>
-        <h1 className="campus-hero-title">学分总览</h1>
-        <p className="campus-hero-subtitle">毕业学分进度、各学期学分分布与 GPA 趋势</p>
+        <h1 className="campus-title">学分总览</h1>
+        <p className="campus-subtitle">毕业学分进度、各学期学分分布与 GPA 趋势</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-4">

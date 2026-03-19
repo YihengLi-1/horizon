@@ -51,8 +51,8 @@ export default function PrereqAuditPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">数据审计</p>
-        <h1 className="campus-hero-title">先修课违规审计</h1>
-        <p className="campus-hero-subtitle">检测已注册但未完成先修课程要求的学生</p>
+        <h1 className="campus-title">先修课违规审计</h1>
+        <p className="campus-subtitle">检测已注册但未完成先修课程要求的学生</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

@@ -80,8 +80,8 @@ export default function StatusEmailPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">批量通知</p>
-        <h1 className="campus-hero-title">学生状态邮件</h1>
-        <p className="campus-hero-subtitle">向指定学期特定注册状态的学生批量发送邮件通知</p>
+        <h1 className="campus-title">学生状态邮件</h1>
+        <p className="campus-subtitle">向指定学期特定注册状态的学生批量发送邮件通知</p>
       </section>
 
       {sent ? (

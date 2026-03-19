@@ -80,8 +80,8 @@ export default function FacultySchedulePage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">教学管理</p>
-        <h1 className="campus-hero-title">教师排课总览</h1>
-        <p className="campus-hero-subtitle">按教师汇总所有教学班、课时与注册人数</p>
+        <h1 className="campus-title">教师排课总览</h1>
+        <p className="campus-subtitle">按教师汇总所有教学班、课时与注册人数</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

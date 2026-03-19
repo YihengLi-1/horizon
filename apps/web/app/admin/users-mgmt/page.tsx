@@ -107,8 +107,8 @@ export default function UsersMgmtPage() {
     <div className="campus-page space-y-6">
       <div className="campus-hero">
         <p className="campus-eyebrow">系统管理</p>
-        <h1 className="campus-hero-title">用户管理</h1>
-        <p className="campus-hero-subtitle">查看、锁定账号、变更用户角色</p>
+        <h1 className="campus-title">用户管理</h1>
+        <p className="campus-subtitle">查看、锁定账号、变更用户角色</p>
       </div>
 
       {/* Toolbar */}

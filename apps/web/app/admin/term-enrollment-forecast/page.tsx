@@ -59,8 +59,8 @@ export default function TermEnrollmentForecastPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">招生预测</p>
-        <h1 className="campus-hero-title">学期注册人数预测</h1>
-        <p className="campus-hero-subtitle">基于历史各学期注册数据进行线性趋势分析与下学期预测</p>
+        <h1 className="campus-title">学期注册人数预测</h1>
+        <p className="campus-subtitle">基于历史各学期注册数据进行线性趋势分析与下学期预测</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-4">

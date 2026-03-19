@@ -101,8 +101,8 @@ export default function InstructorPerformancePage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">教学质量</p>
-        <h1 className="campus-hero-title">教师绩效分析</h1>
-        <p className="campus-hero-subtitle">按教师汇总教学班数量、学生规模、完课率与平均GPA</p>
+        <h1 className="campus-title">教师绩效分析</h1>
+        <p className="campus-subtitle">按教师汇总教学班数量、学生规模、完课率与平均GPA</p>
       </section>
 
       {/* KPIs */}

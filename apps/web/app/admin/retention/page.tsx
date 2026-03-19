@@ -64,8 +64,8 @@ export default function RetentionPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">学生留存</p>
-        <h1 className="campus-hero-title">学期留存率分析</h1>
-        <p className="campus-hero-subtitle">按入学学期追踪各届学生的跨期留存情况</p>
+        <h1 className="campus-title">学期留存率分析</h1>
+        <p className="campus-subtitle">按入学学期追踪各届学生的跨期留存情况</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

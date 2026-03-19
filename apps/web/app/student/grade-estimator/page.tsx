@@ -95,8 +95,8 @@ export default function GradeEstimatorPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">学业工具</p>
-        <h1 className="campus-hero-title">成绩估算器</h1>
-        <p className="campus-hero-subtitle">输入各评分项目的权重与得分，实时估算最终课程成绩</p>
+        <h1 className="campus-title">成绩估算器</h1>
+        <p className="campus-subtitle">输入各评分项目的权重与得分，实时估算最终课程成绩</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

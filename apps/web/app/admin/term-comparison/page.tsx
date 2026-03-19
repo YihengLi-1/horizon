@@ -90,8 +90,8 @@ export default function TermComparisonPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">学期分析</p>
-        <h1 className="campus-hero-title">学期横向对比</h1>
-        <p className="campus-hero-subtitle">选择两个学期，并排比较关键招生与学业指标</p>
+        <h1 className="campus-title">学期横向对比</h1>
+        <p className="campus-subtitle">选择两个学期，并排比较关键招生与学业指标</p>
       </section>
 
       {/* Term selector */}

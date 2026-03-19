@@ -14,6 +14,8 @@ type HeatmapData = {
 type Term = { id: string; name: string };
 
 const DAY_LABELS_ZH = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+const DAY_EN_TO_IDX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+function dayZh(day: string) { return DAY_LABELS_ZH[DAY_EN_TO_IDX[day] ?? -1] ?? day; }
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 function heatColor(value: number, max: number): string {
@@ -56,8 +58,8 @@ export default function RegistrationHeatmapPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">注册分析</p>
-        <h1 className="campus-hero-title">注册活动热图</h1>
-        <p className="campus-hero-subtitle">按星期与小时展示选课注册集中时段，帮助优化系统资源调度</p>
+        <h1 className="campus-title">注册活动热图</h1>
+        <p className="campus-subtitle">按星期与小时展示选课注册集中时段，帮助优化系统资源调度</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">
@@ -72,7 +74,7 @@ export default function RegistrationHeatmapPage() {
         <div className="campus-kpi">
           <p className="campus-kpi-label">最热星期</p>
           <p className="campus-kpi-value">
-            {loading || !data?.topSlots.length ? "—" : DAY_LABELS_ZH[["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(data.topSlots[0]?.day)] ?? data.topSlots[0]?.day}
+            {loading || !data?.topSlots.length ? "—" : dayZh(data.topSlots[0]?.day ?? "")}
           </p>
         </div>
       </section>
@@ -143,11 +145,11 @@ export default function RegistrationHeatmapPage() {
               <p className="font-semibold text-slate-800 mb-3">注册高峰时段 Top 5</p>
               <div className="space-y-2">
                 {data.topSlots.map((slot, i) => {
-                  const dayZh = DAY_LABELS_ZH[["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(slot.day)] ?? slot.day;
+                  const slotDayZh = dayZh(slot.day);
                   return (
                     <div key={i} className="flex items-center gap-3 text-sm">
                       <span className="w-5 font-bold text-slate-500">#{i + 1}</span>
-                      <span className="w-20 text-slate-700">{dayZh} {String(slot.hour).padStart(2, "0")}:00</span>
+                      <span className="w-20 text-slate-700">{slotDayZh} {String(slot.hour).padStart(2, "0")}:00</span>
                       <div className="flex-1 h-2 rounded-full bg-slate-100">
                         <div
                           className="h-2 rounded-full bg-[hsl(221_83%_43%)]"

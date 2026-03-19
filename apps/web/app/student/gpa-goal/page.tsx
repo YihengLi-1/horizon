@@ -106,8 +106,8 @@ export default function GpaGoalPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">学业工具</p>
-        <h1 className="campus-hero-title">GPA 目标追踪</h1>
-        <p className="campus-hero-subtitle">设置 GPA 目标，计算所需课程数量与成绩要求</p>
+        <h1 className="campus-title">GPA 目标追踪</h1>
+        <p className="campus-subtitle">设置 GPA 目标，计算所需课程数量与成绩要求</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

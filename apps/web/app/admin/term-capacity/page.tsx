@@ -98,8 +98,8 @@ export default function TermCapacityPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">资源分析</p>
-        <h1 className="campus-hero-title">学期容量汇总</h1>
-        <p className="campus-hero-subtitle">按学期展示所有教学班的容量使用情况</p>
+        <h1 className="campus-title">学期容量汇总</h1>
+        <p className="campus-subtitle">按学期展示所有教学班的容量使用情况</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-4">

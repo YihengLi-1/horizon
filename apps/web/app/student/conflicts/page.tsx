@@ -81,8 +81,8 @@ export default function ConflictsPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">选课工具</p>
-        <h1 className="campus-hero-title">时间冲突检测</h1>
-        <p className="campus-hero-subtitle">检测当前学期已注册课程中存在时间重叠的教学班</p>
+        <h1 className="campus-title">时间冲突检测</h1>
+        <p className="campus-subtitle">检测当前学期已注册课程中存在时间重叠的教学班</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

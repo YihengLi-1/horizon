@@ -107,8 +107,8 @@ export default function WhatIfPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">学业工具</p>
-        <h1 className="campus-hero-title">GPA 假设模拟</h1>
-        <p className="campus-hero-subtitle">修改历史成绩或添加未来课程，实时查看 GPA 变化</p>
+        <h1 className="campus-title">GPA 假设模拟</h1>
+        <p className="campus-subtitle">修改历史成绩或添加未来课程，实时查看 GPA 变化</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

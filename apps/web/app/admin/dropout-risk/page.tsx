@@ -83,8 +83,8 @@ export default function DropoutRiskPage() {
     <div className="campus-page">
       <section className="campus-hero">
         <p className="campus-eyebrow">学生干预</p>
-        <h1 className="campus-hero-title">退学风险预警</h1>
-        <p className="campus-hero-subtitle">基于退课次数、GPA 和选课状态计算风险评分，辅助提前干预</p>
+        <h1 className="campus-title">退学风险预警</h1>
+        <p className="campus-subtitle">基于退课次数、GPA 和选课状态计算风险评分，辅助提前干预</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-4">
