@@ -568,9 +568,6 @@ export default function StudentProfilePage() {
                 <p className="text-xs font-semibold text-slate-500">学生档案</p>
                 <h1 className="text-2xl font-bold text-slate-900">{form.legalName || "学生"}</h1>
                 <p className="text-sm text-slate-600">{profile?.user.email || "—"}</p>
-                <button className="mt-2 cursor-not-allowed text-xs font-medium text-blue-600 opacity-50 hover:underline" disabled>
-                  更换头像（即将上线）
-                </button>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -651,7 +648,7 @@ export default function StudentProfilePage() {
                 {saving ? (
                   <>
                     <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                    Saving…
+                    保存中…
                   </>
                 ) : (
                   "保存更改"

@@ -299,7 +299,7 @@ export default async function AdminDashboardPage() {
                 <p className={`text-[11px] font-semibold ${regOpen ? "text-emerald-700" : "text-blue-700"}`}>
                   当前学期
                 </p>
-                <span className={`campus-chip px-2 py-0.5 text-[10px] font-boldr ${
+                <span className={`campus-chip px-2 py-0.5 text-[10px] font-bold ${
                   regOpen
                     ? "chip-emerald"
                     : "chip-blue"
