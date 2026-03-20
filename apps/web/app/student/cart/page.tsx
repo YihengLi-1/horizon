@@ -313,7 +313,6 @@ export default function StudentCartPage() {
   const [submittingOverloadRequest, setSubmittingOverloadRequest] = useState(false);
   const [removingInvalid, setRemovingInvalid] = useState(false);
   const [removingItemId, setRemovingItemId] = useState("");
-  const [waitlistPositions, setWaitlistPositions] = useState<Record<string, number>>({});
   const [currentEnrollments, setCurrentEnrollments] = useState<CurrentEnrollment[]>([]);
   const [allSections, setAllSections] = useState<SectionOption[]>([]);
   const [swapSource, setSwapSource] = useState<CurrentEnrollment | null>(null);
@@ -390,9 +389,9 @@ export default function StudentCartPage() {
 
     if (allWaitlisted) {
       return {
-        title: "已加入候补队列",
-        detail: `本次共处理 ${submitResults.length} 条注册结果，当前全部进入候补。`,
-        followup: "你仍保留候补资格，座位释放后系统会自动尝试晋升。"
+        title: "已进入候补",
+        detail: `本次共处理 ${submitResults.length} 条注册结果，当前全部处于候补状态。`,
+        followup: "后续状态变化会通过系统通知与邮件告知，请留意通知中心。"
       };
     }
 
@@ -464,37 +463,6 @@ export default function StudentCartPage() {
     errorSummaryRef.current.focus();
     errorSummaryRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [summaryIssues]);
-
-  useEffect(() => {
-    const waitlistedSectionIds = submitResults
-      .filter((item) => item.status === "WAITLISTED")
-      .map((item) => item.sectionId || item.section.id)
-      .filter((value): value is string => Boolean(value));
-
-    if (waitlistedSectionIds.length === 0) {
-      setWaitlistPositions({});
-      return;
-    }
-
-    let alive = true;
-    void Promise.all(
-      waitlistedSectionIds.map(async (sectionId) => {
-        const result = await apiFetch<{ position: number; ahead: number }>(`/registration/waitlist-position/${sectionId}`).catch(
-          () => null
-        );
-        return [sectionId, result?.position ?? null] as const;
-      })
-    ).then((entries) => {
-      if (!alive) return;
-      setWaitlistPositions(
-        Object.fromEntries(entries.filter((entry): entry is readonly [string, number] => entry[1] !== null))
-      );
-    });
-
-    return () => {
-      alive = false;
-    };
-  }, [submitResults]);
 
   const groupedPreview = useMemo(() => {
     const map = new Map<string, PrecheckPreviewItem[]>();
@@ -1260,7 +1228,7 @@ export default function StudentCartPage() {
               <span className="font-semibold">待审批：</span>等待院系/管理员操作。
             </p>
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              <span className="font-semibold">候补中：</span>名额已满时加入候补队列。
+              <span className="font-semibold">候补中：</span>名额已满时进入候补，结果会通过邮件与系统通知告知。
             </p>
           </div>
         </section>
@@ -1835,8 +1803,8 @@ export default function StudentCartPage() {
                   {group.items.map((item) => (
                     <div key={`${item.sectionId}-${item.status}`} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-1.5 text-xs">
                       <span className="font-medium text-slate-800">{item.courseCode} §{item.sectionCode}</span>
-                      {item.status === "WAITLISTED" && item.waitlistPosition ? (
-                        <span className="text-amber-600">候补第 {item.waitlistPosition} 位</span>
+                      {item.status === "WAITLISTED" ? (
+                        <span className="text-amber-600">候补处理中</span>
                       ) : null}
                       {item.status === "PENDING_APPROVAL" && item.pendingReason === "CREDIT_OVERLOAD" ? (
                         <span className="text-blue-600">超学分审批中</span>
@@ -1905,7 +1873,7 @@ export default function StudentCartPage() {
                         </span>
                         {item.status === "WAITLISTED" ? (
                           <span className="ml-2 text-amber-600">
-                            候补第 {waitlistPositions[item.sectionId] ?? item.waitlistPosition ?? "—"} 位
+                            候补处理中
                           </span>
                         ) : null}
                       </div>

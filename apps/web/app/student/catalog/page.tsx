@@ -1459,7 +1459,7 @@ export default function StudentCatalogPage() {
                         </span>
                       ) : myStatus === "WAITLISTED" ? (
                         <span className="inline-flex h-10 items-center justify-center rounded-xl border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-800">
-                          等待中{section.myWaitlistPosition ? ` (#${section.myWaitlistPosition})` : ""}
+                          候补中
                         </span>
                       ) : alreadyEnrolledCourse ? (
                         <span className="inline-flex h-10 items-center justify-center rounded-xl border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-800">
@@ -1513,7 +1513,7 @@ export default function StudentCatalogPage() {
                         <p className="text-sm text-amber-700">时间冲突将在提交时重新检测。</p>
                       ) : null}
                       {isFull && !inCart && !alreadyEnrolledHere && !alreadyCompleted && isRegistrationOpen ? (
-                        <p className="text-sm text-slate-500">满班课程会先加入购物车，提交后按候补顺序处理。</p>
+                        <p className="text-sm text-slate-500">满班课程会先加入购物车，提交后进入候补，结果会通过邮件与系统通知告知。</p>
                       ) : null}
                       {isFull && !inCart && !alreadyEnrolledHere && !alreadyCompleted && isRegistrationOpen ? (
                         <button

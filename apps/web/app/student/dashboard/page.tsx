@@ -322,10 +322,10 @@ export default async function StudentDashboardPage() {
   if (waitlistedCount > 0) {
     alerts.push({
       level: "info",
-      title: "候补队列进行中",
-      description: `当前有 ${waitlistedCount} 门课程处于候补，请留意补位通知。`,
-      href: term ? `/student/schedule?termId=${term.id}` : "/student/schedule",
-      cta: "查看候补"
+      title: "候补处理中",
+      description: `当前有 ${waitlistedCount} 门课程处于候补状态，后续结果会通过系统通知与邮件告知。`,
+      href: "/student/notifications",
+      cta: "查看通知"
     });
   }
 
@@ -666,7 +666,6 @@ export default async function StudentDashboardPage() {
                     {waitlisted.slice(0, 5).map((item) => (
                       <li key={item.id}>
                         {(item.section.course?.code ?? "课程")} {(item.section.sectionCode ?? "")}
-                        {item.waitlistPosition ? ` · 候补第 ${item.waitlistPosition} 位` : ""}
                       </li>
                     ))}
                   </ul>
