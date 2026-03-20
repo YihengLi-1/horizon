@@ -62,9 +62,6 @@ const studentItems: NavItem[] = [
   { href: "/student/grades",               label: "成绩",     icon: <GraduationCap className={iconClass} /> },
   { href: "/student/transcript",           label: "成绩单",   icon: <ScrollText className={iconClass} /> },
   { href: "/student/degree-audit",         label: "毕业进度", icon: <GraduationCap className={iconClass} /> },
-  { href: "/student/standing",             label: "学业状态", icon: <GraduationCap className={iconClass} /> },
-  { href: "/student/appeals",              label: "成绩申诉", icon: <ScrollText className={iconClass} /> },
-  { href: "/student/prereq-waivers",       label: "先修豁免", icon: <ListChecks className={iconClass} /> },
   // 账号
   { href: "/student/profile",              label: "个人资料", icon: <User className={iconClass} /> },
   { href: "/student/advisor",              label: "我的导师", icon: <User className={iconClass} /> },
@@ -94,8 +91,6 @@ const adminItems: NavItem[] = [
   { href: "/admin/waitlist",               label: "候补名单", icon: <Clock className={iconClass} /> },
   { href: "/admin/graduation",             label: "毕业审核", icon: <GraduationCap className={iconClass} /> },
   // 审批
-  { href: "/admin/appeals",                label: "成绩申诉", icon: <ScrollText className={iconClass} /> },
-  { href: "/admin/prereq-waivers",         label: "先修豁免", icon: <ListChecks className={iconClass} /> },
   { href: "/admin/pending-overloads",      label: "超学分",   icon: <ShieldAlert className={iconClass} /> },
   // 运营
   { href: "/admin/announcements-mgmt",     label: "公告管理", icon: <Megaphone className={iconClass} /> },
@@ -112,7 +107,6 @@ const adminItems: NavItem[] = [
 const facultyItems: NavItem[] = [
   { href: "/faculty/dashboard", label: "概览", icon: <LayoutDashboard className={iconClass} /> },
   { href: "/faculty/sections", label: "我的课程", icon: <BookOpen className={iconClass} /> },
-  { href: "/faculty/requests", label: "先修课审批", icon: <ListChecks className={iconClass} /> },
   { href: "/faculty/grade-stats",  label: "成绩统计",   icon: <BarChart3 className={iconClass} /> }
 ];
 
@@ -192,18 +186,18 @@ export function AppShell({
             { label: "学生",   hrefs: ["/admin/holds", "/admin/at-risk", "/admin/student-progress"] },
             { label: "课务",   hrefs: ["/admin/courses", "/admin/sections", "/admin/terms", "/admin/reg-windows"] },
             { label: "注册",   hrefs: ["/admin/enrollments", "/admin/grade-entry", "/admin/waitlist", "/admin/graduation"] },
-            { label: "审批",   hrefs: ["/admin/appeals", "/admin/prereq-waivers", "/admin/pending-overloads"] },
+            { label: "审批",   hrefs: ["/admin/pending-overloads"] },
             { label: "运营",   hrefs: ["/admin/announcements-mgmt", "/admin/bulk-ops", "/admin/import", "/admin/closeout", "/admin/audit-logs"] },
             { label: "系统",   hrefs: ["/admin/invite-codes", "/admin/settings", "/admin/webhooks"] },
           ]
         : area === "faculty"
-          ? [{ label: "教学", hrefs: ["/faculty/dashboard", "/faculty/sections", "/faculty/requests", "/faculty/grade-stats"] }]
+          ? [{ label: "教学", hrefs: ["/faculty/dashboard", "/faculty/sections", "/faculty/grade-stats"] }]
           : area === "advisor"
             ? [{ label: "顾问工作台", hrefs: ["/advisor/dashboard", "/advisor/advisees", "/advisor/requests"] }]
         : [
             { label: "概览", hrefs: ["/student/dashboard"] },
             { label: "选课", hrefs: ["/student/catalog", "/student/cart", "/student/schedule", "/student/waitlist"] },
-            { label: "学籍", hrefs: ["/student/grades", "/student/transcript", "/student/degree-audit", "/student/standing", "/student/appeals", "/student/prereq-waivers"] },
+            { label: "学籍", hrefs: ["/student/grades", "/student/transcript", "/student/degree-audit"] },
             { label: "账号", hrefs: ["/student/profile", "/student/advisor"] },
           ];
 
