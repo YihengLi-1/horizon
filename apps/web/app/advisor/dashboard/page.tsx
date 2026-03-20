@@ -41,10 +41,17 @@ export default async function AdvisorDashboardPage() {
   await requireRole("ADVISOR");
   let assignments: AdviseeAssignment[] = [];
   let error = "";
+  let pendingCount = 0;
   try {
     assignments = await serverApi<AdviseeAssignment[]>("/advising/advisees");
   } catch (err) {
     error = err instanceof Error ? err.message : "顾问工作台加载失败";
+  }
+  try {
+    const requests = await serverApi<{ id: string; status: string }[]>("/governance/advisor/requests");
+    pendingCount = (requests ?? []).length;
+  } catch {
+    // non-fatal — count stays 0
   }
 
   const atRisk = assignments.filter(
@@ -71,9 +78,11 @@ export default async function AdvisorDashboardPage() {
           </p>
         </div>
         <div className="campus-kpi">
-          <p className="campus-kpi-label">待审批请求</p>
-          <p className="campus-kpi-value">
-            <Link href="/advisor/requests" className="hover:underline text-blue-600">查看</Link>
+          <p className="campus-kpi-label">
+            <Link href="/advisor/requests" className="hover:underline">待审批请求</Link>
+          </p>
+          <p className={`campus-kpi-value ${pendingCount > 0 ? "text-amber-600" : ""}`}>
+            {pendingCount}
           </p>
         </div>
       </section>
