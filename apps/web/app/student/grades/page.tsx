@@ -256,12 +256,6 @@ export default async function GradesPage({
           成绩
         </span>
         <Link
-          href="/student/course-history"
-          className="flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-slate-500 no-underline transition hover:bg-white hover:text-slate-900"
-        >
-          修课历史
-        </Link>
-        <Link
           href="/student/transcript"
           className="flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-slate-500 no-underline transition hover:bg-white hover:text-slate-900"
         >
@@ -561,9 +555,9 @@ export default async function GradesPage({
                             <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-600">
                               <p>学分：{item.section.credits} · 绩点：{pts !== null ? pts.toFixed(1) : "—"} · 贡献绩点：{contribution !== null ? contribution.toFixed(1) : "—"}</p>
                               <p className="mt-1">课程评教：{item.section.ratings?.[0]?.rating ? `${item.section.ratings[0].rating}/5` : "暂未填写"}</p>
-                              <p className="mt-1">出勤与细分评分说明暂未开放，若对结果有疑问可前往成绩申诉页面发起申请。</p>
-                              <Link href="/student/appeals" className="mt-2 inline-flex items-center gap-1 font-semibold text-indigo-700 no-underline hover:text-indigo-800">
-                                前往成绩申诉 →
+                              <p className="mt-1">出勤与细分评分说明暂未在学生端开放，如对结果有疑问，请联系导师或教务处进一步确认。</p>
+                              <Link href="/student/advisor" className="mt-2 inline-flex items-center gap-1 font-semibold text-indigo-700 no-underline hover:text-indigo-800">
+                                联系导师 →
                               </Link>
                             </div>
                           </details>

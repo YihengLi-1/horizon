@@ -22,11 +22,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               </div>
               <div className="flex items-start gap-2">
                 <span className="mt-0.5 text-amber-300">✓</span>
-                <span>成绩查询、成绩单申请与学业状态管理</span>
+                <span>成绩查询、成绩单查看与学业进度跟踪</span>
               </div>
               <div className="flex items-start gap-2">
                 <span className="mt-0.5 text-amber-300">✓</span>
-                <span>先修课豁免、成绩申诉与超学分审批流程</span>
+                <span>候补、超学分审批与学籍限制的完整教务流程</span>
               </div>
               <div className="flex items-start gap-2">
                 <span className="mt-0.5 text-amber-300">✓</span>

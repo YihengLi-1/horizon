@@ -537,8 +537,6 @@ export default async function AdminDashboardPage() {
             <ActionButton href="/admin/grade-entry" label="录入成绩" desc="为已完成课程录入最终成绩" />
             <ActionButton href="/admin/bulk-ops" label="批量操作" desc="批量管理学生注册状态与数据" />
             <ActionButton href="/admin/import" label="CSV 导入" desc="批量导入学生、课程和教学班数据" />
-            <ActionButton href="/admin/appeals" label="成绩申诉" desc="审核并批准或拒绝学生申诉" />
-            <ActionButton href="/admin/prereq-waivers" label="先修豁免" desc="审批先修课豁免请求" />
             <ActionButton href="/admin/pending-overloads" label="超学分审批" desc="处理超出学分上限的注册请求" />
             <ActionButton href="/admin/holds" label="学籍限制" desc="管理阻止注册的学籍限制记录" />
             <ActionButton href="/admin/closeout" label="学期关闭" desc="确认学期结束并批量归档成绩" />

@@ -164,7 +164,7 @@ function fmtDateTime(value: string): string {
 }
 
 function issueGuidance(reasonCode: string): string {
-  if (reasonCode === "PREREQUISITE_NOT_MET") return "先完成先修课，或提交先修课豁免审批。";
+  if (reasonCode === "PREREQUISITE_NOT_MET") return "先完成先修课，或联系导师/教务处确认是否允许修读。";
   if (reasonCode === "TIME_CONFLICT") return "调整购物车，先消除上课时间冲突。";
   if (reasonCode === "CREDIT_LIMIT_EXCEEDED") return "减少本学期学分，或提交超学分申请。";
   if (reasonCode === "SECTION_ALREADY_STARTED") return "课程已经开课，如需处理请联系教务。";

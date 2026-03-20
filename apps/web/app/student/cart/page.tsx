@@ -177,7 +177,7 @@ function statusBadgeClass(status: string): string {
 
 function issueHint(reasonCode: string): string | null {
   if (reasonCode === "SECTION_ALREADY_STARTED") return "教学班已开课，请联系教务处获取帮助。";
-  if (reasonCode === "PREREQUISITE_NOT_MET") return "请先修完先修课程，或向教务处申请先修课豁免。";
+  if (reasonCode === "PREREQUISITE_NOT_MET") return "请先修完先修课程，或联系导师/教务处确认修读资格。";
   if (reasonCode === "TIME_CONFLICT") return "请移除或更换时间冲突的教学班。";
   if (reasonCode === "CREDIT_LIMIT_EXCEEDED") return "请减少计划学分，或申请超载豁免。";
   if (reasonCode === "ALREADY_REGISTERED") return "该教学班已在您的在读课程中。";
@@ -311,9 +311,6 @@ export default function StudentCartPage() {
   const [requestsError, setRequestsError] = useState("");
   const [overloadReason, setOverloadReason] = useState("");
   const [submittingOverloadRequest, setSubmittingOverloadRequest] = useState(false);
-  const [prereqOverrideReason, setPrereqOverrideReason] = useState("");
-  const [openPrereqRequestSectionId, setOpenPrereqRequestSectionId] = useState("");
-  const [submittingPrereqOverride, setSubmittingPrereqOverride] = useState(false);
   const [removingInvalid, setRemovingInvalid] = useState(false);
   const [removingItemId, setRemovingItemId] = useState("");
   const [waitlistPositions, setWaitlistPositions] = useState<Record<string, number>>({});
@@ -532,19 +529,6 @@ export default function StudentCartPage() {
   const approvedOverloadRequest = useMemo(
     () => academicRequests.find((request) => request.type === "CREDIT_OVERLOAD" && request.status === "APPROVED") ?? null,
     [academicRequests]
-  );
-  const prereqOverrideRequests = useMemo(
-    () => academicRequests.filter((request) => request.type === "PREREQ_OVERRIDE"),
-    [academicRequests]
-  );
-  const prereqOverrideRequestBySectionId = useMemo(
-    () =>
-      new Map(
-        prereqOverrideRequests
-          .filter((request) => request.section?.id)
-          .map((request) => [request.section!.id, request] as const)
-      ),
-    [prereqOverrideRequests]
   );
   const governanceLoading = holdsLoading || requestsLoading;
   const governanceError = [holdsError, requestsError].filter(Boolean).join(" ");
@@ -987,28 +971,6 @@ export default function StudentCartPage() {
     }
   };
 
-  const submitPrereqOverrideRequest = async (sectionId: string) => {
-    if (!sectionId || prereqOverrideReason.trim().length < 8) return;
-
-    try {
-      setSubmittingPrereqOverride(true);
-      await apiFetch("/governance/requests/prereq-override", {
-        method: "POST",
-        body: JSON.stringify({
-          sectionId,
-          reason: prereqOverrideReason.trim()
-        })
-      });
-      setPrereqOverrideReason("");
-      setOpenPrereqRequestSectionId("");
-      await loadAcademicRequests(termId);
-      toast("先修课豁免申请已提交，先等待任课教师审核，再进入 registrar 终审", "success");
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "提交先修课豁免申请失败", "error");
-    } finally {
-      setSubmittingPrereqOverride(false);
-    }
-  };
   const issueAnchorHref =
     summaryIssues.length > 0 ? "#cart-issue-summary" : groupedPrecheckIssues.length > 0 ? "#precheck-issues" : "";
   const nextAction: NextAction = (() => {
@@ -1489,38 +1451,6 @@ export default function StudentCartPage() {
           ) : null}
         </section>
       ) : null}
-      {prereqOverrideRequests.length > 0 ? (
-        <section className="campus-card p-4 md:p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-base font-semibold text-slate-900">先修课豁免申请</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                先修课豁免申请需经教师审核，再由注册办公室审批后方可生效。
-              </p>
-            </div>
-            <span className="campus-chip text-xs">共 {prereqOverrideRequests.length} 条</span>
-          </div>
-          <div className="mt-3 space-y-2">
-            {prereqOverrideRequests.map((request) => (
-              <div key={request.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-semibold text-slate-900">
-                    {request.section?.course.code ?? "课程"} §{request.section?.sectionCode ?? "—"}
-                  </span>
-                  <span className={`campus-chip text-xs ${getRequestWorkflowTone(request)}`}>{getRequestWorkflowLabel(request)}</span>
-                </div>
-                <p className="mt-1">{request.reason}</p>
-                <p className="mt-2 text-xs text-slate-500">
-                  提交于 {formatDateTime(request.submittedAt)}
-                  {request.owner?.facultyProfile?.displayName ? ` · 审核人 ${request.owner.facultyProfile.displayName}` : ""}
-                </p>
-                {getWorkflowProgressNote(request) ? <p className="mt-2 text-xs text-slate-500">{getWorkflowProgressNote(request)}</p> : null}
-                {request.decisionNote ? <p className="mt-2 text-xs text-slate-500">Decision note: {request.decisionNote}</p> : null}
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
       {terms.length === 0 ? (
         <Alert
           type="info"
@@ -1654,9 +1584,6 @@ export default function StudentCartPage() {
             items.map((item) => {
               const rowIssues = issueMapBySectionId.get(item.section.id) ?? [];
               const prereqIssue = rowIssues.find((issue) => issue.reasonCode === "PREREQUISITE_NOT_MET");
-              const prereqRequest = prereqOverrideRequestBySectionId.get(item.section.id) ?? null;
-              const prereqRequestBlocksNewSubmit =
-                prereqRequest?.status === "SUBMITTED" || prereqRequest?.status === "APPROVED";
               return (
                 <article
                   id={`cart-item-${item.id}`}
@@ -1702,58 +1629,10 @@ export default function StudentCartPage() {
                     </div>
                   ) : null}
                   {prereqIssue ? (
-                    <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3">
-                      <p className="text-xs font-semibold text-blue-700">先修课豁免</p>
-                      <p className="mt-1 text-xs text-blue-900">{prereqIssue.message}</p>
-                      {prereqRequest && prereqRequestBlocksNewSubmit ? (
-                        <div className="mt-2 space-y-1 text-xs text-blue-700">
-                          <p>
-                            当前申请状态：<span className="font-semibold">{getRequestWorkflowLabel(prereqRequest)}</span>
-                          </p>
-                          {getWorkflowProgressNote(prereqRequest) ? <p>{getWorkflowProgressNote(prereqRequest)}</p> : null}
-                          {prereqRequest.decisionNote ? <p>{prereqRequest.decisionNote}</p> : null}
-                        </div>
-                      ) : openPrereqRequestSectionId === item.section.id ? (
-                        <div className="mt-3 space-y-2">
-                          <textarea
-                            className="campus-input min-h-24"
-                            value={prereqOverrideReason}
-                            onChange={(event) => setPrereqOverrideReason(event.target.value)}
-                            placeholder="请说明申请先修课豁免的原因"
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => void submitPrereqOverrideRequest(item.section.id)}
-                              disabled={submittingPrereqOverride || prereqOverrideReason.trim().length < 8}
-                              className="inline-flex h-9 items-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {submittingPrereqOverride ? "提交中…" : "提交豁免申请"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setOpenPrereqRequestSectionId("");
-                                setPrereqOverrideReason("");
-                              }}
-                              className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                            >
-                              取消
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setOpenPrereqRequestSectionId(item.section.id);
-                            setPrereqOverrideReason("");
-                          }}
-                          className="mt-3 inline-flex h-9 items-center rounded-lg border border-blue-200 bg-white px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
-                        >
-                          申请先修课豁免
-                        </button>
-                      )}
+                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-xs font-semibold text-amber-700">先修要求</p>
+                      <p className="mt-1 text-xs text-amber-900">{prereqIssue.message}</p>
+                      <p className="mt-2 text-xs text-amber-800">该课程存在先修要求，当前无法直接提交。请先联系导师或教务处确认修读资格。</p>
                     </div>
                   ) : null}
                   <button
@@ -1823,9 +1702,6 @@ export default function StudentCartPage() {
                 items.map((item) => {
                   const rowIssues = issueMapBySectionId.get(item.section.id) ?? [];
                   const prereqIssue = rowIssues.find((issue) => issue.reasonCode === "PREREQUISITE_NOT_MET");
-                  const prereqRequest = prereqOverrideRequestBySectionId.get(item.section.id) ?? null;
-                  const prereqRequestBlocksNewSubmit =
-                    prereqRequest?.status === "SUBMITTED" || prereqRequest?.status === "APPROVED";
                   return (
                     <Fragment key={item.id}>
                     <tr
@@ -1883,71 +1759,12 @@ export default function StudentCartPage() {
                       </td>
                     </tr>
                     {prereqIssue ? (
-                      <tr key={`${item.id}-prereq`} className="border-b border-slate-100 bg-blue-50/70">
+                      <tr key={`${item.id}-prereq`} className="border-b border-slate-100 bg-amber-50/70">
                         <td colSpan={5} className="px-4 py-3">
-                          <div className="rounded-xl border border-blue-200 bg-white p-3">
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                              <div>
-                                <p className="text-xs font-semibold text-blue-700">先修课豁免</p>
-                                <p className="mt-1 text-sm text-slate-800">{prereqIssue.message}</p>
-                              </div>
-                              {prereqRequest ? (
-                                <span className={`campus-chip text-xs ${getRequestWorkflowTone(prereqRequest)}`}>
-                                  {getRequestWorkflowLabel(prereqRequest)}
-                                </span>
-                              ) : null}
-                            </div>
-                            {prereqRequest && prereqRequestBlocksNewSubmit ? (
-                              <div className="mt-2 text-xs text-slate-500">
-                                提交于 {formatDateTime(prereqRequest.submittedAt)}
-                                {prereqRequest.owner?.facultyProfile?.displayName ? ` · 审核人 ${prereqRequest.owner.facultyProfile.displayName}` : ""}
-                                {getWorkflowProgressNote(prereqRequest)
-                                  ? ` · ${getWorkflowProgressNote(prereqRequest)}`
-                                  : prereqRequest.decisionNote
-                                    ? ` · ${prereqRequest.decisionNote}`
-                                    : ""}
-                              </div>
-                            ) : openPrereqRequestSectionId === item.section.id ? (
-                              <div className="mt-3 space-y-2">
-                                <textarea
-                                  className="campus-input min-h-24"
-                                  value={prereqOverrideReason}
-                                  onChange={(event) => setPrereqOverrideReason(event.target.value)}
-                                  placeholder="请说明申请先修课豁免的原因"
-                                />
-                                <div className="flex gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => void submitPrereqOverrideRequest(item.section.id)}
-                                    disabled={submittingPrereqOverride || prereqOverrideReason.trim().length < 8}
-                                    className="inline-flex h-9 items-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                                  >
-                                    {submittingPrereqOverride ? "提交中…" : "提交豁免申请"}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenPrereqRequestSectionId("");
-                                      setPrereqOverrideReason("");
-                                    }}
-                                    className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                                  >
-                                    取消
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenPrereqRequestSectionId(item.section.id);
-                                  setPrereqOverrideReason("");
-                                }}
-                                className="mt-3 inline-flex h-9 items-center rounded-lg border border-blue-200 bg-white px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
-                              >
-                                申请先修课豁免
-                              </button>
-                            )}
+                          <div className="rounded-xl border border-amber-200 bg-white p-3">
+                            <p className="text-xs font-semibold text-amber-700">先修要求</p>
+                            <p className="mt-1 text-sm text-slate-800">{prereqIssue.message}</p>
+                            <p className="mt-2 text-xs text-slate-600">该课程存在先修要求，请先联系导师或教务处确认修读资格。</p>
                           </div>
                         </td>
                       </tr>
