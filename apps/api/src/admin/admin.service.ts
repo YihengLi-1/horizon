@@ -2522,7 +2522,20 @@ export class AdminService {
     });
   }
 
+  private static readonly ALLOWED_SETTING_KEYS = new Set([
+    "maintenance_mode",
+    "registration_enabled",
+    "max_credits_per_term",
+    "min_credits_per_term",
+    "late_drop_deadline_days",
+    "waitlist_enabled",
+  ]);
+
   async updateSystemSetting(key: string, value: string, actorUserId: string) {
+    if (!AdminService.ALLOWED_SETTING_KEYS.has(key)) {
+      throw new BadRequestException({ code: "INVALID_SETTING_KEY", message: `未知的系统设置键：${key}` });
+    }
+
     const setting = await this.prisma.systemSetting.upsert({
       where: { key },
       update: { value },

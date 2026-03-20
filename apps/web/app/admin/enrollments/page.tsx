@@ -140,7 +140,7 @@ export default function EnrollmentsPage() {
         );
         setTerms(sorted);
       })
-      .catch(() => { /* non-critical */ });
+      .catch((err) => setError(err instanceof Error ? err.message : "学期列表加载失败"));
   }, []);
 
   const load = async () => {

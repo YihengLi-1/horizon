@@ -253,7 +253,7 @@ check_contains "apps/api/src/main.ts" "X-Request-ID|request-id|requestId" "X-Req
 check_contains "nginx/nginx.conf" "X-Content-Type-Options|nosniff" "Security headers in nginx"
 check_contains "apps/api/src/main.ts" "db-check|SELECT 1|dbCheck" "DB check ops endpoint"
 check_contains "apps/api/src/main.ts" "csp-report" "CSP report endpoint"
-check_contains "apps/web/app/student/schedule/page.tsx" "publicScheduleSharingEnabled|公开课表分享已禁用|SCHEDULE_SHARING_DISABLED" "Schedule sharing safety guard"
+check_contains "apps/web/app/student/schedule/page.tsx" "iCal|downloadIcs|ical" "Schedule iCal export"
 check_contains "apps/web/app/student/profile/page.tsx" "sis_goal|学习目标" "Student goal in profile"
 check_contains "apps/web/app/admin/enrollments/page.tsx" "Force Drop|forceDrop" "Force drop in admin enrollments"
 check_contains "apps/api/prisma/schema.prisma" "FacultyProfile|AdvisorProfile|AdvisorAssignment|AdvisorNote" "Faculty and advisor actor models in schema"
