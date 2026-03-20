@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
@@ -324,13 +323,6 @@ export default function StudentProfilePage() {
   const [enrolledCredits, setEnrolledCredits] = useState(0);
   const [currentGpa, setCurrentGpa] = useState<number | null>(null);
   const [summaryError, setSummaryError] = useState("");
-  const [goal, setGoal] = useState("");
-  const [goalDraft, setGoalDraft] = useState("");
-  const [currentTermId, setCurrentTermId] = useState("current");
-  const [semesterNotes, setSemesterNotes] = useState("");
-  const [allowRecommendations, setAllowRecommendations] = useState(true);
-  const [receiveMailNotifications, setReceiveMailNotifications] = useState(true);
-
   useEffect(() => {
     apiFetch<ProfileResponse>("/students/me")
       .then((data) => {
@@ -348,25 +340,12 @@ export default function StudentProfilePage() {
   }, []);
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem("sis_goal") || "";
-      setGoal(saved);
-      setGoalDraft(saved);
-    } catch {
-      setGoal("");
-      setGoalDraft("");
-    }
-  }, []);
-
-  useEffect(() => {
     let alive = true;
     void Promise.all([apiFetch<TranscriptTerm[]>("/students/transcript"), apiFetch<EnrollmentRow[]>("/registration/enrollments")])
       .then(([transcriptTerms, enrollments]) => {
         if (!alive) return;
 
         setSummaryError("");
-        setCurrentTermId(transcriptTerms[0]?.termId ?? "current");
-
         const transcript = transcriptTerms.flatMap((term) => term.enrollments ?? []);
 
         const gradePoints: Record<string, number> = {
@@ -412,27 +391,6 @@ export default function StudentProfilePage() {
       alive = false;
     };
   }, []);
-
-  useEffect(() => {
-    try {
-      const recommendations = window.localStorage.getItem("sis_privacy_allow_recommendations");
-      const mail = window.localStorage.getItem("sis_privacy_email_notifications");
-      setAllowRecommendations(recommendations !== "false");
-      setReceiveMailNotifications(mail !== "false");
-    } catch {
-      setAllowRecommendations(true);
-      setReceiveMailNotifications(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      const key = `sis_semester_notes_${currentTermId}`;
-      setSemesterNotes(window.localStorage.getItem(key) ?? "");
-    } catch {
-      setSemesterNotes("");
-    }
-  }, [currentTermId]);
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -497,35 +455,6 @@ export default function StudentProfilePage() {
           ? "text-red-600 bg-red-50 border-red-200"
           : "text-slate-600 bg-slate-50 border-slate-200";
   const completeness = useMemo(() => buildCompleteness(form), [form]);
-  const saveGoal = () => {
-    const next = goalDraft.trim();
-    setGoal(next);
-    try {
-      window.localStorage.setItem("sis_goal", next);
-    } catch {
-      // Ignore storage errors and keep UI usable.
-    }
-  };
-  const saveSemesterNotes = (next: string) => {
-    setSemesterNotes(next);
-    try {
-      window.localStorage.setItem(`sis_semester_notes_${currentTermId}`, next);
-    } catch {
-      // ignore storage failures
-    }
-  };
-  const updatePrivacy = (key: "recommendations" | "email", value: boolean) => {
-    if (key === "recommendations") setAllowRecommendations(value);
-    if (key === "email") setReceiveMailNotifications(value);
-    try {
-      window.localStorage.setItem(
-        key === "recommendations" ? "sis_privacy_allow_recommendations" : "sis_privacy_email_notifications",
-        String(value)
-      );
-    } catch {
-      // ignore storage failures
-    }
-  };
 
   return (
     <div className="campus-page">
@@ -717,153 +646,7 @@ export default function StudentProfilePage() {
               </div>
             </section>
 
-            <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold text-slate-700">学习目标</h3>
-              <p className="mt-1 text-xs text-slate-500">设置本学期的学业目标，随时可见。</p>
-              <textarea
-                value={goalDraft}
-                onChange={(event) => setGoalDraft(event.target.value)}
-                rows={3}
-                className="campus-input mt-3 w-full"
-                placeholder="例如：本学期维持 3.5 GPA"
-              />
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <p className="text-xs text-slate-500">{goal ? `当前目标：${goal}` : "尚未设置目标。"}</p>
-                <button
-                  type="button"
-                  onClick={saveGoal}
-                  className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  保存目标
-                </button>
-              </div>
-            </section>
-
-            <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold text-slate-700">学期总结</h3>
-              <p className="mt-1 text-xs text-slate-500">本学期笔记，仅保存在本地浏览器中。</p>
-              <textarea
-                value={semesterNotes}
-                onChange={(event) => saveSemesterNotes(event.target.value.slice(0, 500))}
-                rows={4}
-                className="campus-input mt-3 w-full"
-                placeholder="记录本学期的反思、计划和关键事项"
-              />
-              <div className="mt-1 text-right text-[11px] text-slate-400">{semesterNotes.length}/500</div>
-            </section>
-
-            <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold text-slate-700">隐私设置</h3>
-              <div className="mt-3 space-y-3 text-sm">
-                <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2">
-                  <span>允许推荐课程</span>
-                  <input
-                    type="checkbox"
-                    checked={allowRecommendations}
-                    onChange={(event) => updatePrivacy("recommendations", event.target.checked)}
-                    className="size-4 accent-slate-900"
-                  />
-                </label>
-                <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2">
-                  <span>接收邮件通知</span>
-                  <input
-                    type="checkbox"
-                    checked={receiveMailNotifications}
-                    onChange={(event) => updatePrivacy("email", event.target.checked)}
-                    className="size-4 accent-slate-900"
-                  />
-                </label>
-                <p className="text-xs text-slate-500">当前仅保存在本地浏览器中，用于控制推荐与通知偏好。</p>
-              </div>
-            </section>
-
-            <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold text-slate-700">档案完整度检查</h3>
-              <div className="mt-2 space-y-2 text-sm">
-                {[
-                  { label: "法定姓名", done: Boolean(form.legalName), required: true },
-                  { label: "出生日期", done: Boolean(form.dob), required: false },
-                  { label: "家庭住址", done: Boolean(form.address), required: false },
-                  { label: "紧急联系人", done: Boolean(form.emergencyContact), required: false }
-                ].map(({ label, done, required }) => (
-                  <div
-                    key={label}
-                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${
-                      done
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : required
-                          ? "border-red-200 bg-red-50 text-red-700"
-                          : "border-amber-200 bg-amber-50 text-amber-700"
-                    }`}
-                  >
-                    <span className="text-base leading-none">{done ? "✓" : required ? "!" : "○"}</span>
-                    <span>{label} — {done ? "已填写" : required ? "必填" : "建议填写"}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-
             <ChangePasswordCard />
-
-            <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold text-slate-700">快捷链接</h3>
-              <div className="mt-2 space-y-1.5">
-                {[
-                  { href: "/student/dashboard",    label: "概览" },
-                  { href: "/student/schedule",     label: "课程表" },
-                  { href: "/student/grades",       label: "成绩" },
-                  { href: "/student/catalog",      label: "课程目录" },
-                  { href: "/student/cart",         label: "选课购物车" },
-                  { href: "/student/notifications",label: "我的通知" },
-                  { href: "/student/enrollment-log", label: "选课记录" },
-                  { href: "/student/receipt",      label: "注册确认书" },
-                ].map(({ href, label }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 no-underline transition hover:bg-slate-100 hover:text-slate-900"
-                  >
-                    {label}
-                    <span className="text-slate-400">→</span>
-                  </Link>
-                ))}
-              </div>
-            </section>
-
-            <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold text-slate-700">学习工具箱</h3>
-              <div className="mt-2 space-y-1.5">
-                {[
-                  { href: "/student/grade-estimator",     label: "成绩估算器" },
-                  { href: "/student/gpa-goal",            label: "GPA 目标追踪" },
-                  { href: "/student/what-if",             label: "GPA 假设模拟" },
-                  { href: "/student/graduation-checklist",label: "毕业条件核查" },
-                  { href: "/student/degree-audit",        label: "毕业进度" },
-                  { href: "/student/credit-summary",      label: "学分总览" },
-                  { href: "/student/peer-compare",        label: "同伴 GPA 对比" },
-                  { href: "/student/recommendations",     label: "课程推荐" },
-                  { href: "/student/conflicts",           label: "时间冲突检测" },
-                  { href: "/student/study-timer",         label: "学习计时器" },
-                  { href: "/student/my-notes",            label: "我的笔记" },
-                  { href: "/student/quick-add",           label: "快速选课" },
-                  { href: "/student/enrollment-timeline", label: "注册时线" },
-                  { href: "/student/planner",             label: "选课规划" },
-                  { href: "/student/watchlist",           label: "课程订阅" },
-                  { href: "/student/my-ratings",          label: "我的评价" },
-                  { href: "/student/term-compare",        label: "学期对比" },
-                  { href: "/student/honors",              label: "荣誉成就" },
-                ].map(({ href, label }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 no-underline transition hover:bg-slate-100 hover:text-slate-900"
-                  >
-                    {label}
-                    <span className="text-slate-400">→</span>
-                  </Link>
-                ))}
-              </div>
-            </section>
 
             <section className="campus-card p-4">
               <h3 className="text-sm font-semibold text-slate-700">教务处说明</h3>

@@ -66,7 +66,7 @@ export default function PinnedAnnouncements({ announcements }: { announcements: 
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={tone.badge}>{tone.label}</span>
                   <span className="text-xs text-slate-500">
-                    {announcement.expiresAt ? `有效至 ${new Date(announcement.expiresAt).toLocaleDateString()}` : "最新公告"}
+                    {announcement.expiresAt ? `有效至 ${new Date(announcement.expiresAt).toLocaleDateString("zh-CN")}` : "最新公告"}
                   </span>
                 </div>
                 <p className="mt-2 text-sm font-semibold text-slate-900">{announcement.title}</p>
