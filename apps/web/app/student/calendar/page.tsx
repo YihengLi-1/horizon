@@ -65,7 +65,7 @@ export default function StudentCalendarPage() {
   useEffect(() => {
     void apiFetch<Term[]>("/academics/terms")
       .then((d) => setTerms(d ?? []))
-      .catch(() => {});
+      .catch((err) => setError(err instanceof Error ? err.message : "学期列表加载失败"));
   }, []);
 
   useEffect(() => {

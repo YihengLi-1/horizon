@@ -37,7 +37,8 @@ export default function RegistrationHeatmapPage() {
   const [tooltip, setTooltip] = useState<{ day: string; hour: number; count: number } | null>(null);
 
   useEffect(() => {
-    void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? [])).catch(() => {});
+    void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? []))
+      .catch((err) => setError(err instanceof Error ? err.message : "学期列表加载失败"));
   }, []);
 
   useEffect(() => {

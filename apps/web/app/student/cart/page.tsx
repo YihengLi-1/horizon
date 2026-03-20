@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Fragment } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Printer, Share2, ShoppingCart } from "lucide-react";
+import { CalendarDays, CheckCircle2, Printer, ShoppingCart } from "lucide-react";
 import { RegistrationStepper } from "@/components/registration-stepper";
 import { useToast } from "@/components/Toast";
 import { ApiError, apiFetch } from "@/lib/api";
@@ -1765,7 +1765,7 @@ export default function StudentCartPage() {
                     {removingItemId === item.id ? (
                       <>
                         <span className="size-4 animate-spin rounded-full border-2 border-red-200 border-t-red-700" />
-                        Removing…
+                        移除中…
                       </>
                     ) : (
                       "移除"
@@ -1874,7 +1874,7 @@ export default function StudentCartPage() {
                           {removingItemId === item.id ? (
                             <>
                               <span className="size-3 animate-spin rounded-full border border-red-200 border-t-red-700" />
-                              Removing…
+                              移除中…
                             </>
                           ) : (
                             "移除"
@@ -2058,7 +2058,7 @@ export default function StudentCartPage() {
                 href={termId ? `/student/schedule?termId=${termId}` : "/student/schedule"}
                 className="inline-flex h-9 items-center gap-2 rounded-lg border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-700 no-underline transition hover:bg-emerald-50"
               >
-                <Share2 className="size-4" />
+                <CalendarDays className="size-4" />
                 查看课表
               </Link>
             </div>

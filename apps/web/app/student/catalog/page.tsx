@@ -803,7 +803,7 @@ export default function StudentCatalogPage() {
       });
       const successMessage = getRemainingSeats(section) <= 0
         ? `${section.course.code} §${section.sectionCode} 已加入购物车，提交时会按候补流程处理。`
-        : `${section.course.code} §${section.sectionCode} added to cart.`;
+        : `${section.course.code} §${section.sectionCode} 已加入购物车。`;
       setNotice(successMessage);
       if (getRemainingSeats(section) <= 0) {
         toast.info("该教学班当前已满，提交购物车后将按候补处理。");
@@ -831,7 +831,7 @@ export default function StudentCatalogPage() {
       setError("");
       setRemovingSectionId(section.id);
       await apiFetch(`/registration/cart/${cartItem.id}`, { method: "DELETE" });
-      setNotice(`${section.course.code} §${section.sectionCode} removed from cart.`);
+      setNotice(`${section.course.code} §${section.sectionCode} 已从购物车移除。`);
       await Promise.all([loadCart(termId), loadSections(termId), loadEnrollments(termId)]);
     } catch (err) {
       const message = err instanceof Error ? err.message : "从购物车移除失败";

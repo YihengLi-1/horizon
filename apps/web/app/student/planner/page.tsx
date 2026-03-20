@@ -113,7 +113,8 @@ export default function PlannerPage() {
   }, []);
 
   useEffect(() => {
-    void apiFetch<Term[]>("/academics/terms").then(setTerms).catch(() => setTerms([]));
+    void apiFetch<Term[]>("/academics/terms").then(setTerms)
+      .catch((err) => toast.error(err instanceof Error ? err.message : "学期列表加载失败"));
   }, []);
 
   const uniqueCourseCodes = useMemo(
@@ -218,7 +219,12 @@ export default function PlannerPage() {
                 return;
               }
               setLoading(true);
-              const data = await apiFetch<Section[]>(`/academics/sections?termId=${nextTermId}`).catch(() => []);
+              let data: Section[] = [];
+              try {
+                data = await apiFetch<Section[]>(`/academics/sections?termId=${nextTermId}`);
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : "班级列表加载失败");
+              }
               setAllSections(data);
               setLoading(false);
             }}

@@ -97,7 +97,7 @@ export default function AdminHoldsClient() {
       setLoading(true);
       setError("");
       const data = await apiFetch<HoldRecord[]>("/admin/holds");
-      setHolds(data);
+      setHolds(data ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "限制记录加载失败");
     } finally {

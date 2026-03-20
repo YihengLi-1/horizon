@@ -37,14 +37,15 @@ export default function GradeCurvePage() {
   const [success, setSuccess] = useState("");
 
   useEffect(() => {
-    void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? [])).catch(() => {});
+    void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? []))
+      .catch((err) => setError(err instanceof Error ? err.message : "学期列表加载失败"));
   }, []);
 
   useEffect(() => {
     if (!termId) { setSections([]); setSectionId(""); return; }
     void apiFetch<Section[]>(`/admin/sections?termId=${termId}&limit=200`)
       .then((d) => setSections(d ?? []))
-      .catch(() => setSections([]));
+      .catch((err) => setError(err instanceof Error ? err.message : "班级列表加载失败"));
   }, [termId]);
 
   async function fetchPreview() {

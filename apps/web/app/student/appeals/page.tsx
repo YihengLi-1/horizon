@@ -62,6 +62,7 @@ export default function GradeAppealsPage() {
     reason: ""
   });
   const [formError, setFormError] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -69,11 +70,11 @@ export default function GradeAppealsPage() {
         apiFetch<GradeAppeal[]>("/students/appeals"),
         apiFetch<GradeEnrollment[]>("/registration/grades")
       ]);
-      setAppeals(appealsData);
+      setAppeals(appealsData ?? []);
       // Only enrollments with a final grade can be appealed
-      setGrades(gradesData.filter((g) => g.finalGrade && g.status === "COMPLETED"));
-    } catch {
-      /* ignore */
+      setGrades((gradesData ?? []).filter((g) => g.finalGrade && g.status === "COMPLETED"));
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "数据加载失败");
     } finally {
       setLoading(false);
     }
@@ -125,6 +126,10 @@ export default function GradeAppealsPage() {
         <h1 className="campus-title">成绩申诉</h1>
         <p className="campus-subtitle">如对期末成绩有异议，请提交申诉，管理员将在 5 个工作日内审核。</p>
       </section>
+
+      {loadError ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</div>
+      ) : null}
 
       {!loading && appeals.length > 0 && (
         <div className="grid grid-cols-3 gap-4">

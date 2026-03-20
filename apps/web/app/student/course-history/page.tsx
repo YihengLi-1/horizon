@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
@@ -112,16 +113,16 @@ export default function CourseHistoryPage() {
   return (
     <div className="campus-page space-y-6">
       {/* Tab nav */}
-      <div className="flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
-        <a href="/student/grades" className="flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-slate-500 no-underline transition hover:bg-white hover:text-slate-900">
+      <div className="no-print flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+        <Link href="/student/grades" className="flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-slate-500 no-underline transition hover:bg-white hover:text-slate-900">
           成绩
-        </a>
+        </Link>
         <span className="flex-1 rounded-lg bg-white px-4 py-2 text-center text-sm font-semibold text-slate-900 shadow-sm">
           修课历史
         </span>
-        <a href="/student/transcript" className="flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-slate-500 no-underline transition hover:bg-white hover:text-slate-900">
+        <Link href="/student/transcript" className="flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-slate-500 no-underline transition hover:bg-white hover:text-slate-900">
           成绩单
-        </a>
+        </Link>
       </div>
 
       <section className="campus-hero">

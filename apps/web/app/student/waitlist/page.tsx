@@ -56,15 +56,17 @@ function PositionBadge({ position, queueSize }: { position: number | null; queue
 export default function WaitlistPage() {
   const [entries, setEntries] = useState<WaitlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [lastRefreshedLabel, setLastRefreshedLabel] = useState("—");
 
   const load = useCallback(async () => {
+    setError("");
     try {
       const data = await apiFetch<WaitlistEntry[]>("/registration/my-waitlist");
       setEntries(data);
       setLastRefreshedLabel(new Date().toLocaleTimeString());
-    } catch {
-      setEntries([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "候补名单加载失败");
     } finally {
       setLoading(false);
     }
@@ -105,6 +107,10 @@ export default function WaitlistPage() {
           🔄 立即刷新
         </button>
       </div>
+
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : null}
 
       {loading ? (
         <div className="campus-card px-6 py-14 text-center">

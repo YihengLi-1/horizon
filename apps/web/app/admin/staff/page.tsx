@@ -93,7 +93,7 @@ export default function StaffPage() {
   useEffect(() => {
     setLoading(true);
     Promise.all([loadFaculty(), loadAdvisors(), loadStudents()])
-      .catch(() => {})
+      .catch((err) => toast(err instanceof Error ? err.message : "数据加载失败", "error"))
       .finally(() => setLoading(false));
   }, []);
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
@@ -147,7 +148,7 @@ export default function QuickAddPage() {
           <p className="text-4xl mb-3">🛒</p>
           <p className="text-sm font-semibold text-slate-600">购物车为空</p>
           <p className="mt-1 text-xs text-slate-400">
-            请先前往<a href="/student/catalog" className="text-[hsl(221_83%_43%)] hover:underline mx-1">课程目录</a>添加课程到购物车
+            请先前往<Link href="/student/catalog" className="text-[hsl(221_83%_43%)] hover:underline mx-1">课程目录</Link>添加课程到购物车
           </p>
         </div>
       ) : (

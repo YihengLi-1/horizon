@@ -342,8 +342,10 @@ export default function AdminSectionsPage() {
 
   useEffect(() => {
     void loadSections();
-    void apiFetch<Term[]>("/admin/terms").then(setTerms).catch(() => {});
-    void apiFetch<Course[]>("/admin/courses").then(setCourses).catch(() => {});
+    void apiFetch<Term[]>("/admin/terms").then(setTerms)
+      .catch((err) => setPageError(err instanceof Error ? err.message : "学期列表加载失败"));
+    void apiFetch<Course[]>("/admin/courses").then(setCourses)
+      .catch((err) => setPageError(err instanceof Error ? err.message : "课程列表加载失败"));
   }, []);
 
   const timeToMinutes = (hhmm: string): number => {

@@ -54,7 +54,7 @@ export default function ReportsSummaryPage() {
   useEffect(() => {
     void apiFetch<Term[]>("/admin/terms")
       .then((d) => setTerms(d ?? []))
-      .catch(() => {});
+      .catch((err) => setError(err instanceof Error ? err.message : "学期列表加载失败"));
   }, []);
 
   const load = useCallback(async (tid: string) => {
