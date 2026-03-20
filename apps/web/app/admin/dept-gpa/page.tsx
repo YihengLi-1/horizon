@@ -38,7 +38,8 @@ export default function DeptGpaPage() {
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? [])).catch(() => {});
+    void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? []))
+      .catch((err) => setError(err instanceof Error ? err.message : "学期列表加载失败"));
   }, []);
 
   useEffect(() => {
@@ -116,7 +117,7 @@ export default function DeptGpaPage() {
         <div className="campus-kpi">
           <p className="campus-kpi-label">最高 GPA 院系</p>
           <p className="campus-kpi-value text-sm">
-            {rows.sort((a, b) => (b.latestGpa ?? 0) - (a.latestGpa ?? 0))[0]?.dept ?? "—"}
+            {rows.slice().sort((a, b) => (b.latestGpa ?? 0) - (a.latestGpa ?? 0))[0]?.dept ?? "—"}
           </p>
         </div>
       </section>

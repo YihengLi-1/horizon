@@ -688,7 +688,7 @@ export class RegistrationService {
 
       const startProxy = section.startDate ?? term.startDate;
       if (now >= startProxy) {
-        pushIssue("SECTION_ALREADY_STARTED", "Cannot self-add after section start");
+        pushIssue("SECTION_ALREADY_STARTED", "课程已开课，无法自行选课");
         continue;
       }
 

@@ -42,7 +42,8 @@ export default function DemandReportPage() {
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? [])).catch(() => {});
+    void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? []))
+      .catch((err) => setError(err instanceof Error ? err.message : "学期列表加载失败"));
   }, []);
 
   useEffect(() => {
@@ -273,8 +274,12 @@ export default function DemandReportPage() {
                             style={{ width: `${Math.min(100, row.utilizationPct ?? 0)}%` }}
                           />
                         </div>
-                        <span className="text-xs text-slate-600 w-9 text-right">
-                          {row.utilizationPct !== null ? `${row.utilizationPct}%` : "—"}
+                        <span className="text-xs text-slate-600 w-10 text-right">
+                          {row.utilizationPct !== null
+                            ? row.utilizationPct > 100
+                              ? `${row.utilizationPct}%↑`
+                              : `${row.utilizationPct}%`
+                            : "—"}
                         </span>
                       </div>
                     </td>

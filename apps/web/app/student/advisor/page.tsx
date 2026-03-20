@@ -57,15 +57,16 @@ function timeAgo(dateStr: string): string {
 export default function MyAdvisorPage() {
   const [data, setData]       = useState<AdvisorData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState("");
 
   useEffect(() => {
     void apiFetch<AdvisorData>("/students/my-advisor")
       .then((d) => setData(d))
-      .catch(() => setData({ assignments: [], advisorNotes: [] }))
+      .catch((err) => setError(err instanceof Error ? err.message : "顾问信息加载失败"))
       .finally(() => setLoading(false));
   }, []);
 
-  const advisor = data?.assignments?.[0]?.advisor ?? null;
+  const advisor = data?.assignments?.find((a) => a.active)?.advisor ?? data?.assignments?.[0]?.advisor ?? null;
   const profile = advisor?.advisorProfile ?? null;
 
   return (
@@ -75,6 +76,10 @@ export default function MyAdvisorPage() {
         <h1 className="campus-title">我的学术顾问</h1>
         <p className="campus-subtitle">查看已分配的学术顾问信息及顾问留言</p>
       </section>
+
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : null}
 
       {loading ? (
         <div className="campus-card px-6 py-14 text-center">

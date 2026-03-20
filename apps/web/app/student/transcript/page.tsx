@@ -124,6 +124,7 @@ const STATUS_LABEL: Record<string, string> = {
 export default function TranscriptPage() {
   const [allEnrollments, setAllEnrollments] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [showAll, setShowAll] = useState(true);
   const [filterStatus, setFilterStatus] = useState("all");
   const generatedAt = new Intl.DateTimeFormat(undefined, {
@@ -135,7 +136,7 @@ export default function TranscriptPage() {
     // /registration/enrollments (no termId) returns all enrollments across terms
     void apiFetch<Enrollment[]>("/registration/enrollments")
       .then((data) => setAllEnrollments(data ?? []))
-      .catch(() => setAllEnrollments([]))
+      .catch((err) => setError(err instanceof Error ? err.message : "成绩记录加载失败"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -176,12 +177,12 @@ export default function TranscriptPage() {
     <div className="campus-page space-y-6">
       {/* Tab nav */}
       <div className="no-print flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
-        <a href="/student/grades" className="flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-slate-500 no-underline transition hover:bg-white hover:text-slate-900">
+        <Link href="/student/grades" className="flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-slate-500 no-underline transition hover:bg-white hover:text-slate-900">
           成绩
-        </a>
-        <a href="/student/course-history" className="flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-slate-500 no-underline transition hover:bg-white hover:text-slate-900">
+        </Link>
+        <Link href="/student/course-history" className="flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-slate-500 no-underline transition hover:bg-white hover:text-slate-900">
           修课历史
-        </a>
+        </Link>
         <span className="flex-1 rounded-lg bg-white px-4 py-2 text-center text-sm font-semibold text-slate-900 shadow-sm">
           成绩单
         </span>
@@ -279,6 +280,10 @@ export default function TranscriptPage() {
           显示退课/购物车记录
         </label>
       </div>
+
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : null}
 
       {/* Grouped by term */}
       {loading ? (

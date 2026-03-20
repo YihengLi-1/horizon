@@ -73,7 +73,7 @@ export default function SectionRosterPage() {
   useEffect(() => {
     void apiFetch<SectionSummary[]>("/admin/sections")
       .then((d) => setSections(d ?? []))
-      .catch(() => {})
+      .catch((err) => setError(err instanceof Error ? err.message : "教学班列表加载失败"))
       .finally(() => setSectionsLoading(false));
   }, []);
 

@@ -251,7 +251,7 @@ export default async function GradesPage({
   return (
     <div className="campus-page">
       {/* Tab nav */}
-      <div className="mb-6 flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+      <div className="no-print mb-6 flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
         <span className="flex-1 rounded-lg bg-white px-4 py-2 text-center text-sm font-semibold text-slate-900 shadow-sm">
           成绩
         </span>

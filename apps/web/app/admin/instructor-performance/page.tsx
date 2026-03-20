@@ -31,7 +31,7 @@ export default function InstructorPerformancePage() {
   useEffect(() => {
     void apiFetch<Term[]>("/admin/terms")
       .then((data) => setTerms(data ?? []))
-      .catch(() => {});
+      .catch((err) => setError(err instanceof Error ? err.message : "学期列表加载失败"));
   }, []);
 
   useEffect(() => {

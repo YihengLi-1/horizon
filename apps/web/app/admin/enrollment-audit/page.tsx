@@ -46,6 +46,7 @@ export default function EnrollmentAuditPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [data, setData] = useState<AuditData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -63,18 +64,19 @@ export default function EnrollmentAuditPage() {
   useEffect(() => {
     void apiFetch<Term[]>("/academics/terms")
       .then((d) => setTerms((d ?? []).sort((a, b) => b.name.localeCompare(a.name))))
-      .catch(() => {});
+      .catch((err) => setError(err instanceof Error ? err.message : "学期列表加载失败"));
   }, []);
 
   useEffect(() => {
     setLoading(true);
     setData(null);
+    setError("");
     const params = new URLSearchParams();
     if (termId) params.set("termId", termId);
     if (statusFilter) params.set("status", statusFilter);
     void apiFetch<AuditData>(`/admin/enrollment-audit?${params}`)
       .then((d) => setData(d))
-      .catch(() => {})
+      .catch((err) => setError(err instanceof Error ? err.message : "注册审计数据加载失败"))
       .finally(() => setLoading(false));
   }, [termId, statusFilter]);
 
@@ -166,6 +168,10 @@ export default function EnrollmentAuditPage() {
           ))}
         </div>
       )}
+
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : null}
 
       {loading ? (
         <div className="campus-card px-6 py-14 text-center text-sm text-slate-500">⏳ 加载中…</div>

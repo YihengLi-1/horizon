@@ -24,7 +24,8 @@ export default function DeptWorkloadPage() {
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? [])).catch(() => {});
+    void apiFetch<Term[]>("/admin/terms").then((d) => setTerms(d ?? []))
+      .catch((err) => setError(err instanceof Error ? err.message : "学期列表加载失败"));
   }, []);
 
   useEffect(() => {

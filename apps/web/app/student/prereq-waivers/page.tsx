@@ -61,13 +61,14 @@ export default function StudentPrereqWaiversPage() {
 
   useEffect(() => {
     void apiFetch<Term[]>("/academics/terms")
-      .catch(() => [])
+      .catch((err) => { setError(err instanceof Error ? err.message : "学期列表加载失败"); return [] as Term[]; })
       .then(async (termData) => {
       setTerms(termData ?? []);
       const firstTermId = termData?.[0]?.id ?? "";
       setTermId(firstTermId);
       if (firstTermId) {
-        const sectionData = await apiFetch<SectionOption[]>(`/academics/sections?termId=${firstTermId}`).catch(() => []);
+        const sectionData = await apiFetch<SectionOption[]>(`/academics/sections?termId=${firstTermId}`)
+          .catch((err) => { setError(err instanceof Error ? err.message : "班级列表加载失败"); return [] as SectionOption[]; });
         setSections(sectionData ?? []);
       }
       await loadRequests(firstTermId);
@@ -78,7 +79,7 @@ export default function StudentPrereqWaiversPage() {
     if (!termId) return;
     void apiFetch<SectionOption[]>(`/academics/sections?termId=${termId}`)
       .then((data) => setSections(data ?? []))
-      .catch(() => setSections([]));
+      .catch((err) => { setSections([]); setError(err instanceof Error ? err.message : "班级列表加载失败"); });
     void loadRequests(termId);
   }, [termId]);
 
