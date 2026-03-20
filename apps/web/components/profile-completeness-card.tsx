@@ -49,6 +49,8 @@ export default function ProfileCompletenessCard({
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - Math.min(100, Math.max(0, score)) / 100);
   const palette = tone(score);
+  const isComplete = missing.length === 0;
+  const filledCount = fields.filter((field) => field.filled).length;
 
   return (
     <section className="campus-card p-5">
@@ -60,8 +62,8 @@ export default function ProfileCompletenessCard({
         <span className={palette.chip}>{palette.label}</span>
       </div>
 
-      <div className="mt-5 flex flex-col gap-5 md:flex-row md:items-center">
-        <div className="relative flex h-28 w-28 shrink-0 items-center justify-center">
+      <div className={`mt-5 flex gap-5 ${isComplete ? "items-center" : "flex-col md:flex-row md:items-start"}`}>
+        <div className="relative flex h-24 w-24 shrink-0 items-center justify-center">
           <svg viewBox="0 0 120 120" className="h-28 w-28 -rotate-90">
             <circle cx="60" cy="60" r={radius} stroke="hsl(221 20% 92%)" strokeWidth="10" fill="none" />
             <circle
@@ -84,32 +86,42 @@ export default function ProfileCompletenessCard({
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="grid gap-2">
-            {fields.map((field) => (
-              <div
-                key={field.name}
-                className={`flex items-center justify-between rounded-xl border px-3 py-2 text-sm ${
-                  field.filled
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-amber-200 bg-amber-50 text-amber-700"
-                }`}
-              >
-                <span>{field.label}</span>
-                <span className="font-medium">{field.filled ? "已填写" : "待补充"}</span>
+          {isComplete ? (
+            <div className="space-y-3">
+              <p className="text-sm text-slate-700">5 项关键信息均已完善，后续注册、通知与学籍流程将直接使用当前资料。</p>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                <span className="campus-chip chip-emerald">资料已可直接使用</span>
+                <span>如需变更联系方式或紧急联系人，可随时回到档案页更新。</span>
               </div>
-            ))}
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-slate-500">
-              {missing.length > 0 ? `仍缺少：${missing.join("、")}` : "档案信息已经完整，可直接用于演示与管理。"}
-            </p>
-            {missing.length > 0 ? (
-              <Link href={href} className="text-sm font-semibold text-primary no-underline hover:text-primary/80">
-                去填写
+              <Link href={href} className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50">
+                查看档案
               </Link>
-            ) : null}
-          </div>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-slate-600">
+                已完成 {filledCount}/{fields.length} 项，仍缺少：{missing.join("、")}
+              </p>
+              <div className="mt-3 grid gap-2">
+                {fields
+                  .filter((field) => !field.filled)
+                  .map((field) => (
+                    <div
+                      key={field.name}
+                      className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+                    >
+                      <span>{field.label}</span>
+                      <span className="font-medium">待补充</span>
+                    </div>
+                  ))}
+              </div>
+              <div className="mt-4">
+                <Link href={href} className="inline-flex h-9 items-center rounded-lg bg-primary px-3 text-sm font-semibold text-white no-underline transition hover:bg-primary/90">
+                  去填写
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </section>

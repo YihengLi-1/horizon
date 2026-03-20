@@ -128,14 +128,6 @@ function enrollmentStatusChip(status: string): string {
   return "inline-flex rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700";
 }
 
-type ActionItem = {
-  title: string;
-  description: string;
-  href: string;
-  cta: string;
-  tone: "blue" | "emerald" | "amber";
-};
-
 type StudentAlert = {
   level: "critical" | "warning" | "info";
   title: string;
@@ -143,12 +135,6 @@ type StudentAlert = {
   href: string;
   cta: string;
 };
-
-function chipTone(tone: ActionItem["tone"]): string {
-  if (tone === "emerald") return "campus-chip chip-emerald";
-  if (tone === "amber") return "campus-chip chip-amber";
-  return "campus-chip chip-blue";
-}
 
 function alertTone(level: StudentAlert["level"]): string {
   if (level === "critical") return "border-red-200 bg-red-50 text-red-900";
@@ -163,18 +149,18 @@ function alertBadge(level: StudentAlert["level"]): string {
 }
 
 function fmtDateTime(value: string): string {
-  const d   = new Date(value);
+  const d = new Date(value);
   const now = new Date();
   const daysDiff = Math.round(
     (new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() -
      new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) /
     86_400_000
   );
-  const timeStr = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  if (daysDiff === 0)  return `今天 ${timeStr}`;
-  if (daysDiff === 1)  return `明天 ${timeStr}`;
+  const timeStr = d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
+  if (daysDiff === 0) return `今天 ${timeStr}`;
+  if (daysDiff === 1) return `明天 ${timeStr}`;
   if (daysDiff === -1) return `昨天 ${timeStr}`;
-  return `${d.toLocaleDateString()} ${timeStr}`;
+  return `${d.toLocaleDateString("zh-CN")} ${timeStr}`;
 }
 
 function issueGuidance(reasonCode: string): string {
@@ -295,82 +281,6 @@ export default async function StudentDashboardPage() {
   const dropDaysLeft = term ? Math.ceil((new Date(term.dropDeadline).getTime() - now) / (24 * 60 * 60 * 1000)) : null;
   const creditsRemaining = term ? Math.max(0, term.maxCredits - enrolledCredits) : 0;
   const creditPct = term && term.maxCredits > 0 ? Math.min(100, Math.round((enrolledCredits / term.maxCredits) * 100)) : 0;
-
-  const actionItems: ActionItem[] = [];
-
-  if (!term) {
-    actionItems.push({
-      title: "暂未配置活跃学期",
-      description: "当前还没有可用学期，暂时无法进行选课或课表规划。",
-      href: "/student/profile",
-      cta: "打开资料",
-      tone: "amber"
-    });
-  } else if (registrationState === "PRE_OPEN") {
-    actionItems.push({
-      title: "选课尚未开放",
-      description: `${fmtDateTime(term.registrationOpenAt)} 开放，建议先整理购物车。`,
-      href: `/student/catalog?termId=${term.id}`,
-      cta: "查看课程目录",
-      tone: "blue"
-    });
-  } else if (registrationState === "OPEN") {
-    actionItems.push({
-      title: "当前正在选课",
-      description: `可在 ${fmtDateTime(term.registrationCloseAt)} 前提交本学期选课。`,
-      href: `/student/cart?termId=${term.id}`,
-      cta: "打开购物车",
-      tone: "emerald"
-    });
-  } else {
-    actionItems.push({
-      title: "选课已结束",
-      description: "当前可以继续查看课表和历史成绩记录。",
-      href: term ? `/student/schedule?termId=${term.id}` : "/student/schedule",
-      cta: "查看课表",
-      tone: "amber"
-    });
-  }
-
-  if (term && registrationState === "OPEN" && creditsRemaining > 0) {
-    actionItems.push({
-      title: `还可添加 ${creditsRemaining} 学分`,
-      description: "在达到本学期学分上限前，仍可继续加入课程。",
-      href: `/student/catalog?termId=${term.id}`,
-      cta: "继续选课",
-      tone: "blue"
-    });
-  }
-
-  if (pendingApproval.length > 0) {
-    actionItems.push({
-      title: `${pendingApproval.length} 门课程待审批`,
-      description: "请留意课表中的审批结果和状态变化。",
-      href: term ? `/student/schedule?termId=${term.id}` : "/student/schedule",
-      cta: "查看状态",
-      tone: "blue"
-    });
-  }
-
-  if (waitlistedCount > 0) {
-    actionItems.push({
-      title: `${waitlistedCount} 门课程正在候补`,
-      description: "有空位释放时，系统会按顺序推进候补。",
-      href: term ? `/student/schedule?termId=${term.id}` : "/student/schedule",
-      cta: "查看候补",
-      tone: "amber"
-    });
-  }
-
-  if (actionItems.length === 0) {
-    actionItems.push({
-      title: "当前状态正常",
-      description: "可以继续查看个人资料和本学期课表。",
-      href: "/student/profile",
-      cta: "查看资料",
-      tone: "emerald"
-    });
-  }
 
   const issueCountByReason = new Map<string, number>();
   for (const issue of precheckIssues) {
@@ -586,7 +496,7 @@ export default async function StudentDashboardPage() {
               <div className="flex flex-wrap items-start justify-between gap-2 pl-2">
                 <div>
                   <p className="text-sm font-semibold">{alert.title}</p>
-                  <p className="mt-1 text-xs opacity-70">{new Date().toLocaleDateString()}</p>
+                  <p className="mt-1 text-xs opacity-70">{new Date().toLocaleDateString("zh-CN")}</p>
                   <p className="mt-1 text-sm opacity-90">{alert.description}</p>
                 </div>
                 <span className="rounded-full border border-current/30 bg-white/40 px-2 py-0.5 text-xs font-semibold">
@@ -647,39 +557,26 @@ export default async function StudentDashboardPage() {
 
             {term ? (
               <>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-[11px] font-semibold text-slate-500">注册开始</p>
-                  <p className="mt-1 text-slate-800">{fmtDateTime(term.registrationOpenAt)}</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                  <p className="text-[11px] font-semibold text-slate-500">注册窗口</p>
+                  <p className="mt-1 text-sm font-medium text-slate-800">{fmtDateTime(term.registrationOpenAt)}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">至 {fmtDateTime(term.registrationCloseAt)}</p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-[11px] font-semibold text-slate-500">注册截止</p>
-                  <p className="mt-1 text-slate-800">{fmtDateTime(term.registrationCloseAt)}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
                   <p className="text-[11px] font-semibold text-slate-500">退课截止</p>
-                  <p className="mt-1 text-slate-800">{fmtDateTime(term.dropDeadline)}</p>
+                  <p className="mt-1 text-sm font-medium text-slate-800">{fmtDateTime(term.dropDeadline)}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {dropDaysLeft !== null
+                      ? dropDaysLeft < 0
+                        ? `已截止 ${Math.abs(dropDaysLeft)} 天`
+                        : `还剩 ${dropDaysLeft} 天`
+                      : "请尽量在截止前完成调整"}
+                  </p>
                 </div>
               </>
             ) : (
               <p className="text-slate-500">暂无活跃学期。</p>
             )}
-
-            {actionItems.length > 0 ? (
-              <div className="space-y-2">
-                <p className="text-[11px] font-semibold text-slate-500">待处理事项</p>
-                {actionItems.slice(0, 2).map((item) => (
-                  <div key={item.title} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-slate-900">{item.title}</p>
-                    <span className={chipTone(item.tone)}>
-                      {item.tone === "emerald" ? "已就绪" : item.tone === "amber" ? "需关注" : "提示"}
-                    </span>
-                  </div>
-                    <p className="mt-1 text-sm text-slate-600">{item.description}</p>
-                  </div>
-                ))}
-              </div>
-            ) : null}
 
             {dropDaysLeft !== null ? (
               <p className={`rounded-xl border px-3 py-2 text-sm font-semibold ${dropDaysLeft < 0 ? "border-red-200 bg-red-50 text-red-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
@@ -796,47 +693,6 @@ export default async function StudentDashboardPage() {
               >
                 查看课表
               </Link>
-              <Link
-                href="/student/grades"
-                className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
-              >
-                查看成绩
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Toolbox quick-access */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold text-slate-700">学习工具箱</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {[
-                { href: "/student/quick-add",           label: "快速选课" },
-                { href: "/student/conflicts",           label: "冲突检测" },
-                { href: "/student/planner",             label: "选课规划" },
-                { href: "/student/watchlist",           label: "课程订阅" },
-                { href: "/student/recommendations",     label: "课程推荐" },
-                { href: "/student/graduation-checklist",label: "毕业核查" },
-                { href: "/student/credit-summary",      label: "学分总览" },
-                { href: "/student/enrollment-timeline", label: "注册记录" },
-                { href: "/student/what-if",             label: "GPA 模拟" },
-                { href: "/student/gpa-goal",            label: "GPA 目标" },
-                { href: "/student/peer-compare",        label: "同伴对比" },
-                { href: "/student/term-compare",        label: "学期对比" },
-                { href: "/student/my-ratings",          label: "我的评价" },
-                { href: "/student/honors",              label: "荣誉成就" },
-              ].map(({ href, label }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-2 py-2.5 text-center text-xs font-medium text-slate-700 no-underline transition hover:border-[hsl(221_83%_43%_/_0.3)] hover:bg-[hsl(221_80%_97%)] hover:text-[hsl(221_83%_43%)]"
-                >
-                  {label}
-                </Link>
-              ))}
             </div>
           </CardContent>
         </Card>
