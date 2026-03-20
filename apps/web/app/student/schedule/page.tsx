@@ -663,8 +663,8 @@ export default function SchedulePage() {
                         <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${statusBadge(enrollment.status)}`}>
                           {enrollmentStatusLabel(enrollment.status)}
                         </span>
-                        {enrollment.status === "WAITLISTED" && enrollment.waitlistPosition !== null && (
-                          <p className="mt-0.5 text-[10px] text-amber-700">#{enrollment.waitlistPosition} in queue</p>
+                        {enrollment.status === "WAITLISTED" && (
+                          <p className="mt-0.5 text-[10px] text-amber-700">候补处理中，结果将通过通知告知</p>
                         )}
                         {enrollment.status === "DROPPED" && enrollment.droppedAt ? (
                           <p className="mt-0.5 text-[10px] text-slate-500">退课于 {new Date(enrollment.droppedAt).toLocaleString()}</p>
@@ -762,8 +762,8 @@ export default function SchedulePage() {
                         <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadge(enrollment.status)}`}>
                           {enrollmentStatusLabel(enrollment.status)}
                         </span>
-                        {enrollment.status === "WAITLISTED" && enrollment.waitlistPosition !== null && (
-                          <p className="mt-0.5 text-[10px] text-amber-700">#{enrollment.waitlistPosition} in queue</p>
+                        {enrollment.status === "WAITLISTED" && (
+                          <p className="mt-0.5 text-[10px] text-amber-700">候补处理中，结果将通过通知告知</p>
                         )}
                         {enrollment.status === "DROPPED" && enrollment.droppedAt ? (
                           <p className="mt-0.5 text-[10px] text-slate-500">退课于 {new Date(enrollment.droppedAt).toLocaleString()}</p>

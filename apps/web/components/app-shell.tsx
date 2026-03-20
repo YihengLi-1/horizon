@@ -57,7 +57,6 @@ const studentItems: NavItem[] = [
   { href: "/student/catalog",              label: "课程目录", icon: <BookOpen className={iconClass} /> },
   { href: "/student/cart",                 label: "购物车",   icon: <ShoppingCart className={iconClass} /> },
   { href: "/student/schedule",             label: "我的课表", icon: <CalendarDays className={iconClass} /> },
-  { href: "/student/waitlist",             label: "候补名单", icon: <Clock className={iconClass} /> },
   // 学籍
   { href: "/student/grades",               label: "成绩",     icon: <GraduationCap className={iconClass} /> },
   { href: "/student/transcript",           label: "成绩单",   icon: <ScrollText className={iconClass} /> },
@@ -145,6 +144,7 @@ export function AppShell({
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [announcementCount, setAnnouncementCount] = useState(0);
   const navMeta = areaMeta[area];
+  const canUsePalette = area === "admin";
   const sidebarId = "sidebar";
   const currentNavItem = useMemo(() => {
     return [...navMeta.items]
@@ -168,14 +168,8 @@ export function AppShell({
   }, [currentNavItem, navMeta.label]);
   const userInitial = (userLabel.trim().slice(0, 1) || navMeta.label.slice(0, 1)).toUpperCase();
   const quickNavigation = useMemo(() => {
-    const merged = [...studentItems, ...adminItems];
-    const seen = new Set<string>();
-    return merged.filter((item) => {
-      if (seen.has(item.href)) return false;
-      seen.add(item.href);
-      return true;
-    }).map((item) => ({ href: item.href, label: item.label }));
-  }, []);
+    return navMeta.items.map((item) => ({ href: item.href, label: item.label }));
+  }, [navMeta.items]);
 
   const navGroups = useMemo(() => {
     const groups: NavGroup[] =
@@ -196,7 +190,7 @@ export function AppShell({
             ? [{ label: "顾问工作台", hrefs: ["/advisor/dashboard", "/advisor/advisees", "/advisor/requests"] }]
         : [
             { label: "概览", hrefs: ["/student/dashboard"] },
-            { label: "选课", hrefs: ["/student/catalog", "/student/cart", "/student/schedule", "/student/waitlist"] },
+            { label: "选课", hrefs: ["/student/catalog", "/student/cart", "/student/schedule"] },
             { label: "学籍", hrefs: ["/student/grades", "/student/transcript", "/student/degree-audit"] },
             { label: "账号", hrefs: ["/student/profile", "/student/advisor"] },
           ];
@@ -237,6 +231,11 @@ export function AppShell({
   }, [pathname]);
 
   useEffect(() => {
+    if (!canUsePalette) {
+      setIsPaletteOpen(false);
+      return;
+    }
+
     const onKeyDown = (event: KeyboardEvent) => {
       const isShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
       if (isShortcut) {
@@ -250,7 +249,7 @@ export function AppShell({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [canUsePalette]);
 
   useEffect(() => {
     if (area !== "admin") return;
@@ -388,16 +387,18 @@ export function AppShell({
 
             <div className="flex items-center gap-2">
               {area === "student" || area === "admin" ? <NotificationBell /> : null}
-              <button
-                type="button"
-                onClick={() => setIsPaletteOpen(true)}
-                className="hidden items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm transition hover:bg-slate-50 lg:inline-flex"
-                aria-label="打开命令面板"
-              >
-                <Search className="size-4" />
-                <span>搜索</span>
-                <span className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] text-slate-500">⌘K</span>
-              </button>
+              {canUsePalette ? (
+                <button
+                  type="button"
+                  onClick={() => setIsPaletteOpen(true)}
+                  className="hidden items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm transition hover:bg-slate-50 lg:inline-flex"
+                  aria-label="打开命令面板"
+                >
+                  <Search className="size-4" />
+                  <span>搜索</span>
+                  <span className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] text-slate-500">⌘K</span>
+                </button>
+              ) : null}
               <div className="hidden items-center gap-3 lg:flex">
                 <div className="min-w-0 text-right">
                   <p className="truncate text-sm font-semibold text-slate-900">{userLabel}</p>
@@ -420,12 +421,14 @@ export function AppShell({
           </ErrorBoundary>
         </main>
       </div>
-      <CommandPalette
-        isOpen={isPaletteOpen}
-        onClose={() => setIsPaletteOpen(false)}
-        navigationItems={quickNavigation}
-        isAdmin={area === "admin"}
-      />
+      {canUsePalette ? (
+        <CommandPalette
+          isOpen={isPaletteOpen}
+          onClose={() => setIsPaletteOpen(false)}
+          navigationItems={quickNavigation}
+          isAdmin={area === "admin"}
+        />
+      ) : null}
       {area === "student" ? <StudentMobileNav /> : null}
     </div>
   );
