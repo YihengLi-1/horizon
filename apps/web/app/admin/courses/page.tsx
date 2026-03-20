@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import PrereqGraph from "@/components/PrereqGraph";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -722,12 +723,12 @@ export default function CoursesPage() {
                         >
                           {editingId === course.id ? "取消" : "编辑"}
                         </button>
-                        <a
+                        <Link
                           href={`/admin/sections?search=${encodeURIComponent(course.code)}`}
-                          className="inline-flex h-8 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
+                          className="inline-flex h-8 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-700 transition hover:bg-blue-100 no-underline"
                         >
                           查看教学班
-                        </a>
+                        </Link>
                         <button
                           type="button"
                           onClick={() => onDelete(course.id, course.code)}

@@ -248,7 +248,9 @@ export default function AdminStudentsPage() {
       setStudentNotes((prev) => [note, ...prev]);
       setNewNoteContent("");
       setNewNoteFlag("");
-    } catch { /* ignore */ }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "添加备注失败");
+    }
   };
 
   const deleteNote = async (noteId: string) => {
@@ -256,7 +258,9 @@ export default function AdminStudentsPage() {
     try {
       await apiFetch(`/admin/students/${detailStudent.id}/notes/${noteId}`, { method: "DELETE" });
       setStudentNotes((prev) => prev.filter((n) => n.id !== noteId));
-    } catch { /* ignore */ }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "删除备注失败");
+    }
   };
 
   const persistTags = async (nextTags: string[]) => {

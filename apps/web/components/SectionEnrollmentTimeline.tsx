@@ -17,15 +17,17 @@ function polyline(pts: Array<{ x: number; y: number }>) {
 export default function SectionEnrollmentTimeline({ sectionId }: { sectionId: string }) {
   const [data, setData] = useState<Timeline | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     apiFetch<Timeline>(`/admin/sections/${sectionId}/enrollment-timeline`)
       .then(setData)
-      .catch(() => {})
+      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setLoading(false));
   }, [sectionId]);
 
   if (loading) return <p className="text-xs text-slate-400 py-2">加载选课历史…</p>;
+  if (error) return <p className="text-xs text-red-500 py-2">{error}</p>;
   if (!data || data.points.length === 0) return <p className="text-xs text-slate-400 py-2">暂无选课记录</p>;
 
   const pts = data.points;
