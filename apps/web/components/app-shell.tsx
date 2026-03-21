@@ -44,7 +44,7 @@ import SessionExpiryBanner from "@/components/SessionExpiryBanner";
 import StudentMobileNav from "@/components/StudentMobileNav";
 import { apiFetch } from "@/lib/api";
 
-type AppArea = "student" | "admin" | "faculty" | "advisor";
+type AppArea = "student" | "admin";
 
 type NavItem = {
   href: string;
@@ -63,9 +63,7 @@ const studentItems: NavItem[] = [
   // 概览
   { href: "/student/dashboard",            label: "概览",     icon: <Home className={iconClass} /> },
   // 选课
-  { href: "/student/catalog",              label: "课程目录", icon: <BookOpen className={iconClass} /> },
-  { href: "/student/cart",                 label: "购物车",   icon: <ShoppingCart className={iconClass} /> },
-  { href: "/student/schedule",             label: "我的课表", icon: <CalendarDays className={iconClass} /> },
+  { href: "/student/catalog",              label: "选课",     icon: <BookOpen className={iconClass} /> },
   { href: "/student/waitlist",             label: "候补名单", icon: <ClipboardList className={iconClass} /> },
   // 学籍
   { href: "/student/grades",               label: "成绩",     icon: <GraduationCap className={iconClass} /> },
@@ -116,23 +114,9 @@ const adminItems: NavItem[] = [
   { href: "/admin/invite-codes",           label: "邀请码",   icon: <KeyRound className={iconClass} /> },
 ];
 
-const facultyItems: NavItem[] = [
-  { href: "/faculty/dashboard", label: "概览", icon: <LayoutDashboard className={iconClass} /> },
-  { href: "/faculty/sections", label: "我的课程", icon: <BookOpen className={iconClass} /> },
-  { href: "/faculty/grade-stats",  label: "成绩统计",   icon: <BarChart3 className={iconClass} /> }
-];
-
-const advisorItems: NavItem[] = [
-  { href: "/advisor/dashboard", label: "概览", icon: <LayoutDashboard className={iconClass} /> },
-  { href: "/advisor/advisees", label: "我的学生", icon: <Users className={iconClass} /> },
-  { href: "/advisor/requests", label: "待审批请求", icon: <ListChecks className={iconClass} /> }
-];
-
 const areaMeta: Record<AppArea, { label: string; items: NavItem[]; subtitle: string }> = {
   student: { label: "学生端", items: studentItems, subtitle: "选课与学业" },
   admin: { label: "管理端", items: adminItems, subtitle: "学籍与注册运营" },
-  faculty: { label: "教师端", items: facultyItems, subtitle: "教学与审批" },
-  advisor: { label: "顾问端", items: advisorItems, subtitle: "学生支持" }
 };
 
 function toTitle(text: string): string {
@@ -195,10 +179,6 @@ export function AppShell({
             { label: "审批",   hrefs: ["/admin/appeals", "/admin/prereq-waivers", "/admin/pending-overloads"] },
             { label: "运营",   hrefs: ["/admin/cohort-analytics", "/admin/prereq-map", "/admin/announcements-mgmt", "/admin/bulk-ops", "/admin/enrollment-audit", "/admin/grade-distribution", "/admin/audit-logs", "/admin/invite-codes"] },
           ]
-        : area === "faculty"
-          ? [{ label: "教学", hrefs: ["/faculty/dashboard", "/faculty/sections", "/faculty/grade-stats"] }]
-          : area === "advisor"
-            ? [{ label: "顾问工作台", hrefs: ["/advisor/dashboard", "/advisor/advisees", "/advisor/requests"] }]
         : [
             { label: "概览", hrefs: ["/student/dashboard"] },
             { label: "选课", hrefs: ["/student/catalog", "/student/cart", "/student/schedule", "/student/waitlist"] },

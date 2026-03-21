@@ -22,7 +22,7 @@ export default function GpaTrendChart({ data }: { data: DataPoint[] }) {
 
   return (
     <div className="campus-card p-4">
-      <p className="mb-2 text-xs font-semibold uppercase text-slate-500">GPA Trend</p>
+      <p className="mb-2 text-xs font-semibold text-slate-500">GPA 走势</p>
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible">
         <defs>
           <linearGradient id="gpa-grad" x1="0" y1="0" x2="0" y2="1">
@@ -33,7 +33,14 @@ export default function GpaTrendChart({ data }: { data: DataPoint[] }) {
         <path d={area} fill="url(#gpa-grad)" />
         <path d={path} fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         {data.map((item, index) => {
-          const label = item.term.split(" ").map((part) => part.slice(0, 3)).join(" ");
+          // Handle Chinese terms like "2025年春季学期" → "25春"
+          const label = (() => {
+            const yearMatch = item.term.match(/(\d{2,4})年/);
+            const seasonMap: Record<string, string> = { 春: "春", 夏: "夏", 秋: "秋", 冬: "冬" };
+            const seasonChar = Object.keys(seasonMap).find((k) => item.term.includes(k));
+            if (yearMatch && seasonChar) return yearMatch[1].slice(-2) + seasonChar;
+            return item.term.slice(0, 4);
+          })();
           return (
             <g key={`${item.term}-${index}`}>
               <circle cx={xs[index]} cy={ys[index]} r={4} fill="#10b981" />

@@ -844,6 +844,11 @@ export default function StudentCatalogPage() {
 
   return (
     <div className="campus-page space-y-5">
+      <div className="flex gap-0.5 rounded-xl border border-slate-200 bg-slate-50 p-1 text-sm w-fit">
+        <span className="rounded-lg bg-white px-4 py-1.5 font-semibold text-slate-900 shadow-sm">课程目录</span>
+        <Link href="/student/cart" className="px-4 py-1.5 text-slate-500 transition hover:text-slate-700 no-underline">购物车</Link>
+        <Link href="/student/schedule" className="px-4 py-1.5 text-slate-500 transition hover:text-slate-700 no-underline">我的课表</Link>
+      </div>
       <section className="campus-hero">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">

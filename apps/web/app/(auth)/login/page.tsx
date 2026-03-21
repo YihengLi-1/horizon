@@ -15,10 +15,6 @@ const DEMO_STUDENT_ID = process.env.NEXT_PUBLIC_DEMO_STUDENT_ID || "student1@uni
 const DEMO_STUDENT_PASSWORD = process.env.NEXT_PUBLIC_DEMO_STUDENT_PASSWORD || "Student1234!";
 const DEMO_ADMIN_EMAIL = process.env.NEXT_PUBLIC_DEMO_ADMIN_EMAIL || "admin@univ.edu";
 const DEMO_ADMIN_PASSWORD = process.env.NEXT_PUBLIC_DEMO_ADMIN_PASSWORD || "Admin1234!";
-const DEMO_FACULTY_EMAIL = process.env.NEXT_PUBLIC_DEMO_FACULTY_EMAIL || "faculty1@univ.edu";
-const DEMO_FACULTY_PASSWORD = process.env.NEXT_PUBLIC_DEMO_FACULTY_PASSWORD || "Faculty1234!";
-const DEMO_ADVISOR_EMAIL = process.env.NEXT_PUBLIC_DEMO_ADVISOR_EMAIL || "advisor1@univ.edu";
-const DEMO_ADVISOR_PASSWORD = process.env.NEXT_PUBLIC_DEMO_ADVISOR_PASSWORD || "Advisor1234!";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -49,10 +45,9 @@ export default function LoginPage() {
       });
       if (data.role === "ADMIN")    { router.push("/admin/dashboard");   return; }
       if (data.role === "STUDENT")  { router.push("/student/dashboard"); return; }
-      if (data.role === "FACULTY")  { router.push("/faculty/dashboard"); return; }
-      if (data.role === "ADVISOR")  { router.push("/advisor/dashboard"); return; }
+      // FACULTY / ADVISOR portals not yet available in this release
       await apiFetch("/auth/logout", { method: "POST" }).catch(() => undefined);
-      setError("当前账号角色暂不支持登录。");
+      setError("教师与顾问工作台正在建设中，敬请期待。");
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.code === "ACCOUNT_LOCKED") {
@@ -97,7 +92,7 @@ export default function LoginPage() {
       <div>
         <p className="text-xs font-semibold tracking-[0.14em] text-[hsl(221_65%_42%)]">地平线</p>
         <h2 className="mt-2 text-2xl font-bold text-slate-900">登录系统</h2>
-        <p className="mt-1 text-sm leading-6 text-slate-500">使用学号或邮箱登录，进入学生、教师、顾问或管理工作台。</p>
+        <p className="mt-1 text-sm leading-6 text-slate-500">使用学号或邮箱登录，进入学生或管理工作台。</p>
       </div>
 
       {/* Form */}
@@ -194,8 +189,6 @@ export default function LoginPage() {
             {([
               { label: "学生", email: DEMO_STUDENT_ID, pw: DEMO_STUDENT_PASSWORD },
               { label: "管理员", email: DEMO_ADMIN_EMAIL, pw: DEMO_ADMIN_PASSWORD },
-              { label: "教师", email: DEMO_FACULTY_EMAIL, pw: DEMO_FACULTY_PASSWORD },
-              { label: "学业顾问", email: DEMO_ADVISOR_EMAIL, pw: DEMO_ADVISOR_PASSWORD },
             ] as const).map(({ label, email, pw }) => (
               <button
                 key={label}
