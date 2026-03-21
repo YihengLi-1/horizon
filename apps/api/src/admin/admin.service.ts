@@ -27,6 +27,7 @@ import { dispatch } from "../common/webhook";
 import { NotificationsService } from "../notifications/notifications.service";
 import { GovernanceService } from "../governance/governance.service";
 import { RegistrationService } from "../registration/registration.service";
+import { MailService } from "../mail/mail.service";
 
 type CreateTermInput = z.infer<typeof createTermSchema>;
 type CreateCourseInput = z.infer<typeof createCourseSchema>;
@@ -251,7 +252,8 @@ export class AdminService {
     private readonly auditService: AuditService,
     private readonly notificationsService: NotificationsService,
     private readonly registrationService: RegistrationService,
-    private readonly governanceService: GovernanceService
+    private readonly governanceService: GovernanceService,
+    private readonly mailService: MailService
   ) {}
 
   private normalizeAdminActionError(error: unknown): string {
@@ -1838,6 +1840,10 @@ export class AdminService {
       };
     });
 
+    if (result.studentEmail) {
+      void this.mailService.sendOverloadDecision(result.studentEmail, approve);
+    }
+
     return result.updated;
   }
 
@@ -1927,6 +1933,15 @@ export class AdminService {
         adminNote: input.adminNote ?? null
       }
     });
+
+    if (decided.student.email && decided.section?.course.code) {
+      void this.mailService.sendWaiverDecision(
+        decided.student.email,
+        decided.section.course.code,
+        input.status === "APPROVED",
+        input.adminNote ?? undefined
+      );
+    }
 
     return decided;
   }
@@ -4232,7 +4247,29 @@ export class AdminService {
     adminNote: string,
     newGrade?: string
   ) {
-    const appeal = await this.prisma.gradeAppeal.findUnique({ where: { id: appealId } });
+    const appeal = await this.prisma.gradeAppeal.findUnique({
+      where: { id: appealId },
+      include: {
+        student: {
+          select: {
+            email: true
+          }
+        },
+        enrollment: {
+          include: {
+            section: {
+              include: {
+                course: {
+                  select: {
+                    title: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
     if (!appeal) throw new NotFoundException({ code: "APPEAL_NOT_FOUND" });
     if (appeal.status !== "PENDING") throw new BadRequestException({ code: "APPEAL_ALREADY_RESOLVED" });
 
@@ -4249,6 +4286,15 @@ export class AdminService {
         });
       }
     });
+
+    if (appeal.student.email) {
+      void this.mailService.sendAppealDecision(
+        appeal.student.email,
+        appeal.enrollment.section.course.title,
+        decision === "APPROVED",
+        adminNote
+      );
+    }
 
     return { id: appealId, status: decision };
   }

@@ -11,6 +11,7 @@ import { getTermGradesLockDate, getTermStatus } from "../common/term-status";
 import { dispatch } from "../common/webhook";
 import { GovernanceService } from "../governance/governance.service";
 import { NotificationsService } from "../notifications/notifications.service";
+import { MailService } from "../mail/mail.service";
 
 type AddCartInput = z.infer<typeof addCartItemSchema>;
 type SubmitCartInput = z.infer<typeof submitCartSchema>;
@@ -97,7 +98,8 @@ export class RegistrationService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly notificationsService: NotificationsService,
-    private readonly governanceService: GovernanceService
+    private readonly governanceService: GovernanceService,
+    private readonly mailService: MailService
   ) {}
 
   private isSerializationFailure(error: unknown): boolean {
@@ -1542,17 +1544,11 @@ export class RegistrationService {
         }
       }).catch(() => {});
 
-      try {
-        await this.notificationsService.sendWaitlistPromotionEmail({
-          to: result.promoted.email,
-          legalName: result.promoted.legalName,
-          termName: result.promoted.termName,
-          courseCode: result.promoted.courseCode,
-          sectionCode: result.promoted.sectionCode
-        });
-      } catch {
-        // Mail delivery should not block the drop workflow.
-      }
+      void this.mailService.sendWaitlistPromoted(
+        result.promoted.email,
+        result.promoted.courseTitle,
+        result.promoted.sectionCode
+      );
     }
 
     try {

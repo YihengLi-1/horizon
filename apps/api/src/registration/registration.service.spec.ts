@@ -55,6 +55,10 @@ function createRegistrationService(overrides?: Partial<Record<string, unknown>>)
     getApprovedPrerequisiteOverrideSectionIds: jest.fn().mockResolvedValue(new Set<string>())
   } as any;
 
+  const mailService = {
+    sendWaitlistPromoted: jest.fn().mockResolvedValue(undefined)
+  } as any;
+
   Object.assign(prisma, overrides);
 
   return {
@@ -62,7 +66,7 @@ function createRegistrationService(overrides?: Partial<Record<string, unknown>>)
     auditService,
     notificationsService,
     governanceService,
-    service: new RegistrationService(prisma, auditService, notificationsService, governanceService)
+    service: new RegistrationService(prisma, auditService, notificationsService, governanceService, mailService)
   };
 }
 
