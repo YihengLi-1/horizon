@@ -441,10 +441,9 @@ check_contains "apps/api/src/admin/admin.controller.ts" "digest-send" "Digest se
 check_exists "apps/web/app/student/waitlist/page.tsx" "Student waitlist page check"
 
 # ── Session 16 (part 2) ─────────────────────────────────────────────────────
-check_exists "apps/web/app/student/transcript/page.tsx" "Student transcript page"
-check_contains "apps/web/components/app-shell.tsx" "/student/transcript" "Transcript nav link in app-shell"
-check_contains "apps/web/app/student/transcript/page.tsx" "/students/transcript" "Transcript page uses transcript API"
-check_contains "apps/web/app/student/transcript/page.tsx" "正式成绩单|学期 GPA|累计 GPA" "Transcript page renders formal transcript summary"
+check_not_exists "apps/web/app/student/transcript/page.tsx" "Transcript merged into grades page (no separate page)"
+check_contains "apps/web/app/student/grades/page.tsx" "/students/transcript" "Grades page uses transcript API for GPA trend"
+check_contains "apps/web/app/student/grades/page.tsx" "学期 GPA|累计 GPA" "Grades page renders per-term GPA summary"
 
 # Session 17
 check_contains "apps/api/src/admin/admin.service.ts" "getSystemAlerts" "System alerts service method"
