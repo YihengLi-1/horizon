@@ -57,6 +57,17 @@ check_not_exists() {
   fi
 }
 
+check_not_contains() {
+  local file="$1"
+  local pattern="$2"
+  local message="$3"
+  if ! grep -qE "$pattern" "$file" 2>/dev/null; then
+    ok "$message"
+  else
+    bad "$message"
+  fi
+}
+
 read_env_value() {
   local file="$1"
   local key="$2"
@@ -225,7 +236,7 @@ check_exists "apps/web/app/admin/sections/[id]/roster/page.tsx" "Section roster 
 check_contains "apps/web/app/student/schedule/page.tsx" "ics|iCal|VCALENDAR" "iCal export in schedule page"
 check_contains "apps/web/app/student/cart/page.tsx" "waitlist-position|候补" "Waitlist position shown in cart"
 check_contains "apps/web/app/student/profile/page.tsx" "completedCredits|Enrollment Summary|已修学分" "Enrollment summary in profile"
-check_contains "apps/web/app/student/dashboard/RecommendedCourses.tsx" "recommended|/students/recommended" "Recommended sections in student dashboard"
+check_not_exists "apps/web/app/student/dashboard/RecommendedCourses.tsx" "RecommendedCourses removed (AI-feel feature)"
 check_contains "apps/api/prisma/schema.prisma" "NotificationLog" "NotificationLog model in schema"
 check_contains "apps/api/src/admin/admin.controller.ts" "notification-log" "Notification log endpoint in admin"
 check_contains "apps/api/src/students/students.controller.ts" "announcements/public|getPublicAnnouncements" "Public announcements endpoint"
@@ -314,10 +325,10 @@ check_contains "apps/api/src/admin/admin.service.spec.ts" "getEnrollmentTrend|en
 check_contains "apps/web/components/app-shell.tsx" "学术管理|注册管理|通知记录|邀请码" "Admin nav grouped sections"
 
 # --- New checks (session 19 completion) ---
-check_contains "apps/web/app/student/catalog/page.tsx" "recentlyViewed|recently-viewed|sis-recently-viewed" "Catalog recently viewed strip"
-check_contains "apps/web/app/student/catalog/page.tsx" "compareIds|compareOpen|对比" "Catalog compare modal"
+check_not_contains "apps/web/app/student/catalog/page.tsx" "recentlyViewed|sis-recently-viewed" "Catalog recently-viewed removed"
+check_not_contains "apps/web/app/student/catalog/page.tsx" "compareIds|compareOpen" "Catalog compare panel removed"
 check_contains "apps/web/app/student/catalog/page.tsx" "filters\\.days|setFilterDays|day.*filter" "Catalog day filter"
-check_contains "apps/web/app/student/catalog/page.tsx" "trackView" "Catalog view tracking function"
+check_not_contains "apps/web/app/student/catalog/page.tsx" "trackView" "Catalog view-tracking removed"
 check_contains "apps/web/app/admin/dashboard/EnrollmentTrendChart.tsx" "setDays|7.*14|days.*14|14.*days" "EnrollmentTrendChart 7/14 day toggle"
 check_contains "apps/web/app/student/schedule/page.tsx" "viewMode.*grid|grid-cols-\\[60px_repeat\\(7|min-w-\\[980px\\]" "Schedule grid view implemented"
 check_contains "apps/web/app/student/schedule/page.tsx" "今日课程|getDay|todayClasses" "Schedule today card"
@@ -359,23 +370,23 @@ check_contains "apps/api/prisma/schema.prisma" "difficulty.*Int|workload.*Int" "
 check_contains "apps/api/src/academics/academics.service.ts" "getCoursePairings|CoursePairing" "Course pairing API service"
 check_contains "apps/api/src/academics/academics.service.ts" "getSectionRatingSummary" "Rating summary API service"
 check_contains "apps/api/src/academics/academics.service.ts" "recomputeCoursePairings" "Course pairing recompute service"
-check_exists "apps/web/components/MultiDimRating.tsx" "Multi-dimensional rating component"
-check_exists "apps/web/components/CoursePairings.tsx" "Course pairings component"
+check_not_exists "apps/web/components/MultiDimRating.tsx" "MultiDimRating removed (AI-feel feature)"
+check_not_exists "apps/web/components/CoursePairings.tsx" "CoursePairings removed (AI-feel feature)"
 check_contains "apps/api/src/admin/admin.service.ts" "getAtRiskStudents" "At-risk students service"
 check_contains "apps/api/src/admin/admin.controller.ts" "at-risk" "At-risk students API endpoint"
-check_contains "apps/web/app/student/catalog/page.tsx" "CoursePairings|MultiDimRating" "Course pairings and multi-dim rating in catalog"
-check_contains "apps/web/app/student/catalog/page.tsx" "sectionStats|avgDifficulty|recommendPct" "Rating stats strip in catalog"
+check_not_contains "apps/web/app/student/catalog/page.tsx" "CoursePairings|MultiDimRating" "CoursePairings and MultiDimRating removed from catalog"
+check_not_contains "apps/web/app/student/catalog/page.tsx" "sectionStats|avgDifficulty|recommendPct" "Rating stats strip removed from catalog"
 check_contains "apps/web/app/student/catalog/page.tsx" "weeklyHours" "Weekly hours badge in catalog"
 check_contains "apps/api/src/academics/academics.service.ts" "difficulty.*true.*workload.*true|workload.*true.*difficulty.*true" "Difficulty/workload in listSections ratings select"
 check_contains "apps/web/app/student/dashboard/page.tsx" "degreeProgress|completedCredits" "Degree progress bar on student dashboard"
 check_contains "apps/web/app/student/dashboard/page.tsx" "DEGREE_CREDITS" "Degree credit constant on student dashboard"
 check_contains "apps/api/src/academics/academics.service.ts" "getSectionReviews" "Section reviews API service"
 check_contains "apps/api/src/academics/academics.controller.ts" "reviews" "Section reviews API endpoint"
-check_exists "apps/web/components/SectionReviews.tsx" "SectionReviews component"
-check_contains "apps/web/app/student/catalog/page.tsx" "SectionReviews" "SectionReviews in catalog page"
+check_not_exists "apps/web/components/SectionReviews.tsx" "SectionReviews removed (AI-feel feature)"
+check_not_contains "apps/web/app/student/catalog/page.tsx" "SectionReviews" "SectionReviews removed from catalog"
 check_contains "apps/api/src/admin/admin.service.ts" "getInstructorAnalytics" "Instructor analytics service method"
 check_contains "apps/api/src/admin/admin.controller.ts" "instructors/analytics" "Instructor analytics endpoint"
-check_contains "apps/web/components/SectionReviews.tsx" "timeAgo" "SectionReviews timeAgo helper"
+check_not_exists "apps/web/components/SectionReviews.tsx" "SectionReviews file deleted"
 check_exists "apps/web/components/PrereqGraph.tsx" "Prereq graph component"
 check_contains "apps/web/app/admin/courses/page.tsx" "PrereqGraph" "Prereq graph in admin courses"
 check_contains "apps/api/src/students/students.service.ts" "sectionCode.*instructorName|include.*section.*course" "getMyRatings includes section/course"
@@ -619,7 +630,7 @@ check_contains "apps/web/app/student/dashboard/page.tsx" "ProfileCompletenessCar
 check_contains "apps/web/app/student/profile/page.tsx" "我的档案|/students/profile|programMajor" "Student profile editor upgraded"
 check_exists "apps/web/app/admin/announcements-mgmt/page.tsx" "Admin announcements management page"
 check_contains "apps/web/components/app-shell.tsx" "/admin/announcements-mgmt" "Announcements management nav link"
-check_contains "apps/web/app/student/catalog/page.tsx" "saved_courses|toggleSavedCourse|收藏" "Catalog saved courses toggle"
+check_not_contains "apps/web/app/student/catalog/page.tsx" "toggleSavedCourse|saved_courses" "Catalog star-bookmark removed"
 check_contains "apps/api/src/admin/admin.controller.ts" "student-tags/available|students/:id/tags" "Student tags endpoints"
 check_contains "apps/api/src/admin/admin.service.ts" "getAvailableStudentTags|getStudentTags|setStudentTags|STUDENT_TAGS_SET" "Student tags service"
 check_contains "apps/web/app/admin/students/page.tsx" "studentTagsMap|activeTab === \"tags\"|/admin/students/.*/tags" "Admin students tags drawer"
