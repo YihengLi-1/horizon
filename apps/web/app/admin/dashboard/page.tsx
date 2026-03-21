@@ -128,6 +128,19 @@ export default async function AdminDashboardPage() {
           <div>
             <p className="campus-eyebrow">管理后台</p>
             <h1 className="campus-title">概览</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+              <span>当前学期：</span>
+              {systemHealth?.activeTermName ? (
+                <span className="font-semibold text-slate-900">{systemHealth.activeTermName}</span>
+              ) : (
+                <>
+                  <span className="campus-chip chip-amber">暂无活跃学期</span>
+                  <Link href="/admin/terms" className="text-sm font-medium text-amber-700 underline underline-offset-2">
+                    去管理学期
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {systemHealth && (
@@ -145,47 +158,16 @@ export default async function AdminDashboardPage() {
         </div>
       </section>
 
-      {/* ── Pending action banner ── */}
-      {pendingApprovalCount > 0 && (
-        <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4">
-          <p className="text-sm font-semibold text-orange-900">需要你处理的事项</p>
-          <div className="mt-3 flex flex-wrap gap-3">
-            {appealsCount > 0 && (
-              <Link
-                href="/admin/appeals"
-                className="inline-flex items-center gap-2 rounded-lg border border-orange-200 bg-white px-3 py-1.5 text-sm font-medium text-orange-800 no-underline transition hover:bg-orange-50"
-              >
-                成绩申诉
-                <span className="rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                  {appealsCount}
-                </span>
-              </Link>
-            )}
-            {waiversCount > 0 && (
-              <Link
-                href="/admin/prereq-waivers"
-                className="inline-flex items-center gap-2 rounded-lg border border-orange-200 bg-white px-3 py-1.5 text-sm font-medium text-orange-800 no-underline transition hover:bg-orange-50"
-              >
-                先修豁免
-                <span className="rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                  {waiversCount}
-                </span>
-              </Link>
-            )}
-            {overloadsCount > 0 && (
-              <Link
-                href="/admin/pending-overloads"
-                className="inline-flex items-center gap-2 rounded-lg border border-orange-200 bg-white px-3 py-1.5 text-sm font-medium text-orange-800 no-underline transition hover:bg-orange-50"
-              >
-                超学分申请
-                <span className="rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                  {overloadsCount}
-                </span>
-              </Link>
-            )}
+      {systemHealth && systemHealth.recentErrors > 0 ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p>⚠️ 系统近 1 小时检测到 {systemHealth.recentErrors} 条错误，请前往系统健康页面查看详情。</p>
+            <Link href="/admin/system-health" className="font-semibold text-red-800 underline underline-offset-2">
+              查看系统健康
+            </Link>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* ── KPI grid ── */}
       <div className="campus-kpi-grid">
@@ -218,6 +200,50 @@ export default async function AdminDashboardPage() {
           </div>
         </Link>
       </div>
+
+      <section className="campus-card p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">需要你处理的事项</h2>
+            <p className="mt-1 text-sm text-slate-500">仅显示当前仍待处理的审批事项。</p>
+          </div>
+        </div>
+        {pendingApprovalCount > 0 ? (
+          <div className="mt-4 space-y-3">
+            {appealsCount > 0 ? (
+              <Link
+                href="/admin/appeals"
+                className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 no-underline transition hover:bg-slate-50"
+              >
+                <span>[申诉] {appealsCount} 条待审批</span>
+                <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700">{appealsCount}</span>
+              </Link>
+            ) : null}
+            {waiversCount > 0 ? (
+              <Link
+                href="/admin/prereq-waivers"
+                className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 no-underline transition hover:bg-slate-50"
+              >
+                <span>[先修豁免] {waiversCount} 条待审批</span>
+                <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700">{waiversCount}</span>
+              </Link>
+            ) : null}
+            {overloadsCount > 0 ? (
+              <Link
+                href="/admin/pending-overloads"
+                className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700 no-underline transition hover:bg-slate-50"
+              >
+                <span>[超学分申请] {overloadsCount} 条待审批</span>
+                <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700">{overloadsCount}</span>
+              </Link>
+            ) : null}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-700">
+            ✅ 暂无待处理事项
+          </div>
+        )}
+      </section>
 
       {/* ── Active term spotlight ── */}
       {activeTerm ? (
