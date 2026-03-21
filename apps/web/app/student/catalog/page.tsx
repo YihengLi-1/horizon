@@ -433,7 +433,7 @@ export default function StudentCatalogPage() {
           days: queryDays,
           availableOnly: parseBool(query?.get("available") ?? null),
           search: querySearch,
-          sort: ["RELEVANCE", "SEATS_ASC", "CREDITS_ASC", "CREDITS_DESC", "RATING_DESC"].includes(querySort)
+          sort: ["RELEVANCE", "SEATS_ASC", "CREDITS_ASC", "CREDITS_DESC"].includes(querySort)
             ? querySort
             : "RELEVANCE"
         });
@@ -540,7 +540,7 @@ export default function StudentCatalogPage() {
     if (filterPrereqReady) labels.push("先修课已满足");
     if (filterApprovalOnly) labels.push("需审批");
     if (filterNoConflict) labels.push("无购物车冲突");
-    const SORT_LABELS: Record<string, string> = { SEATS_ASC: "余量升序", CREDITS_ASC: "学分升序", CREDITS_DESC: "学分降序", RATING_DESC: "评分降序" };
+    const SORT_LABELS: Record<string, string> = { SEATS_ASC: "余量升序", CREDITS_ASC: "学分升序", CREDITS_DESC: "学分降序" };
     if (sortBy !== "RELEVANCE") labels.push(`排序：${SORT_LABELS[sortBy] ?? sortBy}`);
     return labels;
   }, [
@@ -610,14 +610,6 @@ export default function StudentCatalogPage() {
       filtered.sort((a, b) => a.credits - b.credits);
     } else if (sortBy === "CREDITS_DESC") {
       filtered.sort((a, b) => b.credits - a.credits);
-    } else if (sortBy === "RATING_DESC") {
-      filtered.sort((a, b) => {
-        const getRating = (s: Section) => {
-          if (!s.ratings || s.ratings.length === 0) return -1;
-          return s.ratings.reduce((sum, r) => sum + r.rating, 0) / s.ratings.length;
-        };
-        return getRating(b) - getRating(a);
-      });
     }
 
     return filtered;
@@ -822,7 +814,7 @@ export default function StudentCatalogPage() {
               <option value="CREDITS_ASC">学分升序</option>
               <option value="CREDITS_DESC">学分降序</option>
               <option value="SEATS_ASC">余量升序</option>
-              <option value="RATING_DESC">评分降序</option>
+
             </select>
           </label>
         </div>
@@ -1134,9 +1126,9 @@ export default function StudentCatalogPage() {
                       </div>
                     <div className="flex flex-wrap justify-end gap-2">
                         <Badge>§{section.sectionCode}</Badge>
-                        <Badge color="blue">{section.credits} cr</Badge>
+                        <Badge color="blue">{section.credits} 学分</Badge>
                         {section.course.weeklyHours ? (
-                          <Badge color="amber">⏱ {section.course.weeklyHours}h/wk</Badge>
+                          <Badge color="amber">⏱ 每周 {section.course.weeklyHours}h</Badge>
                         ) : null}
                         <Badge modality={section.modality}>{section.modality === "ON_CAMPUS" ? "线下" : section.modality === "ONLINE" ? "线上" : section.modality === "HYBRID" ? "混合" : section.modality}</Badge>
                         {alreadyCompleted ? <Badge color="slate">已修</Badge> : null}
@@ -1185,8 +1177,9 @@ export default function StudentCatalogPage() {
                             </span>
                           ))}
                           {prereqBlocked ? (
-                            <span className="ml-1 text-xs font-medium text-red-700">
-                              缺少：{missingPrereqs.join(", ")}
+                            <span className="ml-1 flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-medium text-red-700">缺少：{missingPrereqs.join(", ")}</span>
+                              <Link href="/student/prereq-waivers" className="text-xs font-medium text-indigo-600 no-underline hover:underline">申请豁免 →</Link>
                             </span>
                           ) : (
                             <span className="ml-1 text-xs font-medium text-emerald-700">已满足</span>

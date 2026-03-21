@@ -591,7 +591,7 @@ check_contains "apps/api/src/students/students.controller.ts" "enrollment-log" "
 check_contains "apps/api/src/admin/admin.service.ts" "getSystemHealth" "Admin system health service"
 check_contains "apps/api/src/admin/admin.controller.ts" "system-health" "Admin system health endpoint"
 check_exists "apps/web/app/admin/system-health/page.tsx" "Admin system health page"
-check_contains "apps/web/components/app-shell.tsx" "/admin/system-health" "System health nav link"
+check_contains "apps/web/app/admin/dashboard/page.tsx" "/admin/system-health" "System health linked from dashboard"
 
 # ── Session 22: command palette, bulk ops, term compare, reg windows, honors ─
 check_exists "apps/web/components/command-palette.tsx" "Command palette component"
