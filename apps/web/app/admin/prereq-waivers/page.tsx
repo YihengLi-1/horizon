@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -34,6 +35,7 @@ export default function AdminPrereqWaiversPage() {
   const [savingId, setSavingId] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   async function loadData() {
@@ -124,25 +126,42 @@ export default function AdminPrereqWaiversPage() {
         </table>
       </section>
 
-      <details className="campus-card p-4">
-        <summary className="cursor-pointer text-base font-semibold text-slate-900">已处理历史</summary>
-        <div className="mt-4 overflow-x-auto">
-          <table className="campus-table min-w-[760px]">
-            <thead><tr><th>学生</th><th>课程</th><th>状态</th><th>时间</th><th>备注</th></tr></thead>
-            <tbody>
-              {data.history.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.student?.studentProfile?.legalName ?? item.student?.email}</td>
-                  <td>{item.section?.course.code} §{item.section?.sectionCode}</td>
-                  <td><span className={item.status === "APPROVED" ? "campus-chip chip-emerald" : "campus-chip chip-red"}>{item.status === "APPROVED" ? "已通过" : "已拒绝"}</span></td>
-                  <td>{new Date(item.submittedAt).toLocaleString()}</td>
-                  <td>{item.decisionNote ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </details>
+      <section className="campus-card overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setHistoryOpen((current) => !current)}
+          className="flex w-full items-center gap-2 px-4 py-4 text-left text-sm font-semibold text-slate-700"
+        >
+          {historyOpen ? <ChevronDown className="size-4 text-slate-400" /> : <ChevronRight className="size-4 text-slate-400" />}
+          已处理历史
+        </button>
+        {historyOpen ? (
+          <div className="border-t border-slate-100 p-4">
+            <div className="overflow-x-auto">
+              <table className="campus-table min-w-[760px]">
+                <thead><tr><th>学生</th><th>课程</th><th>状态</th><th>时间</th><th>备注</th></tr></thead>
+                <tbody>
+                  {data.history.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-400">暂无历史审批记录</td>
+                    </tr>
+                  ) : (
+                    data.history.map((item) => (
+                      <tr key={item.id}>
+                        <td>{item.student?.studentProfile?.legalName ?? item.student?.email}</td>
+                        <td>{item.section?.course.code} §{item.section?.sectionCode}</td>
+                        <td><span className={item.status === "APPROVED" ? "campus-chip chip-emerald" : "campus-chip chip-red"}>{item.status === "APPROVED" ? "已通过" : "已拒绝"}</span></td>
+                        <td>{new Date(item.submittedAt).toLocaleString()}</td>
+                        <td>{item.decisionNote ?? "—"}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
+      </section>
 
       <ConfirmDialog
         open={!!confirmState}

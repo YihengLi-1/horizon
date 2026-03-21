@@ -155,7 +155,7 @@ export default function PrereqMapPage() {
                 {loading ? (
                   <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-400">加载中…</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-400">暂无数据</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-10 text-center text-slate-400">暂无先修关系数据</td></tr>
                 ) : filtered.map((node) => {
                   const prereqs = prereqsMap.get(node.id) ?? [];
                   const requiredBy = requiresMap.get(node.id) ?? [];
@@ -200,7 +200,7 @@ export default function PrereqMapPage() {
           {loading ? (
             <p className="text-slate-400 text-sm">加载中…</p>
           ) : (data?.edges ?? []).length === 0 ? (
-            <p className="text-slate-400 text-sm">暂无先修关系</p>
+            <p className="text-slate-400 text-sm">暂无先修关系数据</p>
           ) : (
             <div className="space-y-1">
               {(data?.edges ?? []).filter((e) => {
