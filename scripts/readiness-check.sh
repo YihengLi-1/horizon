@@ -47,6 +47,16 @@ check_exists() {
   fi
 }
 
+check_not_exists() {
+  local file="$1"
+  local message="$2"
+  if [[ ! -f "$file" ]]; then
+    ok "$message"
+  else
+    bad "$message"
+  fi
+}
+
 read_env_value() {
   local file="$1"
   local key="$2"
@@ -329,8 +339,7 @@ check_exists "apps/web/middleware.ts" "Next.js middleware for maintenance mode"
 check_exists "apps/web/components/GradeDistBar.tsx" "Grade distribution bar component"
 check_contains "apps/api/src/students/students.service.ts" "generateIcal|VCALENDAR" "iCal generation in students service"
 check_contains "apps/web/app/student/schedule/page.tsx" "ical|iCal|VCALENDAR|text/calendar" "iCal export button in schedule page"
-check_exists "apps/web/app/student/planner/page.tsx" "Schedule planner page"
-check_contains "apps/web/app/student/planner/page.tsx" "generateCombinations|backtrack" "Schedule combination generator algorithm"
+check_not_exists "apps/web/app/student/planner/page.tsx" "Schedule planner page removed"
 check_contains "apps/api/prisma/schema.prisma" "SectionWatch" "SectionWatch model in schema"
 check_contains "apps/api/src/registration/registration.service.ts" "watchSection|sectionWatch" "Section watch service method"
 check_contains "apps/api/src/registration/registration.service.spec.ts" "PREREQ_NOT_MET" "Prereq unit test"
@@ -389,8 +398,6 @@ check_contains "apps/web/app/student/appeals/page.tsx" "students/appeals" "Stude
 check_contains "apps/web/app/student/grades/page.tsx" "/student/advisor|联系导师|注册处" "Student grades page routes support requests to advisor/registrar"
 check_contains "apps/api/src/admin/admin.service.ts" "sendCohortMessage" "Cohort message service method"
 check_contains "apps/api/src/admin/admin.controller.ts" "cohort-message" "Cohort message admin endpoint"
-check_contains "apps/web/app/student/planner/page.tsx" "creditLoadLabel|comboScore" "Planner credit load scoring"
-check_contains "apps/web/app/student/planner/page.tsx" "推荐.*indigo|ring-2 ring-indigo" "Planner recommended badge"
 
 # ── Session 15 (part 2) ─────────────────────────────────────────────────────
 check_contains "apps/api/src/students/students.service.ts" "getGpaStats" "GPA stats service method"

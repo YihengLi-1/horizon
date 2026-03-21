@@ -26,9 +26,11 @@ import {
   Megaphone,
   ScrollText,
   Search,
+  Share2,
   Shield,
   ShieldAlert,
   ShoppingCart,
+  Star,
   User,
   Users,
   X,
@@ -72,6 +74,9 @@ const studentItems: NavItem[] = [
   { href: "/student/standing",             label: "学业状态", icon: <BarChart3 className={iconClass} /> },
   { href: "/student/appeals",             label: "成绩申诉", icon: <FileText className={iconClass} /> },
   { href: "/student/prereq-waivers",      label: "先修豁免", icon: <BookX className={iconClass} /> },
+  { href: "/student/enrollment-log",       label: "注册日志", icon: <History className={iconClass} /> },
+  { href: "/student/my-ratings",           label: "我的评价", icon: <Star className={iconClass} /> },
+  { href: "/student/course-history",       label: "课程历史", icon: <BookOpen className={iconClass} /> },
   // 账号
   { href: "/student/profile",              label: "个人资料",   icon: <User className={iconClass} /> },
   { href: "/student/advisor",              label: "我的导师",   icon: <User className={iconClass} /> },
@@ -101,6 +106,8 @@ const adminItems: NavItem[] = [
   { href: "/admin/prereq-waivers",         label: "先修豁免", icon: <BookX className={iconClass} /> },
   { href: "/admin/pending-overloads",      label: "超学分",   icon: <Layers className={iconClass} /> },
   // 运营
+  { href: "/admin/cohort-analytics",       label: "专业分析", icon: <BarChart3 className={iconClass} /> },
+  { href: "/admin/prereq-map",             label: "先修图谱", icon: <Share2 className={iconClass} /> },
   { href: "/admin/announcements-mgmt",     label: "公告管理", icon: <Megaphone className={iconClass} /> },
   { href: "/admin/bulk-ops",               label: "批量操作", icon: <ListChecks className={iconClass} /> },
   { href: "/admin/enrollment-audit",       label: "注册审计", icon: <ScrollText className={iconClass} /> },
@@ -186,7 +193,7 @@ export function AppShell({
             { label: "课务",   hrefs: ["/admin/courses", "/admin/sections", "/admin/terms", "/admin/reg-windows"] },
             { label: "注册",   hrefs: ["/admin/enrollments", "/admin/grade-entry", "/admin/waitlist"] },
             { label: "审批",   hrefs: ["/admin/appeals", "/admin/prereq-waivers", "/admin/pending-overloads"] },
-            { label: "运营",   hrefs: ["/admin/announcements-mgmt", "/admin/bulk-ops", "/admin/enrollment-audit", "/admin/grade-distribution", "/admin/audit-logs", "/admin/invite-codes"] },
+            { label: "运营",   hrefs: ["/admin/cohort-analytics", "/admin/prereq-map", "/admin/announcements-mgmt", "/admin/bulk-ops", "/admin/enrollment-audit", "/admin/grade-distribution", "/admin/audit-logs", "/admin/invite-codes"] },
           ]
         : area === "faculty"
           ? [{ label: "教学", hrefs: ["/faculty/dashboard", "/faculty/sections", "/faculty/grade-stats"] }]
@@ -195,7 +202,7 @@ export function AppShell({
         : [
             { label: "概览", hrefs: ["/student/dashboard"] },
             { label: "选课", hrefs: ["/student/catalog", "/student/cart", "/student/schedule", "/student/waitlist"] },
-            { label: "学籍", hrefs: ["/student/grades", "/student/transcript", "/student/degree-audit", "/student/standing", "/student/appeals", "/student/prereq-waivers"] },
+            { label: "学籍", hrefs: ["/student/grades", "/student/transcript", "/student/degree-audit", "/student/standing", "/student/appeals", "/student/prereq-waivers", "/student/enrollment-log", "/student/my-ratings", "/student/course-history"] },
             { label: "账号", hrefs: ["/student/profile", "/student/advisor", "/student/notifications"] },
           ];
 
