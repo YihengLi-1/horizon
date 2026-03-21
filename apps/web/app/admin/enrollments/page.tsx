@@ -435,7 +435,7 @@ export default function EnrollmentsPage() {
               disabled={rows.length === 0}
               className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100 disabled:opacity-50"
             >
-              ↓ CSV 导出
+              ↓ 导出表格
             </button>
             <button
               type="button"

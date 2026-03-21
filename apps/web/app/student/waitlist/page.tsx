@@ -67,6 +67,12 @@ export default function StudentWaitlistPage() {
 
   return (
     <div className="campus-page space-y-6">
+      <div className="flex gap-0.5 rounded-xl border border-slate-200 bg-slate-50 p-1 text-sm w-fit">
+        <Link href="/student/catalog" className="px-4 py-1.5 text-slate-500 transition hover:text-slate-700 no-underline">课程目录</Link>
+        <Link href="/student/cart" className="px-4 py-1.5 text-slate-500 transition hover:text-slate-700 no-underline">购物车</Link>
+        <Link href="/student/schedule" className="px-4 py-1.5 text-slate-500 transition hover:text-slate-700 no-underline">我的课表</Link>
+        <span className="rounded-lg bg-white px-4 py-1.5 font-semibold text-slate-900 shadow-sm">候补名单</span>
+      </div>
       <section className="campus-hero">
         <p className="campus-eyebrow">选课候补</p>
         <h1 className="campus-title">我的候补名单</h1>

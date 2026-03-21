@@ -6,15 +6,12 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
   AlignJustify,
   BarChart3,
-  Bell,
   BookCopy,
   BookOpen,
   BookX,
-
   CalendarClock,
   CalendarRange,
   Clock,
-  ClipboardList,
   GraduationCap,
   History,
   Home,
@@ -59,18 +56,13 @@ const iconClass = "size-4";
 const studentItems: NavItem[] = [
   // 概览
   { href: "/student/dashboard",            label: "概览",     icon: <Home className={iconClass} /> },
-  // 选课
+  // 选课（购物车/课表/候补名单通过页内 tab 访问）
   { href: "/student/catalog",              label: "选课",     icon: <BookOpen className={iconClass} /> },
-  { href: "/student/waitlist",             label: "候补名单", icon: <ClipboardList className={iconClass} /> },
-  // 学籍
+  // 学籍（课程历史通过页内 tab 访问）
   { href: "/student/grades",               label: "成绩",     icon: <GraduationCap className={iconClass} /> },
   { href: "/student/degree-audit",         label: "毕业进度", icon: <GraduationCap className={iconClass} /> },
-  { href: "/student/standing",             label: "学业状态", icon: <BarChart3 className={iconClass} /> },
-  { href: "/student/course-history",       label: "课程历史", icon: <BookOpen className={iconClass} /> },
   // 账号
   { href: "/student/profile",              label: "个人资料",   icon: <User className={iconClass} /> },
-  { href: "/student/advisor",              label: "我的导师",   icon: <User className={iconClass} /> },
-  { href: "/student/notifications",        label: "通知",       icon: <Bell className={iconClass} /> },
 ];
 
 const adminItems: NavItem[] = [
@@ -174,7 +166,7 @@ export function AppShell({
         : [
             { label: "概览", hrefs: ["/student/dashboard"] },
             { label: "选课", hrefs: ["/student/catalog", "/student/cart", "/student/schedule", "/student/waitlist"] },
-            { label: "学籍", hrefs: ["/student/grades", "/student/degree-audit", "/student/standing", "/student/course-history"] },
+            { label: "学籍", hrefs: ["/student/grades", "/student/course-history", "/student/degree-audit"] },
             { label: "账号", hrefs: ["/student/profile", "/student/advisor", "/student/notifications"] },
           ];
 

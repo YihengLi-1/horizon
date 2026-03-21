@@ -205,7 +205,7 @@ export default function AdminGradeEntryPage() {
       <section className="campus-hero">
         <p className="campus-eyebrow">学术管理</p>
         <h1 className="campus-title">成绩批量录入</h1>
-        <p className="campus-subtitle">按教学班录入成绩，支持手动填写或 CSV 批量导入。</p>
+        <p className="campus-subtitle">按教学班录入成绩，支持手动填写或表格批量导入。</p>
       </section>
 
       {/* Toolbar */}
@@ -248,7 +248,7 @@ export default function AdminGradeEntryPage() {
             onClick={() => fileRef.current?.click()}
             className="h-10 rounded-lg border border-blue-200 bg-blue-50 px-3 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50"
           >
-            导入 CSV
+            导入表格
           </button>
           <button
             type="button"
@@ -299,7 +299,7 @@ export default function AdminGradeEntryPage() {
       {showCsvPanel && csvPreview.length > 0 ? (
         <div className="campus-card space-y-3 border-blue-200 bg-blue-50/60 p-4">
           <div className="flex items-center justify-between">
-            <p className="font-semibold text-blue-800">CSV 预览（共 {csvPreview.length} 行）</p>
+            <p className="font-semibold text-blue-800">导入预览（共 {csvPreview.length} 行）</p>
             <button
               type="button"
               onClick={() => { setShowCsvPanel(false); setCsvPreview([]); }}
