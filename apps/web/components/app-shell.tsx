@@ -10,10 +10,12 @@ import {
   BookCopy,
   BookOpen,
   BookX,
+  FileText,
   CalendarClock,
   CalendarDays,
   CalendarRange,
   Clock,
+  ClipboardList,
   GraduationCap,
   History,
   Home,
@@ -62,10 +64,14 @@ const studentItems: NavItem[] = [
   { href: "/student/catalog",              label: "课程目录", icon: <BookOpen className={iconClass} /> },
   { href: "/student/cart",                 label: "购物车",   icon: <ShoppingCart className={iconClass} /> },
   { href: "/student/schedule",             label: "我的课表", icon: <CalendarDays className={iconClass} /> },
+  { href: "/student/waitlist",             label: "候补名单", icon: <ClipboardList className={iconClass} /> },
   // 学籍
   { href: "/student/grades",               label: "成绩",     icon: <GraduationCap className={iconClass} /> },
   { href: "/student/transcript",           label: "成绩单",   icon: <ScrollText className={iconClass} /> },
   { href: "/student/degree-audit",         label: "毕业进度", icon: <GraduationCap className={iconClass} /> },
+  { href: "/student/standing",             label: "学业状态", icon: <BarChart3 className={iconClass} /> },
+  { href: "/student/appeals",             label: "成绩申诉", icon: <FileText className={iconClass} /> },
+  { href: "/student/prereq-waivers",      label: "先修豁免", icon: <BookX className={iconClass} /> },
   // 账号
   { href: "/student/profile",              label: "个人资料",   icon: <User className={iconClass} /> },
   { href: "/student/advisor",              label: "我的导师",   icon: <User className={iconClass} /> },
@@ -188,8 +194,8 @@ export function AppShell({
             ? [{ label: "顾问工作台", hrefs: ["/advisor/dashboard", "/advisor/advisees", "/advisor/requests"] }]
         : [
             { label: "概览", hrefs: ["/student/dashboard"] },
-            { label: "选课", hrefs: ["/student/catalog", "/student/cart", "/student/schedule"] },
-            { label: "学籍", hrefs: ["/student/grades", "/student/transcript", "/student/degree-audit"] },
+            { label: "选课", hrefs: ["/student/catalog", "/student/cart", "/student/schedule", "/student/waitlist"] },
+            { label: "学籍", hrefs: ["/student/grades", "/student/transcript", "/student/degree-audit", "/student/standing", "/student/appeals", "/student/prereq-waivers"] },
             { label: "账号", hrefs: ["/student/profile", "/student/advisor", "/student/notifications"] },
           ];
 
@@ -278,7 +284,7 @@ export function AppShell({
         href={item.href}
         onClick={() => setSidebarOpen(false)}
         aria-current={active ? "page" : undefined}
-        className={`group mx-2 my-px flex h-9 items-center gap-3 rounded-lg px-3 text-sm no-underline transition ${
+        className={`group mx-2 flex h-8 items-center gap-2.5 rounded-lg px-3 text-[13px] no-underline transition ${
           active
             ? "bg-[hsl(221_83%_43%)] font-semibold text-white"
             : "text-[hsl(221_15%_50%)] hover:bg-[hsl(221_40%_96%)] hover:text-[hsl(221_40%_25%)]"
@@ -333,20 +339,20 @@ export function AppShell({
           </button>
         </div>
 
-        <div className="flex h-[calc(100%-64px)] flex-col py-4">
-          <nav aria-label="主导航">
+        <div className="flex h-[calc(100%-64px)] flex-col">
+          <nav aria-label="主导航" className="min-h-0 flex-1 overflow-y-auto py-2">
             {navGroups.map((group) => (
-              <div key={group.label} className="mt-4 first:mt-0">
-                <p className="px-5 pb-1 pt-3 text-[11px] font-semibold text-[hsl(221_15%_60%)]">
+              <div key={group.label} className="mt-2 first:mt-0">
+                <p className="px-4 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-wider text-[hsl(221_15%_65%)]">
                   {group.label}
                 </p>
                 <div>{group.items.map(renderNavItem)}</div>
               </div>
             ))}
           </nav>
-          <div className="mt-auto border-t border-[hsl(221_20%_91%)] px-4 pt-4">
-            <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-              <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-[hsl(221_83%_43%)] text-sm font-semibold text-white">
+          <div className="mt-auto shrink-0 border-t border-[hsl(221_20%_91%)] px-3 pt-3 pb-3">
+            <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-[hsl(221_83%_43%)] text-xs font-semibold text-white">
                 {userInitial}
               </span>
               <div className="min-w-0 flex-1">
