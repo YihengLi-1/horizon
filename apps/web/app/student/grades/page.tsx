@@ -6,6 +6,7 @@ import CertificateButton from "./CertificateButton";
 import GpaTrendChart from "./GpaTrendChart";
 import StarRating from "./StarRating";
 import TranscriptExportButton from "./TranscriptExportButton";
+import GradeToolsPanels from "./GradeToolsPanels";
 
 export type GradeItem = {
   id: string;
@@ -41,6 +42,17 @@ type TranscriptTerm = {
   }>;
 };
 
+function gpaTier(gpa: number): { label: string; cls: string } {
+  if (gpa >= 3.7) return { label: "院长名单", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" };
+  if (gpa >= 3.0) return { label: "学业正常", cls: "border-blue-200 bg-blue-50 text-blue-700" };
+  if (gpa >= 2.0) return { label: "学业警告", cls: "border-amber-200 bg-amber-50 text-amber-700" };
+  return { label: "学业察看", cls: "border-red-200 bg-red-50 text-red-700" };
+}
+
+type StandingSummary = {
+  standing: "DEAN_LIST" | "GOOD_STANDING" | "ACADEMIC_PROBATION" | "ACADEMIC_SUSPENSION" | "UNKNOWN";
+};
+
 function gradePoints(grade: string): number | null {
   return GRADE_POINTS[grade] ?? null;
 }
@@ -61,59 +73,12 @@ function gpaTone(gpa: number): string {
   return "text-red-700 dark:text-red-400";
 }
 
-function gpaTier(gpa: number): { label: string; cls: string } {
-  if (gpa >= 3.7) return { label: "院长名单", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" };
-  if (gpa >= 3.0) return { label: "学业正常", cls: "border-blue-200 bg-blue-50 text-blue-700" };
-  if (gpa >= 2.0) return { label: "学业警告", cls: "border-amber-200 bg-amber-50 text-amber-700" };
-  return { label: "学业察看", cls: "border-red-200 bg-red-50 text-red-700" };
-}
-
-interface Standing {
-  label: string;
-  description: string;
-  cls: string;
-  icon: string;
-}
-
-function getStanding(gpa: number | null): Standing {
-  if (gpa === null) {
-    return {
-      label: "暂无GPA",
-      description: "暂无成绩记录",
-      cls: "border-slate-200 bg-slate-50 text-slate-700",
-      icon: "📋"
-    };
-  }
-  if (gpa >= 3.7) {
-    return {
-      label: "院长名单",
-      description: `GPA ${gpa.toFixed(2)} — 学业表现卓越，荣登院长名单。`,
-      cls: "border-emerald-200 bg-emerald-50 text-emerald-800",
-      icon: "🏆"
-    };
-  }
-  if (gpa >= 3.0) {
-    return {
-      label: "学业正常",
-      description: `GPA ${gpa.toFixed(2)} — 学业进展良好，符合要求。`,
-      cls: "border-blue-200 bg-blue-50 text-blue-800",
-      icon: "✅"
-    };
-  }
-  if (gpa >= 2.0) {
-    return {
-      label: "学业警告",
-      description: `GPA ${gpa.toFixed(2)} — 达到最低要求，但需继续努力提升。`,
-      cls: "border-amber-200 bg-amber-50 text-amber-800",
-      icon: "⚠️"
-    };
-  }
-  return {
-    label: "学业察看",
-    description: `GPA ${gpa.toFixed(2)} — GPA 低于最低要求（2.0），请联系注册处获取后续指导。`,
-    cls: "border-red-200 bg-red-50 text-red-800",
-    icon: "🚨"
-  };
+function standingChip(standing: StandingSummary["standing"]): { label: string; cls: string } {
+  if (standing === "DEAN_LIST") return { label: "优秀", cls: "chip-emerald" };
+  if (standing === "GOOD_STANDING") return { label: "良好", cls: "chip-blue" };
+  if (standing === "ACADEMIC_PROBATION") return { label: "警告", cls: "chip-amber" };
+  if (standing === "ACADEMIC_SUSPENSION") return { label: "试察", cls: "chip-red" };
+  return { label: "暂无评定", cls: "chip-purple" };
 }
 
 function gradeDistribution(items: GradeItem[]): { A: number; B: number; C: number; D: number; F: number; other: number } {
@@ -205,7 +170,7 @@ export default async function GradesPage({
   const sortBy  = (params.sortBy  ?? "code") as SortCol;
   const sortDir = (params.sortDir === "desc" ? "desc" : "asc") as "asc" | "desc";
 
-  const [grades, transcriptResult, termsData, me] = await Promise.all([
+  const [grades, transcriptResult, termsData, me, standingData] = await Promise.all([
     serverApi<GradeItem[]>("/registration/grades"),
     serverApi<TranscriptTerm[]>("/students/transcript")
       .then((data) => ({ data, error: "" }))
@@ -214,7 +179,8 @@ export default async function GradesPage({
         error: error instanceof Error ? error.message : "成绩单加载失败"
       })),
     serverApi<Term[]>("/academics/terms").catch(() => [] as Term[]),
-    getMeServer().catch(() => null)
+    getMeServer().catch(() => null),
+    serverApi<StandingSummary>("/students/standing").catch(() => null)
   ]);
 
   const transcriptTerms = transcriptResult.data;
@@ -229,7 +195,7 @@ export default async function GradesPage({
   const gradeTerms = Array.from(byTerm.keys());
   const cumulative = calcGPA(grades);
   const completedCredits = grades.reduce((sum, item) => sum + item.section.credits, 0);
-  const standing = getStanding(cumulative?.gpa ?? null);
+  const standingMeta = standingData ? standingChip(standingData.standing) : null;
   const overallGradeDistribution = gradeDistribution(grades);
   const overallGradeTotal =
     overallGradeDistribution.A +
@@ -272,6 +238,11 @@ export default async function GradesPage({
               <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{grades.length} 门已出分课程</span>
               <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">{gradeTerms.length} 个学期</span>
               <span className="campus-chip border-slate-300 bg-slate-50 text-slate-700">已完成 {completedCredits} 学分</span>
+              {standingMeta ? (
+                <Link href="/student/standing" className="no-underline">
+                  <span className={`campus-chip ${standingMeta.cls}`}>学业状态 · {standingMeta.label}</span>
+                </Link>
+              ) : null}
               {cumulative ? (
                 <span className={`campus-chip ${gpaTier(cumulative.gpa).cls}`}>GPA {cumulative.gpa.toFixed(2)} · {gpaTier(cumulative.gpa).label}</span>
               ) : null}
@@ -301,14 +272,6 @@ export default async function GradesPage({
               浏览课程目录
             </Link>
           </div>
-        </div>
-      </section>
-
-      <section className={`flex items-start gap-3 rounded-xl border p-4 ${standing.cls}`}>
-        <span className="text-2xl">{standing.icon}</span>
-        <div>
-          <p className="text-sm font-bold">{standing.label}</p>
-          <p className="mt-0.5 text-sm">{standing.description}</p>
         </div>
       </section>
 
@@ -584,6 +547,17 @@ export default async function GradesPage({
           </section>
         );
       })}
+
+      <GradeToolsPanels
+        historicalGrades={grades.map((item) => ({
+          id: item.id,
+          courseCode: item.section.course.code,
+          title: item.section.course.title,
+          credits: item.section.credits,
+          finalGrade: item.finalGrade,
+          termName: item.term.name
+        }))}
+      />
 
       {/* Grade appeals entry — non-intrusive footer link */}
       <div className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-4 flex flex-wrap items-center justify-between gap-3">

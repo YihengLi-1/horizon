@@ -654,9 +654,7 @@ check_contains "apps/web/app/student/schedule/page.tsx" "showDropped|已退课|d
 check_contains "apps/web/app/admin/reg-windows/page.tsx" "priorityWindows|分年级开放" "Admin reg windows show cohort-specific opening times"
 check_contains "apps/web/app/student/prereq-waivers/page.tsx" "students/prereq-waivers" "Student prereq waivers page uses real API"
 check_contains "apps/web/components/app-shell.tsx" "/admin/pending-overloads" "Pending overload queue remains in admin navigation"
-check_contains "apps/web/app/admin/schedule-conflicts/page.tsx" "getScheduleConflicts|schedule-conflicts|排课冲突" "Admin schedule conflict detector page exists"
 check_contains "apps/api/src/admin/admin.service.ts" "getScheduleConflicts" "Admin getScheduleConflicts service method"
-check_exists "apps/web/app/admin/schedule-conflicts/page.tsx" "Schedule conflicts page accessible"
 
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"

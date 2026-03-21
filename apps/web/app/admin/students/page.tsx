@@ -123,7 +123,7 @@ export default function AdminStudentsPage() {
   const [roleSaving, setRoleSaving] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
   const [activeTab, setActiveTab] = useState<"profile" | "grades" | "security" | "notifications" | "notes" | "tags">("profile");
-  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+
   const [notificationLog, setNotificationLog] = useState<NotificationLogItem[]>([]);
   const [notificationLoading, setNotificationLoading] = useState(false);
   const [studentNotes, setStudentNotes] = useState<StudentNoteItem[]>([]);
@@ -175,11 +175,6 @@ export default function AdminStudentsPage() {
     void apiFetch<string[]>("/admin/student-tags/available")
       .then((data) => setAvailableTags(data ?? []))
       .catch(() => setAvailableTags([]));
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setLeaderboardOpen(window.localStorage.getItem("admin_gpa_open") === "true");
   }, []);
 
   useEffect(() => {
@@ -499,14 +494,6 @@ export default function AdminStudentsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const topStudents = useMemo(
-    () =>
-      [...(students ?? [])]
-        .filter((student) => student.gpa != null)
-        .sort((a, b) => (b.gpa ?? 0) - (a.gpa ?? 0))
-        .slice(0, 5),
-    [students]
-  );
   const detailLocked =
     detailStudent?.lockedUntil != null && new Date(detailStudent.lockedUntil).getTime() > Date.now();
 
@@ -562,44 +549,6 @@ export default function AdminStudentsPage() {
         </div>
       </section>
 
-      <details
-        className="campus-card p-4"
-        open={leaderboardOpen}
-        onToggle={(event) => {
-          const nextOpen = (event.currentTarget as HTMLDetailsElement).open;
-          setLeaderboardOpen(nextOpen);
-          window.localStorage.setItem("admin_gpa_open", String(nextOpen));
-        }}
-      >
-        <summary className="cursor-pointer select-none text-sm font-semibold text-slate-700">🏆 GPA 前五名</summary>
-        <div className="mt-3 space-y-2">
-          {topStudents.length === 0 ? (
-            <p className="text-sm text-slate-400">暂无 GPA 数据。</p>
-          ) : (
-            topStudents.map((student, index) => (
-              <div key={student.id} className="flex items-center gap-3">
-                <span
-                  className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${
-                    index === 0 ? "bg-amber-400" : index === 1 ? "bg-slate-400" : index === 2 ? "bg-orange-600" : "bg-slate-300"
-                  }`}
-                >
-                  {index + 1}
-                </span>
-                <span className="flex-1 text-sm font-medium text-slate-700">
-                  {student.studentProfile?.legalName ?? student.email}
-                </span>
-                <span
-                  className={`text-sm font-bold ${
-                    (student.gpa ?? 0) >= 3.7 ? "text-emerald-600" : (student.gpa ?? 0) >= 3 ? "text-blue-600" : "text-amber-600"
-                  }`}
-                >
-                  {student.gpa?.toFixed(2)}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-      </details>
 
       <section className="campus-card p-5 md:p-6">
         <h2 className="mb-3 text-base font-semibold text-slate-900">新建学生账号</h2>
