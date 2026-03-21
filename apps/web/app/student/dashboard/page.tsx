@@ -2,7 +2,6 @@ import Link from "next/link";
 import { AlertTriangle, BellRing, BookOpenCheck, CalendarClock, GraduationCap, Sparkles } from "lucide-react";
 import { GRADE_POINTS } from "@sis/shared/constants";
 import ProfileCompletenessCard from "@/components/profile-completeness-card";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { serverApi } from "@/lib/server-api";
 import { requireRole } from "@/lib/server-auth";
 import PinnedAnnouncements from "./PinnedAnnouncements";
@@ -181,8 +180,40 @@ function issueTitle(reasonCode: string): string {
   return "选课问题";
 }
 
-function getNextAction(enrollments: Enrollment[], cartItems: CartItem[], term: Term | null) {
-  if (!term) return null;
+function getNextAction(
+  enrollments: Enrollment[],
+  cartItems: CartItem[],
+  term: Term | null,
+  registrationState: "OPEN" | "PRE_OPEN" | "CLOSED" | "NO_TERM"
+) {
+  if (!term || registrationState === "NO_TERM") return null;
+
+  // Registration not yet open — tell student when it opens
+  if (registrationState === "PRE_OPEN") {
+    return {
+      icon: "📅",
+      title: "注册尚未开放",
+      desc: `选课窗口将于 ${new Date(term.registrationOpenAt).toLocaleDateString("zh-CN", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })} 开放。`,
+      href: "/student/catalog",
+      cta: "提前浏览课程目录"
+    };
+  }
+
+  // Registration closed — no action available
+  if (registrationState === "CLOSED") {
+    const enrolled = enrollments.filter((item) => item.status === "ENROLLED");
+    return {
+      icon: "🔒",
+      title: "注册窗口已关闭",
+      desc: enrolled.length > 0
+        ? `本学期选课已截止，已注册 ${enrolled.length} 门课程。如需调整请联系教务处。`
+        : "本学期选课已截止。如需调整请联系教务处。",
+      href: "/student/schedule",
+      cta: "查看课表"
+    };
+  }
+
+  // OPEN — normal flow
   const enrolled = enrollments.filter((item) => item.status === "ENROLLED");
   const waitlisted = enrollments.filter((item) => item.status === "WAITLISTED");
   const cartCount = cartItems.length;
@@ -191,7 +222,7 @@ function getNextAction(enrollments: Enrollment[], cartItems: CartItem[], term: T
     return {
       icon: "📚",
       title: "开始选课",
-      desc: "当前可以开始浏览课程并加入购物车。",
+      desc: "选课窗口已开放，可以开始浏览课程并加入购物车。",
       href: "/student/catalog",
       cta: "进入课程目录"
     };
@@ -209,7 +240,7 @@ function getNextAction(enrollments: Enrollment[], cartItems: CartItem[], term: T
     return {
       icon: "⏳",
       title: "正在候补中",
-      desc: `你当前有 ${waitlisted.length} 门课程处于候补状态。`,
+      desc: `你当前有 ${waitlisted.length} 门课程处于候补状态，结果将通过通知告知。`,
       href: "/student/schedule",
       cta: "查看状态"
     };
@@ -339,7 +370,7 @@ export default async function StudentDashboardPage() {
     });
   }
 
-  const nextAction = getNextAction(enrollments, cartItems, term);
+  const nextAction = getNextAction(enrollments, cartItems, term, registrationState);
 
   return (
     <div className="campus-page">
@@ -485,11 +516,8 @@ export default async function StudentDashboardPage() {
 
       <PinnedAnnouncements announcements={announcements.slice(0, 3)} />
 
-      <Card className="campus-card">
-        <CardHeader>
-          <CardTitle className="font-heading text-2xl">提醒与公告</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <div className="campus-card p-5 space-y-3">
+        <h2 className="font-heading text-xl font-bold text-slate-900">提醒与公告</h2>
           {alerts.map((alert) => (
             <div key={`${alert.title}-${alert.description}`} className={`relative overflow-hidden rounded-xl border px-4 py-3 ${alertTone(alert.level)}`}>
               <span className={`absolute inset-y-0 left-0 w-1 ${alert.level === "critical" ? "bg-red-500" : alert.level === "warning" ? "bg-amber-500" : "bg-blue-500"}`} />
@@ -511,15 +539,11 @@ export default async function StudentDashboardPage() {
               </Link>
             </div>
           ))}
-        </CardContent>
-      </Card>
+      </div>
 
       <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <Card className="campus-card">
-          <CardHeader>
-            <CardTitle className="font-heading text-2xl">当前学期</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <div className="campus-card p-5 space-y-3">
+          <h2 className="font-heading text-xl font-bold text-slate-900">当前学期</h2>
             {nextAction ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
                 <div className="flex items-start gap-3">
@@ -585,14 +609,10 @@ export default async function StudentDashboardPage() {
                   : `距退课截止日期还剩 ${dropDaysLeft} 天。`}
               </p>
             ) : null}
-          </CardContent>
-        </Card>
+        </div>
 
-        <Card className="campus-card">
-          <CardHeader>
-            <CardTitle className="font-heading text-2xl">注册快照</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <div className="campus-card p-5 space-y-4">
+          <h2 className="font-heading text-xl font-bold text-slate-900">注册快照</h2>
             {enrolled.length > 0 ? (
               <div>
                 <p className="mb-2 text-[11px] font-semibold text-slate-500">
@@ -693,8 +713,7 @@ export default async function StudentDashboardPage() {
                 查看课表
               </Link>
             </div>
-          </CardContent>
-        </Card>
+        </div>
       </div>
     </div>
   );
