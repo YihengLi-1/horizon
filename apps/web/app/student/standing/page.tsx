@@ -181,7 +181,7 @@ export default function StudentStandingPage() {
 
           {/* Quick links */}
           <div className="flex flex-wrap gap-3">
-            <Link href="/student/transcript" className="campus-btn-ghost text-sm">
+            <Link href="/student/grades" className="campus-btn-ghost text-sm">
               查看成绩单 →
             </Link>
             <Link href="/student/degree-audit" className="campus-btn-ghost text-sm">

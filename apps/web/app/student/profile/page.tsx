@@ -647,14 +647,27 @@ export default function StudentProfilePage() {
             </section>
 
             <section className="campus-card p-4">
-              <h3 className="text-sm font-semibold text-slate-700">导师支持</h3>
-              <p className="mt-1 text-sm text-slate-600">需要查看导师分配与联系方式时，可前往导师信息页面。</p>
-              <Link
-                href="/student/advisor"
-                className="mt-3 inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
-              >
-                查看导师信息
-              </Link>
+              <h3 className="text-sm font-semibold text-slate-700">快捷入口</h3>
+              <div className="mt-3 flex flex-col gap-2">
+                <Link
+                  href="/student/advisor"
+                  className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
+                >
+                  👤 我的导师
+                </Link>
+                <Link
+                  href="/student/enrollment-log"
+                  className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
+                >
+                  📋 注册操作日志
+                </Link>
+                <Link
+                  href="/student/prereq-waivers"
+                  className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
+                >
+                  📝 先修豁免申请
+                </Link>
+              </div>
             </section>
 
             <ChangePasswordCard />

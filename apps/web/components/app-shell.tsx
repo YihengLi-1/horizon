@@ -22,8 +22,7 @@ import {
   Megaphone,
   ScrollText,
   Search,
-  Share2,
-  Shield,
+
   ShieldAlert,
   User,
   Users,
@@ -68,12 +67,9 @@ const studentItems: NavItem[] = [
 const adminItems: NavItem[] = [
   // 概览
   { href: "/admin/dashboard",              label: "概览",     icon: <LayoutDashboard className={iconClass} /> },
-  { href: "/admin/system-health",          label: "系统状态", icon: <Shield className={iconClass} /> },
-  // 人员
-  { href: "/admin/students",               label: "学生",     icon: <Users className={iconClass} /> },
   // 学生
+  { href: "/admin/students",               label: "学生",     icon: <Users className={iconClass} /> },
   { href: "/admin/holds",                  label: "学籍限制", icon: <ShieldAlert className={iconClass} /> },
-  { href: "/admin/student-progress",       label: "学生进度", icon: <BarChart3 className={iconClass} /> },
   // 课务
   { href: "/admin/courses",                label: "课程",     icon: <BookCopy className={iconClass} /> },
   { href: "/admin/sections",               label: "教学班",   icon: <ListChecks className={iconClass} /> },
@@ -87,13 +83,13 @@ const adminItems: NavItem[] = [
   { href: "/admin/appeals",                label: "成绩申诉", icon: <ShieldAlert className={iconClass} /> },
   { href: "/admin/prereq-waivers",         label: "先修豁免", icon: <BookX className={iconClass} /> },
   { href: "/admin/pending-overloads",      label: "超学分",   icon: <Layers className={iconClass} /> },
-  // 运营
+  // 分析
+  { href: "/admin/student-progress",       label: "学生进度", icon: <BarChart3 className={iconClass} /> },
+  { href: "/admin/grade-distribution",     label: "成绩分布", icon: <BarChart3 className={iconClass} /> },
   { href: "/admin/cohort-analytics",       label: "专业分析", icon: <BarChart3 className={iconClass} /> },
-  { href: "/admin/prereq-map",             label: "先修图谱", icon: <Share2 className={iconClass} /> },
+  // 工具
   { href: "/admin/announcements-mgmt",     label: "公告管理", icon: <Megaphone className={iconClass} /> },
   { href: "/admin/bulk-ops",               label: "批量操作", icon: <ListChecks className={iconClass} /> },
-  { href: "/admin/enrollment-audit",       label: "注册审计", icon: <ScrollText className={iconClass} /> },
-  { href: "/admin/grade-distribution",     label: "成绩分布", icon: <BarChart3 className={iconClass} /> },
   { href: "/admin/audit-logs",             label: "审计日志", icon: <History className={iconClass} /> },
   { href: "/admin/invite-codes",           label: "邀请码",   icon: <KeyRound className={iconClass} /> },
 ];
@@ -156,12 +152,13 @@ export function AppShell({
     const groups: NavGroup[] =
       area === "admin"
         ? [
-            { label: "概览",   hrefs: ["/admin/dashboard", "/admin/system-health"] },
-            { label: "学生",   hrefs: ["/admin/students", "/admin/holds", "/admin/student-progress"] },
+            { label: "概览",   hrefs: ["/admin/dashboard"] },
+            { label: "学生",   hrefs: ["/admin/students", "/admin/holds"] },
             { label: "课务",   hrefs: ["/admin/courses", "/admin/sections", "/admin/terms", "/admin/reg-windows"] },
             { label: "注册",   hrefs: ["/admin/enrollments", "/admin/grade-entry", "/admin/waitlist"] },
             { label: "审批",   hrefs: ["/admin/appeals", "/admin/prereq-waivers", "/admin/pending-overloads"] },
-            { label: "运营",   hrefs: ["/admin/cohort-analytics", "/admin/prereq-map", "/admin/announcements-mgmt", "/admin/bulk-ops", "/admin/enrollment-audit", "/admin/grade-distribution", "/admin/audit-logs", "/admin/invite-codes"] },
+            { label: "分析",   hrefs: ["/admin/student-progress", "/admin/grade-distribution", "/admin/cohort-analytics"] },
+            { label: "工具",   hrefs: ["/admin/announcements-mgmt", "/admin/bulk-ops", "/admin/audit-logs", "/admin/invite-codes"] },
           ]
         : [
             { label: "概览", hrefs: ["/student/dashboard"] },

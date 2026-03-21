@@ -202,7 +202,7 @@ export default function MyAdvisorPage() {
               {[
                 { label: "个人资料", icon: "🎯", href: "/student/profile" },
                 { label: "毕业进度", icon: "🎓", href: "/student/degree-audit" },
-                { label: "成绩单", icon: "📄", href: "/student/transcript" },
+                { label: "成绩单", icon: "📄", href: "/student/grades" },
                 { label: "课程目录", icon: "📚", href: "/student/catalog" },
                 { label: "成绩", icon: "📊", href: "/student/grades" },
                 { label: "通知", icon: "🔔", href: "/student/notifications" }

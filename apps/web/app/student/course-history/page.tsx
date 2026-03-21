@@ -116,9 +116,6 @@ export default function CourseHistoryPage() {
       <div className="no-print flex gap-0.5 rounded-xl border border-slate-200 bg-slate-50 p-1 text-sm w-fit">
         <Link href="/student/grades" className="px-4 py-1.5 text-slate-500 transition hover:text-slate-700 no-underline">成绩</Link>
         <span className="rounded-lg bg-white px-4 py-1.5 font-semibold text-slate-900 shadow-sm">课程历史</span>
-        <Link href="/student/transcript" className="flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-slate-500 no-underline transition hover:bg-white hover:text-slate-900">
-          成绩单
-        </Link>
       </div>
 
       <section className="campus-hero">
