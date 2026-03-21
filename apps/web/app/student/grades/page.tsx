@@ -212,18 +212,6 @@ export default async function GradesPage({
 
   return (
     <div className="campus-page">
-      {/* Tab nav */}
-      <div className="no-print mb-6 flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
-        <span className="flex-1 rounded-lg bg-white px-4 py-2 text-center text-sm font-semibold text-slate-900 shadow-sm">
-          成绩
-        </span>
-        <Link
-          href="/student/transcript"
-          className="flex-1 rounded-lg px-4 py-2 text-center text-sm font-medium text-slate-500 no-underline transition hover:bg-white hover:text-slate-900"
-        >
-          成绩单
-        </Link>
-      </div>
       <section className="campus-hero">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl space-y-2">

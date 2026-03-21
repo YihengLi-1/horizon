@@ -10,7 +10,7 @@ import {
   BookCopy,
   BookOpen,
   BookX,
-  FileText,
+
   CalendarClock,
   CalendarRange,
   Clock,
@@ -64,12 +64,8 @@ const studentItems: NavItem[] = [
   { href: "/student/waitlist",             label: "候补名单", icon: <ClipboardList className={iconClass} /> },
   // 学籍
   { href: "/student/grades",               label: "成绩",     icon: <GraduationCap className={iconClass} /> },
-  { href: "/student/transcript",           label: "成绩单",   icon: <ScrollText className={iconClass} /> },
   { href: "/student/degree-audit",         label: "毕业进度", icon: <GraduationCap className={iconClass} /> },
   { href: "/student/standing",             label: "学业状态", icon: <BarChart3 className={iconClass} /> },
-  { href: "/student/appeals",             label: "成绩申诉", icon: <FileText className={iconClass} /> },
-  { href: "/student/prereq-waivers",      label: "先修豁免", icon: <BookX className={iconClass} /> },
-  { href: "/student/enrollment-log",       label: "注册日志", icon: <History className={iconClass} /> },
   { href: "/student/course-history",       label: "课程历史", icon: <BookOpen className={iconClass} /> },
   // 账号
   { href: "/student/profile",              label: "个人资料",   icon: <User className={iconClass} /> },
@@ -178,7 +174,7 @@ export function AppShell({
         : [
             { label: "概览", hrefs: ["/student/dashboard"] },
             { label: "选课", hrefs: ["/student/catalog", "/student/cart", "/student/schedule", "/student/waitlist"] },
-            { label: "学籍", hrefs: ["/student/grades", "/student/transcript", "/student/degree-audit", "/student/standing", "/student/appeals", "/student/prereq-waivers", "/student/enrollment-log", "/student/course-history"] },
+            { label: "学籍", hrefs: ["/student/grades", "/student/degree-audit", "/student/standing", "/student/course-history"] },
             { label: "账号", hrefs: ["/student/profile", "/student/advisor", "/student/notifications"] },
           ];
 
