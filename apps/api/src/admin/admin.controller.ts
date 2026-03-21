@@ -45,6 +45,13 @@ export class AdminController {
     return ok(await this.adminService.getReportsSummary());
   }
 
+  @Post("mail/test")
+  @RequireAdminPermissions("dashboard:read")
+  async testMail(@Body() body: { to: string }) {
+    await this.adminService.sendTestMail(body.to);
+    return ok({ message: "测试邮件已发送，请检查收件箱（含垃圾箱）" });
+  }
+
   @Get("students")
   @RequireAdminPermissions("students:read")
   async listStudents(@Query("page") page?: string, @Query("pageSize") pageSize?: string, @Query("search") search?: string) {
