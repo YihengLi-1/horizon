@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
@@ -431,7 +432,7 @@ export default function StudentProfilePage() {
     );
   }, [form.legalName]);
   const gradient = useMemo(
-    () => getGradient(form.legalName || profile?.user.email || "U"),
+    () => getGradient(form.legalName || profile?.user.email || "学"),
     [form.legalName, profile?.user.email]
   );
   const expectedTerms = Math.max(0, Math.ceil((120 - completedCredits) / 15));
@@ -466,7 +467,7 @@ export default function StudentProfilePage() {
             <p className="campus-subtitle">完善档案信息，确保教务通知、学业支持和注册流程都基于最新资料。</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="campus-chip chip-blue">{profile?.user.studentId ?? "Student"}</span>
+            <span className="campus-chip chip-blue">{profile?.user.studentId ?? "学生"}</span>
             <span className="campus-chip chip-purple">{form.programMajor || "未填写专业"}</span>
           </div>
         </div>
@@ -608,15 +609,14 @@ export default function StudentProfilePage() {
                   {academicStanding}
                 </span>
                 {currentGpa !== null && (
-                  <span className="text-xs text-slate-500">GPA {currentGpa.toFixed(2)}</span>
+                  <span className="text-xs text-slate-500">绩点 {currentGpa.toFixed(2)}</span>
                 )}
               </div>
 
-              {/* Degree progress bar */}
               <div className="mt-3">
                 <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
                   <span>毕业进度</span>
-                  <span className="font-semibold text-slate-700">{completedCredits} / {DEGREE_CREDITS} cr ({degreeProgress}%)</span>
+                  <span className="font-semibold text-slate-700">{completedCredits} / {DEGREE_CREDITS} 学分（{degreeProgress}%）</span>
                 </div>
                 <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
                   <div
@@ -636,7 +636,7 @@ export default function StudentProfilePage() {
                   <p className="campus-kpi-value">{enrolledCredits}</p>
                 </div>
                 <div className="campus-kpi">
-                  <p className="text-xs font-semibold text-slate-500">当前 GPA</p>
+                  <p className="text-xs font-semibold text-slate-500">当前绩点</p>
                   <p className="campus-kpi-value">{currentGpa != null ? currentGpa.toFixed(2) : "—"}</p>
                 </div>
                 <div className="campus-kpi">
@@ -644,6 +644,17 @@ export default function StudentProfilePage() {
                   <p className="campus-kpi-value">{expectedGraduation}</p>
                 </div>
               </div>
+            </section>
+
+            <section className="campus-card p-4">
+              <h3 className="text-sm font-semibold text-slate-700">导师支持</h3>
+              <p className="mt-1 text-sm text-slate-600">需要查看导师分配与联系方式时，可前往导师信息页面。</p>
+              <Link
+                href="/student/advisor"
+                className="mt-3 inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
+              >
+                查看导师信息
+              </Link>
             </section>
 
             <ChangePasswordCard />

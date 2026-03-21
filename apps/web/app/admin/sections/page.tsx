@@ -608,7 +608,7 @@ export default function AdminSectionsPage() {
         body: JSON.stringify({})
       });
       setCreateSuccess("教学班复制成功。");
-      toast(`教学班已复制，新 ID：${cloned.id}`, "success");
+      toast(`教学班已复制，新编号：${cloned.id}`, "success");
       await loadSections();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : "复制失败");
@@ -800,7 +800,7 @@ export default function AdminSectionsPage() {
               disabled={visibleSections.length === 0}
               className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              CSV 导出
+              导出表格
             </button>
             <button
               type="button"

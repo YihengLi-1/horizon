@@ -357,6 +357,7 @@ export default function SchedulePage() {
         <Link href="/student/catalog" className="px-4 py-1.5 text-slate-500 transition hover:text-slate-700 no-underline">课程目录</Link>
         <Link href="/student/cart" className="px-4 py-1.5 text-slate-500 transition hover:text-slate-700 no-underline">购物车</Link>
         <span className="rounded-lg bg-white px-4 py-1.5 font-semibold text-slate-900 shadow-sm">我的课表</span>
+        <Link href="/student/waitlist" className="px-4 py-1.5 text-slate-500 transition hover:text-slate-700 no-underline">候补名单</Link>
       </div>
       <section className="campus-hero no-print">
         <div className="flex flex-wrap items-start justify-between gap-4">

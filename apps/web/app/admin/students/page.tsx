@@ -81,6 +81,12 @@ const ACADEMIC_STATUS_LABEL: Record<string, string> = {
 const ROLE_LABEL: Record<string, string> = {
   STUDENT: "学生",  ADMIN: "管理员",  FACULTY: "教师",  ADVISOR: "顾问",
 };
+const NOTIFICATION_TYPE_LABEL: Record<string, string> = {
+  email: "邮件",
+  sms: "短信",
+  in_app: "站内通知",
+  push: "推送通知"
+};
 const PAGE_SIZE = 50;
 
 export default function AdminStudentsPage() {
@@ -404,7 +410,7 @@ export default function AdminStudentsPage() {
         body: JSON.stringify({ role })
       });
       setDetailStudent((prev) => (prev ? { ...prev, role } : prev));
-      setNotice(`角色已更新为 ${role}。`);
+      setNotice(`角色已更新为 ${ROLE_LABEL[role] ?? role}。`);
       await loadStudents();
     } catch (err) {
       setError(err instanceof Error ? err.message : "角色更新失败");
@@ -517,7 +523,7 @@ export default function AdminStudentsPage() {
               disabled={visibleStudents.length === 0}
               className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 no-underline shadow-sm transition hover:-translate-y-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
             >
-              CSV 导出
+              导出表格
             </button>
             <button
               type="button"
@@ -578,7 +584,7 @@ export default function AdminStudentsPage() {
             <input
               className="campus-input"
               type="email"
-              placeholder="student@example.edu"
+              placeholder="学生邮箱"
               value={form.email}
               onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
               required
@@ -900,7 +906,7 @@ export default function AdminStudentsPage() {
                           : "chip-purple"
                     }`}
                   >
-                    GPA {student.gpa?.toFixed(2) ?? "—"}
+                    绩点 {student.gpa?.toFixed(2) ?? "—"}
                   </span>
                 </div>
                 <div className="mt-3 flex gap-2">
@@ -1030,7 +1036,7 @@ export default function AdminStudentsPage() {
                         <p className="font-mono font-medium text-slate-800 dark:text-slate-100">{detailStudent.studentId ?? "—"}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">GPA</p>
+                        <p className="text-xs text-slate-500">绩点</p>
                         <p
                           className={`font-bold ${
                             (detailStudent.gpa ?? 0) >= 3.7 ? "text-emerald-600" : (detailStudent.gpa ?? 0) >= 3 ? "text-blue-600" : "text-amber-600"
@@ -1190,7 +1196,7 @@ export default function AdminStudentsPage() {
                                 : "chip-purple"
                             }`}
                           >
-                            {item.type}
+                            {NOTIFICATION_TYPE_LABEL[item.type] ?? item.type}
                           </span>
                         </div>
                       </div>
