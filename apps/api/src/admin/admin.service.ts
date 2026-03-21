@@ -527,8 +527,13 @@ export class AdminService {
         }
       }),
       this.prisma.auditLog.findMany({
-        take: 10,
+        take: 15,
         orderBy: { createdAt: "desc" },
+        where: {
+          NOT: {
+            action: { in: ["login", "logout", "login_failed"] }
+          }
+        },
         include: {
           actor: { select: { email: true, role: true } }
         }
