@@ -70,14 +70,10 @@ const adminItems: NavItem[] = [
   // 概览
   { href: "/admin/dashboard",              label: "概览",     icon: <LayoutDashboard className={iconClass} /> },
   { href: "/admin/system-health",          label: "系统状态", icon: <Shield className={iconClass} /> },
-  { href: "/admin/alerts",                 label: "系统预警", icon: <ShieldAlert className={iconClass} /> },
   // 人员
   { href: "/admin/students",               label: "学生",     icon: <Users className={iconClass} /> },
-  { href: "/admin/staff",                  label: "教职导师", icon: <Users className={iconClass} /> },
-  { href: "/admin/users-mgmt",             label: "用户管理", icon: <Users className={iconClass} /> },
   // 学生
   { href: "/admin/holds",                  label: "学籍限制", icon: <ShieldAlert className={iconClass} /> },
-  { href: "/admin/at-risk",                label: "学生预警", icon: <ShieldAlert className={iconClass} /> },
   { href: "/admin/student-progress",       label: "学生进度", icon: <BarChart3 className={iconClass} /> },
   // 课务
   { href: "/admin/courses",                label: "课程",     icon: <BookCopy className={iconClass} /> },
@@ -88,19 +84,16 @@ const adminItems: NavItem[] = [
   { href: "/admin/enrollments",            label: "注册管理", icon: <GraduationCap className={iconClass} /> },
   { href: "/admin/grade-entry",            label: "成绩录入", icon: <ScrollText className={iconClass} /> },
   { href: "/admin/waitlist",               label: "候补名单", icon: <Clock className={iconClass} /> },
-  { href: "/admin/graduation",             label: "毕业审核", icon: <GraduationCap className={iconClass} /> },
   // 审批
+  { href: "/admin/appeals",                label: "成绩申诉", icon: <ShieldAlert className={iconClass} /> },
+  { href: "/admin/prereq-waivers",         label: "先修豁免", icon: <ShieldAlert className={iconClass} /> },
   { href: "/admin/pending-overloads",      label: "超学分",   icon: <ShieldAlert className={iconClass} /> },
   // 运营
   { href: "/admin/announcements-mgmt",     label: "公告管理", icon: <Megaphone className={iconClass} /> },
   { href: "/admin/bulk-ops",               label: "批量操作", icon: <ListChecks className={iconClass} /> },
-  { href: "/admin/import",                 label: "CSV 导入", icon: <ListChecks className={iconClass} /> },
-  { href: "/admin/closeout",               label: "学期关闭", icon: <CalendarRange className={iconClass} /> },
+  { href: "/admin/enrollment-audit",       label: "注册审计", icon: <ScrollText className={iconClass} /> },
+  { href: "/admin/grade-distribution",     label: "成绩分布", icon: <BarChart3 className={iconClass} /> },
   { href: "/admin/audit-logs",             label: "审计日志", icon: <ScrollText className={iconClass} /> },
-  // 系统
-  { href: "/admin/invite-codes",           label: "邀请码",   icon: <Shield className={iconClass} /> },
-  { href: "/admin/settings",               label: "系统设置", icon: <Shield className={iconClass} /> },
-  { href: "/admin/webhooks",               label: "Webhook",  icon: <Bell className={iconClass} /> },
 ];
 
 const facultyItems: NavItem[] = [
@@ -175,14 +168,12 @@ export function AppShell({
     const groups: NavGroup[] =
       area === "admin"
         ? [
-            { label: "概览",   hrefs: ["/admin/dashboard", "/admin/system-health", "/admin/alerts"] },
-            { label: "人员",   hrefs: ["/admin/students", "/admin/staff", "/admin/users-mgmt"] },
-            { label: "学生",   hrefs: ["/admin/holds", "/admin/at-risk", "/admin/student-progress"] },
+            { label: "概览",   hrefs: ["/admin/dashboard", "/admin/system-health"] },
+            { label: "学生",   hrefs: ["/admin/students", "/admin/holds", "/admin/student-progress"] },
             { label: "课务",   hrefs: ["/admin/courses", "/admin/sections", "/admin/terms", "/admin/reg-windows"] },
-            { label: "注册",   hrefs: ["/admin/enrollments", "/admin/grade-entry", "/admin/waitlist", "/admin/graduation"] },
-            { label: "审批",   hrefs: ["/admin/pending-overloads"] },
-            { label: "运营",   hrefs: ["/admin/announcements-mgmt", "/admin/bulk-ops", "/admin/import", "/admin/closeout", "/admin/audit-logs"] },
-            { label: "系统",   hrefs: ["/admin/invite-codes", "/admin/settings", "/admin/webhooks"] },
+            { label: "注册",   hrefs: ["/admin/enrollments", "/admin/grade-entry", "/admin/waitlist"] },
+            { label: "审批",   hrefs: ["/admin/appeals", "/admin/prereq-waivers", "/admin/pending-overloads"] },
+            { label: "运营",   hrefs: ["/admin/announcements-mgmt", "/admin/bulk-ops", "/admin/enrollment-audit", "/admin/grade-distribution", "/admin/audit-logs"] },
           ]
         : area === "faculty"
           ? [{ label: "教学", hrefs: ["/faculty/dashboard", "/faculty/sections", "/faculty/grade-stats"] }]

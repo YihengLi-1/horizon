@@ -177,10 +177,6 @@ function actorRoleBadge(role: string): { label: string; className: string } {
   };
 }
 
-const nodeEnv = process.env.NODE_ENV ?? "development";
-const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? "v1.0.0";
-const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME ?? "—";
-
 export default async function AdminDashboardPage() {
   await requireRole("ADMIN");
 
@@ -222,11 +218,6 @@ export default async function AdminDashboardPage() {
     return `${d} 天 ${h} 小时`;
   }
 
-  const errorRatePct = opsMetrics
-    ? opsMetrics.requestsTotal > 0
-      ? ((opsMetrics.errorResponsesTotal / opsMetrics.requestsTotal) * 100).toFixed(1)
-      : "0.0"
-    : null;
   const activeAlerts = opsMetrics?.alerts ?? [];
   const systemHealthy = opsReady?.status === "ok";
 
@@ -256,7 +247,7 @@ export default async function AdminDashboardPage() {
           <div className="max-w-3xl space-y-2">
             <p className="campus-eyebrow">运营概览</p>
             <h1 className="campus-title">管理概览</h1>
-            <p className="campus-subtitle">查看学生、课程、注册状态和当前学期的运营概况。</p>
+            <p className="campus-subtitle">首页只保留当前学期、注册状态和最常用操作，不再承担报表目录和工具超市的职责。</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="campus-chip chip-emerald">
@@ -284,10 +275,10 @@ export default async function AdminDashboardPage() {
 
       {/* Primary stats */}
       <div className="campus-kpi-grid">
-        <StatCard label="学生" value={data.students} sub="系统内账号" href="/admin/students" />
-        <StatCard label="课程" value={data.courses} sub="目录课程数" href="/admin/courses" />
-        <StatCard label="教学班" value={data.sections} sub="全部学期" href="/admin/sections" />
-        <StatCard label="学期" value={data.terms} sub="当前配置总数" href="/admin/terms" />
+        <StatCard label="学生" value={data.students} sub="当前系统账号数" href="/admin/students" />
+        <StatCard label="进行中注册" value={enrollmentTotal} sub="已注册 / 候补 / 待审批" href="/admin/enrollments" />
+        <StatCard label="待处理审批" value={breakdown.pendingApproval} sub="需要人工判断" accent="text-amber-600" href="/admin/pending-overloads" />
+        <StatCard label="候补压力" value={data.waitlist} sub="需要推进的候补记录" accent="text-amber-600" href="/admin/waitlist" />
       </div>
 
       {/* Active term spotlight */}
@@ -365,27 +356,16 @@ export default async function AdminDashboardPage() {
       )}
 
       {/* Enrollment breakdown */}
-      <div>
-        <h2 className="mb-3 text-sm font-semibold tracking-wide text-slate-500">注册状态</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <StatCard label="已注册" value={breakdown.enrolled} accent="text-emerald-600" href="/admin/enrollments" />
-          <StatCard
-            label="候补中"
-            value={breakdown.waitlisted}
-            accent="text-amber-600"
-            href="/admin/waitlist"
-          />
-          <StatCard
-            label="待审批"
-            value={breakdown.pendingApproval}
-            accent="text-blue-600"
-            href="/admin/enrollments"
-          />
-          <StatCard label="已完成" value={breakdown.completed} accent="text-slate-500" />
-          <StatCard label="已退课" value={breakdown.dropped} accent="text-red-500" />
+      <div className="campus-card p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-semibold tracking-wide text-slate-500">注册状态</h2>
+            <p className="mt-1 text-sm text-slate-500">把最常用的状态收成一条总览，不再把首页切成五块重复卡片。</p>
+          </div>
+          <Link href="/admin/enrollments" className="text-sm font-medium text-slate-500 hover:text-slate-700">
+            查看注册明细 →
+          </Link>
         </div>
-
-        {/* Enrollment composition bar — multi-segment */}
         {enrollmentGrandTotal > 0 ? (
           <>
             <div className="mt-4 flex h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
@@ -398,7 +378,7 @@ export default async function AdminDashboardPage() {
                 />
               ))}
             </div>
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
               {barSegments.filter((s) => s.count > 0).map((seg) => (
                 <span key={seg.label} className="flex items-center gap-1">
                   <span className={`inline-block size-2 rounded-sm ${seg.cls}`} />
@@ -408,37 +388,13 @@ export default async function AdminDashboardPage() {
               <span className="ml-auto text-slate-400">当前确认率 {enrolledPct}%</span>
             </div>
           </>
-        ) : null}
+        ) : (
+          <p className="mt-4 text-sm text-slate-400">当前没有注册数据。</p>
+        )}
       </div>
 
       <div className="campus-card p-4">
         <EnrollmentTrendChart />
-      </div>
-
-      <div className="campus-kpi-grid">
-        <StatCard
-          label="API"
-          value={systemHealthy ? "正常" : "异常"}
-          sub={`${opsVersion?.nodeEnv ?? nodeEnv} · ${opsVersion?.version ?? appVersion}`}
-          accent={systemHealthy ? "text-emerald-600" : "text-red-600"}
-        />
-        <StatCard
-          label="请求数"
-          value={opsMetrics?.requestsTotal ?? "—"}
-          sub="服务启动后累计"
-        />
-        <StatCard
-          label="错误率"
-          value={errorRatePct !== null ? `${errorRatePct}%` : "—"}
-          sub="4xx 与 5xx 响应"
-          accent={errorRatePct !== null && Number(errorRatePct) > 5 ? "text-red-600" : "text-slate-900"}
-        />
-        <StatCard
-          label="运行时长"
-          value={opsMetrics ? formatUptime(opsMetrics.uptimeSeconds) : "—"}
-          sub={opsVersion?.buildTime ?? buildTime}
-          accent="text-blue-700"
-        />
       </div>
 
       {activeAlerts.length > 0 ? (
@@ -470,60 +426,32 @@ export default async function AdminDashboardPage() {
           <div className="campus-card p-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs font-semibold tracking-wide text-slate-500">环境</p>
-                <p className="mt-1.5">
-                  {(() => {
-                    const env = opsVersion?.nodeEnv ?? nodeEnv;
-                    const cls =
-                      env === "production"
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                        : env === "development"
-                        ? "border-amber-200 bg-amber-50 text-amber-800"
-                        : "border-blue-200 bg-blue-50 text-blue-800";
-                    return (
-                      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-xs font-semibold ${cls}`}>
-                        {env}
-                      </span>
-                    );
-                  })()}
+                <p className="text-xs font-semibold tracking-wide text-slate-500">接口状态</p>
+                <p className={`mt-1 text-sm font-semibold ${systemHealthy ? "text-emerald-700" : "text-red-600"}`}>
+                  {systemHealthy ? "正常" : "异常"}
                 </p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs font-semibold tracking-wide text-slate-500">版本</p>
-                <p className="mt-1.5">
-                  <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 font-mono text-xs font-semibold text-blue-800">
-                    {opsVersion?.version ?? appVersion}
-                  </span>
+                <p className="text-xs font-semibold tracking-wide text-slate-500">运行时长</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{opsMetrics ? formatUptime(opsMetrics.uptimeSeconds) : "—"}</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-xs font-semibold tracking-wide text-slate-500">系统提醒</p>
+                <p className={`mt-1 text-sm font-semibold ${activeAlerts.length > 0 ? "text-amber-700" : "text-slate-900"}`}>
+                  {activeAlerts.length > 0 ? `${activeAlerts.length} 条` : "无"}
                 </p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs font-semibold tracking-wide text-slate-500">待审批</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{breakdown.pendingApproval}</p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs font-semibold tracking-wide text-slate-500">候补压力</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{data.waitlist}</p>
+                <p className="text-xs font-semibold tracking-wide text-slate-500">系统详情</p>
+                <Link href="/admin/system-health" className="mt-1 inline-flex text-sm font-semibold text-slate-700 no-underline hover:text-slate-900">
+                  打开系统状态 →
+                </Link>
               </div>
             </div>
             <p className="mt-4 text-sm text-slate-500">
-              首页只保留学籍和注册运营的核心信息，导出、搜索和监控已经拆回各自页面。
+              详细监控和诊断统一放到“系统状态”页，首页不再承担完整监控台职责。
             </p>
           </div>
-        </div>
-      </div>
-
-      {/* Analytics shortcuts */}
-      <div>
-        <h2 className="mb-3 text-sm font-semibold tracking-wide text-slate-500">分析报告</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <ActionButton href="/admin/instructor-performance" label="教师绩效" desc="教学班、学生规模与退课率" />
-          <ActionButton href="/admin/retention" label="学生留存" desc="各届学生跨期留存热力表" />
-          <ActionButton href="/admin/demand-report" label="需求报告" desc="教学班选课热度与候补压力" />
-          <ActionButton href="/admin/data-quality" label="数据质量" desc="自动扫描常见数据完整性问题" />
-          <ActionButton href="/admin/dept-gpa" label="院系GPA" desc="按院系前缀汇总平均GPA与通过率" />
-          <ActionButton href="/admin/term-comparison" label="学期对比" desc="两学期关键指标并排比较" />
-          <ActionButton href="/admin/course-pairings" label="课程同选" desc="发现学生常见课程搭配规律" />
-          <ActionButton href="/admin/digest-preview" label="运营周报" desc="生成并发送邮件版运营摘要" />
         </div>
       </div>
 
@@ -532,15 +460,12 @@ export default async function AdminDashboardPage() {
         <div>
           <h2 className="mb-3 text-sm font-semibold tracking-wide text-slate-500">常用操作</h2>
           <div className="grid gap-3 sm:grid-cols-2">
-            <ActionButton href="/admin/sections" label="管理教学班" desc="查看、创建和修改课程教学班" />
-            <ActionButton href="/admin/waitlist" label="处理候补" desc="将候补学生推进到正式注册" />
-            <ActionButton href="/admin/grade-entry" label="录入成绩" desc="为已完成课程录入最终成绩" />
-            <ActionButton href="/admin/bulk-ops" label="批量操作" desc="批量管理学生注册状态与数据" />
-            <ActionButton href="/admin/import" label="CSV 导入" desc="批量导入学生、课程和教学班数据" />
-            <ActionButton href="/admin/pending-overloads" label="超学分审批" desc="处理超出学分上限的注册请求" />
-            <ActionButton href="/admin/holds" label="学籍限制" desc="管理阻止注册的学籍限制记录" />
-            <ActionButton href="/admin/closeout" label="学期关闭" desc="确认学期结束并批量归档成绩" />
-            <ActionButton href="/admin/graduation" label="毕业审核" desc="审核毕业资格与学分完成情况" />
+            <ActionButton href="/admin/students" label="学生管理" desc="查看学生状态、成绩与限制信息" />
+            <ActionButton href="/admin/sections" label="教学班管理" desc="查看名册、容量和开班情况" />
+            <ActionButton href="/admin/waitlist" label="候补处理" desc="推进可转正的候补记录" />
+            <ActionButton href="/admin/grade-entry" label="成绩录入" desc="发布或修正课程最终成绩" />
+            <ActionButton href="/admin/holds" label="学籍限制" desc="管理阻止注册的限制记录" />
+            <ActionButton href="/admin/bulk-ops" label="批量操作" desc="批量更新学生与注册数据" />
           </div>
         </div>
 
@@ -589,58 +514,6 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Analytics toolbox */}
-      <div className="campus-card p-5">
-        <h2 className="text-sm font-semibold text-slate-700 mb-3">分析与工具</h2>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {([
-            { href: "/admin/grade-distribution",      label: "成绩分布" },
-            { href: "/admin/dropout-risk",            label: "退学风险" },
-            { href: "/admin/top-performers",          label: "优秀榜单" },
-            { href: "/admin/registration-heatmap",    label: "注册热图" },
-            { href: "/admin/waitlist-analytics",      label: "候补分析" },
-            { href: "/admin/capacity-plan",           label: "容量规划" },
-            { href: "/admin/dept-workload",           label: "院系工作量" },
-            { href: "/admin/faculty-schedule",        label: "教师排课" },
-            { href: "/admin/enrollment-velocity",     label: "注册速率" },
-            { href: "/admin/enrollment-audit",        label: "注册审计" },
-            { href: "/admin/major-trends",            label: "专业趋势" },
-            { href: "/admin/late-drops",              label: "晚期退课" },
-            { href: "/admin/term-capacity",           label: "学期容量" },
-            { href: "/admin/cohort-analytics",        label: "群体分析" },
-            { href: "/admin/term-enrollment-forecast",label: "注册预测" },
-            { href: "/admin/grade-curve",             label: "成绩曲线" },
-            { href: "/admin/prereq-map",              label: "先修图谱" },
-            { href: "/admin/prereq-audit",            label: "先修审计" },
-            { href: "/admin/schedule-conflicts",      label: "排课冲突" },
-            { href: "/admin/section-roster",          label: "班级名册" },
-            { href: "/admin/search",                  label: "全局搜索" },
-            { href: "/admin/section-swap",            label: "换班工具" },
-            { href: "/admin/offering-history",        label: "开课历史" },
-            { href: "/admin/status-email",            label: "状态邮件" },
-            { href: "/admin/cohort-message",          label: "群发邮件" },
-            { href: "/admin/calendar",                label: "学术日历" },
-            { href: "/admin/reports-summary",         label: "报告摘要" },
-            { href: "/admin/instructor-performance",  label: "教师绩效" },
-            { href: "/admin/dept-gpa",                label: "院系GPA" },
-            { href: "/admin/course-pairings",         label: "课程同选" },
-            { href: "/admin/retention",               label: "学生留存" },
-            { href: "/admin/demand-report",           label: "需求报告" },
-            { href: "/admin/data-quality",            label: "数据质量" },
-            { href: "/admin/term-comparison",         label: "学期对比" },
-            { href: "/admin/digest-preview",          label: "运营周报" },
-            { href: "/admin/notification-log",         label: "通知日志" },
-          ] as const).map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className="flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-2 py-2.5 text-center text-xs font-medium text-slate-700 no-underline transition hover:border-[hsl(221_83%_43%_/_0.3)] hover:bg-[hsl(221_80%_97%)] hover:text-[hsl(221_83%_43%)]"
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
