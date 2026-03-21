@@ -394,7 +394,7 @@ check_contains "apps/api/src/admin/admin.controller.ts" "grade-appeals" "Admin g
 check_exists "apps/web/app/student/appeals/page.tsx" "Student grade appeals page"
 check_exists "apps/web/app/admin/appeals/page.tsx" "Admin grade appeals review page"
 check_contains "apps/web/app/student/appeals/page.tsx" "students/appeals" "Student appeals page uses real appeals API"
-check_contains "apps/web/app/student/grades/page.tsx" "/student/advisor|联系导师|注册处" "Student grades page routes support requests to advisor/registrar"
+check_contains "apps/web/app/student/grades/page.tsx" "/student/appeals/new|提交申诉" "Student grades page has appeals entry"
 check_contains "apps/api/src/admin/admin.service.ts" "sendCohortMessage" "Cohort message service method"
 check_contains "apps/api/src/admin/admin.controller.ts" "cohort-message" "Cohort message admin endpoint"
 

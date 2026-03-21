@@ -2,11 +2,8 @@ import { getMeServer, requireRole } from "@/lib/server-auth";
 import Link from "next/link";
 import { GRADE_POINTS } from "@sis/shared/constants";
 import { serverApi } from "@/lib/server-api";
-import CertificateButton from "./CertificateButton";
 import GpaTrendChart from "./GpaTrendChart";
-import StarRating from "./StarRating";
 import TranscriptExportButton from "./TranscriptExportButton";
-import GradeToolsPanels from "./GradeToolsPanels";
 
 export type GradeItem = {
   id: string;
@@ -16,7 +13,6 @@ export type GradeItem = {
   section: {
     credits: number;
     course: { code: string; title: string };
-    ratings?: Array<{ rating: number }>;
   };
 };
 
@@ -250,15 +246,6 @@ export default async function GradesPage({
           </div>
           <div className="flex flex-wrap gap-2">
             <TranscriptExportButton grades={grades} />
-            <CertificateButton
-              studentName={me?.profile?.legalName ?? me?.email ?? "学生"}
-              completedCourses={grades.map((item) => ({
-                code: item.section.course.code,
-                title: item.section.course.title,
-                credits: item.section.credits,
-                grade: item.finalGrade
-              }))}
-            />
             <Link
               href="/student/schedule"
               className="inline-flex h-10 items-center rounded-lg border border-white/35 bg-white/90 px-4 text-sm font-semibold text-slate-800 no-underline transition hover:bg-white"
@@ -497,7 +484,6 @@ export default async function GradesPage({
                     <SortTh col="credits"      label="学分"   sortBy={sortBy} sortDir={sortDir} />
                     <SortTh col="grade"        label="成绩"   sortBy={sortBy} sortDir={sortDir} />
                     <SortTh col="points"       label="绩点"   sortBy={sortBy} sortDir={sortDir} />
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500">评价</th>
                     <SortTh col="contribution" label="GPA贡献" sortBy={sortBy} sortDir={sortDir} right />
                   </tr>
                 </thead>
@@ -508,33 +494,10 @@ export default async function GradesPage({
                     return (
                       <tr key={item.id} className="border-b border-slate-100 odd:bg-white even:bg-slate-50/40">
                         <td className="px-4 py-3 font-medium text-slate-900">{item.section.course.code}</td>
-                        <td className="px-4 py-3 text-slate-700">
-                          <details className="group">
-                            <summary className="cursor-pointer list-none font-medium text-slate-800 transition hover:text-slate-900">
-                              <span>{item.section.course.title}</span>
-                              <span className="ml-2 text-[11px] font-semibold text-indigo-600 group-open:hidden">查看详情</span>
-                              <span className="ml-2 hidden text-[11px] font-semibold text-indigo-600 group-open:inline">收起详情</span>
-                            </summary>
-                            <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-600">
-                              <p>学分：{item.section.credits} · 绩点：{pts !== null ? pts.toFixed(1) : "—"} · 贡献绩点：{contribution !== null ? contribution.toFixed(1) : "—"}</p>
-                              <p className="mt-1">课程评教：{item.section.ratings?.[0]?.rating ? `${item.section.ratings[0].rating}/5` : "暂未填写"}</p>
-                              <p className="mt-1">出勤与细分评分说明暂未在学生端开放，如对结果有疑问，请联系导师或教务处进一步确认。</p>
-                              <Link href="/student/advisor" className="mt-2 inline-flex items-center gap-1 font-semibold text-indigo-700 no-underline hover:text-indigo-800">
-                                联系导师 →
-                              </Link>
-                            </div>
-                          </details>
-                        </td>
+                        <td className="px-4 py-3 font-medium text-slate-700">{item.section.course.title}</td>
                         <td className="px-4 py-3 text-slate-700">{item.section.credits}</td>
                         <td className={`px-4 py-3 font-semibold ${gradeColor(item.finalGrade)}`}>{item.finalGrade}</td>
                         <td className="px-4 py-3 text-slate-700">{pts !== null ? pts.toFixed(1) : "-"}</td>
-                        <td className="px-4 py-3">
-                          <StarRating
-                            sectionId={item.sectionId}
-                            initial={item.section.ratings?.[0]?.rating ?? 0}
-                            apiBase={process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}
-                          />
-                        </td>
                         <td className="px-4 py-3 text-right text-slate-500 text-xs">
                           {contribution !== null ? contribution.toFixed(1) : "-"}
                         </td>
@@ -547,17 +510,6 @@ export default async function GradesPage({
           </section>
         );
       })}
-
-      <GradeToolsPanels
-        historicalGrades={grades.map((item) => ({
-          id: item.id,
-          courseCode: item.section.course.code,
-          title: item.section.course.title,
-          credits: item.section.credits,
-          finalGrade: item.finalGrade,
-          termName: item.term.name
-        }))}
-      />
 
       {/* Grade appeals entry — non-intrusive footer link */}
       <div className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
