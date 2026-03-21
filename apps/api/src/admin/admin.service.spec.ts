@@ -37,10 +37,16 @@ function createAdminService() {
     createHold: jest.fn(),
     resolveHold: jest.fn()
   } as any;
+  const mailService = {
+    sendAppealDecision: jest.fn(),
+    sendWaiverDecision: jest.fn(),
+    sendOverloadDecision: jest.fn(),
+    sendWaitlistPromoted: jest.fn()
+  } as any;
   return {
     prisma,
     auditService,
-    service: new AdminService(prisma, auditService, notificationsService, registrationService, governanceService)
+    service: new AdminService(prisma, auditService, notificationsService, registrationService, governanceService, mailService)
   };
 }
 

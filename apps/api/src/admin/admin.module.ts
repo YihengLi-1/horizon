@@ -5,9 +5,10 @@ import { AuditModule } from "../audit/audit.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { GovernanceModule } from "../governance/governance.module";
 import { RegistrationModule } from "../registration/registration.module";
+import { MailModule } from "../mail/mail.module";
 
 @Module({
-  imports: [AuditModule, NotificationsModule, RegistrationModule, GovernanceModule],
+  imports: [AuditModule, NotificationsModule, RegistrationModule, GovernanceModule, MailModule],
   controllers: [AdminController],
   providers: [AdminService]
 })
