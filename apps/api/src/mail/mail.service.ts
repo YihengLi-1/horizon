@@ -47,4 +47,12 @@ export class MailService {
       `您好，\n\n您的超学分选课申请${v}。请登录系统查看详情。\n\n地平线教务系统`
     );
   }
+
+  async sendTest(to: string): Promise<void> {
+    return this.send(
+      to,
+      "【地平线】邮件服务连通性测试",
+      `这是一封测试邮件，发送时间：${new Date().toLocaleString("zh-CN")}。\n\n如果你收到这封邮件，说明 SendGrid 配置正确。\n\n地平线教务系统`
+    );
+  }
 }

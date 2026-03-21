@@ -256,6 +256,10 @@ export class AdminService {
     private readonly mailService: MailService
   ) {}
 
+  async sendTestMail(to: string) {
+    await this.mailService.sendTest(to);
+  }
+
   private normalizeAdminActionError(error: unknown): string {
     if (error && typeof error === "object" && "getResponse" in error && typeof error.getResponse === "function") {
       const response = error.getResponse() as unknown;
