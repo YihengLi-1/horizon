@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 type MeResponse = {
@@ -14,9 +13,7 @@ type MeResponse = {
     finalGrade: string | null;
     section: {
       credits: number;
-      sectionCode: string;
       course: {
-        id: string;
         code: string;
         title: string;
       };
@@ -28,154 +25,106 @@ type MeResponse = {
   }>;
 };
 
-type Course = {
-  id: string;
-  code: string;
-  title: string;
-  credits: number;
-};
-
-type Bucket = {
-  label: string;
-  current: number;
-  required: number;
-  unit: string;
-  complete: boolean;
-};
-
-type CompletedRow = {
+type CompletedCourse = {
   enrollmentId: string;
   code: string;
   title: string;
   credits: number;
   grade: string;
-  term: string;
-  isCore: boolean;
+  termId: string;
+  termName: string;
 };
 
-function majorPrefixes(programMajor: string | null | undefined) {
-  const major = (programMajor ?? "").toLowerCase();
-  if (major.includes("计算机") || major.includes("软件") || major.includes("computer") || major.includes("software")) return ["CS"];
-  if (major.includes("数学") || major.includes("math")) return ["MATH"];
-  if (major.includes("工商") || major.includes("管理") || major.includes("business") || major.includes("management")) return ["BUS"];
-  if (major.includes("英语") || major.includes("english")) return ["ENG"];
-  if (major.includes("生物") || major.includes("biology") || major.includes("bio")) return ["BIO"];
-  if (major.includes("化学") || major.includes("chem")) return ["CHEM"];
-  if (major.includes("物理") || major.includes("phys")) return ["PHYS"];
-  const token = (programMajor ?? "").replace(/[^A-Za-z]/g, "").toUpperCase();
-  return token ? [token.slice(0, Math.min(4, token.length))] : [];
-}
+type TermGroup = {
+  termId: string;
+  termName: string;
+  courses: CompletedCourse[];
+  credits: number;
+};
+
+const DEGREE_CREDIT_TARGET = 120;
 
 const GRADE_COLOR: Record<string, string> = {
-  "A+": "text-green-800", A: "text-green-800", "A-": "text-green-700",
-  "B+": "text-blue-700", B: "text-blue-700", "B-": "text-blue-600",
-  "C+": "text-amber-800", C: "text-amber-800", "C-": "text-amber-700",
-  "D+": "text-orange-700", D: "text-orange-700", "D-": "text-orange-600",
+  "A+": "text-green-800",
+  A: "text-green-800",
+  "A-": "text-green-700",
+  "B+": "text-blue-700",
+  B: "text-blue-700",
+  "B-": "text-blue-600",
+  "C+": "text-amber-800",
+  C: "text-amber-800",
+  "C-": "text-amber-700",
+  "D+": "text-orange-700",
+  D: "text-orange-700",
+  "D-": "text-orange-600",
   F: "text-red-700",
 };
 
 export default function DegreeAuditPage() {
   const [profile, setProfile] = useState<MeResponse | null>(null);
-  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  const [whatIfCredits, setWhatIfCredits] = useState(0);
-  const [whatIfGpa, setWhatIfGpa] = useState("");
-  const [openSection, setOpenSection] = useState<string | null>("核心课程");
-  const [whatIfOpen, setWhatIfOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     setError("");
-    void Promise.all([
-      apiFetch<MeResponse>("/students/me"),
-      apiFetch<Course[]>("/academics/courses"),
-    ])
-      .then(([me, catalog]) => {
-        setProfile(me);
-        setCourses(catalog ?? []);
-      })
+    void apiFetch<MeResponse>("/students/me")
+      .then((me) => setProfile(me))
       .catch((err) => {
         setProfile(null);
-        setCourses([]);
         setError(err instanceof Error ? err.message : "加载毕业审计失败");
       })
       .finally(() => setLoading(false));
   }, []);
 
   const audit = useMemo(() => {
-    const courseMap = new Map(courses.map((c) => [c.id, c]));
     const completed = (profile?.enrollments ?? []).filter(
-      (e) => e.status === "COMPLETED" && e.finalGrade && e.finalGrade !== "W"
+      (enrollment) => enrollment.status === "COMPLETED" && enrollment.finalGrade && enrollment.finalGrade !== "W"
     );
-    const prefixes = majorPrefixes(profile?.programMajor);
 
-    let coreCredits = 0;
-    let totalCredits = 0;
-    const rows: CompletedRow[] = [];
+    const groups = new Map<string, TermGroup>();
+    let completedCredits = 0;
 
-    for (const e of completed) {
-      const course = courseMap.get(e.section.course.id) ?? {
-        id: e.section.course.id,
-        code: e.section.course.code,
-        title: e.section.course.title,
-        credits: e.section.credits,
+    for (const enrollment of completed) {
+      const course: CompletedCourse = {
+        enrollmentId: enrollment.id,
+        code: enrollment.section.course.code,
+        title: enrollment.section.course.title,
+        credits: enrollment.section.credits,
+        grade: enrollment.finalGrade ?? "",
+        termId: enrollment.section.term.id,
+        termName: enrollment.section.term.name,
       };
-      totalCredits += e.section.credits;
-      const isCore = prefixes.some((p) => course.code.toUpperCase().startsWith(p));
-      if (isCore) coreCredits += e.section.credits;
-      rows.push({
-        enrollmentId: e.id,
-        code: course.code,
-        title: course.title,
-        credits: e.section.credits,
-        grade: e.finalGrade ?? "",
-        term: e.section.term.name,
-        isCore,
-      });
+
+      completedCredits += course.credits;
+
+      const existing = groups.get(course.termId) ?? {
+        termId: course.termId,
+        termName: course.termName,
+        courses: [],
+        credits: 0,
+      };
+      existing.courses.push(course);
+      existing.credits += course.credits;
+      groups.set(course.termId, existing);
     }
 
-    rows.sort((a, b) => a.term.localeCompare(b.term) || a.code.localeCompare(b.code));
-
-    const electiveCredits = Math.max(0, totalCredits - coreCredits);
-    const gpa = profile?.gpa ?? 0;
-    const gpaProgress = Math.max(0, Math.min(2, gpa));
-
-    const buckets: Bucket[] = [
-      { label: "核心课程", current: coreCredits, required: 30, unit: "学分", complete: coreCredits >= 30 },
-      { label: "选修", current: electiveCredits, required: 15, unit: "学分", complete: electiveCredits >= 15 },
-      { label: "总学分", current: totalCredits, required: 120, unit: "学分", complete: totalCredits >= 120 },
-      { label: "GPA", current: gpaProgress, required: 2, unit: "GPA", complete: gpa >= 2.0 },
-    ];
+    const termGroups = Array.from(groups.values())
+      .map((group) => ({
+        ...group,
+        courses: [...group.courses].sort((a, b) => a.code.localeCompare(b.code)),
+      }))
+      .sort((a, b) => a.termName.localeCompare(b.termName));
 
     return {
-      buckets,
-      totalCredits,
-      coreCredits,
-      electiveCredits,
-      remainingCredits: Math.max(0, 120 - totalCredits),
-      gpa,
-      rows,
+      completedCredits,
+      completedCourseCount: completed.length,
+      remainingCredits: Math.max(0, DEGREE_CREDIT_TARGET - completedCredits),
+      gpa: profile?.gpa ?? null,
+      progressPct: Math.max(0, Math.min(100, (completedCredits / DEGREE_CREDIT_TARGET) * 100)),
+      termGroups,
     };
-  }, [courses, profile]);
-
-  const projected = useMemo(() => {
-    const extra = Math.max(0, whatIfCredits);
-    const extraGpa = parseFloat(whatIfGpa);
-    const projTotal = audit.totalCredits + extra;
-    const projRemaining = Math.max(0, 120 - projTotal);
-    let projGpa = audit.gpa;
-    if (extra > 0 && !isNaN(extraGpa) && extraGpa >= 0 && extraGpa <= 4) {
-      const currentWeight = audit.gpa * audit.totalCredits;
-      const extraWeight = extraGpa * extra;
-      projGpa = projTotal > 0 ? (currentWeight + extraWeight) / projTotal : audit.gpa;
-    }
-    return { projTotal, projRemaining, projGpa };
-  }, [audit, whatIfCredits, whatIfGpa]);
-
-  const coreRows = audit.rows.filter((r) => r.isCore);
-  const electiveRows = audit.rows.filter((r) => !r.isCore);
+  }, [profile]);
 
   return (
     <div className="campus-page space-y-6">
@@ -183,208 +132,102 @@ export default function DegreeAuditPage() {
         <p className="campus-eyebrow">毕业进度</p>
         <h1 className="campus-title">毕业审计</h1>
         <p className="campus-subtitle">
-          {profile?.legalName ?? "学生"} · {profile?.programMajor ?? "未申报专业"} 的当前毕业完成度
+          {profile?.legalName ?? "学生"} · {profile?.programMajor ?? "未申报专业"} 的毕业完成情况概览
         </p>
       </section>
 
-      {error && (
+      {error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">{error}</div>
-      )}
+      ) : null}
 
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
         <p className="font-semibold">⚠️ 仅供参考，非正式毕业认定</p>
         <p className="mt-1 opacity-80">
-          当前审计基于通用学分模板（120 学分 / 核心 30 / 选修 15），课程分类依据课程代码前缀估算，
-          不代表注册处的官方认定结果。正式毕业资格以注册处审核为准，请与学业顾问确认你的专业具体要求。
+          当前页面仅按通用 120 学分目标汇总你的已完成课程与成绩，不区分专业核心、选修或院系个性化要求。
+          具体毕业条件请以注册处和院系培养方案为准。
         </p>
       </div>
 
       {loading ? (
-        <div className="campus-card p-10 text-center text-sm text-slate-500">⏳ 加载中…</div>
+        <div className="campus-card p-10 text-center text-sm text-slate-500">加载中…</div>
       ) : !profile ? (
         <div className="campus-card p-10 text-center text-sm text-slate-400">无法加载毕业审计数据</div>
       ) : (
         <>
-          {/* Progress buckets */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {audit.buckets.map((bucket) => {
-              const pct = Math.max(0, Math.min(100, (bucket.current / bucket.required) * 100));
-              return (
-                <div key={bucket.label} className="campus-card p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-bold text-slate-900">{bucket.label}</p>
-                    <span className={`campus-chip text-xs ${bucket.complete ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
-                      {bucket.complete ? "达标" : "未达标"}
-                    </span>
-                  </div>
-                  <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className={`h-full rounded-full transition-all ${bucket.complete ? "bg-emerald-500" : "bg-amber-400"}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <p className="text-sm text-slate-600">
-                    {bucket.label === "GPA"
-                      ? `${audit.gpa.toFixed(2)} / ${bucket.required.toFixed(1)} ${bucket.unit}`
-                      : `${bucket.current} / ${bucket.required} ${bucket.unit}`}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Gap summary */}
-          <div className="campus-card p-4">
-            <p className="mb-2 text-sm font-bold text-slate-900">毕业差距</p>
-            <div className="flex flex-wrap gap-6 text-sm text-slate-700">
-              <span>还差 <strong className="text-slate-900">{audit.remainingCredits}</strong> 学分</span>
-              <span>已修 <strong className="text-slate-900">{audit.totalCredits}</strong> 学分（核心 {audit.coreCredits} + 选修 {audit.electiveCredits}）</span>
-              <span>当前 GPA <strong className="text-slate-900">{audit.gpa.toFixed(2)}</strong></span>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="campus-kpi">
+              <p className="campus-kpi-label">已完成总学分</p>
+              <p className="campus-kpi-value">{audit.completedCredits}</p>
+            </div>
+            <div className="campus-kpi">
+              <p className="campus-kpi-label">已完成课程数</p>
+              <p className="campus-kpi-value">{audit.completedCourseCount}</p>
+            </div>
+            <div className="campus-kpi">
+              <p className="campus-kpi-label">当前 GPA</p>
+              <p className="campus-kpi-value">{audit.gpa !== null ? audit.gpa.toFixed(2) : "—"}</p>
             </div>
           </div>
 
-          {/* Completed courses table */}
-          {audit.rows.length > 0 && (
-            <div className="campus-card overflow-hidden">
-              <div className="border-b border-slate-100 px-5 py-3">
-                <p className="text-sm font-bold text-slate-900">已修课程明细</p>
-                <p className="mt-0.5 text-xs text-slate-500">共 {audit.rows.length} 门 · {audit.totalCredits} 学分</p>
+          <section className="campus-card p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold text-slate-900">总学分进度</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  已完成 {audit.completedCredits} / {DEGREE_CREDIT_TARGET} 学分，还差 {audit.remainingCredits} 学分
+                </p>
               </div>
+              <span className="campus-chip chip-blue">{Math.round(audit.progressPct)}%</span>
+            </div>
+            <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full rounded-full bg-[hsl(221_83%_43%)] transition-all" style={{ width: `${audit.progressPct}%` }} />
+            </div>
+          </section>
 
-              {[
-                { key: "核心课程", title: `核心课程（${coreRows.length} 门 · ${audit.coreCredits} 学分）`, rows: coreRows },
-                { key: "选修课程", title: `选修课程（${electiveRows.length} 门 · ${audit.electiveCredits} 学分）`, rows: electiveRows },
-              ].map(({ key, title, rows }) =>
-                rows.length === 0 ? null : (
-                  <div key={key} className="border-t border-slate-100">
-                    <button
-                      type="button"
-                      onClick={() => setOpenSection((prev) => (prev === key ? null : key))}
-                      className="flex w-full cursor-pointer items-center gap-2 px-5 py-3 text-left text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-                    >
-                      {openSection === key
-                        ? <ChevronDown className="size-4 text-slate-400 shrink-0" />
-                        : <ChevronRight className="size-4 text-slate-400 shrink-0" />
-                      }
-                      {title}
-                    </button>
-                    {openSection === key ? (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-slate-100 bg-slate-50">
-                              <th className="px-5 py-2 text-left text-xs font-semibold text-slate-500">课程</th>
-                              <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500">学分</th>
-                              <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500">成绩</th>
-                              <th className="px-5 py-2 text-right text-xs font-semibold text-slate-500">学期</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {rows.map((r) => (
-                              <tr key={r.enrollmentId} className="border-b border-slate-50 hover:bg-slate-50/50">
-                                <td className="px-5 py-2.5">
-                                  <span className="font-mono font-bold text-indigo-600">{r.code}</span>
-                                  <span className="ml-2 text-slate-500">
-                                    {r.title.length > 36 ? r.title.slice(0, 36) + "…" : r.title}
-                                  </span>
-                                </td>
-                                <td className="px-3 py-2.5 text-center text-slate-600">{r.credits}</td>
-                                <td className="px-3 py-2.5 text-center">
-                                  <span className={`font-mono font-bold ${GRADE_COLOR[r.grade] ?? "text-slate-800"}`}>
-                                    {r.grade}
-                                  </span>
-                                </td>
-                                <td className="px-5 py-2.5 text-right text-slate-400">{r.term}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : null}
+          {audit.termGroups.length === 0 ? (
+            <div className="campus-card p-10 text-center text-sm text-slate-500">
+              暂无已完成课程记录。
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {audit.termGroups.map((group) => (
+                <section key={group.termId} className="campus-card overflow-hidden">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-5 py-3">
+                    <div>
+                      <h2 className="text-base font-semibold text-slate-900">{group.termName}</h2>
+                      <p className="mt-0.5 text-xs text-slate-500">{group.courses.length} 门课程 · {group.credits} 学分</p>
+                    </div>
                   </div>
-                )
-              )}
+                  <div className="overflow-x-auto">
+                    <table className="campus-table">
+                      <thead>
+                        <tr>
+                          <th>课程代码</th>
+                          <th>课程名称</th>
+                          <th>学分</th>
+                          <th>成绩</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {group.courses.map((course) => (
+                          <tr key={course.enrollmentId}>
+                            <td className="font-mono font-semibold text-[hsl(221_83%_43%)]">{course.code}</td>
+                            <td>{course.title}</td>
+                            <td>{course.credits}</td>
+                            <td>
+                              <span className={`font-semibold ${GRADE_COLOR[course.grade] ?? "text-slate-700"}`}>
+                                {course.grade}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              ))}
             </div>
           )}
-
-          {/* What-if panel */}
-          <div className="campus-card overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setWhatIfOpen((prev) => !prev)}
-              className="flex w-full items-center gap-2 px-5 py-4 text-left font-bold text-slate-800 hover:bg-slate-50 transition-colors"
-            >
-              {whatIfOpen
-                ? <ChevronDown className="size-4 text-slate-400 shrink-0" />
-                : <ChevronRight className="size-4 text-slate-400 shrink-0" />
-              }
-              模拟未来学期
-              <span className="ml-auto text-sm font-normal text-slate-400">假设多修若干学分后的预测毕业进度</span>
-            </button>
-            {whatIfOpen ? (
-            <div className="space-y-4 border-t border-slate-100 p-5">
-              <div className="flex flex-wrap items-end gap-6">
-                <label className="grid gap-1 text-sm text-slate-600">
-                  假设再修学分
-                  <input
-                    type="number"
-                    min={0}
-                    max={120}
-                    value={whatIfCredits}
-                    onChange={(e) => setWhatIfCredits(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="campus-input w-28"
-                  />
-                </label>
-                <label className="grid gap-1 text-sm text-slate-600">
-                  假设这些课 GPA（留空沿用当前）
-                  <input
-                    type="number"
-                    min={0}
-                    max={4}
-                    step={0.1}
-                    placeholder={audit.gpa.toFixed(2)}
-                    value={whatIfGpa}
-                    onChange={(e) => setWhatIfGpa(e.target.value)}
-                    className="campus-input w-28"
-                  />
-                </label>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  {
-                    label: "预测总学分",
-                    value: `${projected.projTotal}`,
-                    sub: `距毕业还差 ${projected.projRemaining}`,
-                    ok: projected.projTotal >= 120,
-                  },
-                  {
-                    label: "预测 GPA",
-                    value: projected.projGpa.toFixed(2),
-                    sub: projected.projGpa >= 2 ? "满足毕业要求" : "仍低于 2.0",
-                    ok: projected.projGpa >= 2,
-                  },
-                  {
-                    label: "毕业可行性",
-                    value: projected.projTotal >= 120 && projected.projGpa >= 2 ? "✓ 可毕业" : "✗ 尚未达标",
-                    sub: projected.projTotal >= 120 && projected.projGpa >= 2
-                      ? "学分与 GPA 均满足"
-                      : [projected.projTotal < 120 && `学分差 ${120 - projected.projTotal}`, projected.projGpa < 2 && "GPA 不足 2.0"].filter(Boolean).join("，"),
-                    ok: projected.projTotal >= 120 && projected.projGpa >= 2,
-                  },
-                ].map(({ label, value, sub, ok }) => (
-                  <div
-                    key={label}
-                    className={`rounded-xl border p-3 ${ok ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}
-                  >
-                    <p className="text-xs text-slate-500">{label}</p>
-                    <p className={`mt-1 text-xl font-bold ${ok ? "text-emerald-800" : "text-amber-800"}`}>{value}</p>
-                    <p className="mt-0.5 text-xs text-slate-400">{sub}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-            ) : null}
-          </div>
         </>
       )}
     </div>
