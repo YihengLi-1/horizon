@@ -584,6 +584,20 @@ export default async function GradesPage({
           </section>
         );
       })}
+
+      {/* Grade appeals entry — non-intrusive footer link */}
+      <div className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-700">对成绩有异议？</p>
+          <p className="text-xs text-slate-500 mt-0.5">如认为成绩存在录入错误，可在学期结束后 30 天内提交成绩复核申请。</p>
+        </div>
+        <Link
+          href="/student/appeals/new"
+          className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 no-underline transition hover:bg-slate-100 shrink-0"
+        >
+          提交申诉 →
+        </Link>
+      </div>
     </div>
   );
 }

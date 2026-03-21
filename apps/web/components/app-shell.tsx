@@ -9,11 +9,16 @@ import {
   Bell,
   BookCopy,
   BookOpen,
+  BookX,
+  CalendarClock,
   CalendarDays,
   CalendarRange,
   Clock,
   GraduationCap,
+  History,
   Home,
+  KeyRound,
+  Layers,
   LayoutDashboard,
   ListChecks,
   Megaphone,
@@ -62,8 +67,9 @@ const studentItems: NavItem[] = [
   { href: "/student/transcript",           label: "成绩单",   icon: <ScrollText className={iconClass} /> },
   { href: "/student/degree-audit",         label: "毕业进度", icon: <GraduationCap className={iconClass} /> },
   // 账号
-  { href: "/student/profile",              label: "个人资料", icon: <User className={iconClass} /> },
-  { href: "/student/advisor",              label: "我的导师", icon: <User className={iconClass} /> },
+  { href: "/student/profile",              label: "个人资料",   icon: <User className={iconClass} /> },
+  { href: "/student/advisor",              label: "我的导师",   icon: <User className={iconClass} /> },
+  { href: "/student/notifications",        label: "通知",       icon: <Bell className={iconClass} /> },
 ];
 
 const adminItems: NavItem[] = [
@@ -79,21 +85,22 @@ const adminItems: NavItem[] = [
   { href: "/admin/courses",                label: "课程",     icon: <BookCopy className={iconClass} /> },
   { href: "/admin/sections",               label: "教学班",   icon: <ListChecks className={iconClass} /> },
   { href: "/admin/terms",                  label: "学期",     icon: <CalendarRange className={iconClass} /> },
-  { href: "/admin/reg-windows",            label: "选课窗口", icon: <CalendarRange className={iconClass} /> },
+  { href: "/admin/reg-windows",            label: "选课窗口", icon: <CalendarClock className={iconClass} /> },
   // 注册
   { href: "/admin/enrollments",            label: "注册管理", icon: <GraduationCap className={iconClass} /> },
   { href: "/admin/grade-entry",            label: "成绩录入", icon: <ScrollText className={iconClass} /> },
   { href: "/admin/waitlist",               label: "候补名单", icon: <Clock className={iconClass} /> },
   // 审批
   { href: "/admin/appeals",                label: "成绩申诉", icon: <ShieldAlert className={iconClass} /> },
-  { href: "/admin/prereq-waivers",         label: "先修豁免", icon: <ShieldAlert className={iconClass} /> },
-  { href: "/admin/pending-overloads",      label: "超学分",   icon: <ShieldAlert className={iconClass} /> },
+  { href: "/admin/prereq-waivers",         label: "先修豁免", icon: <BookX className={iconClass} /> },
+  { href: "/admin/pending-overloads",      label: "超学分",   icon: <Layers className={iconClass} /> },
   // 运营
   { href: "/admin/announcements-mgmt",     label: "公告管理", icon: <Megaphone className={iconClass} /> },
   { href: "/admin/bulk-ops",               label: "批量操作", icon: <ListChecks className={iconClass} /> },
   { href: "/admin/enrollment-audit",       label: "注册审计", icon: <ScrollText className={iconClass} /> },
   { href: "/admin/grade-distribution",     label: "成绩分布", icon: <BarChart3 className={iconClass} /> },
-  { href: "/admin/audit-logs",             label: "审计日志", icon: <ScrollText className={iconClass} /> },
+  { href: "/admin/audit-logs",             label: "审计日志", icon: <History className={iconClass} /> },
+  { href: "/admin/invite-codes",           label: "邀请码",   icon: <KeyRound className={iconClass} /> },
 ];
 
 const facultyItems: NavItem[] = [
@@ -135,7 +142,7 @@ export function AppShell({
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
-  const [announcementCount, setAnnouncementCount] = useState(0);
+  const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
   const navMeta = areaMeta[area];
   const canUsePalette = area === "admin";
   const sidebarId = "sidebar";
@@ -173,7 +180,7 @@ export function AppShell({
             { label: "课务",   hrefs: ["/admin/courses", "/admin/sections", "/admin/terms", "/admin/reg-windows"] },
             { label: "注册",   hrefs: ["/admin/enrollments", "/admin/grade-entry", "/admin/waitlist"] },
             { label: "审批",   hrefs: ["/admin/appeals", "/admin/prereq-waivers", "/admin/pending-overloads"] },
-            { label: "运营",   hrefs: ["/admin/announcements-mgmt", "/admin/bulk-ops", "/admin/enrollment-audit", "/admin/grade-distribution", "/admin/audit-logs"] },
+            { label: "运营",   hrefs: ["/admin/announcements-mgmt", "/admin/bulk-ops", "/admin/enrollment-audit", "/admin/grade-distribution", "/admin/audit-logs", "/admin/invite-codes"] },
           ]
         : area === "faculty"
           ? [{ label: "教学", hrefs: ["/faculty/dashboard", "/faculty/sections", "/faculty/grade-stats"] }]
@@ -183,7 +190,7 @@ export function AppShell({
             { label: "概览", hrefs: ["/student/dashboard"] },
             { label: "选课", hrefs: ["/student/catalog", "/student/cart", "/student/schedule"] },
             { label: "学籍", hrefs: ["/student/grades", "/student/transcript", "/student/degree-audit"] },
-            { label: "账号", hrefs: ["/student/profile", "/student/advisor"] },
+            { label: "账号", hrefs: ["/student/profile", "/student/advisor", "/student/notifications"] },
           ];
 
     return groups
@@ -245,17 +252,19 @@ export function AppShell({
   useEffect(() => {
     if (area !== "admin") return;
     let alive = true;
-    void apiFetch<Array<{ expiresAt?: string | null }>>("/admin/announcements")
-      .then((items) => {
-        if (!alive) return;
-        const now = Date.now();
-        setAnnouncementCount(
-          (items ?? []).filter((item) => !item.expiresAt || new Date(item.expiresAt).getTime() > now).length
-        );
-      })
-      .catch(() => {
-        if (alive) setAnnouncementCount(0);
-      });
+    // Count pending approval items across appeals, prereq waivers, and overload requests
+    void Promise.all([
+      apiFetch<Array<{ status: string }>>("/admin/grade-appeals?status=PENDING").catch(() => []),
+      apiFetch<Array<{ status: string }>>("/admin/prereq-waivers?status=PENDING").catch(() => []),
+      apiFetch<Array<unknown>>("/admin/pending-overloads").catch(() => []),
+    ]).then(([appeals, waivers, overloads]) => {
+      if (!alive) return;
+      const count =
+        (appeals ?? []).length +
+        (waivers ?? []).length +
+        (overloads ?? []).length;
+      setPendingApprovalCount(count);
+    });
     return () => {
       alive = false;
     };
@@ -279,9 +288,9 @@ export function AppShell({
           {item.icon}
         </span>
         <span className="font-medium">{item.label}</span>
-        {item.href === "/admin/announcements-mgmt" && announcementCount > 0 ? (
-          <span className={`ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${active ? "bg-white/20 text-white" : "bg-violet-500 text-white"}`}>
-            {announcementCount}
+        {item.href === "/admin/appeals" && pendingApprovalCount > 0 ? (
+          <span className={`ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${active ? "bg-white/20 text-white" : "bg-red-500 text-white"}`}>
+            {pendingApprovalCount}
           </span>
         ) : null}
       </Link>

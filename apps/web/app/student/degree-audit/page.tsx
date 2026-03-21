@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 type MeResponse = {
@@ -81,6 +82,8 @@ export default function DegreeAuditPage() {
 
   const [whatIfCredits, setWhatIfCredits] = useState(0);
   const [whatIfGpa, setWhatIfGpa] = useState("");
+  const [openSection, setOpenSection] = useState<string | null>("核心课程");
+  const [whatIfOpen, setWhatIfOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -188,6 +191,14 @@ export default function DegreeAuditPage() {
         <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">{error}</div>
       )}
 
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+        <p className="font-semibold">⚠️ 仅供参考，非正式毕业认定</p>
+        <p className="mt-1 opacity-80">
+          当前审计基于通用学分模板（120 学分 / 核心 30 / 选修 15），课程分类依据课程代码前缀估算，
+          不代表注册处的官方认定结果。正式毕业资格以注册处审核为准，请与学业顾问确认你的专业具体要求。
+        </p>
+      </div>
+
       {loading ? (
         <div className="campus-card p-10 text-center text-sm text-slate-500">⏳ 加载中…</div>
       ) : !profile ? (
@@ -241,59 +252,76 @@ export default function DegreeAuditPage() {
               </div>
 
               {[
-                { title: `核心课程（${coreRows.length} 门 · ${audit.coreCredits} 学分）`, rows: coreRows },
-                { title: `选修课程（${electiveRows.length} 门 · ${audit.electiveCredits} 学分）`, rows: electiveRows },
-              ].map(({ title, rows }) =>
+                { key: "核心课程", title: `核心课程（${coreRows.length} 门 · ${audit.coreCredits} 学分）`, rows: coreRows },
+                { key: "选修课程", title: `选修课程（${electiveRows.length} 门 · ${audit.electiveCredits} 学分）`, rows: electiveRows },
+              ].map(({ key, title, rows }) =>
                 rows.length === 0 ? null : (
-                  <details key={title} open className="border-t border-slate-100">
-                    <summary className="flex cursor-pointer select-none list-none items-center gap-2 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50">
-                      <span className="text-[10px] text-slate-300">▶</span>
+                  <div key={key} className="border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setOpenSection((prev) => (prev === key ? null : key))}
+                      className="flex w-full cursor-pointer items-center gap-2 px-5 py-3 text-left text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                      {openSection === key
+                        ? <ChevronDown className="size-4 text-slate-400 shrink-0" />
+                        : <ChevronRight className="size-4 text-slate-400 shrink-0" />
+                      }
                       {title}
-                    </summary>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-slate-100 bg-slate-50">
-                            <th className="px-5 py-2 text-left text-xs font-semibold text-slate-500">课程</th>
-                            <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500">学分</th>
-                            <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500">成绩</th>
-                            <th className="px-5 py-2 text-right text-xs font-semibold text-slate-500">学期</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {rows.map((r) => (
-                            <tr key={r.enrollmentId} className="border-b border-slate-50 hover:bg-slate-50/50">
-                              <td className="px-5 py-2.5">
-                                <span className="font-mono font-bold text-indigo-600">{r.code}</span>
-                                <span className="ml-2 text-slate-500">
-                                  {r.title.length > 36 ? r.title.slice(0, 36) + "…" : r.title}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2.5 text-center text-slate-600">{r.credits}</td>
-                              <td className="px-3 py-2.5 text-center">
-                                <span className={`font-mono font-bold ${GRADE_COLOR[r.grade] ?? "text-slate-800"}`}>
-                                  {r.grade}
-                                </span>
-                              </td>
-                              <td className="px-5 py-2.5 text-right text-slate-400">{r.term}</td>
+                    </button>
+                    {openSection === key ? (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-slate-100 bg-slate-50">
+                              <th className="px-5 py-2 text-left text-xs font-semibold text-slate-500">课程</th>
+                              <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500">学分</th>
+                              <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500">成绩</th>
+                              <th className="px-5 py-2 text-right text-xs font-semibold text-slate-500">学期</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </details>
+                          </thead>
+                          <tbody>
+                            {rows.map((r) => (
+                              <tr key={r.enrollmentId} className="border-b border-slate-50 hover:bg-slate-50/50">
+                                <td className="px-5 py-2.5">
+                                  <span className="font-mono font-bold text-indigo-600">{r.code}</span>
+                                  <span className="ml-2 text-slate-500">
+                                    {r.title.length > 36 ? r.title.slice(0, 36) + "…" : r.title}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2.5 text-center text-slate-600">{r.credits}</td>
+                                <td className="px-3 py-2.5 text-center">
+                                  <span className={`font-mono font-bold ${GRADE_COLOR[r.grade] ?? "text-slate-800"}`}>
+                                    {r.grade}
+                                  </span>
+                                </td>
+                                <td className="px-5 py-2.5 text-right text-slate-400">{r.term}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : null}
+                  </div>
                 )
               )}
             </div>
           )}
 
           {/* What-if panel */}
-          <details className="campus-card overflow-hidden">
-            <summary className="flex cursor-pointer select-none list-none items-center gap-2 px-5 py-4 font-bold text-slate-800 hover:bg-slate-50">
-              <span className="text-[10px] text-slate-300">▶</span>
+          <div className="campus-card overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setWhatIfOpen((prev) => !prev)}
+              className="flex w-full items-center gap-2 px-5 py-4 text-left font-bold text-slate-800 hover:bg-slate-50 transition-colors"
+            >
+              {whatIfOpen
+                ? <ChevronDown className="size-4 text-slate-400 shrink-0" />
+                : <ChevronRight className="size-4 text-slate-400 shrink-0" />
+              }
               模拟未来学期
               <span className="ml-auto text-sm font-normal text-slate-400">假设多修若干学分后的预测毕业进度</span>
-            </summary>
+            </button>
+            {whatIfOpen ? (
             <div className="space-y-4 border-t border-slate-100 p-5">
               <div className="flex flex-wrap items-end gap-6">
                 <label className="grid gap-1 text-sm text-slate-600">
@@ -355,7 +383,8 @@ export default function DegreeAuditPage() {
                 ))}
               </div>
             </div>
-          </details>
+            ) : null}
+          </div>
         </>
       )}
     </div>

@@ -7383,6 +7383,15 @@ export class AdminService {
 
   async getSystemHealth() {
     const now = new Date();
+
+    // DB connectivity ping
+    let dbOk = true;
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+    } catch {
+      dbOk = false;
+    }
+
     const activeTerm =
       (await this.prisma.term.findFirst({
         where: {
@@ -7390,14 +7399,15 @@ export class AdminService {
           endDate: { gte: now }
         },
         orderBy: { startDate: "desc" },
-        select: { id: true }
+        select: { id: true, name: true }
       })) ??
       (await this.prisma.term.findFirst({
         orderBy: { startDate: "desc" },
-        select: { id: true }
+        select: { id: true, name: true }
       }));
 
-    const [totalStudents, totalEnrollments] = await Promise.all([
+    const oneHourAgo = new Date(Date.now() - 3_600_000);
+    const [totalStudents, totalEnrollments, recentErrors] = await Promise.all([
       this.prisma.user.count({
         where: { role: "STUDENT", deletedAt: null }
       }),
@@ -7409,17 +7419,25 @@ export class AdminService {
               status: { in: ["ENROLLED", "WAITLISTED", "PENDING_APPROVAL", "COMPLETED"] as EnrollmentStatus[] }
             }
           })
-        : Promise.resolve(0)
+        : Promise.resolve(0),
+      this.prisma.auditLog.count({
+        where: {
+          createdAt: { gte: oneHourAgo },
+          action: { contains: "ERROR" }
+        }
+      })
     ]);
 
     return {
       uptime: process.uptime(),
       memUsed: process.memoryUsage().heapUsed,
       memTotal: process.memoryUsage().heapTotal,
-      nodeVersion: process.version,
       timestamp: new Date(),
+      dbOk,
       totalStudents,
-      totalEnrollments
+      totalEnrollments,
+      activeTermName: activeTerm?.name ?? null,
+      recentErrors
     };
   }
 

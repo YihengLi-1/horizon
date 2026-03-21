@@ -7,10 +7,12 @@ type SystemHealth = {
   uptime: number;
   memUsed: number;
   memTotal: number;
-  nodeVersion: string;
   timestamp: string;
+  dbOk: boolean;
   totalStudents: number;
   totalEnrollments: number;
+  activeTermName: string | null;
+  recentErrors: number;
 };
 
 function formatUptime(seconds: number): string {
@@ -31,16 +33,19 @@ export default function AdminSystemHealthPage() {
   const [data, setData] = useState<SystemHealth | null>(null);
   const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL / 1000);
 
   const refresh = useCallback(() => {
     setRefreshing(true);
+    setError("");
     void apiFetch<SystemHealth>("/admin/system-health")
       .then((result) => {
         setData(result);
         setRefreshedAt(new Date());
         setCountdown(REFRESH_INTERVAL / 1000);
       })
+      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
       .finally(() => setRefreshing(false));
   }, []);
 
@@ -50,7 +55,6 @@ export default function AdminSystemHealthPage() {
     return () => clearInterval(interval);
   }, [refresh]);
 
-  // countdown ticker
   useEffect(() => {
     const ticker = setInterval(() => {
       setCountdown((prev) => (prev <= 1 ? REFRESH_INTERVAL / 1000 : prev - 1));
@@ -64,8 +68,7 @@ export default function AdminSystemHealthPage() {
   }, [data]);
 
   const memTone = memPct > 85 ? "chip-red" : memPct >= 70 ? "chip-amber" : "chip-emerald";
-  const overallStatus = data ? (memPct < 85 ? "正常" : "警告") : "—";
-  const statusColor = data ? (memPct < 85 ? "text-emerald-700" : "text-amber-700") : "text-slate-400";
+  const overallOk = data ? data.dbOk && memPct < 85 && data.recentErrors === 0 : null;
 
   return (
     <div className="campus-page space-y-6">
@@ -74,7 +77,7 @@ export default function AdminSystemHealthPage() {
           <div>
             <p className="campus-eyebrow">系统运行状态</p>
             <h1 className="campus-title">系统健康仪表盘</h1>
-            <p className="campus-subtitle">查看当前运行时状态、内存占用，以及本学期注册负载。</p>
+            <p className="campus-subtitle">实时监控 API 进程、数据库连接与本期注册负载。</p>
           </div>
           <div className="flex items-center gap-3 pt-1">
             <span className="text-xs text-slate-400">{countdown}s 后刷新</span>
@@ -90,18 +93,27 @@ export default function AdminSystemHealthPage() {
         </div>
       </section>
 
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : null}
+
       {!data ? (
         <div className="campus-card px-6 py-14 text-center text-sm text-slate-500">加载中…</div>
       ) : (
         <>
+          {/* KPI row */}
           <div className="grid gap-4 md:grid-cols-5">
             <div className="campus-kpi">
-              <p className="campus-kpi-label">系统状态</p>
-              <p className={`campus-kpi-value ${statusColor}`}>{overallStatus}</p>
+              <p className="campus-kpi-label">总体状态</p>
+              <p className={`campus-kpi-value ${overallOk ? "text-emerald-700" : "text-red-600"}`}>
+                {overallOk ? "正常" : "警告"}
+              </p>
             </div>
             <div className="campus-kpi">
-              <p className="campus-kpi-label">在线时长</p>
-              <p className="campus-kpi-value">{formatUptime(data.uptime)}</p>
+              <p className="campus-kpi-label">数据库</p>
+              <p className={`campus-kpi-value ${data.dbOk ? "text-emerald-700" : "text-red-600"}`}>
+                {data.dbOk ? "连通" : "断开"}
+              </p>
             </div>
             <div className="campus-kpi">
               <p className="campus-kpi-label">内存占用</p>
@@ -114,23 +126,36 @@ export default function AdminSystemHealthPage() {
               <p className="campus-kpi-value">{data.totalStudents.toLocaleString()}</p>
             </div>
             <div className="campus-kpi">
-              <p className="campus-kpi-label">本期选课数</p>
-              <p className="campus-kpi-value">{data.totalEnrollments.toLocaleString()}</p>
+              <p className="campus-kpi-label">
+                {data.activeTermName ? `${data.activeTermName} 注册量` : "当前学期注册量"}
+              </p>
+              <p className="campus-kpi-value">
+                {data.activeTermName ? data.totalEnrollments.toLocaleString() : "—"}
+              </p>
+              {!data.activeTermName ? (
+                <p className="text-[11px] text-slate-400 mt-1">暂无活跃学期</p>
+              ) : null}
             </div>
           </div>
 
+          {/* Detail card */}
           <section className="campus-card p-5 space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap gap-2">
                 <span className={`campus-chip ${memTone}`}>堆内存 {memPct}%</span>
-                <span className="campus-chip chip-purple">Node.js {data.nodeVersion}</span>
+                <span className={`campus-chip ${data.dbOk ? "chip-emerald" : "chip-red"}`}>
+                  数据库 {data.dbOk ? "✓ 在线" : "✗ 离线"}
+                </span>
+                <span className={`campus-chip ${data.recentErrors > 0 ? "chip-amber" : "chip-emerald"}`}>
+                  近 1 小时错误 {data.recentErrors}
+                </span>
                 <span className="campus-chip chip-blue">
-                  服务时间戳 {new Date(data.timestamp).toLocaleTimeString()}
+                  在线时长 {formatUptime(data.uptime)}
                 </span>
               </div>
               {refreshedAt && (
                 <span className="text-xs text-slate-400">
-                  本地刷新于 {refreshedAt.toLocaleTimeString()}
+                  刷新于 {refreshedAt.toLocaleTimeString("zh-CN")}
                 </span>
               )}
             </div>
@@ -153,10 +178,10 @@ export default function AdminSystemHealthPage() {
                 </div>
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-900">运行说明</p>
+                <p className="text-sm font-semibold text-slate-900">说明</p>
                 <p className="mt-1.5 text-sm text-slate-600">
-                  数据每 {REFRESH_INTERVAL / 1000} 秒自动刷新。展示 API 进程实时运行时状态、
-                  全局学生数与当前学期注册量，适合监控部署后的基本健康情况。
+                  每 {REFRESH_INTERVAL / 1000} 秒自动刷新。"近 1 小时错误"统计审计日志中
+                  action 包含 ERROR 的记录数，可用于快速判断系统是否有异常操作。
                 </p>
               </div>
             </div>
