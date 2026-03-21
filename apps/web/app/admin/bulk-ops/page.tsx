@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -18,6 +18,23 @@ type BulkDropResult = {
 
 type BulkStatusResult = {
   updated: number;
+};
+
+type StudentRow = {
+  id: string;
+  email: string;
+  studentId: string | null;
+  studentProfile?: {
+    legalName?: string | null;
+    programMajor?: string | null;
+  } | null;
+};
+
+type StudentListResponse = {
+  data: StudentRow[];
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
 function parseIds(value: string) {
@@ -48,10 +65,54 @@ export default function AdminBulkOpsPage() {
   const [enrollResult, setEnrollResult] = useState<BulkEnrollResult | null>(null);
   const [dropResult, setDropResult] = useState<BulkDropResult | null>(null);
   const [statusResult, setStatusResult] = useState<BulkStatusResult | null>(null);
+  const [students, setStudents] = useState<StudentRow[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(true);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [studentSearch, setStudentSearch] = useState("");
 
   const parsedStudentIds = useMemo(() => parseIds(studentIdsText), [studentIdsText]);
   const parsedEnrollmentIds = useMemo(() => parseIds(enrollmentIdsText), [enrollmentIdsText]);
   const parsedStatusStudentIds = useMemo(() => parseIds(statusStudentIdsText), [statusStudentIdsText]);
+  const visibleStudents = useMemo(() => {
+    const keyword = studentSearch.trim().toLowerCase();
+    if (!keyword) return students;
+    return students.filter((student) =>
+      [student.email, student.studentId ?? "", student.studentProfile?.legalName ?? "", student.studentProfile?.programMajor ?? ""]
+        .some((value) => value.toLowerCase().includes(keyword))
+    );
+  }, [studentSearch, students]);
+
+  useEffect(() => {
+    let active = true;
+    setLoadingStudents(true);
+    void apiFetch<StudentListResponse>("/admin/students?pageSize=200")
+      .then((result) => {
+        if (!active) return;
+        setStudents(result.data ?? []);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : "学生列表加载失败");
+      })
+      .finally(() => {
+        if (active) setLoadingStudents(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  function toggleStudent(studentId: string) {
+    setSelectedStudentIds((current) =>
+      current.includes(studentId) ? current.filter((id) => id !== studentId) : [...current, studentId]
+    );
+  }
+
+  function fillSelectedStudents(target: "enroll" | "status") {
+    const nextValue = selectedStudentIds.join("\n");
+    if (target === "enroll") setStudentIdsText(nextValue);
+    if (target === "status") setStatusStudentIdsText(nextValue);
+  }
 
   async function runBulkEnroll() {
     setLoading(true);
@@ -155,30 +216,93 @@ export default function AdminBulkOpsPage() {
       {error ? <div className="campus-card border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
       {tab === "enroll" ? (
-        <div className="campus-card space-y-4 p-5">
-          <div className="grid gap-4 md:grid-cols-[220px,1fr]">
-            <input className="campus-input" placeholder="班级ID" value={sectionId} onChange={(e) => setSectionId(e.target.value)} />
-            <textarea
-              className="min-h-[220px] rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-700 outline-none focus:border-[hsl(221_83%_55%)] focus:ring-4 focus:ring-[hsl(221_83%_55%_/_0.15)]"
-              placeholder="每行一个 studentId，或用逗号分隔"
-              value={studentIdsText}
-              onChange={(e) => setStudentIdsText(e.target.value)}
-            />
+        <div className="grid gap-6 xl:grid-cols-[1.25fr,0.95fr]">
+          <div className="campus-card space-y-4 p-5">
+            <div className="grid gap-4 md:grid-cols-[220px,1fr]">
+              <input className="campus-input" placeholder="班级ID" value={sectionId} onChange={(e) => setSectionId(e.target.value)} />
+              <textarea
+                className="min-h-[220px] rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-700 outline-none focus:border-[hsl(221_83%_55%)] focus:ring-4 focus:ring-[hsl(221_83%_55%_/_0.15)]"
+                placeholder="每行一个 studentId，或用逗号分隔"
+                value={studentIdsText}
+                onChange={(e) => setStudentIdsText(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="campus-chip chip-blue">已解析 {parsedStudentIds.length} 名学生</span>
+              <button
+                type="button"
+                onClick={() => setConfirmState({
+                  title: "批量选课",
+                  message: `确认将 ${parsedStudentIds.length} 名学生批量加入班级？此操作不可撤销。`,
+                  onConfirm: () => { setConfirmState(null); void runBulkEnroll(); },
+                })}
+                disabled={loading || !sectionId.trim() || parsedStudentIds.length === 0}
+                className="rounded-lg bg-[hsl(221_83%_43%)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[hsl(221_83%_38%)] disabled:opacity-50"
+              >
+                {loading ? "执行中…" : "执行"}
+              </button>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="campus-chip chip-blue">已解析 {parsedStudentIds.length} 名学生</span>
-            <button
-              type="button"
-              onClick={() => setConfirmState({
-                title: "批量选课",
-                message: `确认将 ${parsedStudentIds.length} 名学生批量加入班级？此操作不可撤销。`,
-                onConfirm: () => { setConfirmState(null); void runBulkEnroll(); },
-              })}
-              disabled={loading || !sectionId.trim() || parsedStudentIds.length === 0}
-              className="rounded-lg bg-[hsl(221_83%_43%)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[hsl(221_83%_38%)] disabled:opacity-50"
-            >
-              {loading ? "执行中…" : "执行"}
-            </button>
+
+          <div className="campus-card space-y-4 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">真实学生列表</h2>
+                <p className="text-xs text-slate-500">勾选后可直接回填到批量选课名单，减少手工录入错误。</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => fillSelectedStudents("enroll")}
+                disabled={selectedStudentIds.length === 0}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                将选中学生填入名单
+              </button>
+            </div>
+            <input
+              className="campus-input"
+              placeholder="按姓名 / 邮箱 / 学号筛选"
+              value={studentSearch}
+              onChange={(e) => setStudentSearch(e.target.value)}
+            />
+            <div className="overflow-hidden rounded-xl border border-slate-200">
+              <div className="max-h-[360px] overflow-y-auto">
+                {loadingStudents ? (
+                  <div className="px-4 py-10 text-center text-sm text-slate-500">加载学生中…</div>
+                ) : visibleStudents.length === 0 ? (
+                  <div className="px-4 py-10 text-center text-sm text-slate-500">没有匹配的学生。</div>
+                ) : (
+                  <table className="campus-table">
+                    <thead>
+                      <tr>
+                        <th className="w-12">选择</th>
+                        <th>学生</th>
+                        <th>学号</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleStudents.map((student) => {
+                        const checked = selectedStudentIds.includes(student.id);
+                        return (
+                          <tr key={student.id}>
+                            <td>
+                              <input type="checkbox" checked={checked} onChange={() => toggleStudent(student.id)} />
+                            </td>
+                            <td>
+                              <div className="space-y-0.5">
+                                <div className="font-medium text-slate-900">{student.studentProfile?.legalName || student.email}</div>
+                                <div className="text-xs text-slate-500">{student.email}</div>
+                              </div>
+                            </td>
+                            <td>{student.studentId || "—"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
@@ -210,34 +334,97 @@ export default function AdminBulkOpsPage() {
       ) : null}
 
       {tab === "status" ? (
-        <div className="campus-card space-y-4 p-5">
-          <div className="grid gap-4 md:grid-cols-[1fr,220px]">
-            <textarea
-              className="min-h-[220px] rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-700 outline-none focus:border-[hsl(221_83%_55%)] focus:ring-4 focus:ring-[hsl(221_83%_55%_/_0.15)]"
-              placeholder="每行一个 studentId，或用逗号分隔"
-              value={statusStudentIdsText}
-              onChange={(e) => setStatusStudentIdsText(e.target.value)}
-            />
-            <select className="campus-select" value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="ACTIVE">在读</option>
-              <option value="INACTIVE">非在读</option>
-              <option value="SUSPENDED">停学</option>
-            </select>
+        <div className="grid gap-6 xl:grid-cols-[1.25fr,0.95fr]">
+          <div className="campus-card space-y-4 p-5">
+            <div className="grid gap-4 md:grid-cols-[1fr,220px]">
+              <textarea
+                className="min-h-[220px] rounded-xl border border-slate-200 px-3 py-3 text-sm text-slate-700 outline-none focus:border-[hsl(221_83%_55%)] focus:ring-4 focus:ring-[hsl(221_83%_55%_/_0.15)]"
+                placeholder="每行一个 studentId，或用逗号分隔"
+                value={statusStudentIdsText}
+                onChange={(e) => setStatusStudentIdsText(e.target.value)}
+              />
+              <select className="campus-select" value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="ACTIVE">在读</option>
+                <option value="INACTIVE">非在读</option>
+                <option value="SUSPENDED">停学</option>
+              </select>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="campus-chip chip-blue">已解析 {parsedStatusStudentIds.length} 名学生</span>
+              <button
+                type="button"
+                onClick={() => setConfirmState({
+                  title: "批量改状态",
+                  message: `确认将 ${parsedStatusStudentIds.length} 名学生的学籍状态批量更改？此操作不可撤销。`,
+                  onConfirm: () => { setConfirmState(null); void runBulkStatus(); },
+                })}
+                disabled={loading || parsedStatusStudentIds.length === 0}
+                className="rounded-lg bg-[hsl(221_83%_43%)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[hsl(221_83%_38%)] disabled:opacity-50"
+              >
+                {loading ? "执行中…" : "执行"}
+              </button>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="campus-chip chip-blue">已解析 {parsedStatusStudentIds.length} 名学生</span>
-            <button
-              type="button"
-              onClick={() => setConfirmState({
-                title: "批量改状态",
-                message: `确认将 ${parsedStatusStudentIds.length} 名学生的学籍状态批量更改？此操作不可撤销。`,
-                onConfirm: () => { setConfirmState(null); void runBulkStatus(); },
-              })}
-              disabled={loading || parsedStatusStudentIds.length === 0}
-              className="rounded-lg bg-[hsl(221_83%_43%)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[hsl(221_83%_38%)] disabled:opacity-50"
-            >
-              {loading ? "执行中…" : "执行"}
-            </button>
+
+          <div className="campus-card space-y-4 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">按真实学生批量选中</h2>
+                <p className="text-xs text-slate-500">用于批量更改学籍状态，避免手工复制 studentId。</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => fillSelectedStudents("status")}
+                disabled={selectedStudentIds.length === 0}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                将选中学生填入名单
+              </button>
+            </div>
+            <input
+              className="campus-input"
+              placeholder="按姓名 / 邮箱 / 学号筛选"
+              value={studentSearch}
+              onChange={(e) => setStudentSearch(e.target.value)}
+            />
+            <div className="overflow-hidden rounded-xl border border-slate-200">
+              <div className="max-h-[360px] overflow-y-auto">
+                {loadingStudents ? (
+                  <div className="px-4 py-10 text-center text-sm text-slate-500">加载学生中…</div>
+                ) : visibleStudents.length === 0 ? (
+                  <div className="px-4 py-10 text-center text-sm text-slate-500">没有匹配的学生。</div>
+                ) : (
+                  <table className="campus-table">
+                    <thead>
+                      <tr>
+                        <th className="w-12">选择</th>
+                        <th>学生</th>
+                        <th>学号</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleStudents.map((student) => {
+                        const checked = selectedStudentIds.includes(student.id);
+                        return (
+                          <tr key={student.id}>
+                            <td>
+                              <input type="checkbox" checked={checked} onChange={() => toggleStudent(student.id)} />
+                            </td>
+                            <td>
+                              <div className="space-y-0.5">
+                                <div className="font-medium text-slate-900">{student.studentProfile?.legalName || student.email}</div>
+                                <div className="text-xs text-slate-500">{student.email}</div>
+                              </div>
+                            </td>
+                            <td>{student.studentId || "—"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       ) : null}

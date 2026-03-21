@@ -98,42 +98,21 @@ type OpsMetrics = {
   };
 };
 
-type OpsVersion = {
-  version: string;
-  nodeEnv: string;
+type SystemHealth = {
   uptime: number;
-  pid: number;
-  buildTime?: string;
+  memUsed: number;
+  memTotal: number;
+  timestamp: string;
+  dbOk: boolean;
+  totalStudents: number;
+  totalEnrollments: number;
+  activeTermName: string | null;
+  recentErrors: number;
 };
 
 type OpsReady = {
   status: string;
 };
-
-function StatCard({
-  label,
-  value,
-  sub,
-  accent,
-  href
-}: {
-  label: string;
-  value: number | string;
-  sub?: string;
-  accent?: string;
-  href?: string;
-}) {
-  const content = (
-    <div
-      className={`group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition ${href ? "hover:shadow-md hover:border-slate-300 cursor-pointer" : ""}`}
-    >
-      <p className="text-[11px] font-semibold text-slate-500">{label}</p>
-      <p className={`campus-kpi-value ${accent ?? ""}`}>{value}</p>
-      {sub ? <p className="mt-1 text-sm text-slate-500">{sub}</p> : null}
-    </div>
-  );
-  return href ? <Link href={href}>{content}</Link> : content;
-}
 
 function ActionButton({ href, label, desc }: { href: string; label: string; desc: string }) {
   return (
@@ -180,13 +159,20 @@ function actorRoleBadge(role: string): { label: string; className: string } {
 export default async function AdminDashboardPage() {
   await requireRole("ADMIN");
 
-  const [data, opsMetrics, opsVersion, opsReady] = await Promise.all([
+  const [data, systemHealth, gradeAppeals, prereqWaivers, pendingOverloads, opsMetrics, opsReady] = await Promise.all([
     serverApi<Dashboard>("/admin/dashboard"),
+    serverApi<SystemHealth>("/admin/system-health"),
+    serverApi<Array<{ id: string }>>("/admin/grade-appeals?status=PENDING").catch(() => []),
+    serverApi<{ pending: Array<{ id: string }>; history: Array<{ id: string }> }>("/admin/prereq-waivers?status=PENDING").catch(() => ({
+      pending: [],
+      history: []
+    })),
+    serverApi<Array<{ id: string }>>("/admin/pending-overloads").catch(() => []),
     serverApi<OpsMetrics>("/ops/metrics").catch(() => null),
-    serverApi<OpsVersion>("/ops/version").catch(() => null),
     serverApi<OpsReady>("/ops/ready").catch(() => null)
   ]);
   const { breakdown, activeTerm, recentActivity } = data;
+  const pendingApprovalCount = gradeAppeals.length + prereqWaivers.pending.length + pendingOverloads.length;
 
   const now = Date.now();
   const enrollmentGrandTotal =
@@ -251,7 +237,7 @@ export default async function AdminDashboardPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="campus-chip chip-emerald">
-              {data.students} 名学生
+              {systemHealth.totalStudents} 名学生
             </span>
             <span className="campus-chip chip-blue">
               {data.sections} 个教学班
@@ -261,9 +247,9 @@ export default async function AdminDashboardPage() {
                 {data.waitlist} 条候补
               </span>
             )}
-            {breakdown.pendingApproval > 0 && (
+            {pendingApprovalCount > 0 && (
               <span className="campus-chip chip-purple">
-                {breakdown.pendingApproval} 条待审批
+                {pendingApprovalCount} 条待审批
               </span>
             )}
           </div>
@@ -275,10 +261,40 @@ export default async function AdminDashboardPage() {
 
       {/* Primary stats */}
       <div className="campus-kpi-grid">
-        <StatCard label="学生" value={data.students} sub="当前系统账号数" href="/admin/students" />
-        <StatCard label="进行中注册" value={enrollmentTotal} sub="已注册 / 候补 / 待审批" href="/admin/enrollments" />
-        <StatCard label="待处理审批" value={breakdown.pendingApproval} sub="需要人工判断" accent="text-amber-600" href="/admin/pending-overloads" />
-        <StatCard label="候补压力" value={data.waitlist} sub="需要推进的候补记录" accent="text-amber-600" href="/admin/waitlist" />
+        <Link href="/admin/students" className="no-underline">
+          <div className="campus-kpi">
+            <p className="campus-kpi-label">在读学生数</p>
+            <p className="campus-kpi-value">{systemHealth.totalStudents}</p>
+            <p className="mt-1 text-sm text-slate-500">当前系统学生账号</p>
+          </div>
+        </Link>
+        <Link href="/admin/enrollments" className="no-underline">
+          <div className="campus-kpi">
+            <p className="campus-kpi-label">当前学期注册量</p>
+            <p className="campus-kpi-value">{systemHealth.totalEnrollments}</p>
+            <p className="mt-1 text-sm text-slate-500">
+              {systemHealth.activeTermName ? systemHealth.activeTermName : "暂无活跃学期"}
+            </p>
+          </div>
+        </Link>
+        <Link href="/admin/appeals" className="no-underline">
+          <div className="campus-kpi">
+            <p className="campus-kpi-label">待审批数</p>
+            <p className={`campus-kpi-value ${pendingApprovalCount > 0 ? "text-amber-600" : ""}`}>
+              {pendingApprovalCount}
+            </p>
+            <p className="mt-1 text-sm text-slate-500">申诉 / 豁免 / 超学分</p>
+          </div>
+        </Link>
+        <Link href="/admin/system-health" className="no-underline">
+          <div className="campus-kpi">
+            <p className="campus-kpi-label">近1小时错误</p>
+            <p className={`campus-kpi-value ${systemHealth.recentErrors > 0 ? "text-red-600" : ""}`}>
+              {systemHealth.recentErrors}
+            </p>
+            <p className="mt-1 text-sm text-slate-500">数据库：{systemHealth.dbOk ? "正常" : "异常"}</p>
+          </div>
+        </Link>
       </div>
 
       {/* Active term spotlight */}
