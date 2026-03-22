@@ -1,18 +1,33 @@
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { apiCache } from "../common/cache";
 import { sanitizeHtml } from "../common/sanitize";
 import { AdminReportingService } from "./admin-reporting.service";
 import { AdminService } from "./admin.service";
 
-function createAdminService() {
+function createAdminService(overrides?: Record<string, unknown>) {
   const prisma = {
     auditLog: {
-      findMany: jest.fn()
+      findMany: jest.fn(),
+      create: jest.fn()
     },
     user: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
       findFirst: jest.fn(),
       create: jest.fn()
+    },
+    enrollment: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      count: jest.fn()
+    },
+    gradeAppeal: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn()
     },
     facultyProfile: {
       findUnique: jest.fn()
@@ -21,12 +36,16 @@ function createAdminService() {
       findUnique: jest.fn()
     },
     section: {
-      findMany: jest.fn()
+      findMany: jest.fn(),
+      findUnique: jest.fn()
     },
-    $transaction: jest.fn()
+    $queryRaw: jest.fn(),
+    $transaction: jest.fn(async (fn: any) => (typeof fn === "function" ? fn(prisma) : fn)),
+    ...overrides
   } as any;
   const auditService = {
-    log: jest.fn()
+    log: jest.fn(),
+    logInTransaction: jest.fn()
   } as any;
   const notificationsService = {} as any;
   const registrationService = {
@@ -36,7 +55,8 @@ function createAdminService() {
   const governanceService = {
     listHolds: jest.fn(),
     createHold: jest.fn(),
-    resolveHold: jest.fn()
+    resolveHold: jest.fn(),
+    decideAdminRequest: jest.fn()
   } as any;
   const mailService = {
     sendAppealDecision: jest.fn(),
@@ -61,6 +81,8 @@ function createAdminService() {
   return {
     prisma,
     auditService,
+    governanceService,
+    mailService,
     service: new AdminService(
       prisma,
       auditService,
@@ -308,5 +330,178 @@ describe("AdminService helpers", () => {
     );
     expect(auditService.log).toHaveBeenCalled();
     expect(assignment.id).toBe("assignment-1");
+  });
+
+  describe("decidePendingOverload", () => {
+    it("批准后更新状态并发邮件", async () => {
+      const { prisma, mailService, service } = createAdminService();
+      prisma.enrollment.findFirst.mockResolvedValue({
+        id: "enr-1",
+        studentId: "stu-1",
+        student: { email: "student@univ.edu", studentProfile: { legalName: "张小明" } },
+        sectionId: "sec-1",
+        section: {
+          capacity: 40,
+          requireApproval: false,
+          sectionCode: "CS101-01",
+          course: { code: "CS101", title: "计算机科学导论" },
+          term: { name: "2025年秋季学期" }
+        }
+      });
+      prisma.enrollment.count.mockResolvedValue(10);
+      prisma.enrollment.update.mockResolvedValue({ id: "enr-1", status: "ENROLLED" });
+      prisma.$queryRaw.mockResolvedValue([{ id: "sec-1", capacity: 40 }]);
+
+      await service.decidePendingOverload("enr-1", true, "admin-1");
+
+      expect(prisma.enrollment.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "enr-1" }, data: { status: "ENROLLED" } })
+      );
+      expect(mailService.sendOverloadDecision).toHaveBeenCalledWith("student@univ.edu", true);
+    });
+
+    it("驳回时发 approved=false 邮件", async () => {
+      const { prisma, mailService, service } = createAdminService();
+      prisma.enrollment.findFirst.mockResolvedValue({
+        id: "enr-1",
+        studentId: "stu-1",
+        student: { email: "student@univ.edu", studentProfile: { legalName: "张小明" } },
+        sectionId: "sec-1",
+        section: {
+          capacity: 40,
+          requireApproval: false,
+          sectionCode: "CS101-01",
+          course: { code: "CS101", title: "计算机科学导论" },
+          term: { name: "2025年秋季学期" }
+        }
+      });
+      prisma.enrollment.update.mockResolvedValue({ id: "enr-1", status: "DROPPED" });
+
+      await service.decidePendingOverload("enr-1", false, "admin-1");
+
+      expect(mailService.sendOverloadDecision).toHaveBeenCalledWith("student@univ.edu", false);
+    });
+
+    it("找不到 enrollment 时抛 NotFoundException", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.enrollment.findFirst.mockResolvedValue(null);
+
+      await expect(service.decidePendingOverload("missing", true, "admin-1")).rejects.toBeInstanceOf(
+        NotFoundException
+      );
+    });
+  });
+
+  describe("decidePrereqWaiver", () => {
+    it("批准后更新状态并发邮件", async () => {
+      const { governanceService, mailService, service } = createAdminService();
+      governanceService.decideAdminRequest.mockResolvedValue({
+        id: "req-1",
+        student: { id: "stu-1", email: "student@univ.edu" },
+        section: { id: "sec-1", course: { code: "CS301", title: "操作系统原理" } }
+      });
+
+      await service.decidePrereqWaiver("admin-1", "req-1", {
+        status: "APPROVED",
+        adminNote: "允许修读"
+      });
+
+      expect(mailService.sendWaiverDecision).toHaveBeenCalledWith(
+        "student@univ.edu",
+        "CS301",
+        true,
+        "允许修读"
+      );
+    });
+
+    it("驳回时发 approved=false 的邮件", async () => {
+      const { governanceService, mailService, service } = createAdminService();
+      governanceService.decideAdminRequest.mockResolvedValue({
+        id: "req-1",
+        student: { id: "stu-1", email: "student@univ.edu" },
+        section: { id: "sec-1", course: { code: "CS301", title: "操作系统原理" } }
+      });
+
+      await service.decidePrereqWaiver("admin-1", "req-1", {
+        status: "REJECTED",
+        adminNote: "条件不足"
+      });
+
+      expect(mailService.sendWaiverDecision).toHaveBeenCalledWith(
+        "student@univ.edu",
+        "CS301",
+        false,
+        "条件不足"
+      );
+    });
+
+    it("已处理过的申请再次审批时抛异常", async () => {
+      const { governanceService, service } = createAdminService();
+      governanceService.decideAdminRequest.mockRejectedValue(
+        new BadRequestException({ code: "REQUEST_ALREADY_RESOLVED" })
+      );
+
+      await expect(
+        service.decidePrereqWaiver("admin-1", "req-1", { status: "APPROVED", adminNote: "重复审批" })
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe("reviewGradeAppeal", () => {
+    it("批准后更新成绩并发邮件", async () => {
+      const { prisma, mailService, service } = createAdminService();
+      prisma.gradeAppeal.findUnique.mockResolvedValue({
+        id: "appeal-1",
+        status: "PENDING",
+        enrollmentId: "enr-1",
+        student: { email: "student@univ.edu" },
+        enrollment: {
+          section: {
+            course: { title: "数据结构与算法" }
+          }
+        }
+      });
+      prisma.gradeAppeal.update.mockResolvedValue({});
+      prisma.enrollment.update.mockResolvedValue({});
+
+      await service.reviewGradeAppeal("admin-1", "appeal-1", "APPROVED", "改分通过", "A");
+
+      expect(prisma.enrollment.update).toHaveBeenCalledWith({
+        where: { id: "enr-1" },
+        data: { finalGrade: "A" }
+      });
+      expect(mailService.sendAppealDecision).toHaveBeenCalledWith(
+        "student@univ.edu",
+        "数据结构与算法",
+        true,
+        "改分通过"
+      );
+    });
+
+    it("驳回时不改成绩只发邮件", async () => {
+      const { prisma, mailService, service } = createAdminService();
+      prisma.gradeAppeal.findUnique.mockResolvedValue({
+        id: "appeal-1",
+        status: "PENDING",
+        enrollmentId: "enr-1",
+        student: { email: "student@univ.edu" },
+        enrollment: {
+          section: {
+            course: { title: "数据结构与算法" }
+          }
+        }
+      });
+      prisma.gradeAppeal.update.mockResolvedValue({});
+
+      await service.reviewGradeAppeal("admin-1", "appeal-1", "REJECTED", "维持原判");
+
+      expect(prisma.enrollment.update).not.toHaveBeenCalled();
+      expect(mailService.sendAppealDecision).toHaveBeenCalledWith(
+        "student@univ.edu",
+        "数据结构与算法",
+        false,
+        "维持原判"
+      );
+    });
   });
 });

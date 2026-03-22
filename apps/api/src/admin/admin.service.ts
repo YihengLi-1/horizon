@@ -806,7 +806,9 @@ private async resolveInstructorAssignment(input: {
           role: "FACULTY",
           deletedAt: null
         },
-        include: {
+        select: {
+          id: true,
+          email: true,
           facultyProfile: {
             select: { displayName: true, department: true, title: true }
           }
@@ -838,7 +840,7 @@ private async resolveInstructorAssignment(input: {
 private async ensureUniqueStaffIdentity(email: string, employeeId?: string | null) {
     const existingEmail = await this.prisma.user.findUnique({
       where: { email },
-      select: { id: true }
+      select: { id: true, email: true }
     });
     if (existingEmail) {
       throw new ConflictException({
@@ -937,6 +939,9 @@ async getStudentById(studentId: string) {
         email: true,
         studentId: true,
         role: true,
+        createdAt: true,
+        lockedUntil: true,
+        emailVerifiedAt: true,
         studentProfile: true,
         enrollments: {
           where: { deletedAt: null },
@@ -995,7 +1000,12 @@ async listTerms() {
 async listFaculty() {
     return this.prisma.user.findMany({
       where: { role: "FACULTY", deletedAt: null },
-      include: {
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        emailVerifiedAt: true,
         facultyProfile: true,
         _count: {
           select: { instructedSections: true }
@@ -1024,7 +1034,14 @@ async createFaculty(input: CreateFacultyInput, actorUserId: string) {
           }
         }
       },
-      include: { facultyProfile: true }
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        emailVerifiedAt: true,
+        facultyProfile: true
+      }
     });
 
     await this.auditService.log({
@@ -1041,7 +1058,12 @@ async createFaculty(input: CreateFacultyInput, actorUserId: string) {
 async listAdvisors() {
     return this.prisma.user.findMany({
       where: { role: "ADVISOR", deletedAt: null },
-      include: {
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        emailVerifiedAt: true,
         advisorProfile: true,
         advisorAssignments: {
           where: { active: true },
@@ -1071,7 +1093,14 @@ async createAdvisor(input: CreateAdvisorInput, actorUserId: string) {
           }
         }
       },
-      include: { advisorProfile: true }
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        createdAt: true,
+        emailVerifiedAt: true,
+        advisorProfile: true
+      }
     });
 
     await this.auditService.log({
@@ -1093,7 +1122,7 @@ async assignAdvisor(input: AssignAdvisorInput, actorUserId: string) {
       }),
       this.prisma.user.findFirst({
         where: { id: input.advisorId, role: "ADVISOR", deletedAt: null },
-        include: { advisorProfile: { select: { displayName: true } } }
+        select: { id: true, email: true, advisorProfile: { select: { displayName: true } } }
       })
     ]);
 
