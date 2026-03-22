@@ -68,6 +68,8 @@ model User {
   studentId               String?                  @unique
   passwordHash            String
   role                    Role
+  degreeProgram           String?
+  ssoProvider             String?
   emailVerifiedAt         DateTime?
   lastLoginAt             DateTime?
   loginAttempts           Int                      @default(0)
@@ -81,6 +83,7 @@ model User {
   issuedInviteCodes       InviteCode[]             @relation("InviteIssuer")
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
+  deletionRequests        DataDeletionRequest[]
   refreshTokens           RefreshToken[]
   enrollments             Enrollment[]             @relation("StudentEnrollments")
   cartItems               CartItem[]               @relation("StudentCartItems")
@@ -219,6 +222,31 @@ model PasswordResetToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([expiresAt])
+}
+
+model DegreeProgram {
+  id           String              @id @default(cuid())
+  name         String              @unique
+  totalCredits Int                 @default(120)
+  minGpa       Float               @default(2.0)
+  requirements DegreeRequirement[]
+  createdAt    DateTime            @default(now())
+}
+
+model DegreeRequirement {
+  id          String        @id @default(cuid())
+  programId   String
+  program     DegreeProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  category    String
+  label       String
+  minCredits  Int
+  minCourses  Int           @default(0)
+  courseCodes String[]
+  prefixes    String[]
+  minGrade    String        @default("D")
+  createdAt   DateTime      @default(now())
+
+  @@index([programId, category])
 }
 
 model RefreshToken {
@@ -610,4 +638,31 @@ model StudentNote {
   admin     User     @relation("StudentNotesWritten", fields: [adminId], references: [id], onDelete: Cascade)
 
   @@index([studentId, createdAt])
+}
+
+model DataDeletionRequest {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason      String?
+  status      String   @default("PENDING")
+  requestedAt DateTime @default(now())
+  completedAt DateTime?
+
+  @@index([userId, status])
+  @@index([status, requestedAt])
+}
+
+model DataAccessLog {
+  id         String   @id @default(cuid())
+  accessorId String
+  targetId   String
+  resource   String
+  action     String
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([targetId, createdAt])
+  @@index([accessorId, createdAt])
+  @@index([resource, action, createdAt])
 }

@@ -17,6 +17,7 @@ import { MaintenanceMiddleware } from "./common/maintenance.middleware";
 import { AdvisingModule } from "./advising/advising.module";
 import { GovernanceModule } from "./governance/governance.module";
 import { MailModule } from "./mail/mail.module";
+import { EnrollmentQueueModule } from "./queue/enrollment-queue.module";
 
 @Module({
   imports: [
@@ -40,7 +41,8 @@ import { MailModule } from "./mail/mail.module";
     AdvisingModule,
     GovernanceModule,
     HealthModule,
-    MailModule
+    MailModule,
+    EnrollmentQueueModule
   ],
   providers: [
     {

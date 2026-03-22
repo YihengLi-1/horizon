@@ -7,6 +7,7 @@ import { Eye, EyeOff } from "lucide-react";
 import ProfileCompletenessCard from "@/components/profile-completeness-card";
 import { useToast } from "@/components/Toast";
 import { apiFetch } from "@/lib/api";
+import { API_URL } from "@/lib/config";
 
 type ProfileResponse = {
   legalName: string;
@@ -320,6 +321,8 @@ export default function StudentProfilePage() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [requestingDeletion, setRequestingDeletion] = useState(false);
   const [completedCredits, setCompletedCredits] = useState(0);
   const [enrolledCredits, setEnrolledCredits] = useState(0);
   const [currentGpa, setCurrentGpa] = useState<number | null>(null);
@@ -417,6 +420,51 @@ export default function StudentProfilePage() {
       toast.error(nextError);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const downloadMyData = async () => {
+    setExporting(true);
+    try {
+      const response = await fetch(`${API_URL}/students/me/data-export`, {
+        credentials: "include"
+      });
+      if (!response.ok) {
+        throw new Error("数据导出失败，请稍后重试");
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "my-data.json";
+      link.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("已开始下载你的数据副本");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "数据导出失败";
+      toast.error(message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const requestDeletion = async () => {
+    if (!window.confirm("确认提交账号删除申请？注册处处理前，你的数据不会被立即删除。")) {
+      return;
+    }
+
+    setRequestingDeletion(true);
+    try {
+      await apiFetch("/students/me/deletion-request", {
+        method: "POST",
+        body: JSON.stringify({ reason: "学生本人发起账号删除申请" })
+      });
+      toast.success("删除申请已提交，请等待注册处处理");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "删除申请提交失败";
+      toast.error(message);
+    } finally {
+      setRequestingDeletion(false);
     }
   };
 
@@ -671,6 +719,29 @@ export default function StudentProfilePage() {
             </section>
 
             <ChangePasswordCard />
+
+            <section className="campus-card p-4">
+              <h3 className="text-sm font-semibold text-slate-700">危险操作区</h3>
+              <p className="mt-2 text-sm text-slate-500">如需导出个人数据或申请删除账号，请通过以下入口提交。</p>
+              <div className="mt-3 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => void downloadMyData()}
+                  disabled={exporting}
+                  className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {exporting ? "正在导出…" : "下载我的数据"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void requestDeletion()}
+                  disabled={requestingDeletion}
+                  className="inline-flex items-center justify-center rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {requestingDeletion ? "提交中…" : "申请账号删除"}
+                </button>
+              </div>
+            </section>
 
             <section className="campus-card p-4">
               <h3 className="text-sm font-semibold text-slate-700">教务处说明</h3>

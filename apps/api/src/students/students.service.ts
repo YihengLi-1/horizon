@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
@@ -36,6 +37,26 @@ type TranscriptTermGroup = {
   enrollments: TranscriptEnrollment[];
   semesterGpa: number | null;
   cumulativeGpa: number | null;
+};
+
+const GRADE_RANK: Record<string, number> = {
+  "A+": 13,
+  A: 12,
+  "A-": 11,
+  "B+": 10,
+  B: 9,
+  "B-": 8,
+  "C+": 7,
+  C: 6,
+  "C-": 5,
+  "D+": 4,
+  D: 3,
+  "D-": 2,
+  P: 3,
+  NP: 0,
+  F: 0,
+  W: 0,
+  I: 0
 };
 
 @Injectable()
@@ -785,6 +806,13 @@ export class StudentsService {
 
     if (credits === 0) return null;
     return Math.round((weighted / credits) * 100) / 100;
+  }
+
+  private gradeMeetsMinimum(grade: string | null | undefined, minGrade: string): boolean {
+    if (!grade) return false;
+    const normalizedGrade = grade.trim().toUpperCase();
+    const normalizedMin = minGrade.trim().toUpperCase();
+    return (GRADE_RANK[normalizedGrade] ?? -1) >= (GRADE_RANK[normalizedMin] ?? -1);
   }
 
   async updateMyProfile(userId: string, input: UpdateProfileInput) {
@@ -1859,6 +1887,255 @@ export class StudentsService {
       sectionCode: row.sectionCode,
       termName: row.termName
     }));
+  }
+
+  async getRealDegreeAudit(userId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      select: {
+        id: true,
+        email: true,
+        degreeProgram: true,
+        studentProfile: {
+          select: {
+            legalName: true,
+            programMajor: true
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      throw new NotFoundException({ code: "USER_NOT_FOUND", message: "学生不存在" });
+    }
+
+    if (!user.degreeProgram) {
+      return {
+        program: null,
+        overallCredits: { earned: 0, required: 0, met: false },
+        gpa: { current: null, required: 0, met: false },
+        requirements: [],
+        surplus: [],
+        eligible: false
+      };
+    }
+
+    const program = await this.prisma.degreeProgram.findUnique({
+      where: { name: user.degreeProgram },
+      include: {
+        requirements: {
+          orderBy: [{ category: "asc" }, { label: "asc" }]
+        }
+      }
+    });
+
+    if (!program) {
+      return {
+        program: null,
+        overallCredits: { earned: 0, required: 0, met: false },
+        gpa: { current: null, required: 0, met: false },
+        requirements: [],
+        surplus: [],
+        eligible: false
+      };
+    }
+
+    const completedEnrollments = (
+      await this.prisma.enrollment.findMany({
+        where: {
+          studentId: userId,
+          status: "COMPLETED",
+          deletedAt: null,
+          finalGrade: { not: null }
+        },
+        include: {
+          section: {
+            include: {
+              term: { select: { id: true, name: true } },
+              course: { select: { id: true, code: true, title: true, credits: true } }
+            }
+          }
+        },
+        orderBy: [{ section: { term: { startDate: "asc" } } }, { createdAt: "asc" }]
+      })
+    ).filter((enrollment) => !["W", "F", "I", "NP"].includes((enrollment.finalGrade ?? "").toUpperCase()));
+
+    const currentGpa = this.computeGpa(
+      completedEnrollments.map((enrollment) => ({
+        finalGrade: enrollment.finalGrade,
+        section: { credits: enrollment.section.course.credits }
+      }))
+    );
+
+    const matchedEnrollmentIds = new Set<string>();
+    const requirements: Array<{
+      category: string;
+      label: string;
+      minCredits: number;
+      earnedCredits: number;
+      minCourses: number;
+      earnedCourses: number;
+      met: boolean;
+      courses: Array<{
+        enrollmentId: string;
+        courseCode: string;
+        courseTitle: string;
+        credits: number;
+        finalGrade: string | null;
+        termId: string;
+        termName: string;
+      }>;
+    }> = [];
+
+    for (const requirement of program.requirements) {
+      const courses = completedEnrollments
+        .filter((enrollment) => {
+          const code = enrollment.section.course.code;
+          const exactMatch = requirement.courseCodes.length > 0 && requirement.courseCodes.includes(code);
+          const prefixMatch =
+            requirement.prefixes.length > 0 &&
+            requirement.prefixes.some((prefix) => code.toUpperCase().startsWith(prefix.toUpperCase()));
+          const catchAll = requirement.courseCodes.length === 0 && requirement.prefixes.length === 0;
+          return catchAll ? !matchedEnrollmentIds.has(enrollment.id) : exactMatch || prefixMatch;
+        })
+        .filter((enrollment) => this.gradeMeetsMinimum(enrollment.finalGrade, requirement.minGrade));
+
+      for (const course of courses) {
+        matchedEnrollmentIds.add(course.id);
+      }
+
+      const earnedCredits = courses.reduce((sum, enrollment) => sum + enrollment.section.course.credits, 0);
+      const earnedCourses = courses.length;
+
+      requirements.push({
+        category: requirement.category,
+        label: requirement.label,
+        minCredits: requirement.minCredits,
+        earnedCredits,
+        minCourses: requirement.minCourses,
+        earnedCourses,
+        met: earnedCredits >= requirement.minCredits && earnedCourses >= requirement.minCourses,
+        courses: courses.map((enrollment) => ({
+          enrollmentId: enrollment.id,
+          courseCode: enrollment.section.course.code,
+          courseTitle: enrollment.section.course.title,
+          credits: enrollment.section.course.credits,
+          finalGrade: enrollment.finalGrade,
+          termId: enrollment.section.term.id,
+          termName: enrollment.section.term.name
+        }))
+      });
+    }
+
+    const surplus = completedEnrollments
+      .filter((enrollment) => !matchedEnrollmentIds.has(enrollment.id))
+      .map((enrollment) => ({
+        enrollmentId: enrollment.id,
+        courseCode: enrollment.section.course.code,
+        courseTitle: enrollment.section.course.title,
+        credits: enrollment.section.course.credits,
+        finalGrade: enrollment.finalGrade,
+        termId: enrollment.section.term.id,
+        termName: enrollment.section.term.name
+      }));
+
+    const overallCreditsEarned = completedEnrollments.reduce(
+      (sum, enrollment) => sum + enrollment.section.course.credits,
+      0
+    );
+    const overallCredits = {
+      earned: overallCreditsEarned,
+      required: program.totalCredits,
+      met: overallCreditsEarned >= program.totalCredits
+    };
+    const gpa = {
+      current: currentGpa,
+      required: program.minGpa,
+      met: currentGpa !== null && currentGpa >= program.minGpa
+    };
+
+    return {
+      program,
+      overallCredits,
+      gpa,
+      requirements,
+      surplus,
+      eligible: overallCredits.met && gpa.met && requirements.every((requirement) => requirement.met)
+    };
+  }
+
+  async exportMyData(userId: string): Promise<object> {
+    const [user, enrollments, appeals, waivers, notes, auditLogs] = await Promise.all([
+      this.prisma.user.findFirst({
+        where: { id: userId, deletedAt: null },
+        select: {
+          id: true,
+          email: true,
+          studentId: true,
+          createdAt: true,
+          degreeProgram: true,
+          studentProfile: true
+        }
+      }),
+      this.prisma.enrollment.findMany({
+        where: { studentId: userId, deletedAt: null },
+        include: { section: { include: { course: true, term: true } } },
+        orderBy: { createdAt: "asc" }
+      }),
+      this.prisma.gradeAppeal.findMany({
+        where: { studentId: userId },
+        orderBy: { createdAt: "asc" }
+      }),
+      this.prisma.academicRequest.findMany({
+        where: { studentId: userId, type: "PREREQ_OVERRIDE" },
+        orderBy: { submittedAt: "asc" }
+      }),
+      this.prisma.studentNote.findMany({
+        where: { studentId: userId },
+        orderBy: { createdAt: "asc" }
+      }),
+      this.prisma.auditLog.findMany({
+        where: { actorUserId: userId },
+        orderBy: { createdAt: "asc" }
+      })
+    ]);
+
+    await this.prisma.dataAccessLog.create({
+      data: {
+        accessorId: userId,
+        targetId: userId,
+        resource: "full-export",
+        action: "export"
+      }
+    });
+
+    return {
+      exportedAt: new Date(),
+      user,
+      enrollments,
+      appeals,
+      waivers,
+      notes,
+      auditLogs
+    };
+  }
+
+  async submitDeletionRequest(userId: string, reason?: string) {
+    const existing = await this.prisma.dataDeletionRequest.findFirst({
+      where: { userId, status: { in: ["PENDING", "IN_PROGRESS"] } }
+    });
+
+    if (existing) {
+      throw new ConflictException({ code: "DELETION_REQUEST_EXISTS", message: "已有一个待处理的删除申请" });
+    }
+
+    return this.prisma.dataDeletionRequest.create({
+      data: {
+        userId,
+        reason,
+        status: "PENDING"
+      }
+    });
   }
 
   async listMyPrereqWaivers(userId: string) {

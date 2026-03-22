@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
+import { AuthGuard } from "@nestjs/passport";
 import { Throttle } from "@nestjs/throttler";
 import { Request, Response } from "express";
 import { verifyEmailSchema } from "@sis/shared";
@@ -48,6 +49,25 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response
   ) {
     return ok(await this.authService.login(body, req, res));
+  }
+
+  @Get("saml/login")
+  @Public()
+  @UseGuards(AuthGuard("saml"))
+  async samlLogin() {
+    return;
+  }
+
+  @Post("saml/callback")
+  @Public()
+  @UseGuards(AuthGuard("saml"))
+  async samlCallback(
+    @CurrentUser() user: { userId: string },
+    @Req() req: Request,
+    @Res() res: Response
+  ) {
+    await this.authService.createSessionForUser(user.userId, res, req);
+    return res.redirect(`${process.env.WEB_URL ?? "http://localhost:3000"}/student/dashboard`);
   }
 
   @UseGuards(JwtAuthGuard)

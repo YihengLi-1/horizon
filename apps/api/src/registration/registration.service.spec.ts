@@ -198,7 +198,7 @@ describe("RegistrationService", () => {
     const { prisma, service } = createRegistrationService();
     prisma.$transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) =>
       fn({
-        $queryRaw: jest.fn().mockResolvedValue(undefined),
+        $queryRaw: jest.fn().mockResolvedValue([{ id: "section-1" }]),
         enrollment: {
           findFirst: jest.fn().mockResolvedValue({
             id: "enrollment-1",
@@ -224,7 +224,7 @@ describe("RegistrationService", () => {
     const { prisma, service } = createRegistrationService();
     prisma.$transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) =>
       fn({
-        $queryRaw: jest.fn().mockResolvedValue(undefined),
+        $queryRaw: jest.fn().mockResolvedValue([{ id: "section-1" }]),
         enrollment: {
           findFirst: jest.fn().mockResolvedValue({
             id: "enrollment-1",
@@ -402,7 +402,7 @@ describe("RegistrationService", () => {
     it("rejects enrollment when student has not completed prerequisite", async () => {
       const { prisma, service } = createRegistrationService();
       const tx = {
-        $queryRaw: jest.fn().mockResolvedValue(undefined),
+        $queryRaw: jest.fn().mockResolvedValue([{ id: "section-1" }]),
         user: {
           findUnique: jest.fn().mockResolvedValue({
             studentId: "U250001",
@@ -463,7 +463,7 @@ describe("RegistrationService", () => {
         status: "ENROLLED"
       };
       const tx = {
-        $queryRaw: jest.fn().mockResolvedValue(undefined),
+        $queryRaw: jest.fn().mockResolvedValue([{ id: "section-1" }]),
         user: {
           findUnique: jest.fn().mockResolvedValue({
             studentId: "U250001",
@@ -535,7 +535,7 @@ describe("RegistrationService", () => {
         status: "ENROLLED"
       };
       const tx = {
-        $queryRaw: jest.fn().mockResolvedValue(undefined),
+        $queryRaw: jest.fn().mockResolvedValue([{ id: "section-1" }]),
         user: {
           findUnique: jest.fn().mockResolvedValue({
             studentId: "U250001",
@@ -745,7 +745,7 @@ describe("RegistrationService", () => {
           groupBy: jest.fn().mockResolvedValueOnce([{ sectionId: "section-1", _count: { _all: 1 } }]).mockResolvedValueOnce([]),
           createMany: jest.fn().mockResolvedValue({ count: 1 })
         },
-        $queryRaw: jest.fn().mockResolvedValue(undefined)
+        $queryRaw: jest.fn().mockResolvedValue([{ id: "section-1" }])
       } as any;
       jest.spyOn(service as any, "runEnrollmentTransactionWithRetry").mockImplementation(async (...args: any[]) => args[0](tx));
       prisma.user.findFirst.mockResolvedValue({ id: "student-1", email: "student@univ.edu", studentProfile: { legalName: "张小明" } });
@@ -925,7 +925,7 @@ describe("RegistrationService", () => {
       const { prisma, service } = createRegistrationService();
       prisma.$transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) =>
         fn({
-          $queryRaw: jest.fn().mockResolvedValue(undefined),
+          $queryRaw: jest.fn().mockResolvedValue([{ id: "section-1" }]),
           enrollment: {
             findFirst: jest.fn().mockResolvedValue({
               id: "enrollment-1",
