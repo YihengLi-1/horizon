@@ -75,17 +75,19 @@ export class AuthController {
   }
 
   @Post("forgot-password")
-  @Throttle({ default: { limit: 5, ttl: 300_000 } })
+  @Public()
+  @Throttle({ default: { limit: 3, ttl: 600_000 } })
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() body: ForgotPasswordDto) {
-    return ok(await this.authService.forgotPassword(body));
+    return ok(await this.authService.requestPasswordReset(body.email));
   }
 
   @Post("reset-password")
+  @Public()
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() body: ResetPasswordDto) {
-    return ok(await this.authService.resetPassword(body));
+    return ok(await this.authService.resetPassword(body.token, body.newPassword));
   }
 
   @UseGuards(JwtAuthGuard)

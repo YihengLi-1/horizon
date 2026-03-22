@@ -48,6 +48,15 @@ export class MailService {
     );
   }
 
+  sendPasswordReset(to: string, token: string) {
+    const resetUrl = `${process.env.WEB_URL || "http://localhost:3000"}/reset-password?token=${token}`;
+    return this.send(
+      to,
+      "【地平线】密码重置",
+      `您好，\n\n我们收到了您的密码重置请求。\n\n点击以下链接重置密码（链接1小时内有效）：\n${resetUrl}\n\n如果您没有发起此请求，请忽略此邮件，您的密码不会改变。\n\n地平线教务系统`
+    );
+  }
+
   async sendTest(to: string): Promise<void> {
     return this.send(
       to,

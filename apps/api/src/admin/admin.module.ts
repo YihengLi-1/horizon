@@ -1,5 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AdminController } from "./admin.controller";
+import { AdminAnalyticsService } from "./admin-analytics.service";
+import { AdminGradesService } from "./admin-grades.service";
 import { AdminService } from "./admin.service";
 import { AuditModule } from "../audit/audit.module";
 import { NotificationsModule } from "../notifications/notifications.module";
@@ -10,6 +12,7 @@ import { MailModule } from "../mail/mail.module";
 @Module({
   imports: [AuditModule, NotificationsModule, RegistrationModule, GovernanceModule, MailModule],
   controllers: [AdminController],
-  providers: [AdminService]
+  providers: [AdminService, AdminAnalyticsService, AdminGradesService],
+  exports: [AdminAnalyticsService, AdminGradesService]
 })
 export class AdminModule {}
