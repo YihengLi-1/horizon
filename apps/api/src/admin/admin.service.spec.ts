@@ -1,6 +1,6 @@
 import { apiCache } from "../common/cache";
 import { sanitizeHtml } from "../common/sanitize";
-import { AdminAnalyticsService } from "./admin-analytics.service";
+import { AdminReportingService } from "./admin-reporting.service";
 import { AdminService } from "./admin.service";
 
 function createAdminService() {
@@ -44,7 +44,7 @@ function createAdminService() {
     sendOverloadDecision: jest.fn(),
     sendWaitlistPromoted: jest.fn()
   } as any;
-  const analyticsService = new AdminAnalyticsService(
+  const analyticsService = new AdminReportingService(
     prisma,
     auditService,
     notificationsService,
