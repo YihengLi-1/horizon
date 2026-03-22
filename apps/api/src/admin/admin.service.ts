@@ -20,6 +20,7 @@ import { z } from "zod";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../common/prisma.service";
 import { apiCache } from "../common/cache";
+import { assertValidGrade, normalizeGradeValue } from "../common/grade-validation";
 import { maintenanceModeCache } from "../common/maintenance.middleware";
 import { getTermStatus } from "../common/term-status";
 import { sanitizeHtml } from "../common/sanitize";
@@ -306,8 +307,10 @@ export class AdminService {
   async updateGrade(input: UpdateGradeInput, actorUserId: string) {
     return this.gradesService.updateGrade(input, actorUserId);
   }
-  async updateEnrollmentGrade(studentId: string, sectionId: string, grade: string, actorUserId: string) {
-    return this.gradesService.updateEnrollmentGrade(studentId, sectionId, grade, actorUserId);
+async updateEnrollmentGrade(studentId: string, sectionId: string, grade: string, actorUserId: string) {
+    const normalizedGrade = normalizeGradeValue(grade);
+    assertValidGrade(normalizedGrade);
+    return this.gradesService.updateEnrollmentGrade(studentId, sectionId, normalizedGrade, actorUserId);
   }
   async getEnrollmentTrend(days: number) {
     return this.analyticsService.getEnrollmentTrend(days);
@@ -892,7 +895,11 @@ async getPaginatedStudents(params?: { page?: number; pageSize?: number; search?:
         skip: paging.skip,
         take: paging.pageSize,
         orderBy: { createdAt: "desc" },
-        include: {
+        select: {
+          id: true,
+          email: true,
+          studentId: true,
+          role: true,
           studentProfile: true,
           enrollments: {
             where: {
@@ -925,7 +932,11 @@ async getPaginatedStudents(params?: { page?: number; pageSize?: number; search?:
 async getStudentById(studentId: string) {
     const student = await this.prisma.user.findFirst({
       where: { id: studentId, role: "STUDENT", deletedAt: null },
-      include: {
+      select: {
+        id: true,
+        email: true,
+        studentId: true,
+        role: true,
         studentProfile: true,
         enrollments: {
           where: { deletedAt: null },
@@ -1976,11 +1987,17 @@ async updateEnrollment(id: string, input: { status?: string; finalGrade?: string
       });
     }
 
+    let finalGrade = enrollment.finalGrade;
+    if (input.finalGrade !== undefined && input.finalGrade !== null) {
+      finalGrade = normalizeGradeValue(input.finalGrade);
+      assertValidGrade(finalGrade);
+    }
+
     const updated = await this.prisma.enrollment.update({
       where: { id },
       data: {
         status: (input.status as never) ?? enrollment.status,
-        finalGrade: input.finalGrade ?? enrollment.finalGrade
+        finalGrade
       }
     });
 

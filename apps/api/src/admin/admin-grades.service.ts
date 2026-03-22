@@ -20,6 +20,7 @@ import { z } from "zod";
 import { AuditService } from "../audit/audit.service";
 import { PrismaService } from "../common/prisma.service";
 import { apiCache } from "../common/cache";
+import { assertValidGrade, normalizeGradeValue } from "../common/grade-validation";
 import { maintenanceModeCache } from "../common/maintenance.middleware";
 import { getTermStatus } from "../common/term-status";
 import { sanitizeHtml } from "../common/sanitize";
@@ -261,10 +262,22 @@ async bulkUpdateGrades(
     grades: Array<{ enrollmentId: string; grade: string; gradePoints?: number }>,
     actorUserId: string
   ) {
-    return this.registrationService.submitSectionGrades(sectionId, grades, actorUserId);
+    const normalizedGrades = grades.map((item) => {
+      const grade = normalizeGradeValue(item.grade);
+      assertValidGrade(grade);
+      return {
+        ...item,
+        grade
+      };
+    });
+
+    return this.registrationService.submitSectionGrades(sectionId, normalizedGrades, actorUserId);
   }
 
 async updateGrade(input: UpdateGradeInput, actorUserId: string) {
+    const finalGrade = normalizeGradeValue(input.finalGrade);
+    assertValidGrade(finalGrade);
+
     const enrollment = await this.prisma.enrollment.findFirst({
       where: { id: input.enrollmentId, deletedAt: null }
     });
@@ -282,7 +295,7 @@ async updateGrade(input: UpdateGradeInput, actorUserId: string) {
     const updated = await this.prisma.enrollment.update({
       where: { id: input.enrollmentId },
       data: {
-        finalGrade: input.finalGrade,
+        finalGrade,
         status: enrollment.status === "DROPPED" ? enrollment.status : "COMPLETED"
       }
     });
@@ -292,7 +305,7 @@ async updateGrade(input: UpdateGradeInput, actorUserId: string) {
       action: "grade_update",
       entityType: "enrollment",
       entityId: input.enrollmentId,
-      metadata: { finalGrade: input.finalGrade }
+      metadata: { finalGrade }
     });
 
     const enrollmentWithStudent = await this.prisma.enrollment.findFirst({
@@ -329,6 +342,9 @@ async updateGrade(input: UpdateGradeInput, actorUserId: string) {
   }
 
 async updateEnrollmentGrade(studentId: string, sectionId: string, grade: string, actorUserId: string) {
+    const normalizedGrade = normalizeGradeValue(grade);
+    assertValidGrade(normalizedGrade);
+
     const enrollment = await this.prisma.enrollment.findFirst({
       where: { studentId, sectionId, deletedAt: null }
     });
@@ -337,7 +353,7 @@ async updateEnrollmentGrade(studentId: string, sectionId: string, grade: string,
       throw new NotFoundException({ code: "ENROLLMENT_NOT_FOUND", message: "注册记录不存在" });
     }
 
-    return this.updateGrade({ enrollmentId: enrollment.id, finalGrade: grade }, actorUserId);
+    return this.updateGrade({ enrollmentId: enrollment.id, finalGrade: normalizedGrade }, actorUserId);
   }
 
 // ─── Grade Curve Preview Tool ─────────────────────────────────────────────────

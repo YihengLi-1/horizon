@@ -238,7 +238,8 @@ export class AuthService {
     const existingUser = await this.prisma.user.findFirst({
       where: {
         OR: [{ email: input.email }, { studentId: input.studentId }]
-      }
+      },
+      select: { id: true }
     });
     if (existingUser) {
       throw new BadRequestException({ code: "USER_EXISTS", message: "邮箱或学号已被注册" });
@@ -325,7 +326,18 @@ export class AuthService {
   async resendVerificationEmail(email: string) {
     // Always return success to prevent email enumeration
     const user = await this.prisma.user.findFirst({
-      where: { email: email.trim().toLowerCase(), deletedAt: null }
+      where: { email: email.trim().toLowerCase(), deletedAt: null },
+      select: {
+        id: true,
+        email: true,
+        emailVerifiedAt: true,
+        deletedAt: true,
+        studentProfile: {
+          select: {
+            legalName: true
+          }
+        }
+      }
     });
 
     if (!user || user.emailVerifiedAt) {
@@ -350,7 +362,7 @@ export class AuthService {
 
     const activationLink = `${process.env.WEB_URL || "http://localhost:3000"}/verify?token=${token}`;
 
-    const legalName = (user as { studentProfile?: { legalName?: string } }).studentProfile?.legalName ?? user.email;
+    const legalName = user.studentProfile?.legalName ?? user.email;
 
     await this.notificationsService.sendVerificationEmail({
       to: user.email,
@@ -382,7 +394,18 @@ export class AuthService {
         deletedAt: null,
         OR: [{ email: input.identifier }, { studentId: input.identifier }]
       },
-      include: { studentProfile: true }
+      select: {
+        id: true,
+        email: true,
+        studentId: true,
+        role: true,
+        passwordHash: true,
+        emailVerifiedAt: true,
+        lockedUntil: true,
+        deletedAt: true,
+        loginAttempts: true,
+        studentProfile: true
+      }
     });
 
     if (!user) {
@@ -513,7 +536,13 @@ export class AuthService {
       where: { token: refreshToken },
       include: {
         user: {
-          include: { studentProfile: true }
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            deletedAt: true,
+            studentProfile: true
+          }
         }
       }
     });
@@ -584,6 +613,11 @@ export class AuthService {
       where: {
         email: email.trim().toLowerCase(),
         deletedAt: null
+      },
+      select: {
+        id: true,
+        email: true,
+        deletedAt: true
       }
     });
     if (!user) {
@@ -619,6 +653,15 @@ export class AuthService {
     const tokenRecord = await this.prisma.passwordResetToken.findUnique({ where: { token } });
 
     if (!tokenRecord || tokenRecord.usedAt || tokenRecord.expiresAt < new Date()) {
+      throw new BadRequestException({ code: "INVALID_TOKEN", message: "链接无效或已过期" });
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: tokenRecord.userId },
+      select: { id: true, email: true, deletedAt: true }
+    });
+
+    if (!user || user.deletedAt) {
       throw new BadRequestException({ code: "INVALID_TOKEN", message: "链接无效或已过期" });
     }
 
@@ -672,7 +715,8 @@ export class AuthService {
 
   async changePassword(userId: string, oldPassword: string, newPassword: string) {
     const user = await this.prisma.user.findFirst({
-      where: { id: userId, deletedAt: null }
+      where: { id: userId, deletedAt: null },
+      select: { id: true, passwordHash: true }
     });
     if (!user) {
       throw new UnauthorizedException({ code: "USER_NOT_FOUND", message: "用户不存在" });
@@ -737,7 +781,14 @@ export class AuthService {
   async me(userId: string) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, deletedAt: null },
-      include: { studentProfile: true }
+      select: {
+        id: true,
+        email: true,
+        studentId: true,
+        role: true,
+        emailVerifiedAt: true,
+        studentProfile: true
+      }
     });
     if (!user) {
       throw new UnauthorizedException({ code: "USER_NOT_FOUND", message: "用户不存在" });
