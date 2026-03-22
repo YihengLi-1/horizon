@@ -37,12 +37,17 @@ function createAuthService() {
     sendVerificationEmail: jest.fn().mockResolvedValue(true)
   } as any;
 
+  const mailService = {
+    sendPasswordReset: jest.fn().mockResolvedValue(undefined)
+  } as any;
+
   return {
     prisma,
     jwtService,
     auditService,
     notificationsService,
-    service: new AuthService(prisma, jwtService, auditService, notificationsService)
+    mailService,
+    service: new AuthService(prisma, jwtService, auditService, notificationsService, mailService)
   };
 }
 
@@ -222,7 +227,7 @@ describe("AuthService", () => {
         } as never,
         createRequest()
       )
-    ).resolves.toEqual(expect.objectContaining({ message: expect.stringContaining("Registration successful") }));
+    ).resolves.toEqual(expect.objectContaining({ message: "注册成功，请先验证邮箱后再登录。" }));
 
     expect(prisma.inviteCode.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -256,7 +261,7 @@ describe("AuthService", () => {
     prisma.$transaction.mockResolvedValue([{}, { count: 3 }]);
 
     await expect(service.changePassword("user-1", "CorrectPass1!", "NewPass1!")).resolves.toEqual({
-      message: "Password updated"
+      message: "密码已更新"
     });
 
     expect(prisma.refreshToken.deleteMany).toHaveBeenCalledWith({ where: { userId: "user-1" } });

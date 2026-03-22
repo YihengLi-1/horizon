@@ -9,6 +9,7 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import { Role } from "@prisma/client";
 import argon2 from "argon2";
+import bcrypt from "bcryptjs";
 import { randomBytes, randomUUID } from "crypto";
 import { CookieOptions, Request, Response } from "express";
 import {
@@ -22,6 +23,7 @@ import { PrismaService } from "../common/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { verifyPasswordHash } from "../common/password-hash";
+import { MailService } from "../mail/mail.service";
 
 const ACCESS_COOKIE = "access_token";
 const REFRESH_COOKIE = "sis-refresh";
@@ -31,7 +33,7 @@ const REFRESH_EXPIRES_MS = 30 * 24 * 60 * 60 * 1000;
 const LOGIN_RATE_LIMIT_WINDOW_MS = Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS || 10 * 60 * 1000);
 const LOGIN_RATE_LIMIT_MAX_ATTEMPTS = Number(process.env.LOGIN_RATE_LIMIT_MAX_ATTEMPTS || 8);
 const LOGIN_RATE_LIMIT_LOCK_MS = Number(process.env.LOGIN_RATE_LIMIT_LOCK_MS || 15 * 60 * 1000);
-const PASSWORD_RESET_TOKEN_TTL_MS = Number(process.env.PASSWORD_RESET_TOKEN_TTL_MS || 30 * 60 * 1000);
+const PASSWORD_RESET_TOKEN_TTL_MS = Number(process.env.PASSWORD_RESET_TOKEN_TTL_MS || 60 * 60 * 1000);
 const AUTH_EXPOSE_DEBUG_LINKS = (process.env.AUTH_EXPOSE_DEBUG_LINKS || "false").trim().toLowerCase() === "true";
 const COOKIE_SAME_SITE: "lax" | "strict" | "none" = (() => {
   const raw = (process.env.COOKIE_SAME_SITE || "lax").trim().toLowerCase();
@@ -79,8 +81,13 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly auditService: AuditService,
-    private readonly notificationsService: NotificationsService
+    private readonly notificationsService: NotificationsService,
+    private readonly mailService: MailService
   ) {}
+
+  private isStrongPassword(password: string): boolean {
+    return password.length >= 8 && /[a-z]/.test(password) && /[A-Z]/.test(password) && /[0-9]/.test(password);
+  }
 
   private getClientIp(req: Request): string {
     const forwardedFor = req.headers["x-forwarded-for"];
@@ -572,10 +579,10 @@ export class AuthService {
     return { csrfToken: token };
   }
 
-  async forgotPassword(input: ForgotPasswordSchema) {
+  async requestPasswordReset(email: string) {
     const user = await this.prisma.user.findFirst({
       where: {
-        email: input.email,
+        email: email.trim().toLowerCase(),
         deletedAt: null
       }
     });
@@ -597,27 +604,32 @@ export class AuthService {
       })
     ]);
 
-    const resetLink = `${process.env.WEB_URL || "http://localhost:3000"}/reset?token=${token}`;
-    await this.notificationsService.sendPasswordResetEmail({
-      to: user.email,
-      resetLink,
-      expiresMinutes: Math.max(1, Math.ceil(PASSWORD_RESET_TOKEN_TTL_MS / 60_000))
-    });
+    await this.mailService.sendPasswordReset(user.email, token);
 
     return {
-      message: "如果该邮箱已注册，重置链接已发送",
-      ...(AUTH_EXPOSE_DEBUG_LINKS ? { resetLink } : {})
+      message: "如果该邮箱已注册，重置链接已发送"
     };
   }
 
-  async resetPassword(input: ResetPasswordSchema) {
-    const tokenRecord = await this.prisma.passwordResetToken.findUnique({ where: { token: input.token } });
+  async forgotPassword(input: ForgotPasswordSchema) {
+    return this.requestPasswordReset(input.email);
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    const tokenRecord = await this.prisma.passwordResetToken.findUnique({ where: { token } });
 
     if (!tokenRecord || tokenRecord.usedAt || tokenRecord.expiresAt < new Date()) {
-      throw new BadRequestException({ code: "INVALID_TOKEN", message: "重置链接无效或已过期" });
+      throw new BadRequestException({ code: "INVALID_TOKEN", message: "链接无效或已过期" });
     }
 
-    const passwordHash = await argon2.hash(input.newPassword);
+    if (!this.isStrongPassword(newPassword)) {
+      throw new BadRequestException({
+        code: "WEAK_PASSWORD",
+        message: "新密码至少 8 位，且需包含大小写字母和数字"
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
     await this.prisma.$transaction(async (tx) => {
       const updated = await tx.user.updateMany({
         where: { id: tokenRecord.userId, deletedAt: null },
@@ -627,14 +639,35 @@ export class AuthService {
         throw new BadRequestException({ code: "INVALID_TOKEN", message: "重置链接无效或已过期" });
       }
 
-      await tx.passwordResetToken.deleteMany({
+      await tx.passwordResetToken.updateMany({
         where: {
           OR: [{ id: tokenRecord.id }, { userId: tokenRecord.userId }]
+        },
+        data: {
+          usedAt: new Date()
         }
+      });
+
+      await tx.refreshToken.deleteMany({
+        where: { userId: tokenRecord.userId }
       });
     });
 
-    return { message: "密码重置成功" };
+    for (const [activeSessionId, session] of activeSessions.entries()) {
+      if (session.userId === tokenRecord.userId) {
+        activeSessions.delete(activeSessionId);
+      }
+    }
+
+    await this.auditService.log({
+      actorUserId: tokenRecord.userId,
+      action: "password_reset",
+      entityType: "user",
+      entityId: tokenRecord.userId,
+      metadata: {}
+    });
+
+    return { message: "密码已重置，请重新登录" };
   }
 
   async changePassword(userId: string, oldPassword: string, newPassword: string) {

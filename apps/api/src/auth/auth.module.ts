@@ -7,6 +7,7 @@ import { AuthService } from "./auth.service";
 import { JwtStrategy } from "./jwt.strategy";
 import { AuditModule } from "../audit/audit.module";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { MailModule } from "../mail/mail.module";
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { NotificationsModule } from "../notifications/notifications.module";
     PassportModule,
     AuditModule,
     NotificationsModule,
+    MailModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

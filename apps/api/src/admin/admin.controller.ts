@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from "@nestjs/common";
 import {
   assignAdvisorSchema,
   createHoldSchema,
@@ -48,6 +48,10 @@ export class AdminController {
   @Post("mail/test")
   @RequireAdminPermissions("dashboard:read")
   async testMail(@Body() body: { to: string }) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!body.to || !emailRegex.test(body.to)) {
+      throw new BadRequestException({ code: "INVALID_EMAIL", message: "收件人邮箱地址无效" });
+    }
     await this.adminService.sendTestMail(body.to);
     return ok({ message: "测试邮件已发送，请检查收件箱（含垃圾箱）" });
   }

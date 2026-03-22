@@ -131,6 +131,11 @@ export default function LoginPage() {
               {showPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
           </div>
+          <div className="mt-2 text-right">
+            <Link href="/forgot-password" className="text-sm text-slate-500 hover:text-slate-700">
+              忘记密码？
+            </Link>
+          </div>
         </label>
 
         {error ? (
@@ -208,7 +213,7 @@ export default function LoginPage() {
       <div className="flex items-center justify-between text-xs text-slate-400">
         <span>v1.0</span>
         <div className="flex items-center gap-3">
-          <Link className="hover:text-slate-600" href="/forgot">忘记密码</Link>
+          <Link className="hover:text-slate-600" href="/forgot-password">忘记密码</Link>
           <Link className="hover:text-slate-600" href="/register">注册账号</Link>
         </div>
       </div>

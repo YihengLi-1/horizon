@@ -1,5 +1,6 @@
 import { apiCache } from "../common/cache";
 import { sanitizeHtml } from "../common/sanitize";
+import { AdminAnalyticsService } from "./admin-analytics.service";
 import { AdminService } from "./admin.service";
 
 function createAdminService() {
@@ -43,10 +44,33 @@ function createAdminService() {
     sendOverloadDecision: jest.fn(),
     sendWaitlistPromoted: jest.fn()
   } as any;
+  const analyticsService = new AdminAnalyticsService(
+    prisma,
+    auditService,
+    notificationsService,
+    registrationService,
+    governanceService,
+    mailService
+  ) as any;
+  const gradesService = {
+    bulkUpdateGrades: jest.fn(),
+    updateGrade: jest.fn(),
+    updateEnrollmentGrade: jest.fn(),
+    previewGradeCurve: jest.fn()
+  } as any;
   return {
     prisma,
     auditService,
-    service: new AdminService(prisma, auditService, notificationsService, registrationService, governanceService, mailService)
+    service: new AdminService(
+      prisma,
+      auditService,
+      notificationsService,
+      registrationService,
+      governanceService,
+      mailService,
+      analyticsService,
+      gradesService
+    )
   };
 }
 

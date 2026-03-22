@@ -14,6 +14,14 @@ import { PrismaService } from "./common/prisma.service";
 import { NotificationsService } from "./notifications/notifications.service";
 
 async function bootstrap() {
+  // ── 安全前置检查：生产环境禁止使用默认 JWT secret ──
+  const jwtSecret = process.env.JWT_SECRET ?? "";
+  const isProduction = process.env.NODE_ENV === "production";
+  if (isProduction && (!jwtSecret || jwtSecret === "dev-secret-change-me")) {
+    console.error("[FATAL] JWT_SECRET 未设置或仍为默认值，生产环境禁止启动。请设置一个强随机值。");
+    process.exit(1);
+  }
+
   const expandLoopbackOrigins = (origins: Iterable<string>): Set<string> => {
     const expanded = new Set<string>();
     for (const origin of origins) {

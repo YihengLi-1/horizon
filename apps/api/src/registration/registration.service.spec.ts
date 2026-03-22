@@ -6,6 +6,9 @@ function createRegistrationService(overrides?: Partial<Record<string, unknown>>)
     systemSetting: {
       findUnique: jest.fn()
     },
+    user: {
+      findUnique: jest.fn()
+    },
     course: {
       findUnique: jest.fn()
     },
@@ -41,7 +44,8 @@ function createRegistrationService(overrides?: Partial<Record<string, unknown>>)
   } as any;
 
   const auditService = {
-    log: jest.fn().mockResolvedValue(undefined)
+    log: jest.fn().mockResolvedValue(undefined),
+    logInTransaction: jest.fn().mockResolvedValue(undefined)
   } as any;
 
   const notificationsService = {
@@ -60,6 +64,10 @@ function createRegistrationService(overrides?: Partial<Record<string, unknown>>)
   } as any;
 
   Object.assign(prisma, overrides);
+  prisma.user.findUnique.mockResolvedValue({
+    studentId: "U250001",
+    createdAt: new Date("2025-01-01T00:00:00Z")
+  });
 
   return {
     prisma,
@@ -149,9 +157,11 @@ describe("RegistrationService", () => {
       maxWaitlistPositionBySection: new Map<string, number>()
     });
 
-    expect(result.issues).toEqual(
-      expect.arrayContaining([expect.objectContaining({ reasonCode: "CREDIT_LIMIT_EXCEEDED" })])
+    expect(result.issues).toEqual([]);
+    expect(result.toCreate).toEqual(
+      expect.arrayContaining([expect.objectContaining({ sectionId: "section-1", status: "PENDING_APPROVAL" })])
     );
+    expect(result.pendingReasonBySection.get("section-1")).toBe("CREDIT_OVERLOAD");
   });
 
   it("allows enrollment plan when current credits plus course stays within limit", () => {
@@ -181,15 +191,24 @@ describe("RegistrationService", () => {
 
   it("dropEnrollment rejects enrolled drops after the deadline", async () => {
     const { prisma, service } = createRegistrationService();
-    prisma.enrollment.findFirst.mockResolvedValue({
-      id: "enrollment-1",
-      studentId: "student-1",
-      sectionId: "section-1",
-      status: "ENROLLED",
-      waitlistPosition: null,
-      term: { dropDeadline: new Date("2026-01-01T00:00:00Z") },
-      section: { course: { code: "CS101" } }
-    });
+    prisma.$transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) =>
+      fn({
+        $queryRaw: jest.fn().mockResolvedValue(undefined),
+        enrollment: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: "enrollment-1",
+            studentId: "student-1",
+            sectionId: "section-1",
+            status: "ENROLLED",
+            waitlistPosition: null,
+            term: { dropDeadline: new Date("2026-01-01T00:00:00Z"), name: "2026春" },
+            section: { course: { code: "CS101" }, sectionCode: "SEC-1" }
+          }),
+          update: jest.fn(),
+          findMany: jest.fn()
+        }
+      })
+    );
 
     await expect(
       service.dropEnrollment("student-1", { enrollmentId: "enrollment-1" } as never, {} as never)
@@ -198,25 +217,20 @@ describe("RegistrationService", () => {
 
   it("dropEnrollment allows waitlisted drops after the deadline", async () => {
     const { prisma, service } = createRegistrationService();
-    prisma.enrollment.findFirst.mockResolvedValue({
-      id: "enrollment-1",
-      studentId: "student-1",
-      sectionId: "section-1",
-      status: "WAITLISTED",
-      waitlistPosition: 2,
-      term: { dropDeadline: new Date("2026-01-01T00:00:00Z") },
-      section: { course: { code: "CS101" } }
-    });
     prisma.$transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) =>
       fn({
+        $queryRaw: jest.fn().mockResolvedValue(undefined),
         enrollment: {
           findFirst: jest.fn().mockResolvedValue({
             id: "enrollment-1",
             studentId: "student-1",
             sectionId: "section-1",
             status: "WAITLISTED",
-            waitlistPosition: 2
+            waitlistPosition: 2,
+            term: { dropDeadline: new Date("2026-01-01T00:00:00Z"), name: "2026春" },
+            section: { course: { code: "CS101" }, sectionCode: "SEC-1" }
           }),
+          findMany: jest.fn().mockResolvedValue([]),
           update: jest.fn().mockResolvedValue({ id: "enrollment-1", status: "DROPPED" }),
           updateMany: jest.fn().mockResolvedValue({ count: 0 })
         }
@@ -384,6 +398,12 @@ describe("RegistrationService", () => {
       const { prisma, service } = createRegistrationService();
       const tx = {
         $queryRaw: jest.fn().mockResolvedValue(undefined),
+        user: {
+          findUnique: jest.fn().mockResolvedValue({
+            studentId: "U250001",
+            createdAt: new Date("2025-01-01T00:00:00Z")
+          })
+        },
         section: {
           findUnique: jest.fn().mockResolvedValue({
             id: "section-1",
@@ -393,7 +413,13 @@ describe("RegistrationService", () => {
             requireApproval: false,
             meetingTimes: [],
             enrollments: [],
-            term: { id: "term-1" },
+            term: {
+              id: "term-1",
+              registrationOpenAt: new Date("2025-08-01T00:00:00Z"),
+              registrationCloseAt: new Date("2099-09-10T00:00:00Z"),
+              startDate: new Date("2026-09-01T00:00:00Z"),
+              endDate: new Date("2026-12-15T00:00:00Z")
+            },
             course: { id: "course-2", code: "CS201" }
           })
         },
@@ -416,7 +442,9 @@ describe("RegistrationService", () => {
       };
       prisma.$transaction.mockImplementation(async (fn: (client: any) => Promise<unknown>) => fn(tx));
 
-      await expect(service.enroll("student-1", "section-1")).rejects.toThrow("PREREQ_NOT_MET");
+      await expect(service.enroll("student-1", "section-1")).rejects.toMatchObject({
+        response: expect.objectContaining({ code: "PREREQ_NOT_MET" })
+      });
       expect(tx.enrollment.create).not.toHaveBeenCalled();
     });
 
@@ -431,6 +459,12 @@ describe("RegistrationService", () => {
       };
       const tx = {
         $queryRaw: jest.fn().mockResolvedValue(undefined),
+        user: {
+          findUnique: jest.fn().mockResolvedValue({
+            studentId: "U250001",
+            createdAt: new Date("2025-01-01T00:00:00Z")
+          })
+        },
         section: {
           findUnique: jest.fn().mockResolvedValue({
             id: "section-1",
@@ -440,7 +474,13 @@ describe("RegistrationService", () => {
             requireApproval: false,
             meetingTimes: [],
             enrollments: [],
-            term: { id: "term-1" },
+            term: {
+              id: "term-1",
+              registrationOpenAt: new Date("2025-08-01T00:00:00Z"),
+              registrationCloseAt: new Date("2099-09-10T00:00:00Z"),
+              startDate: new Date("2026-09-01T00:00:00Z"),
+              endDate: new Date("2026-12-15T00:00:00Z")
+            },
             course: { id: "course-2", code: "CS201" }
           })
         },
@@ -466,7 +506,9 @@ describe("RegistrationService", () => {
       };
       prisma.$transaction.mockImplementation(async (fn: (client: any) => Promise<unknown>) => fn(tx));
 
-      await expect(service.enroll("student-1", "section-1")).resolves.toEqual(created);
+      await expect(service.enroll("student-1", "section-1")).resolves.toEqual(
+        expect.objectContaining(created)
+      );
       expect(tx.enrollment.create).toHaveBeenCalledWith({
         data: {
           studentId: "student-1",
@@ -489,6 +531,12 @@ describe("RegistrationService", () => {
       };
       const tx = {
         $queryRaw: jest.fn().mockResolvedValue(undefined),
+        user: {
+          findUnique: jest.fn().mockResolvedValue({
+            studentId: "U250001",
+            createdAt: new Date("2025-01-01T00:00:00Z")
+          })
+        },
         section: {
           findUnique: jest.fn().mockResolvedValue({
             id: "section-1",
@@ -498,7 +546,14 @@ describe("RegistrationService", () => {
             requireApproval: false,
             meetingTimes: [],
             enrollments: [],
-            term: { id: "term-1", maxCredits: 18 },
+            term: {
+              id: "term-1",
+              maxCredits: 18,
+              registrationOpenAt: new Date("2025-08-01T00:00:00Z"),
+              registrationCloseAt: new Date("2099-09-10T00:00:00Z"),
+              startDate: new Date("2026-09-01T00:00:00Z"),
+              endDate: new Date("2026-12-15T00:00:00Z")
+            },
             course: { id: "course-2", code: "CS201" }
           })
         },
@@ -521,7 +576,9 @@ describe("RegistrationService", () => {
       };
       prisma.$transaction.mockImplementation(async (fn: (client: any) => Promise<unknown>) => fn(tx));
 
-      await expect(service.enroll("student-1", "section-1")).resolves.toEqual(created);
+      await expect(service.enroll("student-1", "section-1")).resolves.toEqual(
+        expect.objectContaining(created)
+      );
       expect(governanceService.hasApprovedPrerequisiteOverride).toHaveBeenCalledWith(tx, "student-1", "section-1");
     });
   });
@@ -567,7 +624,8 @@ describe("RegistrationService", () => {
         maxCredits: 18,
         startDate: new Date("2026-09-01T00:00:00Z"),
         registrationOpenAt: new Date("2025-08-01T00:00:00Z"),
-        registrationCloseAt: new Date("2099-09-10T00:00:00Z")
+        registrationCloseAt: new Date("2099-09-10T00:00:00Z"),
+        endDate: new Date("2026-12-15T00:00:00Z")
       });
       prisma.cartItem.findMany.mockResolvedValue([makeCartItem()]);
       prisma.enrollment.findMany
