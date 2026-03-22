@@ -103,4 +103,72 @@ describe("AdvisingService", () => {
     );
     expect(note.id).toBe("note-1");
   });
+
+  it("rejects note creation when student is not assigned to this advisor", async () => {
+    const { prisma, service } = createAdvisingService();
+    prisma.advisorAssignment.findFirst.mockResolvedValue(null);
+    // Student exists but is not in the advisor's list → ForbiddenException
+    prisma.user.findFirst.mockResolvedValue({ id: "unassigned-student" });
+
+    await expect(
+      service.addAdvisorNote("advisor-1", "unassigned-student", "Some note")
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.advisorNote.create).not.toHaveBeenCalled();
+  });
+
+  describe("listAdvisees", () => {
+    it("returns active assignments for the advisor", async () => {
+      const { prisma, service } = createAdvisingService();
+      prisma.advisorAssignment.findMany.mockResolvedValue([
+        {
+          id: "a1",
+          assignedAt: new Date(),
+          student: {
+            id: "s1",
+            email: "s1@sis.edu",
+            studentId: "S001",
+            studentProfile: {
+              legalName: "Alice",
+              programMajor: "CS",
+              academicStatus: "Active",
+              enrollmentStatus: "Continuing"
+            }
+          }
+        }
+      ]);
+
+      const result = await service.listAdvisees("advisor-1");
+      expect(result).toHaveLength(1);
+      expect(prisma.advisorAssignment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { advisorId: "advisor-1", active: true }
+        })
+      );
+    });
+
+    it("returns empty array when advisor has no active advisees", async () => {
+      const { prisma, service } = createAdvisingService();
+      prisma.advisorAssignment.findMany.mockResolvedValue([]);
+
+      const result = await service.listAdvisees("advisor-1");
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  it("loads advisee overview when student profile is absent", async () => {
+    const { prisma, service } = createAdvisingService();
+    prisma.advisorAssignment.findFirst.mockResolvedValue({ id: "a1" });
+    prisma.user.findFirst.mockResolvedValue({
+      id: "s1",
+      email: "s1@sis.edu",
+      studentProfile: null,
+      enrollments: [],
+      adviseeAssignments: []
+    });
+    prisma.advisorNote.findMany.mockResolvedValue([]);
+
+    const result = await service.getAdviseeOverview("advisor-1", "s1");
+    expect(result.student.id).toBe("s1");
+    expect(result.notes).toHaveLength(0);
+  });
 });

@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { FacultyService } from "./faculty.service";
 
 function createFacultyService() {
@@ -134,5 +134,99 @@ describe("FacultyService", () => {
       BadRequestException
     );
     expect(prisma.enrollment.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("throws NotFoundException when section does not exist at all", async () => {
+    const { prisma, service } = createFacultyService();
+    prisma.section.findFirst.mockResolvedValue(null);
+    prisma.section.findUnique.mockResolvedValue(null);
+
+    await expect(service.getSectionRoster("faculty-1", "nonexistent")).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("throws ForbiddenException when enrollment status is not ENROLLED/COMPLETED", async () => {
+    const { prisma, service } = createFacultyService();
+    prisma.section.findFirst.mockResolvedValue({
+      id: "section-1",
+      sectionCode: "CS201-A",
+      course: { code: "CS201", title: "Data Structures" },
+      term: { name: "Spring 2026" },
+      meetingTimes: []
+    });
+    prisma.enrollment.findFirst.mockResolvedValue({
+      id: "enr-1",
+      status: "WAITLISTED",
+      student: { email: "stu@t.edu", studentProfile: { legalName: "Stu" } }
+    });
+
+    await expect(service.submitGrade("faculty-1", "section-1", "enr-1", "B")).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  describe("listOwnedSections", () => {
+    it("returns sections for the faculty member", async () => {
+      const { prisma, service } = createFacultyService();
+      prisma.section.findMany.mockResolvedValue([
+        {
+          id: "s1",
+          sectionCode: "CS101-A",
+          course: { code: "CS101", title: "Intro CS" },
+          term: { name: "Fall 2026" },
+          meetingTimes: [],
+          _count: { enrollments: 25 }
+        }
+      ]);
+
+      const sections = await service.listOwnedSections("faculty-1");
+      expect(sections).toHaveLength(1);
+      expect(prisma.section.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { instructorUserId: "faculty-1" } })
+      );
+    });
+  });
+
+  describe("getGradeStats", () => {
+    it("returns aggregated grade stats for a section", async () => {
+      const { prisma, service } = createFacultyService();
+      prisma.section.findMany.mockResolvedValue([
+        {
+          id: "s1",
+          sectionCode: "CS201-A",
+          termId: "term-1",
+          term: { id: "term-1", name: "Fall 2026" },
+          course: { code: "CS201", title: "Data Structures", credits: 3 },
+          enrollments: [
+            { finalGrade: "A" },
+            { finalGrade: "B" },
+            { finalGrade: "F" }
+          ]
+        }
+      ]);
+
+      const stats = await service.getGradeStats("faculty-1");
+      expect(stats).toHaveLength(1);
+      const s = stats[0];
+      expect(s.completed).toBe(3);
+      expect(s.passRate).toBe(67); // 2/3 rounded
+      expect(s.avgGpa).toBeGreaterThan(0);
+      expect(s.distribution.some((d: { grade: string }) => d.grade === "A")).toBe(true);
+    });
+
+    it("handles section with no graded enrollments gracefully", async () => {
+      const { prisma, service } = createFacultyService();
+      prisma.section.findMany.mockResolvedValue([
+        {
+          id: "s1",
+          sectionCode: "CS201-A",
+          termId: "term-1",
+          term: { id: "term-1", name: "Fall 2026" },
+          course: { code: "CS201", title: "Data Structures", credits: 3 },
+          enrollments: []
+        }
+      ]);
+
+      const stats = await service.getGradeStats("faculty-1");
+      expect(stats[0].avgGpa).toBeNull();
+      expect(stats[0].passRate).toBeNull();
+    });
   });
 });
