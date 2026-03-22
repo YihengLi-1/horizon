@@ -14,4 +14,13 @@ export const GRADE_POINTS: Readonly<Record<string, number>> = {
   F: 0.0
 };
 
+export const VALID_GRADES = [
+  "A+", "A", "A-",
+  "B+", "B", "B-",
+  "C+", "C", "C-",
+  "D+", "D", "D-",
+  "F", "W", "I", "P", "NP"
+] as const;
+
 export type GradePointGrade = keyof typeof GRADE_POINTS;
+export type ValidGrade = (typeof VALID_GRADES)[number];

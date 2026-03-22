@@ -5,6 +5,7 @@ import { Request } from "express";
 import { addCartItemSchema, dropEnrollmentSchema, submitCartSchema } from "@sis/shared";
 import { z } from "zod";
 import { AuditService } from "../audit/audit.service";
+import { assertValidGrade, normalizeGradeValue } from "../common/grade-validation";
 import { isPassingGrade } from "../common/grade.utils";
 import { PrismaService } from "../common/prisma.service";
 import { getTermGradesLockDate, getTermStatus } from "../common/term-status";
@@ -1379,7 +1380,11 @@ export class RegistrationService {
     const [studentUser, submitTerm] = await Promise.all([
       this.prisma.user.findFirst({
         where: { id: studentId, deletedAt: null },
-        include: { studentProfile: { select: { legalName: true } } }
+        select: {
+          id: true,
+          email: true,
+          studentProfile: { select: { legalName: true } }
+        }
       }),
       this.prisma.term.findUnique({
         where: { id: input.termId },
@@ -1644,11 +1649,18 @@ export class RegistrationService {
     const [actor, section] = await Promise.all([
       this.prisma.user.findFirst({
         where: { id: actorUserId, deletedAt: null },
-        select: { id: true, email: true, role: true }
+        select: { id: true, role: true }
       }),
       this.prisma.section.findUnique({
         where: { id: sectionId },
-        include: { course: true, term: true }
+        select: {
+          id: true,
+          instructorUserId: true,
+          instructorName: true,
+          sectionCode: true,
+          course: true,
+          term: true
+        }
       })
     ]);
 
@@ -1659,11 +1671,6 @@ export class RegistrationService {
     if (!section) {
       throw new NotFoundException({ code: "SECTION_NOT_FOUND", message: "教学班不存在" });
     }
-
-    const normalizedInstructor = section.instructorName.trim().toLowerCase();
-    const isAssignedInstructor =
-      (section.instructorUserId && section.instructorUserId === actor.id) ||
-      (normalizedInstructor.length > 0 && actor.email.trim().toLowerCase() === normalizedInstructor);
 
     const termStatus = getTermStatus(section.term);
     if (termStatus === "CLOSED" && actor.role !== "ADMIN") {
@@ -1684,19 +1691,25 @@ export class RegistrationService {
       });
     }
 
-    if (actor.role !== "ADMIN" && !isAssignedInstructor) {
-      throw new ForbiddenException("只有该班级教师可以录入成绩");
+    if (actor.role === "FACULTY") {
+      if (!section.instructorUserId || section.instructorUserId !== actorUserId) {
+        throw new ForbiddenException("只能提交自己负责的教学班成绩");
+      }
     }
 
     const normalizedGrades = grades
       .map((item) => ({
         enrollmentId: item.enrollmentId?.trim(),
-        grade: item.grade?.trim().toUpperCase()
+        grade: item.grade ? normalizeGradeValue(item.grade) : ""
       }))
       .filter((item) => item.enrollmentId && item.grade);
 
     if (normalizedGrades.length === 0) {
       throw new BadRequestException({ code: "NO_GRADES_SUBMITTED", message: "未提交任何成绩" });
+    }
+
+    for (const grade of normalizedGrades) {
+      assertValidGrade(grade.grade);
     }
 
     const enrollmentMap = new Map(
