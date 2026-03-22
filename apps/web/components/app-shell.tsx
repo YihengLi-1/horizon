@@ -29,6 +29,7 @@ import {
   X,
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
+import AdminMobileNav from "@/components/AdminMobileNav";
 import { SkipLink } from "@/components/SkipLink";
 import { CommandPalette } from "@/components/command-palette";
 import ErrorBoundary from "@/components/error-boundary";
@@ -388,7 +389,9 @@ export function AppShell({
 
         <main
           id="main-content"
-          className={`mx-auto max-w-[1360px] p-4 md:p-8 lg:p-10 ${area === "student" ? "pb-16 md:pb-0" : ""}`}
+          className={`mx-auto max-w-[1360px] p-4 md:p-8 lg:p-10 ${
+            area === "student" || area === "admin" ? "pb-16 md:pb-0" : ""
+          }`}
         >
           <ErrorBoundary>
             <div style={{ animation: "fadeSlideIn 0.18s ease forwards" }}>{children}</div>
@@ -404,6 +407,7 @@ export function AppShell({
         />
       ) : null}
       {area === "student" ? <StudentMobileNav /> : null}
+      {area === "admin" ? <AdminMobileNav /> : null}
     </div>
   );
 }
