@@ -127,7 +127,8 @@ function createAdminService(overrides?: Record<string, unknown>) {
     sendAppealDecision: jest.fn(),
     sendWaiverDecision: jest.fn(),
     sendOverloadDecision: jest.fn(),
-    sendWaitlistPromoted: jest.fn()
+    sendWaitlistPromoted: jest.fn(),
+    sendTest: jest.fn()
   } as any;
   const analyticsService = new AdminReportingService(
     prisma,
@@ -146,8 +147,12 @@ function createAdminService(overrides?: Record<string, unknown>) {
   return {
     prisma,
     auditService,
+    notificationsService,
+    registrationService,
     governanceService,
     mailService,
+    analyticsService,
+    gradesService,
     service: new AdminService(
       prisma,
       auditService,
@@ -1589,6 +1594,234 @@ describe("AdminService helpers", () => {
         byStatus: { ENROLLED: 80, WAITLISTED: 10 },
         byTerm: [{ termId: "term-1", count: 90 }],
         topSections: [{ id: "sec-1", code: "CS101", title: "计算机科学导论", count: 40 }]
+      });
+    });
+  });
+
+  describe("AdminService proxy delegations", () => {
+    it("sendTestMail 委托给 mailService", async () => {
+      const { service, mailService } = createAdminService();
+      await service.sendTestMail("ops@test.com");
+      expect(mailService.sendTest).toHaveBeenCalledWith("ops@test.com");
+    });
+
+    it("updateEnrollmentGrade 会规范化成绩后再委托给 gradesService", async () => {
+      const { service, gradesService } = createAdminService();
+      gradesService.updateEnrollmentGrade.mockResolvedValue({ ok: true });
+
+      await expect(
+        service.updateEnrollmentGrade("stu-1", "sec-1", " a+ ", "admin-1")
+      ).resolves.toEqual({ ok: true });
+
+      expect(gradesService.updateEnrollmentGrade).toHaveBeenCalledWith(
+        "stu-1",
+        "sec-1",
+        "A+",
+        "admin-1"
+      );
+    });
+
+    it("updateEnrollmentGrade 遇到非法成绩时直接抛错", async () => {
+      const { service, gradesService } = createAdminService();
+      await expect(
+        service.updateEnrollmentGrade("stu-1", "sec-1", "PASS", "admin-1")
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(gradesService.updateEnrollmentGrade).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["bulkUpdateGrades", "gradesService", "bulkUpdateGrades", ["sec-1", [{ enrollmentId: "e1", grade: "A" }], "admin-1"], { updated: 1 }],
+      ["listEnrollments", "analyticsService", "listEnrollments", [{ termId: "term-1", page: 1, pageSize: 20 }], { data: [], total: 0, page: 1, pageSize: 20 }],
+      ["bulkApproveEnrollments", "analyticsService", "bulkApproveEnrollments", [["e1", "e2"], "admin-1"], { approved: 2 }],
+      ["getPendingOverloads", "analyticsService", "getPendingOverloads", [], [{ id: "ov-1" }]],
+      ["decidePendingOverload", "analyticsService", "decidePendingOverload", ["ov-1", true, "admin-1"], { ok: true }],
+      ["getPrereqWaivers", "analyticsService", "getPrereqWaivers", ["admin-1", "PENDING"], [{ id: "w1" }]],
+      ["decidePrereqWaiver", "analyticsService", "decidePrereqWaiver", ["admin-1", "w1", { status: "APPROVED", adminNote: "ok" }], { id: "w1", status: "APPROVED" }],
+      ["updateGrade", "gradesService", "updateGrade", [{ enrollmentId: "e1", finalGrade: "A" }, "admin-1"], { id: "e1" }],
+      ["getEnrollmentTrend", "analyticsService", "getEnrollmentTrend", [30], { total: 10 }],
+      ["getTopSections", "analyticsService", "getTopSections", ["term-1"], [{ id: "sec-1" }]],
+      ["getStudentNotes", "analyticsService", "getStudentNotes", ["stu-1"], [{ id: "note-1" }]],
+      ["createStudentNote", "analyticsService", "createStudentNote", ["admin-1", "stu-1", "内容", "FOLLOW_UP"], { id: "note-1" }],
+      ["deleteStudentNote", "analyticsService", "deleteStudentNote", ["admin-1", "note-1"], { deleted: true }],
+      ["getAvailableStudentTags", "analyticsService", "getAvailableStudentTags", [], ["预警"]],
+      ["getStudentTags", "analyticsService", "getStudentTags", ["stu-1"], { studentId: "stu-1", tags: ["预警"] }],
+      ["setStudentTags", "analyticsService", "setStudentTags", ["admin-1", "stu-1", ["预警"]], { studentId: "stu-1", tags: ["预警"] }],
+      ["getBulkStudentTags", "analyticsService", "getBulkStudentTags", [["stu-1"]], { "stu-1": ["预警"] }],
+      ["buildDigestPreview", "analyticsService", "buildDigestPreview", ["term-1"], { enrolledCount: 1, waitlistedCount: 0, cartCount: 0, pendingAppeals: 0, upcomingDeadline: null, topSections: [], htmlPreview: "<p>x</p>" }],
+      ["sendDigestEmail", "analyticsService", "sendDigestEmail", ["admin-1", "ops@test.com", "term-1"], { sent: true }],
+      ["createCalendarEvent", "analyticsService", "createCalendarEvent", ["admin-1", { title: "开放", eventDate: "2026-03-21T00:00:00.000Z" }], { id: "ev-1" }],
+      ["updateCalendarEvent", "analyticsService", "updateCalendarEvent", ["admin-1", "ev-1", { title: "更新" }], { id: "ev-1" }],
+      ["deleteCalendarEvent", "analyticsService", "deleteCalendarEvent", ["admin-1", "ev-1"], { deleted: true }],
+      ["unifiedSearch", "analyticsService", "unifiedSearch", ["张", "student"], { students: [], courses: [], sections: [] }],
+      ["getSystemAlerts", "analyticsService", "getSystemAlerts", [], []],
+      ["getPrereqViolations", "analyticsService", "getPrereqViolations", [], []],
+      ["previewStatusEmail", "analyticsService", "previewStatusEmail", ["term-1", "ENROLLED"], { recipientCount: 1 }],
+      ["sendStatusEmail", "analyticsService", "sendStatusEmail", ["term-1", "ENROLLED", "主题", "正文", "admin-1"], { sent: 1, total: 1 }],
+      ["getWaitlistAnalytics", "analyticsService", "getWaitlistAnalytics", ["term-1"], { totalWaitlisted: 0 }],
+      ["getGraduationClearance", "analyticsService", "getGraduationClearance", [120], []],
+      ["getEnrollmentAudit", "analyticsService", "getEnrollmentAudit", ["term-1", "COMPLETED"], { summary: {}, rows: [] }],
+      ["getPrereqMap", "analyticsService", "getPrereqMap", [], { nodes: [], edges: [] }],
+      ["previewGradeCurve", "gradesService", "previewGradeCurve", ["sec-1", 1], [{ enrollmentId: "e1", newGrade: "A-" }]],
+      ["getSectionRoster", "analyticsService", "getSectionRoster", ["sec-1"], { students: [] }],
+      ["getRegistrationWindows", "analyticsService", "getRegistrationWindows", [], []],
+      ["getSystemHealth", "analyticsService", "getSystemHealth", [], { dbOk: true }],
+      ["listUsers", "analyticsService", "listUsers", [{ page: 1, limit: 20 }], { total: 0, page: 1, limit: 20, users: [] }],
+      ["setUserLock", "analyticsService", "setUserLock", ["u1", true, "admin-1"], { id: "u1", lockedUntil: null }],
+      ["bulkEnroll", "analyticsService", "bulkEnroll", [["stu-1"], "sec-1", "admin-1"], { succeeded: ["stu-1"], failed: [] }],
+      ["bulkDrop", "analyticsService", "bulkDrop", [["e1"], "admin-1"], { succeeded: 1, failed: [] }],
+      ["bulkUpdateStudentStatus", "analyticsService", "bulkUpdateStudentStatus", [["stu-1"], "ACTIVE", "admin-1"], { updated: 1 }],
+      ["updateRegistrationWindow", "analyticsService", "updateRegistrationWindow", ["term-1", "2026-03-01T00:00:00.000Z", "2026-03-10T00:00:00.000Z", "admin-1"], { id: "term-1" }],
+      ["getScheduleConflicts", "analyticsService", "getScheduleConflicts", ["term-1"], []]
+    ])("%s 会透传给下层服务", async (_label, target, method, args, expected) => {
+      const ctx = createAdminService();
+      const dependency = ctx[target as "analyticsService" | "gradesService"] as Record<string, unknown>;
+      const candidate = dependency[method];
+      const mock: any =
+        typeof candidate === "function" && "mockResolvedValue" in (candidate as object)
+          ? (candidate as jest.Mock)
+          : jest.spyOn(dependency as Record<string, (...args: unknown[]) => unknown>, method as string);
+
+      mock.mockResolvedValue(expected);
+
+      await expect((ctx.service as any)[method](...args)).resolves.toEqual(expected);
+      expect(mock).toHaveBeenCalledWith(...args);
+    });
+  });
+
+  describe("AdminService import and enrollment flows", () => {
+    it("importStudents dryRun 会解析 CSV 并返回 wouldCreate", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.user.findMany.mockResolvedValue([]);
+
+      const result = await service.importStudents(
+        {
+          csv: "email,studentId,legalName,password\nstudent1@test.com,U250001,张小明,Student1234!",
+          dryRun: true
+        } as any,
+        "admin-1"
+      );
+
+      expect(result).toEqual({ created: 0, dryRun: true, wouldCreate: 1 });
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it("importStudents 遇到重复邮箱时抛 CSV_ROW_INVALID", async () => {
+      const { service } = createAdminService();
+
+      await expect(
+        service.importStudents(
+          {
+            csv: "email,studentId,legalName,password\nstudent1@test.com,U250001,张小明,Student1234!\nstudent1@test.com,U250002,李雅文,Student1234!"
+          } as any,
+          "admin-1"
+        )
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("importCourses dryRun 会校验课程并返回 wouldCreate", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.course.findMany.mockResolvedValue([]);
+
+      const result = await service.importCourses(
+        {
+          csv: "code,title,credits,description\nCS101,计算机科学导论,3,课程描述",
+          dryRun: true
+        } as any,
+        "admin-1"
+      );
+
+      expect(result).toEqual({ created: 0, dryRun: true, wouldCreate: 1 });
+    });
+
+    it("importSections dryRun 会解析 meetingTimes 并返回 wouldCreate", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.term.findMany.mockResolvedValue([{ id: "term-1", name: "2025秋季学期" }]);
+      prisma.course.findMany.mockResolvedValue([{ id: "course-1", code: "CS101" }]);
+      prisma.section.findMany.mockResolvedValue([]);
+
+      const result = await service.importSections(
+        {
+          csv: "termName,courseCode,sectionCode,modality,capacity,credits,instructorName,location,requireApproval,meetings\n2025秋季学期,CS101,A,ON_CAMPUS,40,3,张伟明,教一,true,1|540|630;3|540|630",
+          dryRun: true
+        } as any,
+        "admin-1"
+      );
+
+      expect(result).toEqual({ created: 0, dryRun: true, wouldCreate: 1 });
+    });
+
+    it("updateEnrollment 会规范化 finalGrade 并记录审计", async () => {
+      const { prisma, auditService, service } = createAdminService();
+      prisma.enrollment.findFirst.mockResolvedValue({ id: "e1", status: "ENROLLED", finalGrade: null });
+      prisma.enrollment.update.mockResolvedValue({ id: "e1", status: "ENROLLED", finalGrade: "A+" });
+
+      const result = await service.updateEnrollment("e1", { finalGrade: " a+ " }, "admin-1");
+
+      expect(prisma.enrollment.update).toHaveBeenCalledWith({
+        where: { id: "e1" },
+        data: { status: "ENROLLED", finalGrade: "A+" }
+      });
+      expect(auditService.log).toHaveBeenCalled();
+      expect(result).toEqual({ id: "e1", status: "ENROLLED", finalGrade: "A+" });
+    });
+
+    it("listWaitlist 只查询 WAITLISTED 记录", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.enrollment.findMany.mockResolvedValue([{ id: "w1" }]);
+
+      await expect(service.listWaitlist("sec-1")).resolves.toEqual([{ id: "w1" }]);
+      expect(prisma.enrollment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ status: "WAITLISTED", sectionId: "sec-1" })
+      }));
+    });
+
+    it("promoteWaitlist 成功晋升一名学生并发送通知", async () => {
+      const { prisma, auditService, notificationsService, registrationService, service } = createAdminService();
+      jest.spyOn(service as any, "writeWaitlistPromotionNotification").mockResolvedValue(undefined);
+
+      prisma.section.findUnique.mockResolvedValue({ id: "sec-1", capacity: 2 });
+      prisma.enrollment.count
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(0);
+      prisma.enrollment.findMany
+        .mockResolvedValueOnce([
+          {
+            id: "e1",
+            studentId: "stu-1",
+            sectionId: "sec-1",
+            createdAt: new Date("2026-03-21T00:00:00Z")
+          }
+        ])
+        .mockResolvedValueOnce([
+          {
+            id: "e1",
+            studentId: "stu-1",
+            sectionId: "sec-1",
+            section: { course: { code: "CS101", title: "计算机科学导论" } }
+          }
+        ])
+        .mockResolvedValueOnce([
+          {
+            id: "e1",
+            student: { email: "student1@test.com", studentProfile: { legalName: "张小明" } },
+            section: { term: { name: "2025秋季学期" }, course: { code: "CS101" }, sectionCode: "A" }
+          }
+        ]);
+      prisma.enrollment.updateMany.mockResolvedValue({ count: 1 });
+      registrationService.normalizeWaitlistPositions.mockResolvedValue(undefined);
+      auditService.logInTransaction.mockResolvedValue(undefined);
+      notificationsService.sendWaitlistPromotionEmail.mockResolvedValue(true);
+
+      const result = await service.promoteWaitlist({ sectionId: "sec-1", count: 1 } as any, "admin-1");
+
+      expect(result).toMatchObject({ promotedCount: 1, remainingWaitlistCount: 0, availableSeatsBefore: 1, availableSeatsAfter: 0 });
+      expect(registrationService.normalizeWaitlistPositions).toHaveBeenCalled();
+      expect(notificationsService.sendWaitlistPromotionEmail).toHaveBeenCalledWith({
+        to: "student1@test.com",
+        legalName: "张小明",
+        termName: "2025秋季学期",
+        courseCode: "CS101",
+        sectionCode: "A"
       });
     });
   });
