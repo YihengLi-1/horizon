@@ -220,6 +220,128 @@ export class AuthService {
     res.clearCookie(CSRF_COOKIE, COOKIE_BASE_OPTIONS);
   }
 
+  private async issueSessionForUser(
+    user: {
+      id: string;
+      email: string;
+      studentId?: string | null;
+      role: Role;
+      studentProfile?: unknown;
+    },
+    res: Response,
+    req?: Request
+  ) {
+    const sessionId = Math.random().toString(36).slice(2);
+    const refreshToken = `${sessionId}.${randomUUID()}`;
+    const accessExpiresAt = Date.now() + ACCESS_EXPIRES_SECONDS * 1000;
+
+    const token = await this.jwtService.signAsync(
+      {
+        sub: user.id,
+        userId: user.id,
+        role: user.role,
+        sid: sessionId
+      },
+      {
+        expiresIn: `${ACCESS_EXPIRES_SECONDS}s`
+      }
+    );
+
+    activeSessions.set(sessionId, {
+      userId: user.id,
+      email: user.email,
+      loginAt: new Date(),
+      ip: req ? this.getClientIp(req) : "sso"
+    });
+
+    this.setAuthCookie(res, token);
+    this.setRefreshCookie(res, refreshToken);
+    this.setCsrfCookie(res, randomBytes(32).toString("hex"));
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          lastLoginAt: new Date(),
+          loginAttempts: 0,
+          lockedUntil: null
+        }
+      }),
+      this.prisma.refreshToken.create({
+        data: {
+          userId: user.id,
+          token: refreshToken,
+          expiresAt: new Date(Date.now() + REFRESH_EXPIRES_MS)
+        }
+      })
+    ]);
+
+    await this.auditService.log({
+      actorUserId: user.id,
+      action: "login",
+      entityType: "auth",
+      entityId: user.id,
+      metadata: { role: user.role, sso: user.studentId === null || user.studentId === undefined ? true : undefined },
+      req
+    });
+
+    return {
+      id: user.id,
+      email: user.email,
+      studentId: user.studentId ?? null,
+      role: user.role,
+      sessionId,
+      expiresAt: accessExpiresAt,
+      profile: user.studentProfile ?? null
+    };
+  }
+
+  async createSessionForUser(userId: string, res: Response, req?: Request) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        studentId: true,
+        role: true,
+        deletedAt: true,
+        studentProfile: true
+      }
+    });
+
+    if (!user || user.deletedAt) {
+      throw new UnauthorizedException({ code: "USER_NOT_FOUND", message: "用户不存在" });
+    }
+
+    return this.issueSessionForUser(user, res, req);
+  }
+
+  async findOrCreateSsoUser(email: string, _profile: Record<string, unknown>) {
+    let user = await this.prisma.user.findFirst({
+      where: { email: email.toLowerCase(), deletedAt: null },
+      select: { id: true, email: true, role: true, emailVerifiedAt: true }
+    });
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          email: email.toLowerCase(),
+          passwordHash: "",
+          role: Role.STUDENT,
+          emailVerifiedAt: new Date(),
+          ssoProvider: "saml"
+        },
+        select: { id: true, email: true, role: true, emailVerifiedAt: true }
+      });
+    }
+
+    return {
+      userId: user.id,
+      email: user.email,
+      role: user.role
+    };
+  }
+
   async register(input: RegisterInput, req: Request) {
     const invite = await this.prisma.inviteCode.findUnique({ where: { code: input.inviteCode } });
     if (!invite || !invite.active) {
@@ -447,63 +569,7 @@ export class AuthService {
     }
 
     this.clearLoginAttempts(loginAttemptKey);
-    const sessionId = Math.random().toString(36).slice(2);
-    const refreshToken = `${sessionId}.${randomUUID()}`;
-    const accessExpiresAt = Date.now() + ACCESS_EXPIRES_SECONDS * 1000;
-
-    const token = await this.jwtService.signAsync({
-      sub: user.id,
-      role: user.role,
-      sid: sessionId
-    }, {
-      expiresIn: `${ACCESS_EXPIRES_SECONDS}s`
-    });
-    activeSessions.set(sessionId, {
-      userId: user.id,
-      email: user.email,
-      loginAt: new Date(),
-      ip: this.getClientIp(req)
-    });
-
-    this.setAuthCookie(res, token);
-    this.setRefreshCookie(res, refreshToken);
-    this.setCsrfCookie(res, randomBytes(32).toString("hex"));
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          lastLoginAt: new Date(),
-          loginAttempts: 0,
-          lockedUntil: null
-        }
-      }),
-      this.prisma.refreshToken.create({
-        data: {
-          userId: user.id,
-          token: refreshToken,
-          expiresAt: new Date(Date.now() + REFRESH_EXPIRES_MS)
-        }
-      })
-    ]);
-
-    await this.auditService.log({
-      actorUserId: user.id,
-      action: "login",
-      entityType: "auth",
-      entityId: user.id,
-      metadata: { role: user.role },
-      req
-    });
-
-    return {
-      id: user.id,
-      email: user.email,
-      studentId: user.studentId,
-      role: user.role,
-      sessionId,
-      expiresAt: accessExpiresAt,
-      profile: user.studentProfile
-    };
+    return this.issueSessionForUser(user, res, req);
   }
 
   async logout(userId: string, sessionId: string | undefined, req: Request, res: Response) {

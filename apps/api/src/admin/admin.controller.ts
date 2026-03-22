@@ -68,6 +68,18 @@ export class AdminController {
     );
   }
 
+  @Get("ferpa/deletion-requests")
+  @RequireAdminPermissions("students:read")
+  async listDeletionRequests() {
+    return ok(await this.adminService.listDeletionRequests());
+  }
+
+  @Get("ferpa/access-log/:userId")
+  @RequireAdminPermissions("students:read")
+  async getAccessLog(@Param("userId") userId: string) {
+    return ok(await this.adminService.getDataAccessLog(userId));
+  }
+
   @Get("terms")
   @RequireAdminPermissions("terms:read")
   async listTerms() {

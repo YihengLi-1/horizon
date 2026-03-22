@@ -144,6 +144,18 @@ export class NotificationsService {
     return this.send(envelope);
   }
 
+  async recordNotification(userId: string, subject: string, body: string, type = "system") {
+    await this.prisma.notificationLog.create({
+      data: {
+        userId,
+        type,
+        subject,
+        body
+      }
+    });
+    return { ok: true };
+  }
+
   async sendVerificationEmail(input: {
     to: string;
     legalName?: string | null;

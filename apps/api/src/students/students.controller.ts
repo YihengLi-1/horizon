@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Header, Param, Patch, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
 import { changePasswordSchema, createStudentSchema, updateProfileSchema } from "@sis/shared";
 import { Response } from "express";
 import { AdminPermissionGuard } from "../common/admin-permission.guard";
@@ -84,6 +84,27 @@ export class StudentsController {
   @Get("graduation-checklist")
   async getGraduationChecklist(@CurrentUser() user: { userId: string }) {
     return ok(await this.studentsService.getGraduationChecklist(user.userId));
+  }
+
+  @Roles("STUDENT")
+  @Get("me/degree-audit")
+  async getDegreeAudit(@CurrentUser() user: { userId: string }) {
+    return ok(await this.studentsService.getRealDegreeAudit(user.userId));
+  }
+
+  @Roles("STUDENT")
+  @Get("me/data-export")
+  @Header("Content-Disposition", 'attachment; filename="my-data.json"')
+  @Header("Content-Type", "application/json")
+  async exportData(@CurrentUser() user: { userId: string }) {
+    const data = await this.studentsService.exportMyData(user.userId);
+    return JSON.stringify(data, null, 2);
+  }
+
+  @Roles("STUDENT")
+  @Post("me/deletion-request")
+  async requestDeletion(@CurrentUser() user: { userId: string }, @Body() body: { reason?: string }) {
+    return ok(await this.studentsService.submitDeletionRequest(user.userId, body.reason));
   }
 
   @Roles("STUDENT")

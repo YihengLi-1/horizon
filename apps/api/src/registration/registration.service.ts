@@ -112,34 +112,16 @@ export class RegistrationService {
     return message.includes("serialization") || message.includes("deadlock");
   }
 
-  private isIsolationLevelUnsupported(error: unknown): boolean {
-    const message = error instanceof Error ? error.message.toLowerCase() : "";
-    return message.includes("isolation") && message.includes("not supported");
-  }
-
   private async runEnrollmentTransactionWithRetry<T>(
     fn: (tx: Prisma.TransactionClient) => Promise<T>
   ): Promise<T> {
-    let useSerializable = true;
     let lastError: unknown;
 
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       try {
-        if (useSerializable) {
-          return await this.prisma.$transaction(fn, {
-            isolationLevel: Prisma.TransactionIsolationLevel.Serializable
-          });
-        }
-
         return await this.prisma.$transaction(fn);
       } catch (error) {
         lastError = error;
-
-        if (useSerializable && this.isIsolationLevelUnsupported(error)) {
-          useSerializable = false;
-          attempt -= 1;
-          continue;
-        }
 
         if (this.isSerializationFailure(error) && attempt < 3) {
           continue;
@@ -254,9 +236,17 @@ export class RegistrationService {
 
   private async lockSectionsForUpdate(tx: Prisma.TransactionClient, sectionIds: string[]): Promise<void> {
     if (sectionIds.length === 0) return;
-    await tx.$queryRaw(
-      Prisma.sql`SELECT id FROM "Section" WHERE id IN (${Prisma.join(sectionIds)}) FOR UPDATE`
+
+    const rows = await tx.$queryRaw<Array<{ id: string }>>(
+      Prisma.sql`SELECT id FROM "Section" WHERE id IN (${Prisma.join(sectionIds)}) FOR UPDATE SKIP LOCKED`
     );
+
+    if (rows.length !== sectionIds.length) {
+      throw new BadRequestException({
+        code: "SECTION_LOCK_UNAVAILABLE",
+        message: "部分教学班正被并发处理，请稍后重试"
+      });
+    }
   }
 
   private async rebalanceWaitlistPositions(
@@ -1124,7 +1114,7 @@ export class RegistrationService {
    * @throws BadRequestException When the registration window is closed, cart is empty, or validation fails.
    * @throws NotFoundException When the requested term does not exist.
    */
-  async submitCart(studentId: string, input: SubmitCartInput, req: Request) {
+  async submitCart(studentId: string, input: SubmitCartInput, req?: Request) {
     await this.governanceService.assertNoBlockingHolds(this.prisma, studentId);
 
     const term = await this.prisma.term.findUnique({ where: { id: input.termId } });
@@ -1420,6 +1410,10 @@ export class RegistrationService {
     );
 
     return created;
+  }
+
+  async processEnrollmentJob(input: { userId: string; termId: string; cartItemIds?: string[] }) {
+    return this.submitCart(input.userId, { termId: input.termId } as SubmitCartInput, undefined);
   }
 
   /**

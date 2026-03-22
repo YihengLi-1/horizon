@@ -35,6 +35,19 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - sis-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   # ── NestJS API ───────────────────────────────────────────────────────────
   api:
     build:
@@ -44,8 +57,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-sis}:${POSTGRES_PASSWORD:-sis_dev_pass}@db:5432/${POSTGRES_DB:-horizon_sis}?schema=public
+      DATABASE_REPLICA_URL: ${DATABASE_REPLICA_URL:-}
       JWT_SECRET:   ${JWT_SECRET:-change_me_in_production}
       PORT:         4000
       WEB_URL:      ${WEB_URL:-http://localhost:3000}
@@ -60,6 +76,11 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-noreply@horizon-sis.local}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SAML_ENTRY_POINT: ${SAML_ENTRY_POINT:-}
+      SAML_ISSUER: ${SAML_ISSUER:-sis-production}
+      SAML_IDP_CERT: ${SAML_IDP_CERT:-}
     ports:
       - "${API_PORT:-4000}:4000"
     networks:

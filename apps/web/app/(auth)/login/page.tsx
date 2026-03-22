@@ -15,6 +15,7 @@ const DEMO_STUDENT_ID = process.env.NEXT_PUBLIC_DEMO_STUDENT_ID || "student1@uni
 const DEMO_STUDENT_PASSWORD = process.env.NEXT_PUBLIC_DEMO_STUDENT_PASSWORD || "Student1234!";
 const DEMO_ADMIN_EMAIL = process.env.NEXT_PUBLIC_DEMO_ADMIN_EMAIL || "admin@univ.edu";
 const DEMO_ADMIN_PASSWORD = process.env.NEXT_PUBLIC_DEMO_ADMIN_PASSWORD || "Admin1234!";
+const SSO_ENABLED = process.env.NEXT_PUBLIC_SSO_ENABLED === "true";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -184,6 +185,15 @@ export default function LoginPage() {
             </>
           ) : "登录"}
         </button>
+
+        {SSO_ENABLED ? (
+          <a
+            href="/api/auth/saml/login"
+            className="mt-4 flex w-full justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+          >
+            用学校账号登录（SSO）
+          </a>
+        ) : null}
       </form>
 
       {/* Demo accounts */}

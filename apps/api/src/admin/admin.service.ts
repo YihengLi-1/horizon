@@ -270,6 +270,27 @@ export class AdminService {
   async sendTestMail(to: string) {
     await this.mailService.sendTest(to);
   }
+  async listDeletionRequests() {
+    return this.prisma.dataDeletionRequest.findMany({
+      where: { status: { in: ["PENDING", "IN_PROGRESS"] } },
+      include: {
+        user: {
+          select: {
+            email: true,
+            studentId: true
+          }
+        }
+      },
+      orderBy: { requestedAt: "asc" }
+    });
+  }
+  async getDataAccessLog(targetUserId: string) {
+    return this.prisma.dataAccessLog.findMany({
+      where: { targetId: targetUserId },
+      orderBy: { createdAt: "desc" },
+      take: 100
+    });
+  }
   async bulkUpdateGrades(sectionId: string, grades: Array<{ enrollmentId: string; grade: string; gradePoints?: number }>, actorUserId: string) {
     return this.gradesService.bulkUpdateGrades(sectionId, grades, actorUserId);
   }

@@ -119,7 +119,7 @@ check_contains "apps/api/src/auth/auth.controller.ts" "@Throttle" "Auth endpoint
 check_contains "apps/api/src/main.ts" "CSRF_ORIGIN_BLOCKED" "CSRF origin guard middleware present"
 check_contains "apps/api/src/main.ts" "MAIL_DELIVERY_FAILURE_SPIKE" "Mail delivery failure alert present"
 check_contains "apps/api/src/registration/registration.service.ts" "FOR UPDATE" "Enrollment concurrency lock uses FOR UPDATE"
-check_contains "apps/api/src/registration/registration.service.ts" "TransactionIsolationLevel\.Serializable" "Serializable transaction retry path present"
+check_not_contains "apps/api/src/registration/registration.service.ts" "TransactionIsolationLevel\.Serializable" "Enrollment path avoids serializable transaction scope"
 check_contains "apps/api/src/auth/auth.service.ts" "usedAt" "Reset/verification token one-time use tracking present"
 check_contains "apps/api/prisma/schema.prisma" "deletedAt" "Soft-delete fields present in schema"
 check_contains "apps/api/src/admin/admin.controller.ts" "audit-logs/integrity" "Audit integrity endpoint exposed"
@@ -511,7 +511,7 @@ check_contains "apps/api/src/admin/admin.service.ts" "getDropoutRisk" "Dropout r
 check_contains "apps/api/src/admin/admin.controller.ts" "dropout-risk" "Dropout risk endpoint"
 check_exists "apps/web/app/student/degree-audit/page.tsx" "Student degree audit page"
 check_contains "apps/web/components/app-shell.tsx" "/student/degree-audit" "Degree audit nav link"
-check_contains "apps/web/app/student/degree-audit/page.tsx" "remainingCredits" "Remaining credits in degree audit"
+check_contains "apps/web/app/student/degree-audit/page.tsx" "overallCredits" "Degree audit uses real overall credit summary"
 check_contains "apps/api/src/admin/admin.service.ts" "getSectionAnalytics" "Section analytics service method"
 check_contains "apps/api/src/admin/admin.controller.ts" "analytics" "Section analytics endpoint"
 check_exists "apps/web/app/admin/sections/[id]/page.tsx" "Admin section analytics dynamic page"
@@ -669,7 +669,8 @@ check_contains "apps/api/src/admin/admin.service.ts" "getScheduleConflicts" "Adm
 
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"
-elif rg -n 'SwaggerModule\.setup\(\s*"api/docs"' apps/api/src/main.ts >/dev/null 2>&1 \
+elif rg -n 'SwaggerModule\.setup\(' apps/api/src/main.ts >/dev/null 2>&1 \
+  && rg -n '"api/docs"|'\''api/docs'\''' apps/api/src/main.ts >/dev/null 2>&1 \
   && rg -n 'SwaggerModule\.createDocument' apps/api/src/main.ts >/dev/null 2>&1; then
   ok "Swagger docs configured at /api/docs"
 else

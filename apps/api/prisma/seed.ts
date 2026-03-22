@@ -17,6 +17,7 @@ type DemoStudent = {
   studentId: string;
   legalName: string;
   programMajor: string;
+  degreeProgram?: string;
   dob: string;
   address: string;
   emergencyContact: string;
@@ -51,6 +52,7 @@ const demoStudents: DemoStudent[] = [
     studentId: "U250001",
     legalName: "张小明",
     programMajor: "计算机科学与技术",
+    degreeProgram: "计算机科学（理学学士）",
     dob: "1999-03-15T00:00:00.000Z",
     address: "上海市杨浦区国定路100号",
     emergencyContact: "张建华 13800000001 父亲"
@@ -61,6 +63,7 @@ const demoStudents: DemoStudent[] = [
     studentId: "U250002",
     legalName: "李雅文",
     programMajor: "工商管理",
+    degreeProgram: "经济学（文学学士）",
     dob: "2000-07-22T00:00:00.000Z",
     address: "浙江省杭州市西湖区学院路28号",
     emergencyContact: "李秀兰 13800000002 母亲"
@@ -71,6 +74,7 @@ const demoStudents: DemoStudent[] = [
     studentId: "U250003",
     legalName: "王浩然",
     programMajor: "数学与应用数学",
+    degreeProgram: "计算机科学（理学学士）",
     dob: "1998-11-08T00:00:00.000Z",
     address: "江苏省南京市鼓楼区汉口路12号",
     emergencyContact: "王志强 13800000003 父亲"
@@ -111,6 +115,7 @@ const fillerStudents: DemoStudent[] = fillerNames.map((legalName, index) => ({
   studentId: `U25${String(index + 101).padStart(4, "0")}`,
   legalName,
   programMajor: fillerMajors[index % fillerMajors.length],
+  degreeProgram: fillerMajors[index % fillerMajors.length] === "计算机科学与技术" ? "计算机科学（理学学士）" : undefined,
   dob: new Date(Date.UTC(1999 + (index % 4), (index * 2) % 12, 5 + (index % 20))).toISOString(),
   address: `示范校区学生公寓${(index % 8) + 1}号楼${(index % 5) + 201}室`,
   emergencyContact: `${legalName.slice(0, 1)}家长 1390000${String(index + 1000).slice(-4)} 监护人`
@@ -298,6 +303,7 @@ async function seedUsers() {
         studentId: student.studentId,
         passwordHash: studentPasswordHash,
         role: Role.STUDENT,
+        degreeProgram: student.degreeProgram ?? null,
         emailVerifiedAt: NOW,
         studentProfile: {
           create: {
@@ -313,6 +319,77 @@ async function seedUsers() {
       }
     });
   }
+}
+
+async function seedDegreePrograms() {
+  await prisma.degreeProgram.create({
+    data: {
+      name: "计算机科学（理学学士）",
+      totalCredits: 120,
+      minGpa: 2.0,
+      requirements: {
+        create: [
+          {
+            category: "core",
+            label: "计算机核心课程",
+            minCredits: 36,
+            minCourses: 0,
+            courseCodes: [],
+            prefixes: ["CS"],
+            minGrade: "D"
+          },
+          {
+            category: "distribution",
+            label: "数学要求",
+            minCredits: 12,
+            minCourses: 0,
+            courseCodes: [],
+            prefixes: ["MATH"],
+            minGrade: "D"
+          },
+          {
+            category: "elective",
+            label: "自由选修",
+            minCredits: 30,
+            minCourses: 0,
+            courseCodes: [],
+            prefixes: [],
+            minGrade: "D"
+          }
+        ]
+      }
+    }
+  });
+
+  await prisma.degreeProgram.create({
+    data: {
+      name: "经济学（文学学士）",
+      totalCredits: 120,
+      minGpa: 2.0,
+      requirements: {
+        create: [
+          {
+            category: "core",
+            label: "经济学核心课程",
+            minCredits: 30,
+            minCourses: 0,
+            courseCodes: [],
+            prefixes: ["ECON"],
+            minGrade: "D"
+          },
+          {
+            category: "elective",
+            label: "社会科学选修",
+            minCredits: 18,
+            minCourses: 0,
+            courseCodes: [],
+            prefixes: [],
+            minGrade: "D"
+          }
+        ]
+      }
+    }
+  });
 }
 
 async function seedTerms() {
@@ -595,6 +672,7 @@ async function seedInviteCodes() {
 
 async function main() {
   await resetDatabase();
+  await seedDegreePrograms();
   await seedUsers();
   await seedTerms();
   await seedCourses();
