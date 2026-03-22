@@ -30,7 +30,7 @@ import { GovernanceService } from "../governance/governance.service";
 import { RegistrationService } from "../registration/registration.service";
 import { MailService } from "../mail/mail.service";
 import { AdminGradesService } from "./admin-grades.service";
-import { AdminAnalyticsService } from "./admin-analytics.service";
+import { AdminReportingService } from "./admin-reporting.service";
 
 type CreateTermInput = z.infer<typeof createTermSchema>;
 type CreateCourseInput = z.infer<typeof createCourseSchema>;
@@ -246,7 +246,7 @@ export class AdminService {
     private readonly registrationService: RegistrationService,
     private readonly governanceService: GovernanceService,
     private readonly mailService: MailService,
-    private readonly analyticsService: AdminAnalyticsService,
+    private readonly analyticsService: AdminReportingService,
     private readonly gradesService: AdminGradesService
   ) {}
 

@@ -10,8 +10,16 @@ function createAuthService() {
     },
     user: {
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       create: jest.fn(),
-      update: jest.fn()
+      update: jest.fn(),
+      updateMany: jest.fn()
+    },
+    passwordResetToken: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      deleteMany: jest.fn(),
+      updateMany: jest.fn()
     },
     emailVerificationToken: {
       create: jest.fn()
@@ -364,5 +372,65 @@ describe("AuthService", () => {
     await expect(
       service.refresh({ cookies: {} } as any, createResponse())
     ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  describe("requestPasswordReset", () => {
+    it("returns generic message when user not found (no enumeration)", async () => {
+      const { prisma, mailService, service } = createAuthService();
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(service.requestPasswordReset("notexist@test.com")).resolves.toEqual({
+        message: "如果该邮箱已注册，重置链接已发送"
+      });
+      expect(mailService.sendPasswordReset).not.toHaveBeenCalled();
+    });
+
+    it("creates token and sends email when user exists", async () => {
+      const { prisma, mailService, service } = createAuthService();
+      prisma.user.findFirst.mockResolvedValue({
+        id: "u1",
+        email: "test@test.com",
+        deletedAt: null
+      });
+      prisma.passwordResetToken.deleteMany.mockResolvedValue({ count: 1 });
+      prisma.passwordResetToken.create.mockResolvedValue({ id: "prt-1" });
+      prisma.$transaction.mockResolvedValue([{}, {}]);
+
+      await expect(service.requestPasswordReset("test@test.com")).resolves.toEqual({
+        message: "如果该邮箱已注册，重置链接已发送"
+      });
+      expect(prisma.passwordResetToken.deleteMany).toHaveBeenCalled();
+      expect(prisma.passwordResetToken.create).toHaveBeenCalled();
+      expect(mailService.sendPasswordReset).toHaveBeenCalledTimes(1);
+      expect(mailService.sendPasswordReset).toHaveBeenCalledWith("test@test.com", expect.any(String));
+    });
+  });
+
+  describe("resetPassword", () => {
+    it("throws when token is expired", async () => {
+      const { prisma, service } = createAuthService();
+      prisma.passwordResetToken.findUnique.mockResolvedValue({
+        id: "prt-1",
+        token: "expired",
+        userId: "u1",
+        usedAt: null,
+        expiresAt: new Date(0)
+      });
+
+      await expect(service.resetPassword("expired", "NewPass1!")).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("throws when token already used", async () => {
+      const { prisma, service } = createAuthService();
+      prisma.passwordResetToken.findUnique.mockResolvedValue({
+        id: "prt-1",
+        token: "used",
+        userId: "u1",
+        usedAt: new Date(),
+        expiresAt: new Date(Date.now() + 10_000)
+      });
+
+      await expect(service.resetPassword("used", "NewPass1!")).rejects.toBeInstanceOf(BadRequestException);
+    });
   });
 });

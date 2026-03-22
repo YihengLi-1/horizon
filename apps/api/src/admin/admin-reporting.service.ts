@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { EnrollmentStatus, Modality, Prisma } from "@prisma/client";
+import { EnrollmentStatus, Modality, Prisma, Role } from "@prisma/client";
 import argon2 from "argon2";
 import { createHash } from "crypto";
 import { GRADE_POINTS } from "@sis/shared/constants";
@@ -234,8 +234,13 @@ function parseCsvRows(csv: string): string[][] {
   return rows;
 }
 
+function toNum(v: bigint | number | null | undefined): number {
+  if (v === null || v === undefined) return 0;
+  return typeof v === "bigint" ? Number(v) : v;
+}
+
 @Injectable()
-export class AdminAnalyticsService {
+export class AdminReportingService {
   private readonly defaultPageSize = 50;
   private readonly maxPageSize = 200;
 
@@ -533,7 +538,7 @@ async getPendingOverloads() {
       GROUP BY e."studentId", e."termId"
     `);
     const creditByPair = new Map<string, number>(
-      creditRows.map((r) => [`${r.studentId}::${r.termId}`, Number(r.totalCredits)])
+      creditRows.map((r) => [`${r.studentId}::${r.termId}`, toNum(r.totalCredits)])
     );
     const creditMap = new Map<string, number>(
       rows.map((row) => [row.id, creditByPair.get(`${row.studentId}::${row.termId}`) ?? 0])
@@ -1789,7 +1794,7 @@ async sendStatusEmail(
         sectionMap.set(sid, {
           sectionId: sid, sectionCode: r.sectionCode, courseCode: r.courseCode,
           courseTitle: r.courseTitle, termName: r.termName, capacity: r.capacity,
-          enrolled: Number(r.enrolledCount), waitlistCount: 0, avgPosition: 0, maxPosition: 0
+          enrolled: toNum(r.enrolledCount), waitlistCount: 0, avgPosition: 0, maxPosition: 0
         });
       }
       const entry = sectionMap.get(sid)!;
@@ -1829,66 +1834,84 @@ async sendStatusEmail(
 
 // ── Graduation Clearance ──────────────────────────────────────────────────
   async getGraduationClearance(minCredits = 120) {
-    // Raw SQL to avoid Prisma type issues with complex includes
-    type GradRow = {
-      userId: string; email: string; legalName: string | null; programMajor: string | null;
-      enrollStatus: string; credits: number; finalGrade: string | null;
-    };
-    const rows = await this.prisma.$queryRaw<GradRow[]>`
-      SELECT u.id AS "userId", u.email, sp."legalName", sp."programMajor",
-             e.status AS "enrollStatus", c.credits, e."finalGrade"
-      FROM "User" u
-      LEFT JOIN "StudentProfile" sp ON sp."userId" = u.id
-      LEFT JOIN "Enrollment" e ON e."studentId" = u.id AND e."deletedAt" IS NULL
-      LEFT JOIN "Section" s ON s.id = e."sectionId"
-      LEFT JOIN "Course" c ON c.id = s."courseId"
-      WHERE u.role = 'STUDENT' AND u."deletedAt" IS NULL
-    `;
+    const [students, appeals] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { role: "STUDENT", deletedAt: null },
+        select: {
+          id: true,
+          email: true,
+          studentProfile: {
+            select: {
+              legalName: true,
+              programMajor: true
+            }
+          },
+          enrollments: {
+            where: { deletedAt: null },
+            select: {
+              status: true,
+              finalGrade: true,
+              section: {
+                select: {
+                  credits: true
+                }
+              }
+            }
+          }
+        }
+      }),
+      this.prisma.gradeAppeal.findMany({
+        where: { status: "PENDING" },
+        select: { studentId: true }
+      })
+    ]);
 
-    type AppealRow = { studentId: string; id: string };
-    const appeals = await this.prisma.$queryRaw<AppealRow[]>`
-      SELECT "studentId", id FROM "GradeAppeal" WHERE status = 'PENDING'
-    `;
     const appealsByStudent = new Map<string, number>();
     for (const a of appeals) {
       appealsByStudent.set(a.studentId, (appealsByStudent.get(a.studentId) ?? 0) + 1);
     }
 
-    // Aggregate per student
-    const studentMap = new Map<string, {
-      userId: string; email: string; legalName: string | null; programMajor: string | null;
-      creditsDone: number; creditsInProgress: number; missingGrades: number; pendingApproval: number;
-    }>();
+    return students
+      .map((student) => {
+        let creditsDone = 0;
+        let creditsInProgress = 0;
+        let missingGrades = 0;
+        let pendingApproval = 0;
 
-    for (const r of rows) {
-      if (!studentMap.has(r.userId)) {
-        studentMap.set(r.userId, {
-          userId: r.userId, email: r.email, legalName: r.legalName, programMajor: r.programMajor,
-          creditsDone: 0, creditsInProgress: 0, missingGrades: 0, pendingApproval: 0
-        });
-      }
-      const s = studentMap.get(r.userId)!;
-      if (!r.enrollStatus) continue; // no enrollments
-      if (r.enrollStatus === "COMPLETED") {
-        s.creditsDone += r.credits ?? 0;
-        if (!r.finalGrade) s.missingGrades++;
-      } else if (r.enrollStatus === "ENROLLED") {
-        s.creditsInProgress += r.credits ?? 0;
-      } else if (r.enrollStatus === "PENDING_APPROVAL") {
-        s.pendingApproval++;
-      }
-    }
+        for (const enrollment of student.enrollments) {
+          const credits = enrollment.section.credits ?? 0;
+          if (enrollment.status === "COMPLETED") {
+            creditsDone += credits;
+            if (!enrollment.finalGrade) missingGrades += 1;
+          } else if (enrollment.status === "ENROLLED") {
+            creditsInProgress += credits;
+          } else if (enrollment.status === "PENDING_APPROVAL") {
+            pendingApproval += 1;
+          }
+        }
 
-    return Array.from(studentMap.values()).map((s) => {
-      const openAppeals = appealsByStudent.get(s.userId) ?? 0;
-      const eligible = s.creditsDone >= minCredits && s.missingGrades === 0 && openAppeals === 0 && s.pendingApproval === 0;
-      return {
-        userId: s.userId, email: s.email, name: s.legalName, department: s.programMajor,
-        creditsDone: s.creditsDone, creditsInProgress: s.creditsInProgress,
-        creditsNeeded: Math.max(0, minCredits - s.creditsDone),
-        missingGrades: s.missingGrades, openAppeals, pendingApproval: s.pendingApproval, eligible
-      };
-    }).sort((a, b) => Number(b.eligible) - Number(a.eligible) || b.creditsDone - a.creditsDone);
+        const openAppeals = appealsByStudent.get(student.id) ?? 0;
+        const eligible =
+          creditsDone >= minCredits &&
+          missingGrades === 0 &&
+          openAppeals === 0 &&
+          pendingApproval === 0;
+
+        return {
+          userId: student.id,
+          email: student.email,
+          name: student.studentProfile?.legalName ?? null,
+          department: student.studentProfile?.programMajor ?? null,
+          creditsDone,
+          creditsInProgress,
+          creditsNeeded: Math.max(0, minCredits - creditsDone),
+          missingGrades,
+          openAppeals,
+          pendingApproval,
+          eligible
+        };
+      })
+      .sort((a, b) => Number(b.eligible) - Number(a.eligible) || b.creditsDone - a.creditsDone);
   }
 
 // ── Registration Activity Heatmap ─────────────────────────────────────────
@@ -1911,17 +1934,17 @@ async sendStatusEmail(
     const grid: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
     let maxCount = 0;
     for (const row of rows) {
-      const count = Number(row.count);
+      const count = toNum(row.count);
       grid[row.dow][row.hour] = count;
       if (count > maxCount) maxCount = count;
     }
 
     const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const totalRegistrations = rows.reduce((s, r) => s + Number(r.count), 0);
+    const totalRegistrations = rows.reduce((s, r) => s + toNum(r.count), 0);
 
     // Top slots
     const slots = rows
-      .map((r) => ({ day: dayLabels[r.dow], hour: r.hour, count: Number(r.count) }))
+      .map((r) => ({ day: dayLabels[r.dow], hour: r.hour, count: toNum(r.count) }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
@@ -2084,16 +2107,16 @@ async getFacultySchedule(termId?: string) {
         sections: []
       };
       bucket.totalSections += 1;
-      bucket.totalEnrolled += Number(row.enrolled);
-      bucket.totalCapacity += Number(row.capacity);
+      bucket.totalEnrolled += toNum(row.enrolled);
+      bucket.totalCapacity += toNum(row.capacity);
       bucket.sections.push({
         sectionId: row.sectionId,
         sectionCode: row.sectionCode,
         courseCode: row.courseCode,
         courseTitle: row.courseTitle,
-        capacity: Number(row.capacity),
-        enrolled: Number(row.enrolled),
-        waitlisted: Number(row.waitlisted),
+        capacity: toNum(row.capacity),
+        enrolled: toNum(row.enrolled),
+        waitlisted: toNum(row.waitlisted),
         meetingTimes: meetingTimesBySection.get(row.sectionId) ?? []
       });
       byInstructor.set(row.instructorId, bucket);
@@ -2155,9 +2178,9 @@ async getCapacityPlan(termId?: string) {
       courseCode: row.courseCode,
       courseTitle: row.courseTitle,
       sectionCode: row.sectionCode,
-      capacity: Number(row.capacity),
-      enrolled: Number(row.enrolled),
-      waitlisted: Number(row.waitlisted),
+      capacity: toNum(row.capacity),
+      enrolled: toNum(row.enrolled),
+      waitlisted: toNum(row.waitlisted),
       utilizationPct: Number(row.utilizationPct),
       projectedDemand: Number(row.projectedDemand)
     }));
@@ -2408,7 +2431,7 @@ async getGradeDistribution(termId?: string, courseId?: string) {
     `);
 
     const orderedGrades = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-", "F", "W"];
-    const counts = new Map(breakdown.map((row) => [row.grade, Number(row.count)]));
+    const counts = new Map(breakdown.map((row) => [row.grade, toNum(row.count)]));
 
     return {
       courseCode: summary[0]?.courseCode ?? "",
@@ -2620,7 +2643,7 @@ async getSectionAnalytics(sectionId: string) {
     const waitlisted = section.enrollments.filter((item) => item.status === "WAITLISTED").length;
     const dropCount = section.enrollments.filter((item) => item.status === "DROPPED" || item.finalGrade === "W").length;
     const orderedGrades = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-", "F", "W"];
-    const counts = new Map(gradeRows.map((row) => [row.grade, Number(row.count)]));
+    const counts = new Map(gradeRows.map((row) => [row.grade, toNum(row.count)]));
 
     return {
       sectionId: section.id,
@@ -2694,12 +2717,12 @@ async getSectionAnalytics(sectionId: string) {
       if (!courseMap.has(r.courseId)) {
         courseMap.set(r.courseId, { courseId: r.courseId, courseCode: r.courseCode, courseTitle: r.courseTitle, credits: r.credits, terms: [] });
       }
-      const total = Number(r.enrolled) + Number(r.completed) + Number(r.dropped) + Number(r.waitlisted);
+      const total = toNum(r.enrolled) + toNum(r.completed) + toNum(r.dropped) + toNum(r.waitlisted);
       courseMap.get(r.courseId)!.terms.push({
         termId: r.termId, termName: r.termName,
-        enrolled: Number(r.enrolled), completed: Number(r.completed),
-        dropped: Number(r.dropped), waitlisted: Number(r.waitlisted),
-        capacity: Number(r.capacity), total,
+        enrolled: toNum(r.enrolled), completed: toNum(r.completed),
+        dropped: toNum(r.dropped), waitlisted: toNum(r.waitlisted),
+        capacity: toNum(r.capacity), total,
       });
     }
 
@@ -2898,11 +2921,11 @@ async executeSectionSwap(enrollmentId: string, targetSectionId: string, adminUse
 
     return rows.map((r) => ({
       major: r.major,
-      studentCount: Number(r.studentCount),
+      studentCount: toNum(r.studentCount),
       avgGpa: Number(r.avgGpa ?? 0),
-      totalCredits: Number(r.totalCredits),
-      activeCount: Number(r.activeCount),
-      completedCount: Number(r.completedCount),
+      totalCredits: toNum(r.totalCredits),
+      activeCount: toNum(r.activeCount),
+      completedCount: toNum(r.completedCount),
     }));
   }
 
@@ -2937,11 +2960,11 @@ async executeSectionSwap(enrollmentId: string, targetSectionId: string, adminUse
       termId: r.termId,
       termName: r.termName,
       startDate: r.startDate.toISOString().slice(0, 10),
-      enrolled: Number(r.enrolled),
-      completed: Number(r.completed),
-      dropped: Number(r.dropped),
-      waitlisted: Number(r.waitlisted),
-      total: Number(r.enrolled) + Number(r.completed) + Number(r.dropped) + Number(r.waitlisted),
+      enrolled: toNum(r.enrolled),
+      completed: toNum(r.completed),
+      dropped: toNum(r.dropped),
+      waitlisted: toNum(r.waitlisted),
+      total: toNum(r.enrolled) + toNum(r.completed) + toNum(r.dropped) + toNum(r.waitlisted),
     }));
 
     // Simple linear regression on total enrollments
@@ -2962,45 +2985,62 @@ async executeSectionSwap(enrollmentId: string, targetSectionId: string, adminUse
 
 // ─── Enrollment Audit Report ─────────────────────────────────────────────────
   async getEnrollmentAudit(termId?: string, status?: string) {
-    const termFilter = termId ? Prisma.sql`AND s."termId" = ${termId}` : Prisma.sql``;
-    const statusFilter = status ? Prisma.sql`AND e.status = ${status}` : Prisma.sql``;
+    const where: Prisma.EnrollmentWhereInput = { deletedAt: null };
+    if (status) {
+      where.status = status as EnrollmentStatus;
+    }
+    if (termId) {
+      where.section = { termId };
+    }
 
-    const rows = await this.prisma.$queryRaw<{
-      enrollmentId: string;
-      studentEmail: string;
-      studentId: string;
-      courseCode: string;
-      courseTitle: string;
-      sectionCode: string;
-      termName: string;
-      status: string;
-      finalGrade: string | null;
-      enrolledAt: Date;
-      droppedAt: Date | null;
-    }[]>`
-      SELECT
-        e.id AS "enrollmentId",
-        u.email AS "studentEmail",
-        u.id AS "studentId",
-        c.code AS "courseCode",
-        c.title AS "courseTitle",
-        s."sectionCode",
-        t.name AS "termName",
-        e.status,
-        e."finalGrade",
-        e."createdAt" AS "enrolledAt",
-        e."droppedAt"
-      FROM "Enrollment" e
-      JOIN "User" u ON u.id = e."studentId"
-      JOIN "Section" s ON s.id = e."sectionId"
-      JOIN "Course" c ON c.id = s."courseId"
-      JOIN "Term" t ON t.id = s."termId"
-      WHERE e."deletedAt" IS NULL
-        ${termFilter}
-        ${statusFilter}
-      ORDER BY e."createdAt" DESC
-      LIMIT 500
-    `;
+    const enrollments = await this.prisma.enrollment.findMany({
+      where,
+      select: {
+        id: true,
+        status: true,
+        finalGrade: true,
+        createdAt: true,
+        droppedAt: true,
+        student: {
+          select: {
+            email: true,
+            studentId: true
+          }
+        },
+        section: {
+          select: {
+            sectionCode: true,
+            course: {
+              select: {
+                code: true,
+                title: true
+              }
+            },
+            term: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 500
+    });
+
+    const rows = enrollments.map((enrollment) => ({
+      enrollmentId: enrollment.id,
+      studentEmail: enrollment.student.email,
+      studentId: enrollment.student.studentId ?? "—",
+      courseCode: enrollment.section.course.code,
+      courseTitle: enrollment.section.course.title,
+      sectionCode: enrollment.section.sectionCode,
+      termName: enrollment.section.term.name,
+      status: enrollment.status,
+      finalGrade: enrollment.finalGrade,
+      enrolledAt: enrollment.createdAt,
+      droppedAt: enrollment.droppedAt
+    }));
 
     const summary = {
       total: rows.length,
@@ -3069,9 +3109,9 @@ async executeSectionSwap(enrollmentId: string, targetSectionId: string, adminUse
       studentId: r.studentId,
       email: r.email,
       major: r.major ?? "未分配",
-      totalCredits: Number(r.totalCredits),
+      totalCredits: toNum(r.totalCredits),
       gpa: Number(r.gpa ?? 0),
-      completedCourses: Number(r.completedCourses),
+      completedCourses: toNum(r.completedCourses),
     }));
   }
 
@@ -3104,11 +3144,11 @@ async executeSectionSwap(enrollmentId: string, targetSectionId: string, adminUse
 
     return rowsByPrefix.map((r) => ({
       prefix: r.prefix,
-      instructorCount: Number(r.instructorCount),
-      sectionCount: Number(r.sectionCount),
-      totalCapacity: Number(r.totalCapacity),
-      totalEnrolled: Number(r.totalEnrolled),
-      utilization: Number(r.totalCapacity) > 0 ? Math.round((Number(r.totalEnrolled) / Number(r.totalCapacity)) * 100) : 0,
+      instructorCount: toNum(r.instructorCount),
+      sectionCount: toNum(r.sectionCount),
+      totalCapacity: toNum(r.totalCapacity),
+      totalEnrolled: toNum(r.totalEnrolled),
+      utilization: toNum(r.totalCapacity) > 0 ? Math.round((toNum(r.totalEnrolled) / toNum(r.totalCapacity)) * 100) : 0,
     }));
   }
 
@@ -3145,10 +3185,10 @@ async executeSectionSwap(enrollmentId: string, targetSectionId: string, adminUse
 
     const points = rows.map((r) => ({
       date: r.day.toISOString().slice(0, 10),
-      newEnrollments: Number(r.newEnrollments),
-      newDrops: Number(r.newDrops),
-      cumulative: Number(r.cumulative),
-      net: Number(r.newEnrollments) - Number(r.newDrops),
+      newEnrollments: toNum(r.newEnrollments),
+      newDrops: toNum(r.newDrops),
+      cumulative: toNum(r.cumulative),
+      net: toNum(r.newEnrollments) - toNum(r.newDrops),
     }));
 
     const totalNew = points.reduce((s, p) => s + p.newEnrollments, 0);
@@ -3283,16 +3323,16 @@ async executeSectionSwap(enrollmentId: string, targetSectionId: string, adminUse
     `;
 
     const sections = rows.map((r) => {
-      const cap = Number(r.capacity);
-      const enrolled = Number(r.enrolled);
-      const completed = Number(r.completed);
+      const cap = toNum(r.capacity);
+      const enrolled = toNum(r.enrolled);
+      const completed = toNum(r.completed);
       const utilization = cap > 0 ? Math.round(((enrolled + completed) / cap) * 100) : 0;
       return {
         termId: r.termId, termName: r.termName,
         courseCode: r.courseCode, courseTitle: r.courseTitle,
         sectionId: r.sectionId, capacity: cap,
         enrolled, completed,
-        dropped: Number(r.dropped), waitlisted: Number(r.waitlisted),
+        dropped: toNum(r.dropped), waitlisted: toNum(r.waitlisted),
         utilization,
       };
     });
@@ -3355,8 +3395,8 @@ async executeSectionSwap(enrollmentId: string, targetSectionId: string, adminUse
       if (!majorMap.has(r.major)) majorMap.set(r.major, { major: r.major, terms: [] });
       majorMap.get(r.major)!.terms.push({
         termName: r.termName,
-        enrolled: Number(r.enrolled), completed: Number(r.completed),
-        dropped: Number(r.dropped), total: Number(r.total),
+        enrolled: toNum(r.enrolled), completed: toNum(r.completed),
+        dropped: toNum(r.dropped), total: toNum(r.total),
       });
     }
 
@@ -3478,13 +3518,13 @@ async executeSectionSwap(enrollmentId: string, targetSectionId: string, adminUse
     return rows.map((r) => ({
       instructorName: r.instructorName,
       instructorEmail: r.instructorEmail ?? "—",
-      sections: Number(r.sections),
-      totalStudents: Number(r.totalStudents),
-      completedStudents: Number(r.completedStudents),
-      droppedStudents: Number(r.droppedStudents),
+      sections: toNum(r.sections),
+      totalStudents: toNum(r.totalStudents),
+      completedStudents: toNum(r.completedStudents),
+      droppedStudents: toNum(r.droppedStudents),
       avgGpa: r.avgGpa !== null ? Number(r.avgGpa) : null,
-      dropRate: Number(r.totalStudents) > 0
-        ? Math.round((Number(r.droppedStudents) / Number(r.totalStudents)) * 100)
+      dropRate: toNum(r.totalStudents) > 0
+        ? Math.round((toNum(r.droppedStudents) / toNum(r.totalStudents)) * 100)
         : 0,
     }));
   }
@@ -3538,7 +3578,7 @@ async executeSectionSwap(enrollmentId: string, targetSectionId: string, adminUse
       if (!deptMap.has(r.dept)) deptMap.set(r.dept, { dept: r.dept, terms: [] });
       deptMap.get(r.dept)!.terms.push({
         termName: r.termName,
-        students: Number(r.students),
+        students: toNum(r.students),
         avgGpa: r.avgGpa !== null ? Number(r.avgGpa) : null,
         passRate: r.passRate !== null ? Number(r.passRate) : null,
       });
@@ -3642,7 +3682,7 @@ async executeSectionSwap(enrollmentId: string, targetSectionId: string, adminUse
       }
 
       const pairing = pairings.get(pairKey)!;
-      const termCount = Number(row.coCount);
+      const termCount = toNum(row.coCount);
       pairing.coCount += termCount;
       pairing.terms.push({
         termId: row.termId,
@@ -3767,14 +3807,14 @@ async executeSectionSwap(enrollmentId: string, targetSectionId: string, adminUse
         cohorts.set(row.cohortTermId, {
           cohortTermId: row.cohortTermId,
           cohortTermName: row.cohortTermName,
-          cohortSize: Number(row.cohortSize),
+          cohortSize: toNum(row.cohortSize),
           retention: []
         });
       }
 
       const cohort = cohorts.get(row.cohortTermId)!;
-      const activeStudents = Number(row.activeStudents);
-      const cohortSize = Number(row.cohortSize);
+      const activeStudents = toNum(row.activeStudents);
+      const cohortSize = toNum(row.cohortSize);
       cohort.retention.push({
         offset: Number(row.offset),
         activeTermId: row.activeTermId,
@@ -4128,28 +4168,55 @@ async getScheduleConflicts(termId?: string) {
 // ── User Management ────────────────────────────────────────────────────────
   async listUsers(opts: { search?: string; role?: string; page: number; limit: number }) {
     const { search, role, page, limit } = opts;
-    type Row = {
-      id: string; email: string; student_id: string | null; role: string;
-      email_verified_at: Date | null; last_login_at: Date | null;
-      login_attempts: number; locked_until: Date | null; created_at: Date;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.UserWhereInput = {
+      deletedAt: null
     };
-    const conditions: string[] = [`"deletedAt" IS NULL`];
-    if (role) conditions.push(`"role" = '${role.replace(/'/g, "''")}'`);
-    if (search) {
-      const s = search.replace(/'/g, "''");
-      conditions.push(`("email" ILIKE '%${s}%' OR "studentId" ILIKE '%${s}%')`);
+
+    if (role) {
+      where.role = role as Role;
     }
-    const where = conditions.join(" AND ");
-    const offset = (page - 1) * limit;
-    const [countRows, rows] = await Promise.all([
-      this.prisma.$queryRawUnsafe<[{ total: bigint }]>(`SELECT COUNT(*)::bigint AS total FROM "User" WHERE ${where}`),
-      this.prisma.$queryRawUnsafe<Row[]>(`SELECT id, email, "studentId" AS student_id, role, "emailVerifiedAt" AS email_verified_at, "lastLoginAt" AS last_login_at, "loginAttempts" AS login_attempts, "lockedUntil" AS locked_until, "createdAt" AS created_at FROM "User" WHERE ${where} ORDER BY "createdAt" DESC LIMIT ${limit} OFFSET ${offset}`),
+
+    if (search?.trim()) {
+      const keyword = search.trim();
+      where.OR = [
+        { email: { contains: keyword, mode: "insensitive" } },
+        { studentId: { contains: keyword, mode: "insensitive" } }
+      ];
+    }
+
+    const [total, rows] = await Promise.all([
+      this.prisma.user.count({ where }),
+      this.prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          email: true,
+          studentId: true,
+          role: true,
+          emailVerifiedAt: true,
+          lastLoginAt: true,
+          loginAttempts: true,
+          lockedUntil: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        skip
+      })
     ]);
-    const total = Number(countRows[0]?.total ?? 0);
+
     const users = rows.map((r) => ({
-      id: r.id, email: r.email, studentId: r.student_id, role: r.role,
-      emailVerifiedAt: r.email_verified_at, lastLoginAt: r.last_login_at,
-      loginAttempts: Number(r.login_attempts), lockedUntil: r.locked_until, createdAt: r.created_at,
+      id: r.id,
+      email: r.email,
+      studentId: r.studentId,
+      role: r.role,
+      emailVerifiedAt: r.emailVerifiedAt,
+      lastLoginAt: r.lastLoginAt,
+      loginAttempts: r.loginAttempts,
+      lockedUntil: r.lockedUntil,
+      createdAt: r.createdAt
     }));
     return { total, page, limit, users };
   }
