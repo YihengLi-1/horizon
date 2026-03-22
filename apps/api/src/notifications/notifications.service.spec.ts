@@ -249,4 +249,108 @@ describe("NotificationsService", () => {
 
     await expect(service.getUnreadCount("u1")).resolves.toEqual({ count: 7 });
   });
+
+  it("sendPasswordResetEmail 委托发送密码重置邮件", async () => {
+    process.env.MAIL_ENABLED = "true";
+    process.env.SMTP_HOST = "smtp.example.com";
+    process.env.SMTP_USER = "mailer";
+    process.env.SMTP_PASS = "secret";
+    const sendMail = jest.fn().mockResolvedValue(undefined);
+    createTransportMock.mockReturnValue({ sendMail });
+
+    const { service, prisma } = createNotificationsService();
+    prisma.user.findFirst.mockResolvedValue(null);
+
+    const result = await service.sendPasswordResetEmail({
+      to: "student@univ.edu",
+      resetLink: "https://sis.test/reset?t=tok",
+      expiresMinutes: 60
+    });
+
+    expect(result).toBe(true);
+    expect(sendMail).toHaveBeenCalledTimes(1);
+    expect(sendMail.mock.calls[0][0].subject).toContain("Reset");
+  });
+
+  it("sendEnrollmentSubmissionEmail 委托发送注册确认邮件", async () => {
+    process.env.MAIL_ENABLED = "true";
+    process.env.SMTP_HOST = "smtp.example.com";
+    process.env.SMTP_USER = "mailer";
+    process.env.SMTP_PASS = "secret";
+    const sendMail = jest.fn().mockResolvedValue(undefined);
+    createTransportMock.mockReturnValue({ sendMail });
+
+    const { service, prisma } = createNotificationsService();
+    prisma.user.findFirst.mockResolvedValue(null);
+
+    const result = await service.sendEnrollmentSubmissionEmail({
+      to: "stu@univ.edu",
+      legalName: "Alice",
+      termName: "Fall 2026",
+      items: [
+        { courseCode: "CS101", sectionCode: "001", status: "ENROLLED", waitlistPosition: null }
+      ]
+    });
+
+    expect(result).toBe(true);
+    expect(sendMail.mock.calls[0][0].subject).toContain("Fall 2026");
+  });
+
+  it("sendWaitlistPromotionEmail 委托发送候补升级邮件", async () => {
+    process.env.MAIL_ENABLED = "true";
+    process.env.SMTP_HOST = "smtp.example.com";
+    process.env.SMTP_USER = "mailer";
+    process.env.SMTP_PASS = "secret";
+    const sendMail = jest.fn().mockResolvedValue(undefined);
+    createTransportMock.mockReturnValue({ sendMail });
+
+    const { service, prisma } = createNotificationsService();
+    prisma.user.findFirst.mockResolvedValue(null);
+
+    const result = await service.sendWaitlistPromotionEmail({
+      to: "stu@univ.edu",
+      legalName: "Bob",
+      termName: "Spring 2027",
+      courseCode: "CS201",
+      sectionCode: "002"
+    });
+
+    expect(result).toBe(true);
+    expect(sendMail.mock.calls[0][0].subject).toContain("waitlist");
+  });
+
+  it("sendGradePostedEmail 委托发送成绩通知邮件", async () => {
+    process.env.MAIL_ENABLED = "true";
+    process.env.SMTP_HOST = "smtp.example.com";
+    process.env.SMTP_USER = "mailer";
+    process.env.SMTP_PASS = "secret";
+    const sendMail = jest.fn().mockResolvedValue(undefined);
+    createTransportMock.mockReturnValue({ sendMail });
+
+    const { service, prisma } = createNotificationsService();
+    prisma.user.findFirst.mockResolvedValue(null);
+
+    const result = await service.sendGradePostedEmail({
+      to: "stu@univ.edu",
+      legalName: "Carol",
+      termName: "Fall 2026",
+      courseCode: "CS301",
+      sectionCode: "003",
+      finalGrade: "A"
+    });
+
+    expect(result).toBe(true);
+    expect(sendMail.mock.calls[0][0].subject).toContain("grade");
+  });
+
+  it("recordNotification 持久化通知日志", async () => {
+    const { service, prisma } = createNotificationsService();
+    prisma.notificationLog.create.mockResolvedValue({ id: "nl-1" });
+
+    const result = await service.recordNotification("u1", "系统通知", "维护提醒", "system");
+    expect(result).toEqual({ ok: true });
+    expect(prisma.notificationLog.create).toHaveBeenCalledWith({
+      data: { userId: "u1", type: "system", subject: "系统通知", body: "维护提醒" }
+    });
+  });
 });

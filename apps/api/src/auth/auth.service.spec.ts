@@ -432,5 +432,116 @@ describe("AuthService", () => {
 
       await expect(service.resetPassword("used", "NewPass1!")).rejects.toBeInstanceOf(BadRequestException);
     });
+
+    it("throws when token not found", async () => {
+      const { prisma, service } = createAuthService();
+      prisma.passwordResetToken.findUnique.mockResolvedValue(null);
+
+      await expect(service.resetPassword("ghost", "NewPass1!")).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("throws WEAK_PASSWORD when new password is too simple", async () => {
+      const { prisma, service } = createAuthService();
+      prisma.passwordResetToken.findUnique.mockResolvedValue({
+        id: "prt-1",
+        token: "valid-tok",
+        userId: "u1",
+        usedAt: null,
+        expiresAt: new Date(Date.now() + 60_000)
+      });
+      prisma.user.findUnique.mockResolvedValue({ id: "u1", email: "u@t.com", deletedAt: null });
+
+      await expect(service.resetPassword("valid-tok", "short")).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("successfully resets password and invalidates sessions", async () => {
+      const { prisma, auditService, service } = createAuthService();
+      // Pre-load an active session for this user
+      const { activeSessions: sessions } = await import("./auth.service");
+      sessions.set("sess-abc", { userId: "u1", email: "u@t.com", loginAt: new Date() });
+
+      prisma.passwordResetToken.findUnique.mockResolvedValue({
+        id: "prt-1",
+        token: "valid-tok",
+        userId: "u1",
+        usedAt: null,
+        expiresAt: new Date(Date.now() + 60_000)
+      });
+      prisma.user.findUnique.mockResolvedValue({ id: "u1", email: "u@t.com", deletedAt: null });
+      prisma.$transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) => {
+        const tx = {
+          user: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+          passwordResetToken: { updateMany: jest.fn().mockResolvedValue({}) },
+          refreshToken: { deleteMany: jest.fn().mockResolvedValue({}) }
+        };
+        return fn(tx);
+      });
+
+      const result = await service.resetPassword("valid-tok", "StrongPass1!");
+      expect(result).toEqual({ message: "密码已重置，请重新登录" });
+      expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({ action: "password_reset" }));
+      // Session should be purged
+      expect(sessions.has("sess-abc")).toBe(false);
+    });
+  });
+
+  describe("changePassword", () => {
+    it("throws USER_NOT_FOUND when user does not exist", async () => {
+      const { prisma, service } = createAuthService();
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(service.changePassword("u1", "old", "NewPass1!")).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it("throws INVALID_CURRENT_PASSWORD when old password is wrong", async () => {
+      const { prisma, service } = createAuthService();
+      const argon2mod = await import("argon2");
+      prisma.user.findFirst.mockResolvedValue({
+        id: "u1",
+        passwordHash: await argon2mod.default.hash("CorrectPass1!")
+      });
+
+      await expect(service.changePassword("u1", "WrongPass1!", "NewPass1!")).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+  });
+
+  describe("checkEmailExists", () => {
+    it("returns { exists: false } for blank email", async () => {
+      const { service } = createAuthService();
+      const result = await service.checkEmailExists("   ");
+      expect(result).toEqual({ exists: false });
+    });
+
+    it("returns { exists: true } when user found", async () => {
+      const { prisma, service } = createAuthService();
+      prisma.user.findFirst.mockResolvedValue({ id: "u1" });
+
+      const result = await service.checkEmailExists("existing@test.com");
+      expect(result).toEqual({ exists: true });
+    });
+
+    it("returns { exists: false } when user not found", async () => {
+      const { prisma, service } = createAuthService();
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      const result = await service.checkEmailExists("unknown@test.com");
+      expect(result).toEqual({ exists: false });
+    });
+  });
+
+  describe("unlockAccount", () => {
+    it("calls prisma.user.update with zeroed loginAttempts", async () => {
+      const { prisma, service } = createAuthService();
+      prisma.user.update.mockResolvedValue({});
+
+      const result = await service.unlockAccount("u1");
+      expect(result).toEqual({ unlocked: true });
+      expect(prisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "u1" },
+          data: expect.objectContaining({ loginAttempts: 0, lockedUntil: null })
+        })
+      );
+    });
   });
 });
