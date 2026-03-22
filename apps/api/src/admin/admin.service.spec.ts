@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
 import { apiCache } from "../common/cache";
 import { sanitizeHtml } from "../common/sanitize";
 import { AdminReportingService } from "./admin-reporting.service";
@@ -8,25 +8,32 @@ function createAdminService(overrides?: Record<string, unknown>) {
   const prisma = {
     auditLog: {
       findMany: jest.fn(),
+      findFirst: jest.fn(),
+      count: jest.fn(),
       create: jest.fn()
     },
     user: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
       findFirst: jest.fn(),
-      create: jest.fn()
+      count: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn()
     },
     enrollment: {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
+      groupBy: jest.fn(),
       count: jest.fn()
     },
     gradeAppeal: {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
       findMany: jest.fn(),
+      count: jest.fn(),
       update: jest.fn()
     },
     facultyProfile: {
@@ -37,20 +44,78 @@ function createAdminService(overrides?: Record<string, unknown>) {
     },
     section: {
       findMany: jest.fn(),
-      findUnique: jest.fn()
+      findUnique: jest.fn(),
+      count: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn()
+    },
+    term: {
+      count: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn()
+    },
+    course: {
+      count: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn()
+    },
+    coursePrerequisite: {
+      createMany: jest.fn(),
+      deleteMany: jest.fn()
+    },
+    studentNote: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn()
+    },
+    studentHold: {
+      count: jest.fn()
+    },
+    meetingTime: {
+      deleteMany: jest.fn()
+    },
+    inviteCode: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn()
+    },
+    announcement: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn()
+    },
+    systemSetting: {
+      findMany: jest.fn(),
+      upsert: jest.fn()
     },
     $queryRaw: jest.fn(),
-    $transaction: jest.fn(async (fn: any) => (typeof fn === "function" ? fn(prisma) : fn)),
+    $transaction: jest.fn(async (opsOrFn: any) =>
+      (typeof opsOrFn === "function" ? opsOrFn(prisma) : Promise.all(opsOrFn))
+    ),
     ...overrides
   } as any;
   const auditService = {
     log: jest.fn(),
     logInTransaction: jest.fn()
   } as any;
-  const notificationsService = {} as any;
+  const notificationsService = {
+    sendMail: jest.fn(),
+    sendWaitlistPromotionEmail: jest.fn()
+  } as any;
   const registrationService = {
     enroll: jest.fn(),
-    dropEnrollment: jest.fn()
+    dropEnrollment: jest.fn(),
+    normalizeWaitlistPositions: jest.fn()
   } as any;
   const governanceService = {
     listHolds: jest.fn(),
@@ -502,6 +567,1029 @@ describe("AdminService helpers", () => {
         false,
         "维持原判"
       );
+    });
+  });
+
+  describe("AdminReporting proxies", () => {
+    it("listEnrollments 返回分页结果", async () => {
+      const { prisma, service } = createAdminService();
+      const rows = [
+        {
+          id: "enr-1",
+          createdAt: new Date("2026-03-01T00:00:00Z"),
+          student: { studentProfile: { legalName: "张小明" } },
+          term: { id: "term-1" },
+          section: { course: { code: "CS101" }, meetingTimes: [] }
+        }
+      ];
+      prisma.enrollment.count.mockResolvedValue(1);
+      prisma.enrollment.findMany.mockResolvedValue(rows);
+
+      const result = await service.listEnrollments({
+        termId: "term-1",
+        status: "ENROLLED",
+        search: "张小明",
+        page: 2,
+        pageSize: 10
+      });
+
+      expect(prisma.enrollment.count).toHaveBeenCalled();
+      expect(prisma.enrollment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: { createdAt: "desc" },
+          skip: 10,
+          take: 10
+        })
+      );
+      expect(result).toEqual({
+        data: rows,
+        total: 1,
+        page: 2,
+        pageSize: 10
+      });
+    });
+
+    it("bulkApproveEnrollments 空数组直接返回", async () => {
+      const { prisma, service } = createAdminService();
+
+      await expect(service.bulkApproveEnrollments([], "admin-1")).resolves.toEqual({ approved: 0 });
+      expect(prisma.enrollment.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("bulkApproveEnrollments 去重后批量批准并记审计", async () => {
+      const { prisma, auditService, service } = createAdminService();
+      prisma.enrollment.updateMany.mockResolvedValue({ count: 2 });
+
+      await expect(service.bulkApproveEnrollments(["e1", "e1", "e2"], "admin-1")).resolves.toEqual({
+        approved: 2
+      });
+
+      expect(prisma.enrollment.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: { in: ["e1", "e2"] },
+          deletedAt: null,
+          status: "PENDING_APPROVAL"
+        },
+        data: { status: "ENROLLED" }
+      });
+      expect(auditService.log).toHaveBeenCalled();
+    });
+
+    it("getPendingOverloads 聚合当前学分", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.enrollment.findMany.mockResolvedValue([
+        {
+          id: "enr-1",
+          studentId: "stu-1",
+          termId: "term-1",
+          createdAt: new Date("2026-03-01T00:00:00Z"),
+          student: {
+            email: "student@univ.edu",
+            studentId: "U250001",
+            studentProfile: { legalName: "张小明" }
+          },
+          section: {
+            id: "sec-1",
+            sectionCode: "CS301-01",
+            credits: 3,
+            course: { code: "CS301", title: "操作系统原理" },
+            term: { name: "2026春季学期" }
+          }
+        }
+      ]);
+      prisma.$queryRaw.mockResolvedValue([{ studentId: "stu-1", termId: "term-1", totalCredits: 9n }]);
+
+      const rows = await service.getPendingOverloads();
+
+      expect(rows).toEqual([
+        expect.objectContaining({
+          currentCredits: 9,
+          requestedCredits: 3,
+          studentEmail: "student@univ.edu",
+          courseCode: "CS301"
+        })
+      ]);
+    });
+
+    it("getStudentNotes 返回真实备注列表", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.studentNote.findMany.mockResolvedValue([{ id: "n1", content: "需要导师跟进" }]);
+
+      await expect(service.getStudentNotes("stu-1")).resolves.toEqual([{ id: "n1", content: "需要导师跟进" }]);
+      expect(prisma.studentNote.findMany).toHaveBeenCalledWith({
+        where: { studentId: "stu-1" },
+        orderBy: { createdAt: "desc" },
+        include: { admin: { select: { email: true } } }
+      });
+    });
+
+    it("createStudentNote 会清洗内容并写审计", async () => {
+      const { prisma, auditService, service } = createAdminService();
+      prisma.user.findUnique.mockResolvedValue({ id: "stu-1" });
+      prisma.studentNote.create.mockResolvedValue({
+        id: "note-1",
+        content: "<p>需要关注</p>",
+        admin: { email: "admin@univ.edu" }
+      });
+
+      const note = await service.createStudentNote("admin-1", "stu-1", '<p>需要关注</p><script>alert(1)</script>', "FOLLOW_UP");
+
+      expect(prisma.studentNote.create).toHaveBeenCalledWith({
+        data: {
+          adminId: "admin-1",
+          studentId: "stu-1",
+          content: "<p>需要关注</p>",
+          flag: "FOLLOW_UP"
+        },
+        include: { admin: { select: { email: true } } }
+      });
+      expect(auditService.log).toHaveBeenCalled();
+      expect(note.id).toBe("note-1");
+    });
+
+    it("deleteStudentNote 删除不存在的备注时抛错", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.studentNote.findUnique.mockResolvedValue(null);
+
+      await expect(service.deleteStudentNote("admin-1", "missing")).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("deleteStudentNote 成功删除并写审计", async () => {
+      const { prisma, auditService, service } = createAdminService();
+      prisma.studentNote.findUnique.mockResolvedValue({ id: "note-1", studentId: "stu-1" });
+      prisma.studentNote.delete.mockResolvedValue({});
+
+      await expect(service.deleteStudentNote("admin-1", "note-1")).resolves.toEqual({ deleted: true });
+      expect(prisma.studentNote.delete).toHaveBeenCalledWith({ where: { id: "note-1" } });
+      expect(auditService.log).toHaveBeenCalled();
+    });
+
+    it("getStudentTags 在学生不存在时抛错", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(service.getStudentTags("missing")).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("getStudentTags 从最新审计记录提取标签", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.user.findFirst.mockResolvedValue({ id: "stu-1" });
+      prisma.auditLog.findFirst.mockResolvedValue({ metadata: { tags: ["预警", "重点关注"] } });
+
+      await expect(service.getStudentTags("stu-1")).resolves.toEqual({
+        studentId: "stu-1",
+        tags: ["预警", "重点关注"]
+      });
+    });
+
+    it("setStudentTags 规范化标签后写审计", async () => {
+      const { prisma, auditService, service } = createAdminService();
+      prisma.user.findFirst.mockResolvedValue({ id: "stu-1" });
+
+      await expect(
+        service.setStudentTags("admin-1", "stu-1", [" 预警 ", "重点关注", "预警", ""])
+      ).resolves.toEqual({
+        studentId: "stu-1",
+        tags: ["预警", "重点关注"]
+      });
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "STUDENT_TAGS_SET",
+          metadata: { tags: ["预警", "重点关注"] }
+        })
+      );
+    });
+
+    it("getBulkStudentTags 空数组直接返回空对象", async () => {
+      const { service } = createAdminService();
+      await expect(service.getBulkStudentTags([])).resolves.toEqual({});
+    });
+
+    it("getBulkStudentTags 返回批量标签映射", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.$queryRaw.mockResolvedValue([{ entityId: "stu-1", metadata: { tags: ["重点关注"] } }]);
+
+      await expect(service.getBulkStudentTags(["stu-1", "stu-2"])).resolves.toEqual({
+        "stu-1": ["重点关注"],
+        "stu-2": []
+      });
+    });
+
+    it("getSystemAlerts 组合关键运营告警", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.gradeAppeal.count.mockResolvedValue(2);
+      prisma.enrollment.count
+        .mockResolvedValueOnce(3)
+        .mockResolvedValueOnce(5)
+        .mockResolvedValueOnce(4);
+      prisma.studentHold.count.mockResolvedValue(1);
+      prisma.term.findMany
+        .mockResolvedValueOnce([{ id: "future-1" }])
+        .mockResolvedValueOnce([{ id: "past-1" }]);
+      prisma.section.findMany.mockResolvedValue([
+        { id: "sec-1", capacity: 10, course: { code: "CS101" }, _count: { enrollments: 9 } }
+      ]);
+
+      const alerts = await service.getSystemAlerts();
+
+      expect(alerts.map((alert) => alert.id)).toEqual(
+        expect.arrayContaining([
+          "missing-grades",
+          "grade-appeals",
+          "pending-enrollments",
+          "active-holds",
+          "near-capacity",
+          "not-closed-out"
+        ])
+      );
+    });
+
+    it("getGraduationClearance 计算可毕业状态", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.user.findMany.mockResolvedValue([
+        {
+          id: "stu-1",
+          email: "student@univ.edu",
+          studentProfile: { legalName: "张小明", programMajor: "计算机科学" },
+          enrollments: [
+            { status: "COMPLETED", finalGrade: "A", section: { credits: 120 } }
+          ]
+        },
+        {
+          id: "stu-2",
+          email: "student2@univ.edu",
+          studentProfile: { legalName: "李同学", programMajor: "数学" },
+          enrollments: [
+            { status: "COMPLETED", finalGrade: null, section: { credits: 60 } },
+            { status: "PENDING_APPROVAL", finalGrade: null, section: { credits: 3 } }
+          ]
+        }
+      ]);
+      prisma.gradeAppeal.findMany.mockResolvedValue([{ studentId: "stu-2" }]);
+
+      const result = await service.getGraduationClearance(120);
+
+      expect(result[0]).toEqual(expect.objectContaining({ userId: "stu-1", eligible: true, creditsDone: 120 }));
+      expect(result[1]).toEqual(expect.objectContaining({ userId: "stu-2", eligible: false, openAppeals: 1 }));
+    });
+
+    it("getEnrollmentAudit 返回汇总与日期格式化行", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.enrollment.findMany.mockResolvedValue([
+        {
+          id: "enr-1",
+          status: "ENROLLED",
+          finalGrade: null,
+          createdAt: new Date("2026-01-05T00:00:00Z"),
+          droppedAt: null,
+          student: { email: "student@univ.edu", studentId: "U250001" },
+          section: {
+            sectionCode: "CS101-01",
+            course: { code: "CS101", title: "计算机科学导论" },
+            term: { name: "2026春季学期" }
+          }
+        },
+        {
+          id: "enr-2",
+          status: "DROPPED",
+          finalGrade: null,
+          createdAt: new Date("2026-01-06T00:00:00Z"),
+          droppedAt: new Date("2026-01-10T00:00:00Z"),
+          student: { email: "student2@univ.edu", studentId: null },
+          section: {
+            sectionCode: "CS102-01",
+            course: { code: "CS102", title: "程序设计" },
+            term: { name: "2026春季学期" }
+          }
+        }
+      ]);
+
+      const result = await service.getEnrollmentAudit("term-1");
+
+      expect(result.summary).toEqual({
+        total: 2,
+        enrolled: 1,
+        completed: 0,
+        dropped: 1,
+        waitlisted: 0
+      });
+      expect(result.rows[0]).toEqual(expect.objectContaining({ enrolledAt: "2026-01-05" }));
+      expect(result.rows[1]).toEqual(expect.objectContaining({ studentId: "—", droppedAt: "2026-01-10" }));
+    });
+
+    it("getPrereqMap 返回节点和边", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.course.findMany.mockResolvedValue([
+        {
+          id: "course-1",
+          code: "CS101",
+          title: "计算机科学导论",
+          credits: 3,
+          prerequisiteLinks: []
+        },
+        {
+          id: "course-2",
+          code: "CS201",
+          title: "数据结构",
+          credits: 3,
+          prerequisiteLinks: [
+            { prerequisiteCourse: { id: "course-1", code: "CS101", title: "计算机科学导论" } }
+          ]
+        }
+      ]);
+
+      const result = await service.getPrereqMap();
+
+      expect(result.summary).toEqual({
+        totalCourses: 2,
+        coursesWithPrereqs: 1,
+        totalPrereqRelations: 1
+      });
+      expect(result.edges).toEqual([
+        { from: "course-1", to: "course-2", fromCode: "CS101", toCode: "CS201" }
+      ]);
+    });
+
+    it("getSectionRoster 返回名册统计与平均绩点", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.section.findUnique.mockResolvedValue({
+        id: "sec-1",
+        capacity: 30,
+        instructorName: "王老师",
+        course: { code: "CS101", title: "计算机科学导论", credits: 3 },
+        term: { name: "2026春季学期" },
+        instructorUser: { email: "faculty@univ.edu" },
+        enrollments: [
+          {
+            id: "e1",
+            status: "ENROLLED",
+            finalGrade: null,
+            createdAt: new Date("2026-01-01T00:00:00Z"),
+            student: { email: "student1@univ.edu", studentProfile: { legalName: "张小明" } }
+          },
+          {
+            id: "e2",
+            status: "COMPLETED",
+            finalGrade: "A",
+            createdAt: new Date("2026-01-02T00:00:00Z"),
+            student: { email: "student2@univ.edu", studentProfile: { legalName: "李雅文" } }
+          }
+        ]
+      });
+
+      const roster = await service.getSectionRoster("sec-1");
+
+      expect(roster).toEqual(
+        expect.objectContaining({
+          sectionId: "sec-1",
+          enrolled: 1,
+          completed: 1,
+          dropped: 0,
+          avgGpa: 4
+        })
+      );
+      expect(roster.roster[0]).toEqual(expect.objectContaining({ no: 1, name: "张小明" }));
+    });
+
+    it("getRegistrationWindows 返回状态和优先窗口", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.term.findMany.mockResolvedValue([
+        {
+          id: "term-1",
+          name: "2026春季学期",
+          startDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
+          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          registrationOpenAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+          registrationCloseAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+        }
+      ]);
+
+      const rows = await service.getRegistrationWindows();
+
+      expect(rows[0].name).toBe("2026春季学期");
+      expect(rows[0].priorityWindows).toHaveLength(4);
+      expect(typeof rows[0].status).toBe("string");
+    });
+
+    it("getSystemHealth 返回运行状态摘要", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.$queryRaw.mockResolvedValue([{ ok: 1 }]);
+      prisma.term.findFirst
+        .mockResolvedValueOnce({ id: "term-1", name: "2026春季学期" })
+        .mockResolvedValueOnce(null);
+      prisma.user.count.mockResolvedValue(120);
+      prisma.enrollment.count.mockResolvedValue(340);
+      prisma.auditLog.count.mockResolvedValue(2);
+
+      const result = await service.getSystemHealth();
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          dbOk: true,
+          totalStudents: 120,
+          totalEnrollments: 340,
+          activeTermName: "2026春季学期",
+          recentErrors: 2
+        })
+      );
+    });
+
+    it("listUsers 返回分页用户列表", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.user.count.mockResolvedValue(1);
+      prisma.user.findMany.mockResolvedValue([
+        {
+          id: "u1",
+          email: "student@univ.edu",
+          studentId: "U250001",
+          role: "STUDENT",
+          emailVerifiedAt: null,
+          lastLoginAt: null,
+          loginAttempts: 0,
+          lockedUntil: null,
+          createdAt: new Date("2026-01-01T00:00:00Z")
+        }
+      ]);
+
+      const result = await service.listUsers({ search: "student", role: "STUDENT", page: 1, limit: 20 });
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 20,
+          skip: 0,
+          orderBy: { createdAt: "desc" }
+        })
+      );
+      expect(result.total).toBe(1);
+      expect(result.users[0]).toEqual(expect.objectContaining({ email: "student@univ.edu", role: "STUDENT" }));
+    });
+  });
+
+  describe("Dashboard and listing", () => {
+    it("dashboard 返回当前学期运营概览", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.user.count.mockResolvedValue(120);
+      prisma.term.count.mockResolvedValue(3);
+      prisma.course.count.mockResolvedValue(15);
+      prisma.section.count.mockResolvedValue(20);
+      prisma.enrollment.count
+        .mockResolvedValueOnce(80)
+        .mockResolvedValueOnce(6)
+        .mockResolvedValueOnce(4)
+        .mockResolvedValueOnce(40)
+        .mockResolvedValueOnce(8);
+      prisma.term.findFirst.mockResolvedValue({
+        id: "term-1",
+        name: "2026春季学期",
+        registrationOpenAt: new Date("2026-01-01T00:00:00Z"),
+        registrationCloseAt: new Date("2026-01-20T00:00:00Z"),
+        registrationOpen: true,
+        dropDeadline: new Date("2026-02-15T00:00:00Z"),
+        _count: { sections: 20, enrollments: 132 }
+      });
+      prisma.auditLog.findMany.mockResolvedValue([
+        {
+          id: "log-1",
+          action: "admin_crud",
+          entityType: "term",
+          createdAt: new Date("2026-03-01T00:00:00Z"),
+          actor: { email: "admin@univ.edu", role: "ADMIN" }
+        }
+      ]);
+
+      const result = await service.dashboard();
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          students: 120,
+          terms: 3,
+          courses: 15,
+          sections: 20,
+          enrollments: 138,
+          waitlist: 6,
+          activeTerm: expect.objectContaining({ name: "2026春季学期" }),
+          recentActivity: [expect.objectContaining({ actorEmail: "admin@univ.edu" })]
+        })
+      );
+    });
+
+    it("listTerms 聚合 sectionCount 和 enrollmentCount", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.term.findMany.mockResolvedValue([
+        {
+          id: "term-1",
+          name: "2026春季学期",
+          _count: { sections: 5 }
+        }
+      ]);
+      prisma.enrollment.groupBy.mockResolvedValue([
+        { termId: "term-1", _count: { id: 42 } }
+      ]);
+
+      const result = await service.listTerms();
+
+      expect(result).toEqual([
+        expect.objectContaining({
+          id: "term-1",
+          sectionCount: 5,
+          enrollmentCount: 42
+        })
+      ]);
+    });
+  });
+
+  describe("Admin CRUD", () => {
+    it("createTerm 会创建学期并记录审计", async () => {
+      const { prisma, auditService, service } = createAdminService();
+      prisma.term.create.mockResolvedValue({ id: "term-1", name: "2026春季学期" });
+
+      const term = await service.createTerm(
+        {
+          name: "2026春季学期",
+          startDate: "2026-01-10T00:00:00.000Z",
+          endDate: "2026-05-20T00:00:00.000Z",
+          registrationOpenAt: "2025-12-01T00:00:00.000Z",
+          registrationCloseAt: "2026-01-20T00:00:00.000Z",
+          registrationOpen: true,
+          dropDeadline: "2026-02-10T00:00:00.000Z",
+          maxCredits: 20,
+          timezone: "America/Los_Angeles"
+        },
+        "admin-1"
+      );
+
+      expect(prisma.term.create).toHaveBeenCalled();
+      expect(auditService.log).toHaveBeenCalled();
+      expect(term.id).toBe("term-1");
+    });
+
+    it("updateTerm 不存在时抛错，存在时更新", async () => {
+      const missing = createAdminService();
+      missing.prisma.term.findUnique.mockResolvedValue(null);
+      await expect(missing.service.updateTerm("missing", { name: "新学期" }, "admin-1")).rejects.toBeInstanceOf(
+        NotFoundException
+      );
+
+      const { prisma, auditService, service } = createAdminService();
+      prisma.term.findUnique.mockResolvedValue({
+        id: "term-1",
+        name: "旧学期",
+        startDate: new Date("2026-01-01T00:00:00Z"),
+        endDate: new Date("2026-05-01T00:00:00Z"),
+        registrationOpenAt: new Date("2025-12-01T00:00:00Z"),
+        registrationCloseAt: new Date("2026-01-15T00:00:00Z"),
+        registrationOpen: true,
+        dropDeadline: new Date("2026-02-01T00:00:00Z"),
+        maxCredits: 18,
+        timezone: "America/Los_Angeles"
+      });
+      prisma.term.update.mockResolvedValue({ id: "term-1", name: "新学期" });
+
+      await expect(service.updateTerm("term-1", { name: "新学期", maxCredits: 21 }, "admin-1")).resolves.toEqual({
+        id: "term-1",
+        name: "新学期"
+      });
+      expect(auditService.log).toHaveBeenCalled();
+    });
+
+    it("deleteTerm 有活跃注册时拒绝，无活跃注册时删除", async () => {
+      const blocked = createAdminService();
+      blocked.prisma.section.count.mockResolvedValue(2);
+      await expect(blocked.service.deleteTerm("term-1", "admin-1")).rejects.toBeInstanceOf(ConflictException);
+
+      const { prisma, auditService, service } = createAdminService();
+      prisma.section.count.mockResolvedValue(0);
+      prisma.term.delete.mockResolvedValue({});
+
+      await expect(service.deleteTerm("term-1", "admin-1")).resolves.toEqual({ id: "term-1" });
+      expect(prisma.term.delete).toHaveBeenCalledWith({ where: { id: "term-1" } });
+      expect(auditService.log).toHaveBeenCalled();
+    });
+
+    it("toggleTermRegistration 切换注册开关", async () => {
+      const { prisma, auditService, service } = createAdminService();
+      prisma.term.findUnique.mockResolvedValue({ id: "term-1", registrationOpen: true });
+      prisma.term.update.mockResolvedValue({ id: "term-1", registrationOpen: false });
+
+      await expect(service.toggleTermRegistration("term-1", "admin-1")).resolves.toEqual({
+        id: "term-1",
+        registrationOpen: false
+      });
+      expect(auditService.log).toHaveBeenCalled();
+    });
+
+    it("createCourse / updateCourse / deleteCourse 走真实前置校验", async () => {
+      const { prisma, auditService, service } = createAdminService();
+      prisma.course.create.mockResolvedValue({ id: "course-1" });
+      prisma.course.findUnique
+        .mockResolvedValueOnce({
+          id: "course-1",
+          code: "CS101",
+          title: "计算机科学导论",
+          description: "基础课",
+          credits: 3,
+          weeklyHours: 3,
+          deletedAt: null
+        })
+        .mockResolvedValueOnce({
+          id: "course-1",
+          code: "CS101",
+          title: "旧标题",
+          description: null,
+          credits: 3,
+          weeklyHours: null,
+          deletedAt: null
+        })
+        .mockResolvedValueOnce({ id: "course-1", deletedAt: null })
+        .mockResolvedValueOnce({ id: "course-1", deletedAt: null })
+        .mockResolvedValueOnce({ id: "course-1", deletedAt: null });
+      prisma.course.update.mockResolvedValue({ id: "course-1", code: "CS101", title: "新标题" });
+      prisma.coursePrerequisite.createMany.mockResolvedValue({ count: 1 });
+      prisma.coursePrerequisite.deleteMany.mockResolvedValue({ count: 1 });
+      prisma.section.count
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(0);
+
+      await service.createCourse(
+        {
+          code: "CS101",
+          title: "计算机科学导论",
+          description: "基础课",
+          credits: 3,
+          weeklyHours: 3,
+          prerequisiteCourseIds: ["course-pre-1"]
+        },
+        "admin-1"
+      );
+      await service.updateCourse("course-1", { title: "新标题", prerequisiteCourseIds: [] }, "admin-1");
+      await expect(service.deleteCourse("course-1", "admin-1")).rejects.toBeInstanceOf(ConflictException);
+
+      prisma.section.count.mockResolvedValueOnce(0);
+      await expect(service.deleteCourse("course-1", "admin-1")).resolves.toEqual({ id: "course-1" });
+      expect(auditService.log).toHaveBeenCalled();
+    });
+
+    it("listSections 计算平均评分", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.section.findMany.mockResolvedValue([
+        {
+          id: "sec-1",
+          ratings: [{ rating: 4 }, { rating: 5 }],
+          enrollments: [],
+          term: { id: "term-1" },
+          course: { id: "course-1" }
+        }
+      ]);
+
+      const rows = await service.listSections();
+      expect(rows[0].avgRating).toBe(4.5);
+    });
+
+    it("createSection / updateSection / deleteSection 完成基本 CRUD", async () => {
+      const { prisma, auditService, service } = createAdminService();
+      prisma.user.findFirst.mockResolvedValue({
+        id: "faculty-1",
+        email: "faculty@univ.edu",
+        facultyProfile: { displayName: "王老师" }
+      });
+      prisma.section.create.mockResolvedValue({ id: "sec-1", meetingTimes: [] });
+      prisma.section.findUnique
+        .mockResolvedValueOnce({
+          id: "sec-1",
+          termId: "term-1",
+          courseId: "course-1",
+          sectionCode: "CS101-01",
+          modality: "ON_CAMPUS",
+          capacity: 30,
+          credits: 3,
+          instructorName: "王老师",
+          location: "A101",
+          requireApproval: false,
+          startDate: null,
+          meetingTimes: [],
+          instructorUser: { id: "faculty-1" }
+        })
+        .mockResolvedValueOnce({ id: "sec-1", _count: { enrollments: 0 } });
+      prisma.section.update.mockResolvedValue({ id: "sec-1", meetingTimes: [], ratings: [], enrollments: [] });
+      prisma.section.delete.mockResolvedValue({});
+      prisma.meetingTime.deleteMany.mockResolvedValue({ count: 0 });
+
+      await service.createSection(
+        {
+          termId: "term-1",
+          courseId: "course-1",
+          sectionCode: "CS101-01",
+          modality: "ON_CAMPUS",
+          capacity: 30,
+          credits: 3,
+          instructorName: "王老师",
+          instructorUserId: "faculty-1",
+          location: "A101",
+          requireApproval: false,
+          meetingTimes: [{ weekday: 1, startMinutes: 540, endMinutes: 630 }]
+        },
+        "admin-1"
+      );
+      await service.updateSection(
+        "sec-1",
+        {
+          capacity: 35,
+          meetingTimes: [{ weekday: 3, startMinutes: 600, endMinutes: 690 }]
+        },
+        "admin-1"
+      );
+      await expect(service.deleteSection("sec-1", "admin-1")).resolves.toEqual({ id: "sec-1" });
+      expect(auditService.log).toHaveBeenCalled();
+    });
+
+    it("createInviteCode / updateInviteCode / deleteInviteCode 工作正常", async () => {
+      const { prisma, auditService, service } = createAdminService();
+      prisma.inviteCode.create.mockResolvedValue({ id: "invite-1", code: "SPRING2026" });
+      prisma.inviteCode.findUnique
+        .mockResolvedValueOnce({
+          id: "invite-1",
+          code: "SPRING2026",
+          expiresAt: null,
+          maxUses: null,
+          active: true
+        })
+        .mockResolvedValueOnce({
+          id: "invite-1",
+          code: "SPRING2026",
+          usedAt: null,
+          usedCount: 0
+        });
+      prisma.inviteCode.update.mockResolvedValue({ id: "invite-1", code: "SPRING2026A" });
+      prisma.inviteCode.delete.mockResolvedValue({});
+
+      await service.createInviteCode({ code: "SPRING2026", active: true }, "admin-1");
+      await service.updateInviteCode("invite-1", { code: "SPRING2026A" }, "admin-1");
+      await expect(service.deleteInviteCode("invite-1", "admin-1")).resolves.toEqual({ id: "invite-1" });
+      expect(auditService.log).toHaveBeenCalled();
+    });
+
+    it("updateUserRole / getAnnouncements / getUserLoginHistory / updateSystemSetting 可正常运行", async () => {
+      const { prisma, auditService, service } = createAdminService();
+      prisma.user.update.mockResolvedValue({ id: "user-1", role: "ADMIN" });
+      prisma.announcement.findMany.mockResolvedValue([{ id: "ann-1", title: "通知" }]);
+      prisma.user.findUnique.mockResolvedValue({ id: "user-1", role: "STUDENT", lastLoginAt: null, loginAttempts: 0, lockedUntil: null });
+      prisma.systemSetting.upsert.mockResolvedValue({ key: "registration_enabled", value: "true" });
+
+      await expect(service.updateUserRole("user-1", "ADMIN", "admin-1")).resolves.toEqual({
+        id: "user-1",
+        role: "ADMIN"
+      });
+      await expect(service.getAnnouncements()).resolves.toEqual([{ id: "ann-1", title: "通知" }]);
+      await expect(service.getUserLoginHistory("user-1")).resolves.toEqual({
+        id: "user-1",
+        role: "STUDENT",
+        lastLoginAt: null,
+        loginAttempts: 0,
+        lockedUntil: null
+      });
+      await expect(service.updateSystemSetting("registration_enabled", "true", "admin-1")).resolves.toEqual({
+        key: "registration_enabled",
+        value: "true"
+      });
+      expect(auditService.log).toHaveBeenCalled();
+    });
+
+    it("updateSystemSetting 遇到未知键时报错", async () => {
+      const { service } = createAdminService();
+      await expect(service.updateSystemSetting("unknown_key", "1", "admin-1")).rejects.toBeInstanceOf(
+        BadRequestException
+      );
+    });
+
+    it("notifySection 成功发送通知并返回发送统计", async () => {
+      const { prisma, auditService, service } = createAdminService();
+      prisma.section.findUnique.mockResolvedValue({
+        id: "sec-1",
+        course: { code: "CS101" },
+        sectionCode: "CS101-01"
+      });
+      prisma.enrollment.findMany.mockResolvedValue([
+        {
+          student: {
+            email: "student1@univ.edu",
+            studentProfile: { legalName: "张小明" }
+          }
+        },
+        {
+          student: {
+            email: "student2@univ.edu",
+            studentProfile: { legalName: "李雅文" }
+          }
+        }
+      ]);
+      const notificationsService = (service as any).notificationsService;
+      notificationsService.sendMail
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false);
+
+      const result = await service.notifySection("sec-1", "补课通知", "明天停课。", "admin-1");
+
+      expect(result).toEqual({ sent: 1, failed: 1, total: 2 });
+      expect(auditService.log).toHaveBeenCalled();
+    });
+
+    it("cloneSection 复制教学班和 meetingTimes", async () => {
+      const { prisma, auditService, service } = createAdminService();
+      prisma.section.findUnique.mockResolvedValue({
+        id: "sec-1",
+        courseId: "course-1",
+        termId: "term-1",
+        instructorName: "王老师",
+        location: "A101",
+        capacity: 30,
+        modality: "ON_CAMPUS",
+        credits: 3,
+        requireApproval: false,
+        startDate: null,
+        sectionCode: "CS101-01",
+        meetingTimes: [{ weekday: 1, startMinutes: 540, endMinutes: 630 }]
+      });
+      prisma.section.create.mockResolvedValue({ id: "sec-copy", meetingTimes: [{ weekday: 1 }] });
+
+      const clone = await service.cloneSection("sec-1", "admin-1", "term-2");
+
+      expect(prisma.section.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            termId: "term-2",
+            meetingTimes: {
+              create: [{ weekday: 1, startMinutes: 540, endMinutes: 630 }]
+            }
+          })
+        })
+      );
+      expect(auditService.log).toHaveBeenCalled();
+      expect(clone.id).toBe("sec-copy");
+    });
+
+    it("listSectionEnrollments 在 section 不存在时抛错，存在时返回注册记录", async () => {
+      const missing = createAdminService();
+      missing.prisma.section.findUnique.mockResolvedValue(null);
+      await expect(missing.service.listSectionEnrollments("missing")).rejects.toBeInstanceOf(NotFoundException);
+
+      const { prisma, service } = createAdminService();
+      prisma.section.findUnique.mockResolvedValue({ id: "sec-1" });
+      prisma.enrollment.findMany.mockResolvedValue([{ id: "enr-1" }]);
+      await expect(service.listSectionEnrollments("sec-1")).resolves.toEqual([{ id: "enr-1" }]);
+    });
+
+    it("getTermCloseoutPreview 和 bulkCloseOutTerm 返回正确摘要", async () => {
+      const { prisma, auditService, service } = createAdminService();
+      prisma.term.findUnique.mockResolvedValue({ id: "term-1", name: "2026春季学期" });
+      prisma.enrollment.count
+        .mockResolvedValueOnce(10)
+        .mockResolvedValueOnce(2)
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(8);
+      prisma.enrollment.updateMany.mockResolvedValue({ count: 10 });
+
+      await expect(service.getTermCloseoutPreview("term-1")).resolves.toEqual({
+        termId: "term-1",
+        termName: "2026春季学期",
+        enrolled: 10,
+        waitlisted: 2,
+        pendingApproval: 1,
+        completed: 8
+      });
+
+      await expect(service.bulkCloseOutTerm("term-1", "admin-1", "enroll_to_completed")).resolves.toEqual({
+        termId: "term-1",
+        termName: "2026春季学期",
+        action: "enroll_to_completed",
+        updated: 10
+      });
+      expect(auditService.log).toHaveBeenCalled();
+    });
+
+    it("adminDropEnrollment 会释放座位并自动晋升候补", async () => {
+      const { prisma, auditService, service } = createAdminService();
+      prisma.enrollment.findFirst
+        .mockResolvedValueOnce({
+          id: "enr-1",
+          status: "ENROLLED",
+          sectionId: "sec-1",
+          studentId: "stu-1",
+          waitlistPosition: null,
+          term: { name: "2026春季学期" },
+          student: { studentProfile: { legalName: "张小明" } },
+          section: {
+            sectionCode: "CS101-01",
+            course: { code: "CS101", title: "计算机科学导论" }
+          }
+        })
+        .mockResolvedValueOnce({
+          id: "enr-2",
+          studentId: "stu-2",
+          sectionId: "sec-1",
+          status: "WAITLISTED",
+          student: {
+            email: "waitlist@univ.edu",
+            studentProfile: { legalName: "李雅文" }
+          },
+          section: {
+            sectionCode: "CS101-01",
+            course: { code: "CS101", title: "计算机科学导论" },
+            term: { name: "2026春季学期" }
+          }
+        });
+      prisma.enrollment.update.mockResolvedValue({ id: "enr-1", status: "DROPPED" });
+      prisma.$transaction
+        .mockImplementationOnce(async (fn: any) =>
+          fn({
+            enrollment: { update: jest.fn().mockResolvedValue({ id: "enr-2" }) }
+          })
+        )
+        .mockImplementationOnce(async (fn: any) => fn({}));
+      const notificationsService = (service as any).notificationsService;
+      notificationsService.sendWaitlistPromotionEmail.mockResolvedValue(true);
+
+      const result = await service.adminDropEnrollment("enr-1", "admin-1");
+
+      expect(result).toEqual(expect.objectContaining({ seatFreed: true, promotedEnrollmentId: "enr-2" }));
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "AUTO_PROMOTE_WAITLIST", entityId: "enr-2" })
+      );
+      expect(notificationsService.sendWaitlistPromotionEmail).toHaveBeenCalled();
+    });
+
+    it("getAdminHolds / createAdminHold / removeAdminHold 走治理服务", async () => {
+      const { governanceService, service } = createAdminService();
+      governanceService.listHolds.mockResolvedValue([
+        { id: "h1", active: true },
+        { id: "h2", active: false }
+      ]);
+      governanceService.createHold.mockResolvedValue({ id: "h1" });
+      governanceService.resolveHold.mockResolvedValue({ id: "h1", active: false });
+
+      await expect(service.getAdminHolds("admin-1")).resolves.toEqual([{ id: "h1", active: true }]);
+      await expect(
+        service.createAdminHold("admin-1", { studentId: "stu-1", type: "FINANCIAL", reason: "欠费" } as any)
+      ).resolves.toEqual({ id: "h1" });
+      await expect(service.removeAdminHold("admin-1", "h1", "已处理")).resolves.toEqual({ id: "h1", active: false });
+    });
+
+    it("listInviteCodes / getSystemSettings 返回列表数据", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.inviteCode.findMany.mockResolvedValue([{ id: "invite-1", code: "SPRING2026" }]);
+      prisma.systemSetting.findMany.mockResolvedValue([{ key: "registration_enabled", value: "true" }]);
+
+      await expect(service.listInviteCodes()).resolves.toEqual([{ id: "invite-1", code: "SPRING2026" }]);
+      await expect(service.getSystemSettings()).resolves.toEqual([{ key: "registration_enabled", value: "true" }]);
+    });
+
+    it("createAnnouncement / updateAnnouncement / deleteAnnouncement 可正常执行", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.announcement.create.mockResolvedValue({ id: "ann-1", title: "选课提醒", audience: "ALL" });
+      prisma.announcement.update
+        .mockResolvedValueOnce({ id: "ann-1", title: "更新后的公告" })
+        .mockResolvedValueOnce({ id: "ann-1", active: false });
+
+      await expect(
+        service.createAnnouncement({
+          title: "选课提醒",
+          body: "<p>请按时选课</p><script>alert(1)</script>",
+          audience: "ALL",
+          pinned: true
+        })
+      ).resolves.toEqual({ id: "ann-1", title: "选课提醒", audience: "ALL" });
+
+      await expect(
+        service.updateAnnouncement("ann-1", { title: "更新后的公告", audience: "student" })
+      ).resolves.toEqual({ id: "ann-1", title: "更新后的公告" });
+
+      await expect(service.deleteAnnouncement("ann-1")).resolves.toEqual({ id: "ann-1", active: false });
+    });
+
+    it("getRegistrationStats 汇总状态、学期和热门教学班", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.enrollment.count.mockResolvedValue(120);
+      prisma.enrollment.groupBy
+        .mockResolvedValueOnce([
+          { status: "ENROLLED", _count: { id: 80 } },
+          { status: "WAITLISTED", _count: { id: 10 } }
+        ])
+        .mockResolvedValueOnce([
+          { termId: "term-1", _count: { id: 90 } }
+        ]);
+      prisma.section.findMany.mockResolvedValue([
+        {
+          id: "sec-1",
+          course: { code: "CS101", title: "计算机科学导论" },
+          _count: { enrollments: 40 }
+        }
+      ]);
+
+      await expect(service.getRegistrationStats()).resolves.toEqual({
+        total: 120,
+        byStatus: { ENROLLED: 80, WAITLISTED: 10 },
+        byTerm: [{ termId: "term-1", count: 90 }],
+        topSections: [{ id: "sec-1", code: "CS101", title: "计算机科学导论", count: 40 }]
+      });
     });
   });
 });

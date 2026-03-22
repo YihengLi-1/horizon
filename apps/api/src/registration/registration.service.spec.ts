@@ -1,4 +1,4 @@
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { hasMeetingConflict, RegistrationService } from "./registration.service";
 
 function createRegistrationService(overrides?: Partial<Record<string, unknown>>) {
@@ -7,7 +7,8 @@ function createRegistrationService(overrides?: Partial<Record<string, unknown>>)
       findUnique: jest.fn()
     },
     user: {
-      findUnique: jest.fn()
+      findUnique: jest.fn(),
+      findFirst: jest.fn()
     },
     course: {
       findUnique: jest.fn()
@@ -27,7 +28,8 @@ function createRegistrationService(overrides?: Partial<Record<string, unknown>>)
     cartItem: {
       findMany: jest.fn(),
       create: jest.fn(),
-      delete: jest.fn()
+      delete: jest.fn(),
+      deleteMany: jest.fn()
     },
     notificationLog: {
       create: jest.fn()
@@ -38,7 +40,8 @@ function createRegistrationService(overrides?: Partial<Record<string, unknown>>)
       create: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
-      createMany: jest.fn()
+      createMany: jest.fn(),
+      groupBy: jest.fn()
     },
     $transaction: jest.fn()
   } as any;
@@ -49,7 +52,9 @@ function createRegistrationService(overrides?: Partial<Record<string, unknown>>)
   } as any;
 
   const notificationsService = {
-    sendMail: jest.fn().mockResolvedValue(true)
+    sendMail: jest.fn().mockResolvedValue(true),
+    sendEnrollmentSubmissionEmail: jest.fn().mockResolvedValue(undefined),
+    sendGradePostedEmail: jest.fn().mockResolvedValue(undefined)
   } as any;
 
   const governanceService = {
@@ -651,4 +656,293 @@ describe("RegistrationService", () => {
       expect(governanceService.getApprovedCreditLimit).toHaveBeenCalledWith(expect.anything(), "student-1", "term-1", 18);
     });
   });
+
+
+  describe("submitCart 边界", () => {
+    it("购物车为空时抛 EMPTY_CART", async () => {
+      const { prisma, governanceService, service } = createRegistrationService();
+      prisma.term.findUnique.mockResolvedValue({
+        id: "term-1",
+        maxCredits: 18,
+        startDate: new Date("2026-09-01T00:00:00Z"),
+        registrationOpenAt: new Date("2025-08-01T00:00:00Z"),
+        registrationCloseAt: new Date("2099-09-10T00:00:00Z"),
+        endDate: new Date("2026-12-15T00:00:00Z")
+      });
+      prisma.cartItem.findMany.mockResolvedValue([]);
+      governanceService.getApprovedPrerequisiteOverrideSectionIds.mockResolvedValue(new Set<string>());
+
+      await expect(service.submitCart("student-1", { termId: "term-1" } as never, {} as never)).rejects.toMatchObject({
+        response: expect.objectContaining({ code: "EMPTY_CART" })
+      });
+    });
+
+    it("满班教学班会按候补创建 WAITLISTED 记录", async () => {
+      const { prisma, governanceService, notificationsService, service } = createRegistrationService();
+      const term = {
+        id: "term-1",
+        name: "2025年秋季学期",
+        maxCredits: 18,
+        startDate: new Date("2026-09-01T00:00:00Z"),
+        registrationOpenAt: new Date("2025-08-01T00:00:00Z"),
+        registrationCloseAt: new Date("2099-09-10T00:00:00Z"),
+        endDate: new Date("2026-12-15T00:00:00Z")
+      };
+      const cartItem = makeCartItem({
+        section: {
+          id: "section-1",
+          sectionCode: "SEC-1",
+          credits: 3,
+          capacity: 1,
+          requireApproval: false,
+          startDate: new Date("2026-09-01T00:00:00Z"),
+          term,
+          meetingTimes: [],
+          course: { code: "CS101", prerequisiteLinks: [] }
+        }
+      });
+      prisma.term.findUnique.mockResolvedValue(term);
+      prisma.cartItem.findMany.mockResolvedValue([cartItem]);
+      prisma.enrollment.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      prisma.enrollment.groupBy
+        .mockResolvedValueOnce([{ sectionId: "section-1", _count: { _all: 1 } }])
+        .mockResolvedValueOnce([]);
+      governanceService.getApprovedPrerequisiteOverrideSectionIds.mockResolvedValue(new Set<string>());
+
+      const tx = {
+        user: {
+          findUnique: jest.fn().mockResolvedValue({
+            studentId: "U250001",
+            createdAt: new Date("2025-01-01T00:00:00Z")
+          })
+        },
+        course: {
+          findUnique: jest.fn().mockResolvedValue({ id: "course-1", prerequisiteLinks: [] })
+        },
+        cartItem: {
+          findMany: jest.fn().mockResolvedValue([cartItem]),
+          deleteMany: jest.fn().mockResolvedValue({ count: 1 })
+        },
+        enrollment: {
+          findMany: jest
+            .fn()
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([
+              {
+                id: "enr-1",
+                sectionId: "section-1",
+                termId: "term-1",
+                status: "WAITLISTED",
+                waitlistPosition: 1,
+                section: {
+                  course: { code: "CS101" },
+                  meetingTimes: [],
+                  sectionCode: "SEC-1"
+                }
+              }
+            ]),
+          groupBy: jest.fn().mockResolvedValueOnce([{ sectionId: "section-1", _count: { _all: 1 } }]).mockResolvedValueOnce([]),
+          createMany: jest.fn().mockResolvedValue({ count: 1 })
+        },
+        $queryRaw: jest.fn().mockResolvedValue(undefined)
+      } as any;
+      jest.spyOn(service as any, "runEnrollmentTransactionWithRetry").mockImplementation(async (...args: any[]) => args[0](tx));
+      prisma.user.findFirst.mockResolvedValue({ id: "student-1", email: "student@univ.edu", studentProfile: { legalName: "张小明" } });
+      prisma.term.findUnique.mockResolvedValue(term);
+
+      const result = await service.submitCart("student-1", { termId: "term-1" } as never, {} as never);
+
+      expect(result[0]).toEqual(expect.objectContaining({ status: "WAITLISTED", waitlistPosition: 1 }));
+      expect(notificationsService.sendEnrollmentSubmissionEmail).toHaveBeenCalled();
+    });
+
+    it("时间冲突时返回 SUBMIT_VALIDATION_FAILED", async () => {
+      const { prisma, governanceService, service } = createRegistrationService();
+      const term = {
+        id: "term-1",
+        maxCredits: 18,
+        startDate: new Date("2026-09-01T00:00:00Z"),
+        registrationOpenAt: new Date("2025-08-01T00:00:00Z"),
+        registrationCloseAt: new Date("2099-09-10T00:00:00Z"),
+        endDate: new Date("2026-12-15T00:00:00Z")
+      };
+      prisma.term.findUnique.mockResolvedValue(term);
+      prisma.cartItem.findMany.mockResolvedValue([
+        makeCartItem({
+          section: {
+            id: "section-1",
+            sectionCode: "SEC-1",
+            credits: 3,
+            capacity: 30,
+            requireApproval: false,
+            startDate: new Date("2026-09-01T00:00:00Z"),
+            meetingTimes: [{ weekday: 1, startMinutes: 540, endMinutes: 600 }],
+            course: { code: "CS101", prerequisiteLinks: [] }
+          }
+        })
+      ]);
+      prisma.enrollment.findMany
+        .mockResolvedValueOnce([
+          {
+            sectionId: "existing",
+            status: "ENROLLED",
+            section: {
+              credits: 3,
+              meetingTimes: [{ weekday: 1, startMinutes: 570, endMinutes: 630 }]
+            }
+          }
+        ])
+        .mockResolvedValueOnce([]);
+      prisma.enrollment.groupBy.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+      governanceService.getApprovedPrerequisiteOverrideSectionIds.mockResolvedValue(new Set<string>());
+
+      await expect(service.submitCart("student-1", { termId: "term-1" } as never, {} as never)).rejects.toMatchObject({
+        response: expect.objectContaining({ code: "SUBMIT_VALIDATION_FAILED" })
+      });
+    });
+  });
+
+  describe("submitSectionGrades", () => {
+    it("actor 不存在时抛 USER_NOT_FOUND", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.section.findUnique.mockResolvedValue({ id: "section-1" });
+
+      await expect(service.submitSectionGrades("section-1", [{ enrollmentId: "e1", grade: "A" }], "missing")).rejects.toMatchObject({
+        response: expect.objectContaining({ code: "USER_NOT_FOUND" })
+      });
+    });
+
+    it("section 不存在时抛 SECTION_NOT_FOUND", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.user.findFirst.mockResolvedValue({ id: "faculty-1", role: "FACULTY" });
+      prisma.section.findUnique.mockResolvedValue(null);
+
+      await expect(service.submitSectionGrades("missing", [{ enrollmentId: "e1", grade: "A" }], "faculty-1")).rejects.toMatchObject({
+        response: expect.objectContaining({ code: "SECTION_NOT_FOUND" })
+      });
+    });
+
+    it("FACULTY 不能提交不属于自己的教学班成绩", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.user.findFirst.mockResolvedValue({ id: "faculty-1", role: "FACULTY" });
+      prisma.section.findUnique.mockResolvedValue({
+        id: "section-1",
+        instructorUserId: "faculty-2",
+        sectionCode: "SEC-1",
+        course: { code: "CS101", title: "导论" },
+        term: {
+          name: "2025年秋季学期",
+          registrationOpenAt: new Date("2025-01-01T00:00:00Z"),
+          registrationCloseAt: new Date("2025-02-01T00:00:00Z"),
+          startDate: new Date("2025-09-01T00:00:00Z"),
+          endDate: new Date("2099-12-01T00:00:00Z")
+        }
+      });
+
+      await expect(service.submitSectionGrades("section-1", [{ enrollmentId: "e1", grade: "A" }], "faculty-1")).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("未提交任何成绩时抛 NO_GRADES_SUBMITTED", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.user.findFirst.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+      prisma.section.findUnique.mockResolvedValue({
+        id: "section-1",
+        instructorUserId: null,
+        sectionCode: "SEC-1",
+        course: { code: "CS101", title: "导论" },
+        term: {
+          name: "2025年秋季学期",
+          registrationOpenAt: new Date("2025-01-01T00:00:00Z"),
+          registrationCloseAt: new Date("2025-02-01T00:00:00Z"),
+          startDate: new Date("2025-09-01T00:00:00Z"),
+          endDate: new Date("2025-12-01T00:00:00Z")
+        }
+      });
+
+      await expect(service.submitSectionGrades("section-1", [], "admin-1")).rejects.toMatchObject({
+        response: expect.objectContaining({ code: "NO_GRADES_SUBMITTED" })
+      });
+    });
+
+    it("无效成绩值时抛 BadRequestException", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.user.findFirst.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+      prisma.section.findUnique.mockResolvedValue({
+        id: "section-1",
+        instructorUserId: null,
+        sectionCode: "SEC-1",
+        course: { code: "CS101", title: "导论" },
+        term: {
+          name: "2025年秋季学期",
+          registrationOpenAt: new Date("2025-01-01T00:00:00Z"),
+          registrationCloseAt: new Date("2025-02-01T00:00:00Z"),
+          startDate: new Date("2025-09-01T00:00:00Z"),
+          endDate: new Date("2025-12-01T00:00:00Z")
+        }
+      });
+
+      await expect(service.submitSectionGrades("section-1", [{ enrollmentId: "e1", grade: "BAD" }], "admin-1")).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("成功录入成绩后返回 updated 数并发送邮件", async () => {
+      const { prisma, notificationsService, auditService, service } = createRegistrationService();
+      prisma.user.findFirst.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+      prisma.section.findUnique.mockResolvedValue({
+        id: "section-1",
+        instructorUserId: null,
+        sectionCode: "SEC-1",
+        course: { code: "CS101", title: "导论" },
+        term: {
+          name: "2025年秋季学期",
+          registrationOpenAt: new Date("2025-01-01T00:00:00Z"),
+          registrationCloseAt: new Date("2025-02-01T00:00:00Z"),
+          startDate: new Date("2025-09-01T00:00:00Z"),
+          endDate: new Date("2025-12-01T00:00:00Z")
+        }
+      });
+      prisma.enrollment.findMany.mockResolvedValue([
+        {
+          id: "e1",
+          status: "ENROLLED",
+          student: { email: "student@univ.edu", studentProfile: { legalName: "张小明" } },
+          section: { course: { code: "CS101" }, term: { name: "2025年秋季学期" } }
+        }
+      ]);
+      prisma.enrollment.update.mockResolvedValue({ id: "e1", finalGrade: "A", status: "COMPLETED" });
+
+      const result = await service.submitSectionGrades("section-1", [{ enrollmentId: "e1", grade: "A" }], "admin-1");
+
+      expect(result).toEqual({ updated: 1, succeeded: ["e1"], failed: [] });
+      expect(notificationsService.sendGradePostedEmail).toHaveBeenCalled();
+      expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({ action: "GRADE_BULK_UPDATE" }));
+    });
+  });
+
+  describe("dropEnrollment 边界", () => {
+    it("enrollment 不属于该 student 时拒绝", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.$transaction.mockImplementation(async (fn: (tx: any) => Promise<unknown>) =>
+        fn({
+          $queryRaw: jest.fn().mockResolvedValue(undefined),
+          enrollment: {
+            findFirst: jest.fn().mockResolvedValue({
+              id: "enrollment-1",
+              studentId: "other-student",
+              sectionId: "section-1",
+              status: "ENROLLED",
+              term: { dropDeadline: new Date("2099-01-01T00:00:00Z") },
+              section: { course: { code: "CS101" }, sectionCode: "SEC-1" }
+            })
+          }
+        })
+      );
+
+      await expect(
+        service.dropEnrollment("student-1", { enrollmentId: "enrollment-1" } as never, {} as never)
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
 });
