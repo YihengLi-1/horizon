@@ -372,6 +372,19 @@ export default async function StudentDashboardPage() {
 
   const nextAction = getNextAction(enrollments, cartItems, term, registrationState);
 
+  // Next-term awareness banner
+  const nextTerm = terms[1] ?? null;
+  const nextTermRegOpen = nextTerm ? new Date(nextTerm.registrationOpenAt) : null;
+  const nextTermDaysUntilOpen = nextTermRegOpen
+    ? Math.ceil((nextTermRegOpen.getTime() - now) / (24 * 60 * 60 * 1000))
+    : null;
+  // Show banner when: next term exists AND (reg already open, OR opens within 21 days)
+  const showNextTermBanner =
+    nextTerm !== null &&
+    nextTermDaysUntilOpen !== null &&
+    nextTermDaysUntilOpen <= 21;
+  const nextTermIsOpen = nextTermDaysUntilOpen !== null && nextTermDaysUntilOpen <= 0;
+
   return (
     <div className="campus-page">
       <section className="campus-hero">
@@ -397,6 +410,41 @@ export default async function StudentDashboardPage() {
           </div>
         </div>
       </section>
+
+      {/* Next-term switch banner */}
+      {showNextTermBanner && nextTerm ? (
+        <div className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-5 py-4 ${
+          nextTermIsOpen
+            ? "border-emerald-200 bg-emerald-50"
+            : "border-blue-200 bg-blue-50"
+        }`}>
+          <div className="flex items-center gap-3">
+            <span className="text-xl">{nextTermIsOpen ? "🎓" : "📅"}</span>
+            <div>
+              <p className={`text-sm font-semibold ${nextTermIsOpen ? "text-emerald-900" : "text-blue-900"}`}>
+                {nextTermIsOpen
+                  ? `${nextTerm.name} 选课已开放！`
+                  : `${nextTerm.name} 选课将在 ${nextTermDaysUntilOpen} 天后开放`}
+              </p>
+              <p className={`text-xs ${nextTermIsOpen ? "text-emerald-700" : "text-blue-700"}`}>
+                {nextTermIsOpen
+                  ? "前往课程目录浏览并加入购物车，完成下学期选课。"
+                  : `预计 ${nextTermRegOpen!.toLocaleDateString("zh-CN", { month: "long", day: "numeric" })} 开放，提前浏览课程做好准备。`}
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/student/catalog"
+            className={`shrink-0 rounded-xl px-4 py-2 text-xs font-semibold no-underline transition ${
+              nextTermIsOpen
+                ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                : "bg-blue-600 text-white hover:bg-blue-700"
+            }`}
+          >
+            {nextTermIsOpen ? "立即选课" : "浏览课程"}
+          </Link>
+        </div>
+      ) : null}
 
       <section className="campus-kpi-grid">
         {/* Registration state — dynamically colored */}

@@ -403,6 +403,18 @@ export class AdminController {
     return ok(await this.adminService.deleteInviteCode(id, user.userId));
   }
 
+  @Post("invite-codes/bulk")
+  @RequireAdminPermissions("invite-codes:write")
+  async bulkCreateInviteCodes(@Body() body: { rows: Array<{ code?: string; maxUses?: number | null; expiresAt?: string | null }> }, @CurrentUser() user: { userId: string }) {
+    return ok(await this.adminService.bulkCreateInviteCodes(body.rows ?? [], user.userId));
+  }
+
+  @Post("students/:id/reset-password")
+  @RequireAdminPermissions("students:write")
+  async adminResetStudentPassword(@Param("id") id: string, @CurrentUser() user: { userId: string }) {
+    return ok(await this.adminService.adminResetStudentPassword(id, user.userId));
+  }
+
   @Get("announcements")
   @RequireAdminPermissions("announcements:read")
   async getAnnouncements() {

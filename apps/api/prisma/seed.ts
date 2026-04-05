@@ -390,6 +390,171 @@ async function seedDegreePrograms() {
       }
     }
   });
+
+  await prisma.degreeProgram.create({
+    data: {
+      name: "工商管理（学士）",
+      totalCredits: 120,
+      minGpa: 2.0,
+      requirements: {
+        create: [
+          {
+            category: "core",
+            label: "管理学核心课程",
+            minCredits: 36,
+            minCourses: 0,
+            courseCodes: [],
+            prefixes: ["MGMT", "ACCT", "MKTG", "FINA"],
+            minGrade: "D"
+          },
+          {
+            category: "distribution",
+            label: "经济学基础",
+            minCredits: 12,
+            minCourses: 0,
+            courseCodes: [],
+            prefixes: ["ECON"],
+            minGrade: "D"
+          },
+          {
+            category: "elective",
+            label: "自由选修",
+            minCredits: 30,
+            minCourses: 0,
+            courseCodes: [],
+            prefixes: [],
+            minGrade: "D"
+          }
+        ]
+      }
+    }
+  });
+
+  await prisma.degreeProgram.create({
+    data: {
+      name: "数学（理学学士）",
+      totalCredits: 120,
+      minGpa: 2.0,
+      requirements: {
+        create: [
+          {
+            category: "core",
+            label: "数学核心课程",
+            minCredits: 42,
+            minCourses: 0,
+            courseCodes: [],
+            prefixes: ["MATH"],
+            minGrade: "C-"
+          },
+          {
+            category: "distribution",
+            label: "自然科学要求",
+            minCredits: 12,
+            minCourses: 0,
+            courseCodes: [],
+            prefixes: ["PHYS", "CS"],
+            minGrade: "D"
+          },
+          {
+            category: "elective",
+            label: "自由选修",
+            minCredits: 24,
+            minCourses: 0,
+            courseCodes: [],
+            prefixes: [],
+            minGrade: "D"
+          }
+        ]
+      }
+    }
+  });
+
+  await prisma.degreeProgram.create({
+    data: {
+      name: "英语（文学学士）",
+      totalCredits: 120,
+      minGpa: 2.0,
+      requirements: {
+        create: [
+          {
+            category: "core",
+            label: "英语语言文学核心",
+            minCredits: 36,
+            minCourses: 0,
+            courseCodes: [],
+            prefixes: ["ENGL"],
+            minGrade: "D"
+          },
+          {
+            category: "distribution",
+            label: "人文社科选修",
+            minCredits: 18,
+            minCourses: 0,
+            courseCodes: [],
+            prefixes: ["HIST", "PHIL", "SOC"],
+            minGrade: "D"
+          },
+          {
+            category: "elective",
+            label: "自由选修",
+            minCredits: 24,
+            minCourses: 0,
+            courseCodes: [],
+            prefixes: [],
+            minGrade: "D"
+          }
+        ]
+      }
+    }
+  });
+
+  await prisma.degreeProgram.create({
+    data: {
+      name: "金融学（经济学士）",
+      totalCredits: 120,
+      minGpa: 2.3,
+      requirements: {
+        create: [
+          {
+            category: "core",
+            label: "金融学核心课程",
+            minCredits: 36,
+            minCourses: 0,
+            courseCodes: [],
+            prefixes: ["FINA"],
+            minGrade: "C"
+          },
+          {
+            category: "distribution",
+            label: "经济与管理基础",
+            minCredits: 18,
+            minCourses: 0,
+            courseCodes: [],
+            prefixes: ["ECON", "ACCT", "MGMT"],
+            minGrade: "D"
+          },
+          {
+            category: "distribution",
+            label: "数学与统计要求",
+            minCredits: 12,
+            minCourses: 0,
+            courseCodes: [],
+            prefixes: ["MATH", "STAT"],
+            minGrade: "C-"
+          },
+          {
+            category: "elective",
+            label: "自由选修",
+            minCredits: 18,
+            minCourses: 0,
+            courseCodes: [],
+            prefixes: [],
+            minGrade: "D"
+          }
+        ]
+      }
+    }
+  });
 }
 
 async function seedTerms() {

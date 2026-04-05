@@ -1011,4 +1011,98 @@ describe("GovernanceService", () => {
     expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({ action: "student_hold_create" }));
     expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({ action: "student_hold_resolve" }));
   });
+
+  it("listMyHolds delegates to getActiveBlockingHolds", async () => {
+    const { prisma, service } = createGovernanceService();
+    prisma.studentHold.findMany.mockResolvedValue([
+      { id: "hold-1", type: "FINANCIAL", active: true }
+    ]);
+
+    const result = await service.listMyHolds("student-1");
+    expect(result).toHaveLength(1);
+    expect(prisma.studentHold.findMany).toHaveBeenCalled();
+  });
+
+  it("listMyAcademicRequests returns requests filtered by studentId", async () => {
+    const { prisma, service } = createGovernanceService();
+    prisma.academicRequest.findMany.mockResolvedValue([
+      { id: "req-1", type: "CREDIT_OVERLOAD", status: "SUBMITTED" }
+    ]);
+
+    const result = await service.listMyAcademicRequests("student-1");
+    expect(result).toHaveLength(1);
+    expect(prisma.academicRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ studentId: "student-1" })
+      })
+    );
+  });
+
+  it("listMyAcademicRequests filters by termId when provided", async () => {
+    const { prisma, service } = createGovernanceService();
+    prisma.academicRequest.findMany.mockResolvedValue([]);
+
+    await service.listMyAcademicRequests("student-1", "term-1");
+    expect(prisma.academicRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ studentId: "student-1", termId: "term-1" })
+      })
+    );
+  });
+
+  it("listAdminRequests delegates findMany to prisma after asserting admin", async () => {
+    const { prisma, service } = createGovernanceService();
+    // Admin exists
+    prisma.user.findFirst.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    prisma.academicRequest.findMany.mockResolvedValue([{ id: "req-1" }]);
+
+    const result = await service.listAdminRequests("admin-1");
+    expect(result).toHaveLength(1);
+  });
+
+  it("listHolds returns all holds for admin (no filter)", async () => {
+    const { prisma, service } = createGovernanceService();
+    prisma.user.findFirst.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    prisma.studentHold.findMany.mockResolvedValue([
+      { id: "h1", active: true },
+      { id: "h2", active: false }
+    ]);
+
+    const result = await service.listHolds("admin-1");
+    expect(result).toHaveLength(2);
+  });
+
+  it("listHolds filters by studentId when provided", async () => {
+    const { prisma, service } = createGovernanceService();
+    prisma.user.findFirst.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    prisma.studentHold.findMany.mockResolvedValue([{ id: "h1", active: true }]);
+
+    await service.listHolds("admin-1", "student-99");
+    expect(prisma.studentHold.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ studentId: "student-99" })
+      })
+    );
+  });
+
+  it("resolveHold throws HOLD_NOT_FOUND when hold does not exist", async () => {
+    const { prisma, service } = createGovernanceService();
+    prisma.user.findFirst.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    prisma.studentHold.findUnique.mockResolvedValue(null);
+
+    const { NotFoundException } = await import("@nestjs/common");
+    await expect(
+      service.resolveHold("admin-1", "missing-hold", { resolutionNote: "N/A" })
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("resolveHold throws HOLD_ALREADY_RESOLVED when hold is inactive", async () => {
+    const { prisma, service } = createGovernanceService();
+    prisma.user.findFirst.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    prisma.studentHold.findUnique.mockResolvedValue({ id: "h1", active: false });
+
+    await expect(
+      service.resolveHold("admin-1", "h1", { resolutionNote: "N/A" })
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
 });

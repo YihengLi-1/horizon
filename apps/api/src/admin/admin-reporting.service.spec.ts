@@ -983,4 +983,292 @@ describe("AdminReportingService", () => {
       });
     });
   });
+
+  describe("getCohortAnalytics", () => {
+    it("按入学年份分组学生并计算 retention 和 GPA", async () => {
+      const { service, prisma } = createReportingService();
+      prisma.user.findMany.mockResolvedValue([
+        {
+          id: "s1",
+          createdAt: new Date("2023-09-01T00:00:00Z"),
+          enrollments: [
+            { status: "ENROLLED", finalGrade: null, section: { credits: 3 } },
+            { status: "COMPLETED", finalGrade: "A", section: { credits: 3 } }
+          ]
+        },
+        {
+          id: "s2",
+          createdAt: new Date("2023-09-01T00:00:00Z"),
+          enrollments: [
+            { status: "DROPPED", finalGrade: null, section: { credits: 3 } }
+          ]
+        }
+      ]);
+
+      const result = await service.getCohortAnalytics();
+      expect(result).toHaveLength(1);
+      expect(result[0].year).toBe("2023");
+      expect(result[0].total).toBe(2);
+      expect(result[0].active).toBe(1);
+      expect(result[0].retentionPct).toBe(50);
+    });
+  });
+
+  describe("getStudentNotes / createStudentNote / deleteStudentNote", () => {
+    it("getStudentNotes 返回该学生的备注列表", async () => {
+      const { service, prisma } = createReportingService();
+      prisma.studentNote.findMany.mockResolvedValue([
+        { id: "note-1", content: "测试备注", flag: null, createdAt: new Date(), admin: { email: "admin@univ.edu" } }
+      ]);
+
+      const result = await service.getStudentNotes("student-1");
+      expect(result).toHaveLength(1);
+    });
+
+    it("createStudentNote 学生不存在时抛 NotFoundException", async () => {
+      const { service, prisma } = createReportingService();
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.createStudentNote("admin-1", "nonexistent", "测试")
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("createStudentNote 成功创建备注并记录审计", async () => {
+      const { service, prisma, auditService } = createReportingService();
+      prisma.user.findUnique.mockResolvedValue({ id: "student-1" });
+      prisma.studentNote.create.mockResolvedValue({
+        id: "note-1",
+        content: "测试备注",
+        flag: "risk",
+        createdAt: new Date(),
+        admin: { email: "admin@univ.edu" }
+      });
+
+      const result = await service.createStudentNote("admin-1", "student-1", "测试备注", "risk");
+      expect(result.id).toBe("note-1");
+      expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({ action: "NOTE_CREATED" }));
+    });
+
+    it("deleteStudentNote 备注不存在时抛 NotFoundException", async () => {
+      const { service, prisma } = createReportingService();
+      prisma.studentNote.findUnique.mockResolvedValue(null);
+
+      await expect(service.deleteStudentNote("admin-1", "nonexistent")).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("deleteStudentNote 成功删除备注", async () => {
+      const { service, prisma, auditService } = createReportingService();
+      prisma.studentNote.findUnique.mockResolvedValue({ id: "note-1", studentId: "student-1" });
+      prisma.studentNote.delete.mockResolvedValue({ id: "note-1" });
+
+      const result = await service.deleteStudentNote("admin-1", "note-1");
+      expect(result).toEqual({ deleted: true });
+      expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({ action: "NOTE_DELETED" }));
+    });
+  });
+
+  describe("getStudentTags / setStudentTags / getBulkStudentTags", () => {
+    it("getStudentTags 学生不存在时抛 NotFoundException", async () => {
+      const { service, prisma } = createReportingService();
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(service.getStudentTags("nonexistent")).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("getStudentTags 学生存在时返回标签", async () => {
+      const { service, prisma } = createReportingService();
+      prisma.user.findFirst.mockResolvedValue({ id: "student-1" });
+      prisma.auditLog.findFirst.mockResolvedValue({
+        metadata: { tags: ["优秀", "积极"] }
+      });
+
+      const result = await service.getStudentTags("student-1");
+      expect(result.tags).toEqual(["优秀", "积极"]);
+    });
+
+    it("setStudentTags 学生不存在时抛 NotFoundException", async () => {
+      const { service, prisma } = createReportingService();
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(service.setStudentTags("admin-1", "nonexistent", ["优秀"])).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("setStudentTags 成功写入标签并记录审计", async () => {
+      const { service, prisma, auditService } = createReportingService();
+      prisma.user.findFirst.mockResolvedValue({ id: "student-1" });
+
+      const result = await service.setStudentTags("admin-1", "student-1", ["优秀", "积极", " "]);
+      expect(result.tags).toEqual(["优秀", "积极"]);
+      expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({ action: "STUDENT_TAGS_SET" }));
+    });
+
+    it("getBulkStudentTags 空 ids 时返回空对象", async () => {
+      const { service } = createReportingService();
+      const result = await service.getBulkStudentTags([]);
+      expect(result).toEqual({});
+    });
+
+    it("getBulkStudentTags 有 ids 时返回各学生标签", async () => {
+      const { service, prisma } = createReportingService();
+      prisma.$queryRaw.mockResolvedValue([
+        { entityId: "s1", metadata: { tags: ["优秀"] } },
+        { entityId: "s2", metadata: { tags: ["积极", "勤奋"] } }
+      ]);
+
+      const result = await service.getBulkStudentTags(["s1", "s2", "s3"]);
+      expect(result["s1"]).toEqual(["优秀"]);
+      expect(result["s2"]).toEqual(["积极", "勤奋"]);
+      expect(result["s3"]).toEqual([]);
+    });
+  });
+
+  describe("getAvailableStudentTags", () => {
+    it("返回可用标签列表并过滤空值", async () => {
+      const { service, prisma } = createReportingService();
+      prisma.$queryRaw.mockResolvedValue([
+        { tag: "优秀" }, { tag: "积极" }, { tag: "" }
+      ]);
+
+      const result = await service.getAvailableStudentTags();
+      expect(result).toEqual(["优秀", "积极"]);
+    });
+  });
+
+  describe("getSectionEnrollmentTimeline", () => {
+    it("返回按日期聚合的入学人数曲线", async () => {
+      const { service, prisma } = createReportingService();
+      prisma.enrollment.findMany.mockResolvedValue([
+        { status: "ENROLLED", createdAt: new Date("2025-09-01T00:00:00Z"), droppedAt: null },
+        { status: "ENROLLED", createdAt: new Date("2025-09-01T00:00:00Z"), droppedAt: null },
+        { status: "DROPPED", createdAt: new Date("2025-09-02T00:00:00Z"), droppedAt: new Date("2025-09-05T00:00:00Z") }
+      ]);
+
+      const result = await service.getSectionEnrollmentTimeline("section-1");
+      expect(result).toBeDefined();
+      expect(result.points).toBeInstanceOf(Array);
+    });
+  });
+
+  describe("getTermComparison", () => {
+    it("throws NotFoundException when either term is not found", async () => {
+      const { service, prisma } = createReportingService();
+      prisma.term.findUnique.mockResolvedValue(null);
+
+      const { NotFoundException } = await import("@nestjs/common");
+      await expect(service.getTermComparison("term-a", "term-b")).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("returns comparison stats for two terms", async () => {
+      const { service, prisma } = createReportingService();
+      prisma.term.findUnique
+        .mockResolvedValueOnce({ id: "term-a", name: "2025春季" })
+        .mockResolvedValueOnce({ id: "term-b", name: "2025秋季" });
+
+      const enrollmentsMock = [
+        {
+          status: "ENROLLED",
+          finalGrade: null,
+          termId: "term-a",
+          section: { credits: 3, course: { code: "CS101" } }
+        },
+        {
+          status: "COMPLETED",
+          finalGrade: "A",
+          termId: "term-a",
+          section: { credits: 3, course: { code: "CS201" } }
+        },
+        {
+          status: "DROPPED",
+          finalGrade: null,
+          termId: "term-a",
+          section: { credits: 3, course: { code: "MATH101" } }
+        }
+      ];
+
+      const sectionsMock = [
+        { capacity: 30, _count: { enrollments: 20 } },
+        { capacity: 25, _count: { enrollments: 22 } }
+      ];
+
+      // Called twice (once for each term)
+      prisma.enrollment.findMany
+        .mockResolvedValueOnce(enrollmentsMock)
+        .mockResolvedValueOnce(enrollmentsMock);
+      prisma.section.findMany
+        .mockResolvedValueOnce(sectionsMock)
+        .mockResolvedValueOnce(sectionsMock);
+
+      const result = await service.getTermComparison("term-a", "term-b");
+
+      expect(result.termA.name).toBe("2025春季");
+      expect(result.termB.name).toBe("2025秋季");
+      expect(result.termA).toHaveProperty("totalEnrolled");
+      expect(result.termA).toHaveProperty("sectionCount");
+      expect(result.termA.utilizationPct).toBeGreaterThan(0);
+    });
+  });
+
+  describe("getPrereqWaivers (with academicRequest mock)", () => {
+    it("returns combined pending and history when no status filter", async () => {
+      const { service, prisma } = createReportingService();
+      // governanceService is {} — patch in a method manually
+      const svc = service as any;
+      svc.governanceService = {
+        listAdminRequests: jest.fn().mockResolvedValue([{ id: "req-1", type: "PREREQ_OVERRIDE" }])
+      };
+      (prisma as any).academicRequest = {
+        findMany: jest.fn().mockResolvedValue([{ id: "hist-1", status: "APPROVED" }])
+      };
+
+      const result = await service.getPrereqWaivers("admin-1");
+      expect(result.pending).toHaveLength(1);
+      expect(result.history).toHaveLength(1);
+    });
+
+    it("returns empty pending when status is APPROVED", async () => {
+      const { service, prisma } = createReportingService();
+      const svc = service as any;
+      svc.governanceService = {
+        listAdminRequests: jest.fn().mockResolvedValue([])
+      };
+      (prisma as any).academicRequest = {
+        findMany: jest.fn().mockResolvedValue([{ id: "hist-2", status: "APPROVED" }])
+      };
+
+      const result = await service.getPrereqWaivers("admin-1", "APPROVED");
+      expect(result.pending).toHaveLength(0);
+      expect(result.history).toHaveLength(1);
+    });
+  });
+
+  describe("buildDigestPreview", () => {
+    it("returns enrollment stats and htmlPreview string", async () => {
+      const { service, prisma } = createReportingService();
+      prisma.enrollment.count
+        .mockResolvedValueOnce(42)   // enrolledCount
+        .mockResolvedValueOnce(5);   // waitlistedCount
+      prisma.cartItem.count.mockResolvedValue(3);
+      prisma.gradeAppeal.count.mockResolvedValue(1);
+      prisma.term.findMany.mockResolvedValue([
+        { dropDeadline: new Date("2026-05-01") }
+      ]);
+      prisma.section.findMany.mockResolvedValue([
+        {
+          course: { code: "CS101", title: "计算机导论" },
+          capacity: 30,
+          _count: { enrollments: 25 }
+        }
+      ]);
+
+      const result = await service.buildDigestPreview();
+      expect(result.enrolledCount).toBe(42);
+      expect(result.waitlistedCount).toBe(5);
+      expect(result.cartCount).toBe(3);
+      expect(result.pendingAppeals).toBe(1);
+      expect(result.topSections).toHaveLength(1);
+      expect(result.htmlPreview).toContain("注册管理周报");
+      expect(result.upcomingDeadline).toBeTruthy();
+    });
+  });
 });

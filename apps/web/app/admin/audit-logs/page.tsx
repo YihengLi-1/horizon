@@ -284,7 +284,8 @@ export default function AuditLogsPage() {
       {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
       <section className="campus-card overflow-hidden dark:border-gray-700">
-        <table className="w-full border-collapse text-sm">
+        <div className="-mx-4 overflow-x-auto sm:mx-0">
+        <table className="w-full min-w-[640px] border-collapse text-sm">
           <thead className="bg-slate-50 dark:bg-gray-800">
             <tr className="border-b border-slate-200 text-left">
               <th className="px-4 py-3 font-semibold text-slate-700 dark:border-gray-700 dark:text-gray-100">时间</th>
@@ -331,6 +332,7 @@ export default function AuditLogsPage() {
             )}
           </tbody>
         </table>
+        </div>
 
         {!loading && total > 0 && (
           <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3">

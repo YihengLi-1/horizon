@@ -22,7 +22,10 @@ function createAuthService() {
       updateMany: jest.fn()
     },
     emailVerificationToken: {
-      create: jest.fn()
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn()
     },
     refreshToken: {
       findUnique: jest.fn(),
@@ -542,6 +545,247 @@ describe("AuthService", () => {
           data: expect.objectContaining({ loginAttempts: 0, lockedUntil: null })
         })
       );
+    });
+  });
+
+  describe("register — additional branches", () => {
+    it("rejects when maxUses is exhausted (INVITE_EXHAUSTED)", async () => {
+      const { prisma, service } = createAuthService();
+      prisma.inviteCode.findUnique.mockResolvedValue({
+        id: "invite-1",
+        code: "FULL-1",
+        active: true,
+        usedAt: null,
+        expiresAt: null,
+        maxUses: 3,
+        usedCount: 3
+      });
+
+      await expect(
+        service.register(
+          { email: "a@sis.test", legalName: "A", studentId: "S9001", password: "Pass1!", inviteCode: "FULL-1" } as never,
+          createRequest()
+        )
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("rejects when email or studentId already registered (USER_EXISTS)", async () => {
+      const { prisma, service } = createAuthService();
+      prisma.inviteCode.findUnique.mockResolvedValue({
+        id: "invite-2",
+        code: "OK-1",
+        active: true,
+        usedAt: null,
+        expiresAt: null,
+        maxUses: 10,
+        usedCount: 0
+      });
+      prisma.user.findFirst.mockResolvedValue({ id: "existing-user" });
+
+      await expect(
+        service.register(
+          { email: "dup@sis.test", legalName: "Dup", studentId: "S1001", password: "Pass1!", inviteCode: "OK-1" } as never,
+          createRequest()
+        )
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe("verifyEmail", () => {
+    it("throws INVALID_TOKEN when token not found", async () => {
+      const { prisma, service } = createAuthService();
+      prisma.emailVerificationToken.findUnique.mockResolvedValue(null);
+
+      await expect(service.verifyEmail({ token: "ghost" } as never)).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("throws INVALID_TOKEN when token is already used", async () => {
+      const { prisma, service } = createAuthService();
+      prisma.emailVerificationToken.findUnique.mockResolvedValue({
+        id: "evt-1",
+        token: "used-tok",
+        userId: "u1",
+        usedAt: new Date(),
+        expiresAt: new Date(Date.now() + 60_000)
+      });
+
+      await expect(service.verifyEmail({ token: "used-tok" } as never)).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("throws INVALID_TOKEN when token is expired", async () => {
+      const { prisma, service } = createAuthService();
+      prisma.emailVerificationToken.findUnique.mockResolvedValue({
+        id: "evt-2",
+        token: "expired-tok",
+        userId: "u1",
+        usedAt: null,
+        expiresAt: new Date(Date.now() - 60_000)
+      });
+
+      await expect(service.verifyEmail({ token: "expired-tok" } as never)).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("succeeds and marks token used + verifies user email", async () => {
+      const { prisma, service } = createAuthService();
+      prisma.emailVerificationToken.findUnique.mockResolvedValue({
+        id: "evt-3",
+        token: "valid-tok",
+        userId: "u1",
+        usedAt: null,
+        expiresAt: new Date(Date.now() + 60_000)
+      });
+      prisma.$transaction.mockResolvedValue([{}, {}]);
+
+      const result = await service.verifyEmail({ token: "valid-tok" } as never);
+      expect(result).toEqual({ message: "邮箱验证成功" });
+      expect(prisma.$transaction).toHaveBeenCalled();
+    });
+  });
+
+  describe("resendVerificationEmail", () => {
+    it("returns generic message when user not found", async () => {
+      const { prisma, notificationsService, service } = createAuthService();
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      const result = await service.resendVerificationEmail("notfound@sis.test");
+      expect(result).toEqual(
+        expect.objectContaining({ message: expect.stringContaining("若该邮箱") })
+      );
+      expect(notificationsService.sendVerificationEmail).not.toHaveBeenCalled();
+    });
+
+    it("returns generic message when user is already verified (no-op)", async () => {
+      const { prisma, notificationsService, service } = createAuthService();
+      prisma.user.findFirst.mockResolvedValue({
+        id: "u1",
+        email: "verified@sis.test",
+        emailVerifiedAt: new Date(),
+        deletedAt: null,
+        studentProfile: null
+      });
+
+      const result = await service.resendVerificationEmail("verified@sis.test");
+      expect(result).toEqual(
+        expect.objectContaining({ message: expect.stringContaining("若该邮箱") })
+      );
+      expect(notificationsService.sendVerificationEmail).not.toHaveBeenCalled();
+    });
+
+    it("sends new verification email for unverified user", async () => {
+      const { prisma, notificationsService, service } = createAuthService();
+      prisma.user.findFirst.mockResolvedValue({
+        id: "u1",
+        email: "unverified@sis.test",
+        emailVerifiedAt: null,
+        deletedAt: null,
+        studentProfile: { legalName: "Test User" }
+      });
+      prisma.emailVerificationToken.updateMany.mockResolvedValue({ count: 1 });
+      prisma.emailVerificationToken.create.mockResolvedValue({});
+
+      const result = await service.resendVerificationEmail("unverified@sis.test");
+      expect(result).toEqual(
+        expect.objectContaining({ message: expect.stringContaining("若该邮箱") })
+      );
+      expect(prisma.emailVerificationToken.updateMany).toHaveBeenCalled();
+      expect(prisma.emailVerificationToken.create).toHaveBeenCalled();
+      expect(notificationsService.sendVerificationEmail).toHaveBeenCalled();
+    });
+  });
+
+  describe("findOrCreateSsoUser", () => {
+    it("returns existing user data when email already registered", async () => {
+      const { prisma, service } = createAuthService();
+      prisma.user.findFirst.mockResolvedValue({
+        id: "sso-1",
+        email: "sso@sis.test",
+        role: "STUDENT",
+        emailVerifiedAt: new Date()
+      });
+
+      const result = await service.findOrCreateSsoUser("sso@sis.test", {});
+      expect(result).toEqual({ userId: "sso-1", email: "sso@sis.test", role: "STUDENT" });
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it("creates a new SSO user when email not found", async () => {
+      const { prisma, service } = createAuthService();
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({
+        id: "sso-new",
+        email: "newuser@sis.test",
+        role: "STUDENT",
+        emailVerifiedAt: new Date()
+      });
+
+      const result = await service.findOrCreateSsoUser("newuser@sis.test", {});
+      expect(result).toEqual({ userId: "sso-new", email: "newuser@sis.test", role: "STUDENT" });
+      expect(prisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ email: "newuser@sis.test", ssoProvider: "saml" })
+        })
+      );
+    });
+  });
+
+  describe("getSessions and revokeSession", () => {
+    it("getSessions returns all active sessions", () => {
+      const { service } = createAuthService();
+      activeSessions.set("s1", { userId: "u1", email: "a@b.com", loginAt: new Date() });
+      activeSessions.set("s2", { userId: "u2", email: "c@d.com", loginAt: new Date() });
+
+      const sessions = service.getSessions();
+      expect(sessions.length).toBeGreaterThanOrEqual(2);
+      expect(sessions.find((s) => s.id === "s1")).toBeDefined();
+    });
+
+    it("revokeSession removes the session from activeSessions", () => {
+      const { service } = createAuthService();
+      activeSessions.set("sess-to-revoke", { userId: "u1", email: "x@y.com", loginAt: new Date() });
+
+      const result = service.revokeSession("sess-to-revoke");
+      expect(result).toEqual({ revoked: true });
+      expect(activeSessions.has("sess-to-revoke")).toBe(false);
+    });
+  });
+
+  describe("changePassword — session purge", () => {
+    it("clears active sessions for the user on successful password change", async () => {
+      const { prisma, service } = createAuthService();
+      const argon2mod = await import("argon2");
+      prisma.user.findFirst.mockResolvedValue({
+        id: "u-pw",
+        passwordHash: await argon2mod.default.hash("OldPass1!")
+      });
+      prisma.$transaction.mockResolvedValue([{}, { count: 1 }]);
+
+      // Plant an active session for this user
+      activeSessions.set("sess-pw", { userId: "u-pw", email: "x@y.com", loginAt: new Date() });
+
+      await service.changePassword("u-pw", "OldPass1!", "NewPass1!");
+
+      expect(activeSessions.has("sess-pw")).toBe(false);
+    });
+  });
+
+  describe("login — email not verified branch", () => {
+    it("rejects with UnauthorizedException when email not verified", async () => {
+      const { prisma, service } = createAuthService();
+      prisma.user.findFirst.mockResolvedValue({
+        id: "u-unv",
+        email: "unv@sis.test",
+        studentId: "S9999",
+        passwordHash: await argon2.hash("Pass1!"),
+        role: "STUDENT",
+        emailVerifiedAt: null,   // not verified
+        loginAttempts: 0,
+        lockedUntil: null,
+        studentProfile: null
+      });
+
+      await expect(
+        service.login({ identifier: "unv@sis.test", password: "Pass1!" } as never, createRequest(), createResponse())
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
   });
 });

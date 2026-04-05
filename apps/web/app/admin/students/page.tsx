@@ -143,6 +143,7 @@ export default function AdminStudentsPage() {
   const [newNoteContent, setNewNoteContent] = useState("");
   const [newNoteFlag, setNewNoteFlag] = useState("");
   const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   const loadTagsForStudents = async (list: Student[]) => {
     if (!list.length) { setStudentTagsMap({}); return; }
@@ -417,6 +418,29 @@ export default function AdminStudentsPage() {
     } finally {
       setRoleSaving(false);
     }
+  };
+
+  const resetStudentPassword = () => {
+    if (!detailStudent) return;
+    const name = detailStudent.studentProfile?.legalName ?? detailStudent.email;
+    setConfirmState({
+      title: "重置学生密码",
+      message: `确认为「${name}」发送密码重置邮件？该学生将收到一封包含重置链接的邮件（24小时有效）。`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        setResettingPassword(true);
+        setError("");
+        setNotice("");
+        try {
+          await apiFetch(`/admin/students/${detailStudent.id}/reset-password`, { method: "POST" });
+          setNotice(`已向 ${detailStudent.email} 发送密码重置邮件。`);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "密码重置失败");
+        } finally {
+          setResettingPassword(false);
+        }
+      },
+    });
   };
 
   const unlockAccount = async () => {
@@ -1163,16 +1187,26 @@ export default function AdminStudentsPage() {
                         <p className="font-medium text-slate-800 dark:text-slate-100">{ROLE_LABEL[detailStudent.role ?? "STUDENT"] ?? detailStudent.role ?? "学生"}</p>
                       </div>
                     </div>
-                    {detailLocked ? (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {detailLocked ? (
+                        <button
+                          type="button"
+                          disabled={unlocking}
+                          onClick={() => void unlockAccount()}
+                          className="inline-flex h-9 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-4 text-xs font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
+                        >
+                          {unlocking ? "解锁中…" : "解锁账户"}
+                        </button>
+                      ) : null}
                       <button
                         type="button"
-                        disabled={unlocking}
-                        onClick={() => void unlockAccount()}
-                        className="inline-flex h-9 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-4 text-xs font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
+                        disabled={resettingPassword}
+                        onClick={() => resetStudentPassword()}
+                        className="inline-flex h-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-4 text-xs font-semibold text-blue-800 transition hover:bg-blue-100 disabled:opacity-50"
                       >
-                        {unlocking ? "解锁中…" : "解锁账户"}
+                        {resettingPassword ? "发送中…" : "重置密码"}
                       </button>
-                    ) : null}
+                    </div>
                   </div>
                 </div>
               ) : activeTab === "notifications" ? (

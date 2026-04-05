@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 
@@ -53,16 +53,50 @@ function PositionBar({ position, total }: { position: number; total: number }) {
   );
 }
 
+const POLL_INTERVAL_MS = 30_000;
+
 export default function StudentWaitlistPage() {
   const [items, setItems] = useState<WaitlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  const [countdown, setCountdown] = useState(POLL_INTERVAL_MS / 1000);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const fetchWaitlist = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const data = await apiFetch<WaitlistEntry[]>("/registration/my-waitlist");
+      setItems(data ?? []);
+      setLastRefreshed(new Date());
+      setError("");
+    } catch (err) {
+      if (!silent) setError(err instanceof Error ? err.message : "加载失败");
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, []);
+
+  // Initial load + polling
   useEffect(() => {
-    void apiFetch<WaitlistEntry[]>("/registration/my-waitlist")
-      .then((data) => setItems(data ?? []))
-      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"))
-      .finally(() => setLoading(false));
+    void fetchWaitlist(false);
+
+    timerRef.current = setInterval(() => {
+      void fetchWaitlist(true);
+      setCountdown(POLL_INTERVAL_MS / 1000);
+    }, POLL_INTERVAL_MS);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [fetchWaitlist]);
+
+  // Countdown ticker
+  useEffect(() => {
+    const ticker = setInterval(() => {
+      setCountdown((prev) => (prev <= 1 ? POLL_INTERVAL_MS / 1000 : prev - 1));
+    }, 1000);
+    return () => clearInterval(ticker);
   }, []);
 
   return (
@@ -74,11 +108,29 @@ export default function StudentWaitlistPage() {
         <span className="rounded-lg bg-white px-4 py-1.5 font-semibold text-slate-900 shadow-sm">候补名单</span>
       </div>
       <section className="campus-hero">
-        <p className="campus-eyebrow">选课候补</p>
-        <h1 className="campus-title">我的候补名单</h1>
-        <p className="campus-subtitle">
-          当前排队等待的课程班级，满员时按队列顺序自动录取。
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="campus-eyebrow">选课候补</p>
+            <h1 className="campus-title">我的候补名单</h1>
+            <p className="campus-subtitle">
+              当前排队等待的课程班级，满员时按队列顺序自动录取。
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-1 pt-1">
+            <button
+              type="button"
+              onClick={() => { void fetchWaitlist(false); setCountdown(POLL_INTERVAL_MS / 1000); }}
+              className="campus-btn-ghost text-xs"
+            >
+              立即刷新
+            </button>
+            <p className="text-[11px] text-slate-400">
+              {lastRefreshed ? `${lastRefreshed.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} 更新` : "加载中…"}
+              {" · "}
+              {countdown}s 后自动刷新
+            </p>
+          </div>
+        </div>
       </section>
 
       {error ? (
