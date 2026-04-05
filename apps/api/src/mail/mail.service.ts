@@ -1,15 +1,17 @@
 import { MailerService } from "@nestjs-modules/mailer";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 
 @Injectable()
 export class MailService {
+  private readonly logger = new Logger(MailService.name);
+
   constructor(private readonly mailer: MailerService) {}
 
   private async send(to: string, subject: string, text: string) {
     try {
       await this.mailer.sendMail({ to, subject, text });
     } catch (e) {
-      console.error("[MailService] failed to send:", subject, e);
+      this.logger.error(`Failed to send mail: ${subject} → ${to}`, e instanceof Error ? e.stack : String(e));
     }
   }
 

@@ -669,9 +669,9 @@ check_contains "apps/api/src/admin/admin.service.ts" "getScheduleConflicts" "Adm
 
 if curl -sf http://localhost:4000/api/docs-json > /dev/null 2>&1; then
   ok "Swagger docs reachable at /api/docs"
-elif rg -n 'SwaggerModule\.setup\(' apps/api/src/main.ts >/dev/null 2>&1 \
-  && rg -n '"api/docs"|'\''api/docs'\''' apps/api/src/main.ts >/dev/null 2>&1 \
-  && rg -n 'SwaggerModule\.createDocument' apps/api/src/main.ts >/dev/null 2>&1; then
+elif grep -q 'SwaggerModule\.setup(' apps/api/src/main.ts \
+  && grep -q 'api/docs' apps/api/src/main.ts \
+  && grep -q 'SwaggerModule\.createDocument' apps/api/src/main.ts; then
   ok "Swagger docs configured at /api/docs"
 else
   bad "Swagger docs bootstrap missing"

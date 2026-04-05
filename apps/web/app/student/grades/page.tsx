@@ -237,7 +237,11 @@ export default async function GradesPage({
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <TranscriptExportButton grades={grades} />
+            <TranscriptExportButton
+              grades={grades}
+              studentName={me?.profile?.legalName ?? me?.email}
+              studentId={me?.studentId ?? undefined}
+            />
             <Link
               href="/student/schedule"
               className="inline-flex h-10 items-center rounded-lg border border-white/35 bg-white/90 px-4 text-sm font-semibold text-slate-800 no-underline transition hover:bg-white"
@@ -314,57 +318,59 @@ export default async function GradesPage({
         <div className="border-b border-slate-100 px-4 py-3">
           <p className="text-sm font-semibold text-slate-700">学期 GPA vs 累计 GPA</p>
         </div>
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50">
-            <tr>
-              <th scope="col" className="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500">学期</th>
-              <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase text-slate-500">学期 GPA</th>
-              <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase text-slate-500">累计 GPA</th>
-              <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase text-slate-500">学分</th>
-            </tr>
-          </thead>
-          <tbody>
-            {transcriptTerms.map((term) => {
-              const credits = term.enrollments.reduce((sum, item) => sum + (item.section?.credits ?? 0), 0);
-              return (
-                <tr key={term.termId} className="border-t border-slate-50">
-                  <td className="px-4 py-2 font-medium text-slate-700">{term.termName}</td>
-                  <td
-                    className={`px-4 py-2 text-right font-bold ${
-                      term.semesterGpa === null
-                        ? "text-slate-300"
-                        : term.semesterGpa >= 3.7
-                          ? "text-emerald-600"
-                          : term.semesterGpa >= 3
-                            ? "text-blue-600"
-                            : term.semesterGpa >= 2
-                              ? "text-amber-600"
-                              : "text-red-600"
-                    }`}
-                  >
-                    {term.semesterGpa?.toFixed(3) ?? "—"}
-                  </td>
-                  <td
-                    className={`px-4 py-2 text-right font-bold ${
-                      term.cumulativeGpa === null
-                        ? "text-slate-300"
-                        : term.cumulativeGpa >= 3.7
-                          ? "text-emerald-600"
-                          : term.cumulativeGpa >= 3
-                            ? "text-blue-600"
-                            : term.cumulativeGpa >= 2
-                              ? "text-amber-600"
-                              : "text-red-600"
-                    }`}
-                  >
-                    {term.cumulativeGpa?.toFixed(3) ?? "—"}
-                  </td>
-                  <td className="px-4 py-2 text-right text-slate-500">{credits}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="-mx-4 overflow-x-auto sm:mx-0">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead className="bg-slate-50">
+              <tr>
+                <th scope="col" className="px-4 py-2 text-left text-xs font-semibold uppercase text-slate-500">学期</th>
+                <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase text-slate-500">学期 GPA</th>
+                <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase text-slate-500">累计 GPA</th>
+                <th scope="col" className="px-4 py-2 text-right text-xs font-semibold uppercase text-slate-500">学分</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transcriptTerms.map((term) => {
+                const credits = term.enrollments.reduce((sum, item) => sum + (item.section?.credits ?? 0), 0);
+                return (
+                  <tr key={term.termId} className="border-t border-slate-50">
+                    <td className="px-4 py-2 font-medium text-slate-700">{term.termName}</td>
+                    <td
+                      className={`px-4 py-2 text-right font-bold ${
+                        term.semesterGpa === null
+                          ? "text-slate-300"
+                          : term.semesterGpa >= 3.7
+                            ? "text-emerald-600"
+                            : term.semesterGpa >= 3
+                              ? "text-blue-600"
+                              : term.semesterGpa >= 2
+                                ? "text-amber-600"
+                                : "text-red-600"
+                      }`}
+                    >
+                      {term.semesterGpa?.toFixed(3) ?? "—"}
+                    </td>
+                    <td
+                      className={`px-4 py-2 text-right font-bold ${
+                        term.cumulativeGpa === null
+                          ? "text-slate-300"
+                          : term.cumulativeGpa >= 3.7
+                            ? "text-emerald-600"
+                            : term.cumulativeGpa >= 3
+                              ? "text-blue-600"
+                              : term.cumulativeGpa >= 2
+                                ? "text-amber-600"
+                                : "text-red-600"
+                      }`}
+                    >
+                      {term.cumulativeGpa?.toFixed(3) ?? "—"}
+                    </td>
+                    <td className="px-4 py-2 text-right text-slate-500">{credits}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </section>
       ) : null}
 

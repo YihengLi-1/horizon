@@ -27,6 +27,7 @@ function createRegistrationService(overrides?: Partial<Record<string, unknown>>)
     },
     cartItem: {
       findMany: jest.fn(),
+      findUnique: jest.fn(),
       create: jest.fn(),
       delete: jest.fn(),
       deleteMany: jest.fn()
@@ -917,6 +918,155 @@ describe("RegistrationService", () => {
       expect(result).toEqual({ updated: 1, succeeded: ["e1"], failed: [] });
       expect(notificationsService.sendGradePostedEmail).toHaveBeenCalled();
       expect(auditService.log).toHaveBeenCalledWith(expect.objectContaining({ action: "GRADE_BULK_UPDATE" }));
+    });
+  });
+
+  describe("addToCart", () => {
+    it("section 不存在时抛 NotFoundException", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.section.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.addToCart("student-1", { termId: "term-1", sectionId: "nonexistent" })
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("section termId 不匹配时抛 NotFoundException", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.section.findUnique.mockResolvedValue({ id: "section-1", termId: "other-term" });
+
+      await expect(
+        service.addToCart("student-1", { termId: "term-1", sectionId: "section-1" })
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("已有有效注册时抛 BadRequestException ALREADY_REGISTERED", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.section.findUnique.mockResolvedValue({ id: "section-1", termId: "term-1" });
+      prisma.enrollment.findFirst.mockResolvedValue({ id: "e1", status: "ENROLLED" });
+
+      await expect(
+        service.addToCart("student-1", { termId: "term-1", sectionId: "section-1" })
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("成功加入购物车", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.section.findUnique.mockResolvedValue({ id: "section-1", termId: "term-1" });
+      prisma.enrollment.findFirst.mockResolvedValue(null);
+      prisma.cartItem.create.mockResolvedValue({ id: "cart-1", studentId: "student-1", sectionId: "section-1" });
+
+      const result = await service.addToCart("student-1", { termId: "term-1", sectionId: "section-1" });
+      expect(result.id).toBe("cart-1");
+    });
+  });
+
+  describe("removeCartItem", () => {
+    it("购物车条目不存在时抛 NotFoundException", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.cartItem.findUnique.mockResolvedValue(null);
+
+      await expect(service.removeCartItem("student-1", "cart-1")).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("购物车条目不属于该学生时抛 NotFoundException", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.cartItem.findUnique.mockResolvedValue({ id: "cart-1", studentId: "other-student" });
+
+      await expect(service.removeCartItem("student-1", "cart-1")).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("成功删除购物车条目", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.cartItem.findUnique.mockResolvedValue({ id: "cart-1", studentId: "student-1" });
+      prisma.cartItem.delete.mockResolvedValue({ id: "cart-1" });
+
+      const result = await service.removeCartItem("student-1", "cart-1");
+      expect(result).toEqual({ id: "cart-1" });
+    });
+  });
+
+  describe("watchSection / unwatchSection / getMyWaitlist", () => {
+    it("watchSection 调用 upsert 并返回 { watching: true }", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.sectionWatch.upsert.mockResolvedValue({});
+
+      const result = await service.watchSection("student-1", "section-1");
+      expect(result).toEqual({ watching: true });
+      expect(prisma.sectionWatch.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ create: { userId: "student-1", sectionId: "section-1" } })
+      );
+    });
+
+    it("unwatchSection 调用 deleteMany 并返回 { watching: false }", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.sectionWatch.deleteMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.unwatchSection("student-1", "section-1");
+      expect(result).toEqual({ watching: false });
+    });
+
+    it("getMyWaitlist 返回候补列表并附加 queueSize", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.enrollment.findMany.mockResolvedValue([
+        {
+          id: "e1",
+          sectionId: "section-1",
+          waitlistPosition: 1,
+          section: {
+            id: "section-1",
+            sectionCode: "CS101-A",
+            capacity: 30,
+            instructorName: "张教授",
+            course: { code: "CS101", title: "导论" },
+            term: { id: "term-1", name: "2025秋" },
+            meetingTimes: [],
+            _count: { enrollments: 3 }
+          }
+        }
+      ]);
+
+      const result = await service.getMyWaitlist("student-1");
+      expect(result).toHaveLength(1);
+      expect(result[0].queueSize).toBe(3);
+      expect(result[0].waitlistPosition).toBe(1);
+    });
+  });
+
+  describe("getCart", () => {
+    it("返回该学生在指定学期的购物车", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.cartItem.findMany.mockResolvedValue([
+        { id: "c1", studentId: "student-1", sectionId: "s1" }
+      ]);
+
+      const result = await service.getCart("student-1", "term-1");
+      expect(result).toHaveLength(1);
+      expect(prisma.cartItem.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { studentId: "student-1", termId: "term-1" } })
+      );
+    });
+  });
+
+  describe("listMyEnrollments / listMyGrades", () => {
+    it("listMyEnrollments 返回学生注册记录", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.enrollment.findMany.mockResolvedValue([
+        { id: "e1", status: "ENROLLED", finalGrade: null }
+      ]);
+
+      const result = await service.listMyEnrollments("student-1", "term-1");
+      expect(result).toHaveLength(1);
+    });
+
+    it("listMyGrades 返回有最终成绩的注册", async () => {
+      const { prisma, service } = createRegistrationService();
+      prisma.enrollment.findMany.mockResolvedValue([
+        { id: "e1", status: "COMPLETED", finalGrade: "A", section: { credits: 3, course: { code: "CS101" } } }
+      ]);
+
+      const result = await service.listMyGrades("student-1");
+      expect(result).toHaveLength(1);
     });
   });
 

@@ -128,6 +128,7 @@ function createAdminService(overrides?: Record<string, unknown>) {
     sendWaiverDecision: jest.fn(),
     sendOverloadDecision: jest.fn(),
     sendWaitlistPromoted: jest.fn(),
+    sendPasswordReset: jest.fn().mockResolvedValue(undefined),
     sendTest: jest.fn()
   } as any;
   const analyticsService = new AdminReportingService(
@@ -1823,6 +1824,235 @@ describe("AdminService helpers", () => {
         courseCode: "CS101",
         sectionCode: "A"
       });
+    });
+  });
+
+  describe("bulkCreateInviteCodes", () => {
+    it("空 rows 时抛 BadRequestException", async () => {
+      const { service } = createAdminService();
+      await expect(service.bulkCreateInviteCodes([], "actor-1")).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("超过 500 条时抛 BadRequestException", async () => {
+      const { service } = createAdminService();
+      const rows = Array.from({ length: 501 }, (_, i) => ({ code: `CODE${i}` }));
+      await expect(service.bulkCreateInviteCodes(rows, "actor-1")).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("成功创建邀请码并记录失败项", async () => {
+      const { prisma, service, auditService } = createAdminService();
+      prisma.inviteCode.create
+        .mockResolvedValueOnce({ id: "invite-1", code: "CODE001" })
+        .mockRejectedValueOnce(new Error("Unique constraint"));
+
+      const result = await service.bulkCreateInviteCodes(
+        [{ code: "CODE001", maxUses: 1, expiresAt: null }, { code: "CODE001", maxUses: 1, expiresAt: null }],
+        "actor-1"
+      );
+
+      expect(result.created).toBe(1);
+      expect(result.failed).toHaveLength(1);
+      expect(result.failed[0].row).toBe(2);
+      expect(auditService.log).toHaveBeenCalled();
+    });
+
+    it("code 为空时自动生成随机码", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.inviteCode.create.mockResolvedValue({ id: "invite-1", code: "RANDOM01" });
+
+      const result = await service.bulkCreateInviteCodes([{ maxUses: 1 }], "actor-1");
+      expect(result.created).toBe(1);
+      expect(prisma.inviteCode.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ maxUses: 1, active: true })
+        })
+      );
+    });
+  });
+
+  describe("adminResetStudentPassword", () => {
+    it("学生不存在时抛 NotFoundException", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(service.adminResetStudentPassword("nonexistent", "actor-1")).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("成功生成重置 token 并发送邮件", async () => {
+      const prt = {
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        create: jest.fn().mockResolvedValue({ token: "reset-token-123" })
+      };
+      const { prisma, service, auditService, mailService } = createAdminService({ passwordResetToken: prt });
+      prisma.user.findFirst.mockResolvedValue({ id: "student-1", email: "student@univ.edu" });
+      // array-based transaction — just resolve the two ops
+      prisma.$transaction.mockImplementation(async (ops: Promise<unknown>[]) => Promise.all(ops));
+
+      await service.adminResetStudentPassword("student-1", "actor-1");
+
+      expect(mailService.sendPasswordReset).toHaveBeenCalledWith(
+        "student@univ.edu",
+        expect.any(String)
+      );
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "admin_password_reset" })
+      );
+    });
+  });
+
+  describe("getPaginatedStudents", () => {
+    it("不带搜索词时返回所有学生", async () => {
+      const { prisma, service } = createAdminService();
+      const mockStudents = [
+        {
+          id: "s1",
+          email: "a@univ.edu",
+          studentId: "U001",
+          role: "STUDENT",
+          studentProfile: { legalName: "张三", programMajor: "CS", enrollmentStatus: "ACTIVE", academicStatus: "GOOD_STANDING" },
+          enrollments: [
+            { section: { credits: 3 }, finalGrade: "A" }
+          ]
+        }
+      ];
+      prisma.$transaction.mockResolvedValue([mockStudents, 1]);
+
+      const result = await service.getPaginatedStudents({ page: 1, pageSize: 10 });
+      expect(result.total).toBe(1);
+      expect(result.data).toHaveLength(1);
+    });
+
+    it("带搜索词时构造 OR 条件", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.$transaction.mockResolvedValue([[], 0]);
+
+      await service.getPaginatedStudents({ page: 1, pageSize: 10, search: "张" });
+
+      expect(prisma.$transaction).toHaveBeenCalled();
+    });
+  });
+
+  describe("importStudents — CSV validation", () => {
+    it("throws when CSV has fewer than 2 rows (header-only)", async () => {
+      const { service } = createAdminService();
+      await expect(
+        service.importStudents({ csv: "email,studentId,legalName\n", dryRun: false }, "actor-1")
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("throws when required headers are missing", async () => {
+      const { service } = createAdminService();
+      await expect(
+        service.importStudents({ csv: "name,id\nJohn,123\n", dryRun: false }, "actor-1")
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("collects row-level issues (invalid email) without throwing", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.$transaction.mockResolvedValue([]);
+
+      const csv = "email,studentId,legalName\nnot-an-email,S001,Test User\n";
+      await expect(
+        service.importStudents({ csv, dryRun: false }, "actor-1")
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("succeeds with valid single-row CSV (no conflicts)", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.user.findMany.mockResolvedValue([]);
+      prisma.$transaction.mockImplementation(async (fn: any) => {
+        if (typeof fn === "function") {
+          const tx = {
+            user: {
+              create: jest.fn().mockResolvedValue({ id: "u-new" }),
+              upsert: jest.fn().mockResolvedValue({ id: "u-new" })
+            }
+          };
+          return fn(tx);
+        }
+        return Promise.all(fn);
+      });
+
+      const csv = "email,studentId,legalName\nnewstu@sis.test,S9001,New Student\n";
+      const result = await service.importStudents({ csv, dryRun: false }, "actor-1");
+      expect(result).toHaveProperty("created");
+    });
+  });
+
+  describe("importCourses — CSV validation", () => {
+    it("throws when CSV has fewer than 2 rows", async () => {
+      const { service } = createAdminService();
+      await expect(
+        service.importCourses({ csv: "code,title,credits\n", dryRun: false }, "actor-1")
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("throws when required headers are missing", async () => {
+      const { service } = createAdminService();
+      await expect(
+        service.importCourses({ csv: "name,credits\nCS101,3\n", dryRun: false }, "actor-1")
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("throws for row with invalid credits", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.course.findMany.mockResolvedValue([]);
+
+      const csv = "code,title,credits\nCS101,Intro,abc\n";
+      await expect(
+        service.importCourses({ csv, dryRun: false }, "actor-1")
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("succeeds with valid course CSV (no conflicts)", async () => {
+      const { prisma, service } = createAdminService();
+      prisma.course.findMany.mockResolvedValue([]);
+      prisma.$transaction.mockResolvedValue([]);
+
+      const csv = "code,title,credits\nCS199,Test Course,3\n";
+      const result = await service.importCourses({ csv, dryRun: false }, "actor-1");
+      expect(result).toHaveProperty("created");
+    });
+  });
+
+  describe("delegate analytics methods", () => {
+    it("getCohortAnalytics delegates to analyticsService", async () => {
+      const { analyticsService, service } = createAdminService();
+      jest.spyOn(analyticsService, "getCohortAnalytics").mockResolvedValue({ cohorts: [] } as any);
+      const result = await service.getCohortAnalytics();
+      expect(analyticsService.getCohortAnalytics).toHaveBeenCalled();
+      expect(result).toEqual({ cohorts: [] });
+    });
+
+    it("getWaitlistAnalytics delegates to analyticsService", async () => {
+      const { analyticsService, service } = createAdminService();
+      jest.spyOn(analyticsService, "getWaitlistAnalytics").mockResolvedValue({ sections: [] } as any);
+      const result = await service.getWaitlistAnalytics("term-1");
+      expect(analyticsService.getWaitlistAnalytics).toHaveBeenCalledWith("term-1");
+      expect(result).toEqual({ sections: [] });
+    });
+
+    it("getDropoutRisk delegates to analyticsService", async () => {
+      const { analyticsService, service } = createAdminService();
+      jest.spyOn(analyticsService, "getDropoutRisk").mockResolvedValue([] as any);
+      await service.getDropoutRisk();
+      expect(analyticsService.getDropoutRisk).toHaveBeenCalled();
+    });
+
+    it("getTermCapacitySummary delegates to analyticsService", async () => {
+      const { analyticsService, service } = createAdminService();
+      jest.spyOn(analyticsService, "getTermCapacitySummary").mockResolvedValue([] as any);
+      await service.getTermCapacitySummary("term-1");
+      expect(analyticsService.getTermCapacitySummary).toHaveBeenCalledWith("term-1");
+    });
+
+    it("previewGradeCurve delegates to gradesService", async () => {
+      const { gradesService, service } = createAdminService();
+      gradesService.previewGradeCurve.mockResolvedValue({ before: [], after: [] });
+      const result = await service.previewGradeCurve("sec-1", 1);
+      expect(gradesService.previewGradeCurve).toHaveBeenCalledWith("sec-1", 1);
+      expect(result).toEqual({ before: [], after: [] });
     });
   });
 });

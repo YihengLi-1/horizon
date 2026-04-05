@@ -42,6 +42,13 @@ function createStudentsService() {
     announcement: {
       findMany: jest.fn()
     },
+    courseRating: {
+      findMany: jest.fn(),
+      upsert: jest.fn()
+    },
+    degreeProgram: {
+      findUnique: jest.fn()
+    },
     studentProfile: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
@@ -662,5 +669,256 @@ describe("StudentsService", () => {
     await expect(
       service.submitPrereqWaiverRequest("student-1", { sectionId: "section-1", reason: "有相关基础" })
     ).resolves.toEqual({ id: "req-1", status: "PENDING" });
+  });
+
+  it("getMyProfile 低 GPA 时 academicStanding 返回 Good Standing", async () => {
+    const { prisma, service } = createStudentsService();
+    prisma.user.findFirst.mockResolvedValue({
+      id: "student-2",
+      email: "student2@univ.edu",
+      studentId: "U250002",
+      role: "STUDENT",
+      createdAt: new Date("2025-01-01T00:00:00Z"),
+      updatedAt: new Date("2025-01-02T00:00:00Z"),
+      studentProfile: { legalName: "王五", programMajor: "经济学" },
+      enrollments: [
+        {
+          id: "enr-a",
+          createdAt: new Date("2025-09-01T00:00:00Z"),
+          status: "COMPLETED",
+          finalGrade: "C",
+          waitlistPosition: null,
+          section: {
+            credits: 3,
+            sectionCode: "ECON101-A",
+            course: { id: "course-e1", code: "ECON101", title: "经济学原理" },
+            term: { id: "term-1", name: "2025年秋季学期", endDate: new Date("2025-12-31T00:00:00Z") }
+          }
+        }
+      ]
+    });
+
+    const result = await service.getMyProfile("student-2");
+    expect(result.academicStanding).toBe("Good Standing");
+    expect(result.gpa).toBe(2);
+  });
+
+  it("getMyProfile GPA < 2.0 时 academicStanding 返回 Academic Probation", async () => {
+    const { prisma, service } = createStudentsService();
+    prisma.user.findFirst.mockResolvedValue({
+      id: "student-3",
+      email: "student3@univ.edu",
+      studentId: "U250003",
+      role: "STUDENT",
+      createdAt: new Date("2025-01-01T00:00:00Z"),
+      updatedAt: new Date("2025-01-02T00:00:00Z"),
+      studentProfile: { legalName: "李四", programMajor: "数学" },
+      enrollments: [
+        {
+          id: "enr-b",
+          createdAt: new Date("2025-09-01T00:00:00Z"),
+          status: "COMPLETED",
+          finalGrade: "D",
+          waitlistPosition: null,
+          section: {
+            credits: 3,
+            sectionCode: "MATH101-A",
+            course: { id: "course-m1", code: "MATH101", title: "微积分" },
+            term: { id: "term-1", name: "2025年秋季学期", endDate: new Date("2025-12-31T00:00:00Z") }
+          }
+        }
+      ]
+    });
+
+    const result = await service.getMyProfile("student-3");
+    expect(result.academicStanding).toBe("Academic Probation");
+  });
+
+  it("getCart 返回购物车项目", async () => {
+    const { prisma, service } = createStudentsService();
+    prisma.cartItem.findMany.mockResolvedValue([
+      {
+        id: "cart-1",
+        studentId: "student-1",
+        sectionId: "section-1",
+        createdAt: new Date("2025-10-01T00:00:00Z"),
+        section: {
+          course: { code: "CS101", title: "计算机科学导论" },
+          term: { name: "2025年秋季学期" },
+          meetingTimes: []
+        }
+      }
+    ]);
+
+    const result = await service.getCart("student-1");
+    expect(result).toHaveLength(1);
+    expect(prisma.cartItem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { studentId: "student-1" } })
+    );
+  });
+
+  it("getMyRatings 当学生不存在时返回空数组", async () => {
+    const { prisma, service } = createStudentsService();
+    prisma.user.findFirst.mockResolvedValue(null);
+
+    const result = await service.getMyRatings("nonexistent");
+    expect(result).toEqual([]);
+  });
+
+  it("updateMyProfile 当档案不存在时抛 NotFoundException", async () => {
+    const { prisma, service } = createStudentsService();
+    prisma.user.findFirst.mockResolvedValue({ id: "student-1", studentProfile: null });
+
+    await expect(
+      service.updateMyProfile("student-1", { legalName: "新名字" } as never)
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("updateMyProfile 成功更新并返回更新后档案", async () => {
+    const { prisma, service } = createStudentsService();
+    prisma.user.findFirst.mockResolvedValue({
+      id: "student-1",
+      studentProfile: { legalName: "旧名字", dob: null, address: null, emergencyContact: null, programMajor: "CS", enrollmentStatus: "ACTIVE", academicStatus: "GOOD_STANDING" }
+    });
+    prisma.studentProfile.update.mockResolvedValue({ legalName: "新名字", programMajor: "CS" });
+
+    const result = await service.updateMyProfile("student-1", { legalName: "新名字" } as never);
+    expect(result.legalName).toBe("新名字");
+  });
+
+  it("adminGetStudent 当学生不存在时抛 NotFoundException", async () => {
+    const { prisma, service } = createStudentsService();
+    prisma.user.findFirst.mockResolvedValue(null);
+
+    await expect(service.adminGetStudent("nonexistent")).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("adminGetStudent 返回学生详情与 GPA", async () => {
+    const { prisma, service } = createStudentsService();
+    prisma.user.findFirst.mockResolvedValue({
+      id: "student-1",
+      email: "student@univ.edu",
+      studentProfile: { legalName: "张小明", programMajor: "CS" },
+      adviseeAssignments: [],
+      enrollments: [
+        {
+          id: "e1",
+          status: "COMPLETED",
+          finalGrade: "A",
+          section: { credits: 3, courseId: "c1", course: { id: "c1", code: "CS101", title: "导论" } }
+        }
+      ]
+    });
+
+    const result = await service.adminGetStudent("student-1");
+    expect(result.gpa).toBe(4);
+    expect(result.email).toBe("student@univ.edu");
+  });
+
+  it("getMyGradeAppeals 学生不存在时抛 NotFoundException", async () => {
+    const { prisma, service } = createStudentsService();
+    prisma.user.findFirst.mockResolvedValue(null);
+
+    await expect(service.getMyGradeAppeals("nonexistent")).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("getMyGradeAppeals 返回该学生的申诉列表", async () => {
+    const { prisma, service } = createStudentsService();
+    prisma.user.findFirst.mockResolvedValue({ id: "student-1" });
+    prisma.gradeAppeal.findMany.mockResolvedValue([
+      { id: "appeal-1", studentId: "student-1", status: "PENDING" }
+    ]);
+
+    const result = await service.getMyGradeAppeals("student-1");
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("appeal-1");
+  });
+
+  it("getCourseRecommendations 无同专业学生时返回热门课程", async () => {
+    const { prisma, service } = createStudentsService();
+    prisma.studentProfile.findUnique.mockResolvedValue({ programMajor: "CS" });
+    prisma.enrollment.findMany.mockResolvedValue([]);
+    prisma.studentProfile.findMany.mockResolvedValue([]); // No peers
+    prisma.enrollment.groupBy.mockResolvedValue([
+      { sectionId: "section-popular", _count: { sectionId: 15 } }
+    ]);
+    prisma.section.findMany.mockResolvedValue([
+      {
+        id: "section-popular",
+        course: { id: "course-1", code: "CS999", title: "热门课", credits: 3 },
+        term: { name: "2025秋" }
+      }
+    ]);
+
+    const result = await service.getCourseRecommendations("student-1");
+    expect(result).toHaveLength(1);
+    expect(result[0].reason).toBe("热门课程");
+    expect(result[0].popularityScore).toBe(15);
+  });
+
+  it("getCourseRecommendations 有同专业同学时返回协同推荐", async () => {
+    const { prisma, service } = createStudentsService();
+    prisma.studentProfile.findUnique.mockResolvedValue({ programMajor: "CS" });
+    prisma.enrollment.findMany.mockResolvedValue([]);
+    prisma.studentProfile.findMany.mockResolvedValue([{ userId: "peer-1" }, { userId: "peer-2" }]);
+    prisma.enrollment.groupBy.mockResolvedValue([
+      { sectionId: "section-peer", _count: { sectionId: 8 } }
+    ]);
+    prisma.section.findMany.mockResolvedValue([
+      {
+        id: "section-peer",
+        course: { id: "course-2", code: "CS201", title: "数据结构", credits: 3 },
+        term: { name: "2025秋" }
+      }
+    ]);
+
+    const result = await service.getCourseRecommendations("student-1");
+    expect(result[0].reason).toContain("同专业学生热选");
+  });
+
+  it("getCourseHistory 返回学生课程历史", async () => {
+    const { prisma, service } = createStudentsService();
+    prisma.enrollment.findMany.mockResolvedValue([
+      {
+        id: "e1",
+        status: "COMPLETED",
+        finalGrade: "B",
+        createdAt: new Date("2025-09-01T00:00:00Z"),
+        updatedAt: new Date("2025-12-31T00:00:00Z"),
+        section: {
+          sectionCode: "CS101-A",
+          credits: 3,
+          instructorName: "王教授",
+          course: { code: "CS101", title: "计算机科学导论" },
+          term: { name: "2025年秋季学期" }
+        }
+      }
+    ]);
+
+    const result = await service.getCourseHistory("student-1");
+    expect(result.terms).toHaveLength(1);
+    expect(result.terms[0].enrollments[0].finalGrade).toBe("B");
+    expect(result.summary.totalCourses).toBe(1);
+  });
+
+  it("getRealDegreeAudit 学生不存在时抛 NotFoundException", async () => {
+    const { prisma, service } = createStudentsService();
+    prisma.user.findFirst.mockResolvedValue(null);
+
+    await expect(service.getRealDegreeAudit("nonexistent")).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("getRealDegreeAudit 学生无 degreeProgram 时返回空结构", async () => {
+    const { prisma, service } = createStudentsService();
+    prisma.user.findFirst.mockResolvedValue({
+      id: "student-1",
+      email: "s@univ.edu",
+      degreeProgram: null,
+      studentProfile: { legalName: "张三", programMajor: null }
+    });
+
+    const result = await service.getRealDegreeAudit("student-1");
+    expect(result.program).toBeNull();
+    expect(result.eligible).toBe(false);
   });
 });

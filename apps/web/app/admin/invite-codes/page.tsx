@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -20,12 +20,15 @@ export default function InviteCodesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
+  const [bulkMode, setBulkMode] = useState(false);
   const [newCode, setNewCode] = useState("");
   const [newMaxUses, setNewMaxUses] = useState("");
   const [newExpiry, setNewExpiry] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmState, setConfirmState] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
+  const [bulkResult, setBulkResult] = useState<{ created: number; failed: Array<{ row: number; reason: string }> } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function load() {
     setLoading(true);
@@ -69,6 +72,54 @@ export default function InviteCodesPage() {
     }
   }
 
+  async function handleCsvUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSaving(true);
+    setBulkResult(null);
+    setError("");
+    try {
+      const text = await file.text();
+      const lines = text.trim().split("\n").filter(Boolean);
+      // 跳过表头行（如果第一行包含 "code"）
+      const dataLines = lines[0]?.toLowerCase().includes("code") ? lines.slice(1) : lines;
+      const rows = dataLines.map((line) => {
+        const [code, maxUses, expiresAt] = line.split(",").map((s) => s.trim().replace(/^"|"$/g, ""));
+        return {
+          code: code || undefined,
+          maxUses: maxUses ? Number(maxUses) : 1,
+          expiresAt: expiresAt || null,
+        };
+      });
+      const result = await apiFetch<{ created: number; failed: Array<{ row: number; reason: string }> }>(
+        "/admin/invite-codes/bulk",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rows }),
+        }
+      );
+      setBulkResult(result);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "批量导入失败");
+    } finally {
+      setSaving(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  function downloadTemplate() {
+    const csv = "code,maxUses,expiresAt\nWELCOME001,1,2026-12-31\nWELCOME002,1,\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "invite-codes-template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function toggleActive(code: InviteCode) {
     try {
       await apiFetch(`/admin/invite-codes/${code.id}`, {
@@ -109,7 +160,7 @@ export default function InviteCodesPage() {
       <section className="campus-hero">
         <p className="campus-eyebrow">系统管理</p>
         <h1 className="campus-title">邀请码管理</h1>
-        <p className="campus-subtitle">创建和管理用于注册的邀请码，可设置使用次数与有效期</p>
+        <p className="campus-subtitle">创建和管理用于注册的邀请码，可批量导入或逐条创建</p>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">
@@ -131,16 +182,65 @@ export default function InviteCodesPage() {
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       ) : null}
 
-      <div className="campus-toolbar">
+      {bulkResult ? (
+        <div className={`rounded-xl border px-4 py-3 text-sm ${bulkResult.failed.length > 0 ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
+          <p className="font-semibold">批量导入完成：成功 {bulkResult.created} 条{bulkResult.failed.length > 0 ? `，失败 ${bulkResult.failed.length} 条` : ""}</p>
+          {bulkResult.failed.length > 0 && (
+            <ul className="mt-2 space-y-0.5 text-xs">
+              {bulkResult.failed.map((f) => (
+                <li key={f.row}>第 {f.row} 行：{f.reason}</li>
+              ))}
+            </ul>
+          )}
+          <button type="button" onClick={() => setBulkResult(null)} className="mt-2 text-xs underline">关闭</button>
+        </div>
+      ) : null}
+
+      <div className="campus-toolbar flex-wrap gap-2">
         <button
           type="button"
-          onClick={() => setCreating((v) => !v)}
+          onClick={() => { setCreating((v) => !v); setBulkMode(false); }}
           className="campus-btn-ghost shrink-0"
         >
           {creating ? "取消" : "+ 新建邀请码"}
         </button>
+        <button
+          type="button"
+          onClick={() => { setBulkMode((v) => !v); setCreating(false); }}
+          className="campus-btn-ghost shrink-0"
+        >
+          {bulkMode ? "取消" : "📥 批量导入 CSV"}
+        </button>
       </div>
 
+      {/* 批量导入面板 */}
+      {bulkMode ? (
+        <div className="campus-card px-5 py-4 space-y-4">
+          <p className="font-semibold text-slate-800">批量导入邀请码</p>
+          <p className="text-sm text-slate-500">
+            CSV 格式：<code className="rounded bg-slate-100 px-1 py-0.5 text-xs">code,maxUses,expiresAt</code>
+            （code 为空则自动生成，expiresAt 可留空）
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="cursor-pointer rounded-xl border border-dashed border-blue-300 bg-blue-50 px-5 py-3 text-sm text-blue-700 hover:bg-blue-100 transition">
+              {saving ? "导入中…" : "选择 CSV 文件"}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={handleCsvUpload}
+                disabled={saving}
+              />
+            </label>
+            <button type="button" onClick={downloadTemplate} className="text-xs text-slate-500 underline hover:text-slate-700">
+              下载模板
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* 单条创建面板 */}
       {creating ? (
         <div className="campus-card px-5 py-4 space-y-4">
           <p className="font-semibold text-slate-800">新建邀请码</p>

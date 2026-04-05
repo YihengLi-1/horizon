@@ -2316,6 +2316,81 @@ async deleteInviteCode(id: string, actorUserId: string) {
     return { id };
   }
 
+  async bulkCreateInviteCodes(
+    rows: Array<{ code?: string; maxUses?: number | null; expiresAt?: string | null }>,
+    actorUserId: string
+  ) {
+    if (!rows.length) throw new BadRequestException({ code: "EMPTY_ROWS", message: "至少需要一行数据" });
+    if (rows.length > 500) throw new BadRequestException({ code: "TOO_MANY_ROWS", message: "单次最多导入 500 条" });
+
+    const { randomBytes } = await import("crypto");
+    const genCode = () => randomBytes(6).toString("base64url").toUpperCase().slice(0, 8);
+    const created: string[] = [];
+    const failed: Array<{ row: number; reason: string }> = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const code = (row.code ?? "").trim() || genCode();
+      try {
+        const invite = await this.prisma.inviteCode.create({
+          data: {
+            code,
+            maxUses: row.maxUses ?? 1,
+            expiresAt: row.expiresAt ? new Date(row.expiresAt) : null,
+            active: true,
+            issuedByUserId: actorUserId
+          }
+        });
+        created.push(invite.id);
+      } catch {
+        failed.push({ row: i + 1, reason: `邀请码 "${code}" 已存在` });
+      }
+    }
+
+    await this.auditService.log({
+      actorUserId,
+      action: "admin_crud",
+      entityType: "invite_code",
+      entityId: actorUserId,
+      metadata: { op: "bulk_create", count: created.length }
+    });
+
+    return { created: created.length, failed };
+  }
+
+  async adminResetStudentPassword(studentUserId: string, actorUserId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: studentUserId, role: "STUDENT", deletedAt: null },
+      select: { id: true, email: true }
+    });
+    if (!user) throw new NotFoundException({ code: "USER_NOT_FOUND", message: "学生不存在" });
+
+    const { randomBytes } = await import("crypto");
+    const token = randomBytes(32).toString("hex");
+
+    await this.prisma.$transaction([
+      this.prisma.passwordResetToken.deleteMany({ where: { userId: studentUserId } }),
+      this.prisma.passwordResetToken.create({
+        data: {
+          token,
+          userId: studentUserId,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24h
+        }
+      })
+    ]);
+
+    await this.mailService.sendPasswordReset(user.email, token);
+    await this.auditService.log({
+      actorUserId,
+      action: "admin_password_reset",
+      entityType: "user",
+      entityId: studentUserId,
+      metadata: { targetEmail: user.email }
+    });
+
+    return { message: `密码重置邮件已发送至 ${user.email}` };
+  }
+
 async updateUserRole(userId: string, role: "STUDENT" | "ADMIN", actorUserId: string) {
     const updated = await this.prisma.user.update({
       where: { id: userId },

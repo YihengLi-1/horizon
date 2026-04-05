@@ -1,7 +1,7 @@
 const DEFAULT_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
-export function getClientApiUrl(): string {
+function getClientApiUrl(): string {
   if (typeof window === "undefined") {
     return DEFAULT_API_URL;
   }
