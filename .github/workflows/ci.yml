@@ -20,7 +20,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @sis/shared build
       - run: pnpm --filter @sis/api exec prisma generate
-      - run: pnpm --filter web exec tsc --noEmit
+      - name: Run API unit tests
+        run: pnpm --filter @sis/api test --ci
+      - run: pnpm --filter @sis/web exec tsc --noEmit
       - run: pnpm --filter @sis/api build
       - name: Run readiness checks (static only)
-        run: bash scripts/readiness-check.sh || true
+        continue-on-error: true
+        run: bash scripts/readiness-check.sh

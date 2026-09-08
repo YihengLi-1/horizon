@@ -107,6 +107,19 @@ function makeCartItem(input?: Partial<any>) {
 }
 
 describe("RegistrationService", () => {
+  beforeEach(() => {
+    // The term fixtures start in September 2026. Keep these scenarios inside
+    // their intended registration window, independent of the wall clock.
+    jest.useFakeTimers({
+      now: new Date("2026-08-01T00:00:00Z"),
+      doNotFake: ["nextTick", "setTimeout", "setInterval", "setImmediate", "queueMicrotask", "performance", "hrtime"]
+    });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it("hasMeetingConflict returns false for non-overlapping meetings", () => {
     expect(
       hasMeetingConflict(

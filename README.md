@@ -2,6 +2,10 @@
 
 Horizon is a production-oriented student information system for academic operations and student self-service. It models the workflows behind registration, waitlists, prerequisites, grades, terms, appeals, notifications, and administrative controls—not just the screens around them.
 
+[CI and unit tests](https://github.com/YihengLi-1/horizon/actions/workflows/ci.yml) · [Registration logic](apps/api/src/registration/registration.service.ts) · [Unit-test scenarios](apps/api/src/registration/registration.service.spec.ts)
+
+Horizon is an engineering project modeling academic workflows, not an official ASU system. The repository demonstrates implementation and test coverage; it does not claim institution-wide adoption.
+
 > 中文说明：[README.zh-CN.md](README.zh-CN.md)
 
 ## Why this project
@@ -14,7 +18,7 @@ Student systems combine policy, state, concurrency, security, and many user role
 - **Workflow modeling:** prerequisite checks, waitlist promotion, registration windows, holds, grade locks, appeals, and term-state transitions.
 - **Multi-role access:** student, faculty, advisor, and administrator experiences with role-based controls.
 - **Operational readiness:** Docker environments, health endpoints, request IDs, Prometheus/Grafana monitoring, alerts, and backup-restore drills.
-- **Verification:** API smoke tests, Playwright critical-flow tests, unit tests, CI type/build checks, and a 457-check static readiness suite.
+- **Verification:** API smoke tests, Playwright critical-flow tests, API unit tests enforced in CI, type/build checks, and a separate static readiness checklist.
 - **Documentation:** OpenAPI/Swagger, schema documentation, UAT guidance, disaster-recovery notes, and operating procedures.
 
 ## Architecture
@@ -52,22 +56,29 @@ Student systems combine policy, state, concurrency, security, and many user role
 ### Requirements
 
 - Node.js 20+
-- pnpm 9+
+- pnpm 10.8.0 (the version declared in `package.json`)
 - PostgreSQL 15+, or Docker
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
+cp .env.example .env
 cp .env.example apps/api/.env
-cp .env.example apps/web/.env.local
+cp apps/web/.env.example apps/web/.env.local
+# Optional: use the repository's local PostgreSQL and Redis services.
+docker compose up -d db redis
+pnpm --filter @sis/shared build
+pnpm --filter @sis/api exec prisma generate
 pnpm --filter @sis/api exec prisma migrate deploy
 pnpm --filter @sis/api exec prisma db seed
 ```
+
+The root template's database URL matches the Compose defaults. If using an existing local PostgreSQL instance, update `DATABASE_URL` in `apps/api/.env` first. Configure a local `JWT_SECRET`; the example values are development placeholders. Seeding creates demonstration records, so use a dedicated development database.
 
 Start the API and web application in separate terminals:
 
 ```bash
 pnpm --filter @sis/api run dev
-pnpm --filter web run dev
+pnpm --filter @sis/web run dev
 ```
 
 Then open:
@@ -78,19 +89,38 @@ Then open:
 ### Docker
 
 ```bash
-docker compose up -d
+cp .env.example .env
+docker compose up -d --build
 docker compose exec api pnpm --filter @sis/api exec prisma db seed
 ```
 
 ## Verification
 
+The unit suite uses mocked dependencies and does not require a running database:
+
 ```bash
-bash scripts/readiness-check.sh
+pnpm --filter @sis/shared build
+pnpm --filter @sis/api exec prisma generate
+pnpm test:api
+```
+
+CI runs these unit tests as a required step, followed by web type checks and the API build. Test failures fail the job. The static readiness checklist is explicitly advisory: it checks files, configuration, and expected patterns rather than exercising application behavior.
+
+For integration testing, start the local services and seed the development database first:
+
+```bash
 pnpm test:e2e:api
+pnpm --filter @sis/web exec playwright install chromium
 pnpm test:e2e:web
 ```
 
-The readiness script's documented expected result is `457 pass, 0 warn, 0 fail`. The repository also includes load-test and backup-restore drill scripts; run them against an isolated local environment.
+API and browser E2E scripts are available for local use; they are not currently part of CI. Read each script's environment requirements before running it. Load tests and backup-restore drills also require isolated local services.
+
+```bash
+bash scripts/readiness-check.sh
+```
+
+A passing build or static checklist is not a production certification. The most useful evidence is the specific behavior exercised by a test and the outcome of its latest run.
 
 ## Repository map
 
